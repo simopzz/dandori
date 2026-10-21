@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -51,14 +52,17 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 // Close releases the database connections.
 func (a *App) Close() { a.pool.Close() }
 
+// ErrDatabaseUnreachable means the database is paused or can't be reached.
+var ErrDatabaseUnreachable = errors.New("database unreachable")
+
 // EnsureDatabase checks the database is reachable and, the first time it is,
 // applies pending migrations.
 func (a *App) EnsureDatabase(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	if err := a.pool.Ping(ctx); err != nil {
-		return fmt.Errorf("database unreachable: %w", err)
+	if err := a.ping(ctx); err != nil {
+		return err
 	}
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -69,6 +73,15 @@ func (a *App) EnsureDatabase(ctx context.Context) error {
 		return err
 	}
 	a.migrated = true
+	return nil
+}
+
+func (a *App) ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := a.pool.Ping(ctx); err != nil {
+		return fmt.Errorf("%w: %w", ErrDatabaseUnreachable, err)
+	}
 	return nil
 }
 
@@ -85,9 +98,16 @@ func (a *App) Handler() http.Handler {
 // next while the database can't be reached.
 func (a *App) needsDatabase(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := a.EnsureDatabase(r.Context()); err != nil {
+		err := a.EnsureDatabase(r.Context())
+		switch {
+		case errors.Is(err, ErrDatabaseUnreachable):
 			a.log.Warn("database unavailable", "err", err)
 			templ.Handler(web.DatabaseUnavailable(), templ.WithStatus(http.StatusServiceUnavailable)).ServeHTTP(w, r)
+			return
+		case err != nil:
+			// Reachable but not usable, e.g. a failing migration: a bug, not a pause.
+			a.log.Error("database not ready", "err", err)
+			http.Error(w, "MealOps could not prepare its database; see the server log.", http.StatusInternalServerError)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -96,7 +116,7 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 
 func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	status, code := "ok", http.StatusOK
-	if err := a.EnsureDatabase(r.Context()); err != nil {
+	if err := a.ping(r.Context()); err != nil {
 		status, code = "unavailable", http.StatusServiceUnavailable
 	} else if r.Header.Get("HX-Request") == "true" {
 		// The database-unavailable page polls this; reload it once we're back.

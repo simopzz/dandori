@@ -37,7 +37,7 @@ func TestUnreachableDatabaseShowsRecoverableErrorAndRecovers(t *testing.T) {
 	}
 }
 
-func TestErrorPageReloadsOnceDatabaseIsBack(t *testing.T) {
+func TestHealthPollTellsErrorPageToReloadWhenDatabaseIsReachable(t *testing.T) {
 	h := apptest.Start(t)
 
 	req, err := http.NewRequest(http.MethodGet, h.URL+"/healthz", nil)

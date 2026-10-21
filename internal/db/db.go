@@ -5,8 +5,8 @@ package db
 import (
 	"context"
 	"embed"
-	"io/fs"
 	"fmt"
+	"io/fs"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"

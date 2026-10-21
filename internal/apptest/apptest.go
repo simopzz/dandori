@@ -73,7 +73,7 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		t.Fatal(err)
 	}
 	p := startProxy(t, u.Host)
-	p.setUp(!s.databaseCut)
+	p.setReachable(!s.databaseCut)
 	u.Host = p.addr()
 
 	ctx := context.Background()
@@ -95,10 +95,10 @@ func Start(t testing.TB, opts ...Option) *Harness {
 
 // CutDatabase makes the database unreachable, as when Supabase pauses the
 // project: open connections drop and new ones are refused.
-func (h *Harness) CutDatabase() { h.proxy.setUp(false) }
+func (h *Harness) CutDatabase() { h.proxy.setReachable(false) }
 
 // RestoreDatabase makes the database reachable again.
-func (h *Harness) RestoreDatabase() { h.proxy.setUp(true) }
+func (h *Harness) RestoreDatabase() { h.proxy.setReachable(true) }
 
 // Response is a fully read HTTP response.
 type Response struct {

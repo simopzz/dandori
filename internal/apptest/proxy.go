@@ -13,9 +13,9 @@ type proxy struct {
 	ln     net.Listener
 	target string
 
-	mu    sync.Mutex
-	up    bool
-	conns map[net.Conn]struct{}
+	mu        sync.Mutex
+	reachable bool
+	conns     map[net.Conn]struct{}
 }
 
 func startProxy(t testing.TB, target string) *proxy {
@@ -24,22 +24,22 @@ func startProxy(t testing.TB, target string) *proxy {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := &proxy{ln: ln, target: target, up: true, conns: map[net.Conn]struct{}{}}
+	p := &proxy{ln: ln, target: target, reachable: true, conns: map[net.Conn]struct{}{}}
 	go p.serve()
 	t.Cleanup(func() {
 		ln.Close()
-		p.setUp(false)
+		p.setReachable(false)
 	})
 	return p
 }
 
 func (p *proxy) addr() string { return p.ln.Addr().String() }
 
-func (p *proxy) setUp(up bool) {
+func (p *proxy) setReachable(reachable bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.up = up
-	if !up {
+	p.reachable = reachable
+	if !reachable {
 		for c := range p.conns {
 			c.Close()
 		}
@@ -59,9 +59,9 @@ func (p *proxy) serve() {
 
 func (p *proxy) forward(client net.Conn) {
 	p.mu.Lock()
-	up := p.up
+	reachable := p.reachable
 	p.mu.Unlock()
-	if !up {
+	if !reachable {
 		client.Close()
 		return
 	}
@@ -71,7 +71,7 @@ func (p *proxy) forward(client net.Conn) {
 		return
 	}
 	p.mu.Lock()
-	if !p.up {
+	if !p.reachable {
 		p.mu.Unlock()
 		client.Close()
 		server.Close()

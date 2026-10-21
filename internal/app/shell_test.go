@@ -31,10 +31,10 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 		t.Errorf("manifest Content-Type = %q", ct)
 	}
 	var manifest struct {
-		Name      string `json:"name"`
-		StartURL  string `json:"start_url"`
-		Display   string `json:"display"`
-		Icons     []struct {
+		Name     string `json:"name"`
+		StartURL string `json:"start_url"`
+		Display  string `json:"display"`
+		Icons    []struct {
 			Src   string `json:"src"`
 			Sizes string `json:"sizes"`
 		} `json:"icons"`
