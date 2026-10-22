@@ -3,6 +3,8 @@ go = "1.27.3"
 "go:github.com/a-h/templ/cmd/templ" = "0.3.1070"
 
 [env]
+# Local secrets such as MEALOPS_DATABASE_URL; see .env.example.
+_.file = ".env"
 # Admin connection to a disposable Postgres + pgvector server; seam-1 tests
 # create one database per test on it. Start it with `mise run testdb`.
 MEALOPS_TEST_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
