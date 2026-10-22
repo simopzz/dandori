@@ -21,7 +21,7 @@ func (a *App) showProfile(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, "load profile", err)
 		return
 	}
-	f := web.ProfileForm{Values: map[string]string{}}
+	f := web.ProfileForm{Values: map[string]string{}, Saved: r.URL.Query().Has("saved")}
 	if found {
 		f.Values = profileValues(p)
 	}
@@ -33,17 +33,24 @@ func (a *App) saveProfile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
+	typed := map[string]string{}
+	for name := range r.PostForm {
+		typed[name] = r.PostForm.Get(name)
+	}
 	p, problems := parseProfile(r.PostForm)
 	if len(problems) > 0 {
-		values := map[string]string{}
-		for name := range r.PostForm {
-			values[name] = r.PostForm.Get(name)
-		}
-		a.renderProfileForm(w, r, web.ProfileForm{Values: values, Errors: problems}, http.StatusUnprocessableEntity)
+		a.renderProfileForm(w, r, web.ProfileForm{Values: typed, Errors: problems}, http.StatusUnprocessableEntity)
 		return
 	}
 	if err := a.storeProfile(r.Context(), p); err != nil {
-		a.serverError(w, "save profile", err)
+		// Keep what was typed rather than swapping a bare error over the form.
+		a.log.Error("save profile", "err", err)
+		a.renderProfileForm(w, r, web.ProfileForm{Values: typed, Failed: true}, http.StatusInternalServerError)
+		return
+	}
+	if !isHTMX(r) {
+		// Redirect, so reloading the page doesn't resubmit the form.
+		http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
 		return
 	}
 	a.renderProfileForm(w, r, web.ProfileForm{Values: profileValues(p), Saved: true}, http.StatusOK)
@@ -53,7 +60,7 @@ func (a *App) saveProfile(w http.ResponseWriter, r *http.Request) {
 // a plain browser gets the whole page.
 func (a *App) renderProfileForm(w http.ResponseWriter, r *http.Request, f web.ProfileForm, status int) {
 	c := web.ProfilePage(f)
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		c = web.ProfileFormFragment(f)
 	}
 	templ.Handler(c, templ.WithStatus(status)).ServeHTTP(w, r)

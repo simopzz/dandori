@@ -8,7 +8,7 @@ import (
 
 func TestProfileForbidsIngredientsMatchingAnExclusionOrAllergy(t *testing.T) {
 	p := domain.Profile{
-		Exclusions: domain.FoodTerms("Pork, mushrooms, tomatoes, anchovy"),
+		Exclusions: domain.FoodTerms("Pork, mushrooms, tomatoes, anchovy, brownies, cookie, pies"),
 		Allergies:  domain.FoodTerms("peanuts\nsesame seeds"),
 	}
 	tests := []struct {
@@ -23,6 +23,9 @@ func TestProfileForbidsIngredientsMatchingAnExclusionOrAllergy(t *testing.T) {
 		{"toasted sesame seeds", "sesame seeds"},
 		{"cherry tomato", "tomatoes"},
 		{"anchovies in oil", "anchovy"},
+		{"chocolate brownie", "brownies"},
+		{"oat cookies", "cookie"},
+		{"apple pie", "pies"},
 		{"sesame oil", ""},
 		{"porky's sauce", ""},
 		{"chicken breast", ""},

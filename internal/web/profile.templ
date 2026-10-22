@@ -6,6 +6,8 @@ type ProfileForm struct {
 	Values map[string]string
 	Errors map[string]string
 	Saved  bool
+	// Failed means the Profile was valid but could not be stored.
+	Failed bool
 }
 
 // ProfilePage shows the Profile for viewing and editing.
@@ -22,6 +24,9 @@ templ ProfileFormFragment(f ProfileForm) {
 	<form class="profile" method="post" action="/profile" hx-post="/profile" hx-target="this" hx-swap="outerHTML">
 		if f.Saved {
 			<p class="saved" role="status">Profile saved.</p>
+		}
+		if f.Failed {
+			<p class="error" role="alert">The Profile could not be saved; try again. Details are in the server log.</p>
 		}
 		if len(f.Errors) > 0 {
 			<p class="error" role="alert">The Profile was not saved; fix the fields marked below.</p>
@@ -62,7 +67,11 @@ templ nutritionFields(f ProfileForm, prefix string) {
 templ numberField(f ProfileForm, name, label, unit string) {
 	<label>
 		{ label } <span class="muted">({ unit })</span>
-		<input type="number" inputmode="numeric" min="0" step="1" required name={ name } value={ f.Values[name] } aria-invalid?={ f.Errors[name] != "" }/>
+		<input type="number" inputmode="numeric" min="0" step="1" required name={ name } value={ f.Values[name] }
+			if f.Errors[name] != "" {
+				aria-invalid="true"
+			}
+		/>
 		if msg := f.Errors[name]; msg != "" {
 			<span class="field-error">{ msg }</span>
 		}

@@ -108,6 +108,10 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 		switch {
 		case errors.Is(err, ErrDatabaseUnreachable):
 			a.log.Warn("database unavailable", "err", err)
+			if isHTMX(r) {
+				// Reload into the error page rather than swap it into a fragment.
+				w.Header().Set("HX-Refresh", "true")
+			}
 			templ.Handler(web.DatabaseUnavailable(), templ.WithStatus(http.StatusServiceUnavailable)).ServeHTTP(w, r)
 			return
 		case err != nil:
@@ -125,11 +129,13 @@ func (a *App) serverError(w http.ResponseWriter, what string, err error) {
 	http.Error(w, "Something went wrong; see the server log.", http.StatusInternalServerError)
 }
 
+func isHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
+
 func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	status, code := "ok", http.StatusOK
 	if err := a.ping(r.Context()); err != nil {
 		status, code = "unavailable", http.StatusServiceUnavailable
-	} else if r.Header.Get("HX-Request") == "true" {
+	} else if isHTMX(r) {
 		// The database-unavailable page polls this; reload it once we're back.
 		w.Header().Set("HX-Refresh", "true")
 	}

@@ -81,9 +81,13 @@ func foodWords(s string) []string {
 }
 
 // singular undoes the regular English plurals: berries, tomatoes, peaches,
-// peanuts. Words too short to be plurals, and those in -ss, are kept.
+// peanuts. Words too short to be plurals, and those in -ss, are kept. As
+// -ies is the plural of both -y (berry) and -ie (brownie), a singular in -ie
+// is spelled -y too, so either spelling matches either plural.
 func singular(w string) string {
 	switch {
+	case strings.HasSuffix(w, "ie"):
+		return strings.TrimSuffix(w, "ie") + "y"
 	case len(w) <= 3 || strings.HasSuffix(w, "ss") || !strings.HasSuffix(w, "s"):
 		return w
 	case strings.HasSuffix(w, "ies"):

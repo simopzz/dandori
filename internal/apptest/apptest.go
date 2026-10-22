@@ -152,6 +152,9 @@ type Response struct {
 	StatusCode int
 	Header     http.Header
 	Body       string
+	// Method is the method of the request that got this response: GET when
+	// a POST was redirected.
+	Method string
 }
 
 // Get requests path from the app.
@@ -173,7 +176,26 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 // any redirect.
 func (h *Harness) PostForm(t testing.TB, path string, form url.Values) Response {
 	t.Helper()
-	res, err := h.Client.PostForm(h.URL+path, form)
+	return h.postForm(t, path, form, false)
+}
+
+// HTMXPostForm submits form to path as HTMX does, marked with HX-Request.
+func (h *Harness) HTMXPostForm(t testing.TB, path string, form url.Values) Response {
+	t.Helper()
+	return h.postForm(t, path, form, true)
+}
+
+func (h *Harness) postForm(t testing.TB, path string, form url.Values, htmx bool) Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, h.URL+path, strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if htmx {
+		req.Header.Set("HX-Request", "true")
+	}
+	res, err := h.Client.Do(req)
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
@@ -182,5 +204,5 @@ func (h *Harness) PostForm(t testing.TB, path string, form url.Values) Response 
 	if err != nil {
 		t.Fatalf("POST %s: read body: %v", path, err)
 	}
-	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body)}
+	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method}
 }

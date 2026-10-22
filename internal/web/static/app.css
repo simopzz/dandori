@@ -24,9 +24,6 @@ header {
   background: var(--accent);
   color: var(--bg);
   padding: 0.75rem 1rem;
-}
-
-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -84,7 +81,7 @@ main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
   width: 100%;
 }
 
-.profile [aria-invalid] { border-color: var(--error); }
+.profile [aria-invalid="true"] { border-color: var(--error); }
 
 .field-error { color: var(--error); font-size: 0.9rem; }
 

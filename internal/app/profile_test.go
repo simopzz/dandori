@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"html"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -68,8 +67,11 @@ func TestSavedProfilePersists(t *testing.T) {
 	h := apptest.Start(t)
 
 	res := h.PostForm(t, "/profile", validProfile())
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("POST /profile status = %d, want 200:\n%s", res.StatusCode, res.Body)
+	if res.StatusCode != http.StatusOK || !strings.Contains(res.Body, "Profile saved.") {
+		t.Fatalf("POST /profile = %d, want 200 and a confirmation:\n%s", res.StatusCode, res.Body)
+	}
+	if res.Method != http.MethodGet {
+		t.Errorf("a saved Profile is answered without a redirect, so reloading resubmits the form")
 	}
 
 	page := h.Get(t, "/profile").Body
@@ -128,23 +130,24 @@ func TestEditingProfileReplacesItsTargetsAndExclusions(t *testing.T) {
 func TestHTMXSubmissionSwapsOnlyTheProfileForm(t *testing.T) {
 	h := apptest.Start(t)
 
-	req, err := http.NewRequest(http.MethodPost, h.URL+"/profile", strings.NewReader(validProfile().Encode()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("HX-Request", "true")
-	res, err := h.Client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, _ := io.ReadAll(res.Body)
-	res.Body.Close()
+	res := h.HTMXPostForm(t, "/profile", validProfile())
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("HTMX POST /profile status = %d, want 200", res.StatusCode)
 	}
-	if strings.Contains(string(body), "<html") || !strings.Contains(string(body), "Profile saved.") {
-		t.Errorf("HTMX submission should get the saved form alone:\n%s", body)
+	if strings.Contains(res.Body, "<html") || !strings.Contains(res.Body, "Profile saved.") {
+		t.Errorf("HTMX submission should get the saved form alone:\n%s", res.Body)
+	}
+}
+
+func TestHTMXSubmissionWhileDatabaseIsUnreachableReloadsThePage(t *testing.T) {
+	h := apptest.Start(t)
+	h.CutDatabase(t)
+
+	// Swapping the database-unavailable page into the form would nest it;
+	// a full reload shows it properly.
+	res := h.HTMXPostForm(t, "/profile", validProfile())
+	if res.StatusCode != http.StatusServiceUnavailable || res.Header.Get("HX-Refresh") != "true" {
+		t.Errorf("HTMX POST /profile while unreachable = %d, HX-Refresh %q; want 503 and a refresh", res.StatusCode, res.Header.Get("HX-Refresh"))
 	}
 }
 
@@ -182,6 +185,9 @@ func TestInvalidProfileIsRejectedAndNothingChanges(t *testing.T) {
 			}
 			if !hasField(res.Body, tt.field, tt.value) || !hasField(res.Body, "exclusions", "anchovies") {
 				t.Errorf("rejected form does not keep what was typed:\n%s", res.Body)
+			}
+			if !strings.Contains(res.Body, `name="`+tt.field+`" value="`+tt.value+`" aria-invalid="true"`) {
+				t.Errorf("rejected field is not marked invalid for assistive technology:\n%s", res.Body)
 			}
 			if strings.Contains(res.Body, "Profile saved.") {
 				t.Errorf("rejected form claims the Profile was saved")
