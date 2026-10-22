@@ -5,6 +5,9 @@
   --muted: #5d6b60;
   --warn-bg: #fff4d6;
   --warn-border: #d9a520;
+  --ok-bg: #e3f0e4;
+  --error: #a3312a;
+  --error-bg: #fbe7e5;
 }
 
 * { box-sizing: border-box; }
@@ -23,7 +26,18 @@ header {
   padding: 0.75rem 1rem;
 }
 
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 header h1 { margin: 0; font-size: 1.25rem; }
+
+header a { color: inherit; text-decoration: none; }
+
+header nav a { font-weight: 600; }
 
 main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
 
@@ -35,3 +49,62 @@ main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
 }
 
 .muted { color: var(--muted); }
+
+.profile fieldset {
+  border: 1px solid #cfc8b4;
+  border-radius: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.profile legend { font-weight: 600; padding: 0 0.25rem; }
+
+.profile fieldset > p { margin: 0 0 0.75rem; }
+
+.profile label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.nutrition {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0 0.75rem;
+}
+
+.profile input,
+.profile textarea {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #b9b19b;
+  border-radius: 0.35rem;
+  background: #fff;
+  width: 100%;
+}
+
+.profile [aria-invalid] { border-color: var(--error); }
+
+.field-error { color: var(--error); font-size: 0.9rem; }
+
+.profile button {
+  font: inherit;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--bg);
+  border: 0;
+  border-radius: 0.35rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+}
+
+.saved,
+.error {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.saved { background: var(--ok-bg); border: 1px solid var(--accent); }
+
+.error { background: var(--error-bg); border: 1px solid var(--error); }

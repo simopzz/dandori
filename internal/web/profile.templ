@@ -1,0 +1,80 @@
+package web
+
+// ProfileForm is the Profile as the form shows it: the raw field values, so
+// a rejected submission is shown back as typed, and an error per field.
+type ProfileForm struct {
+	Values map[string]string
+	Errors map[string]string
+	Saved  bool
+}
+
+// ProfilePage shows the Profile for viewing and editing.
+templ ProfilePage(f ProfileForm) {
+	@layout("MealOps — Profile") {
+		<h2>Profile</h2>
+		@ProfileFormFragment(f)
+	}
+}
+
+// ProfileFormFragment is the Profile form alone, which HTMX swaps in place
+// after a submission.
+templ ProfileFormFragment(f ProfileForm) {
+	<form class="profile" method="post" action="/profile" hx-post="/profile" hx-target="this" hx-swap="outerHTML">
+		if f.Saved {
+			<p class="saved" role="status">Profile saved.</p>
+		}
+		if len(f.Errors) > 0 {
+			<p class="error" role="alert">The Profile was not saved; fix the fields marked below.</p>
+		}
+		<fieldset>
+			<legend>Daily Targets</legend>
+			@nutritionFields(f, "target")
+		</fieldset>
+		<fieldset>
+			<legend>Exclusions and allergies</legend>
+			<p class="muted">One food per line, or separated by commas. Recipes containing them are never planned.</p>
+			@foodField(f, "exclusions", "Never eat")
+			@foodField(f, "allergies", "Allergies")
+		</fieldset>
+		<fieldset>
+			<legend>Meal Out estimate</legend>
+			<p class="muted">What one Meal Out is assumed to contain unless you say otherwise.</p>
+			@nutritionFields(f, "meal_out")
+		</fieldset>
+		<fieldset>
+			<legend>Untracked Allowance</legend>
+			<p class="muted">Eaten each day outside the Plan (coffee, snacks); reserved before Slots are filled.</p>
+			@nutritionFields(f, "untracked")
+		</fieldset>
+		<button type="submit">Save Profile</button>
+	</form>
+}
+
+templ nutritionFields(f ProfileForm, prefix string) {
+	<div class="nutrition">
+		@numberField(f, prefix+"_kcal", "Calories", "kcal")
+		@numberField(f, prefix+"_protein_g", "Protein", "g")
+		@numberField(f, prefix+"_carbs_g", "Carbs", "g")
+		@numberField(f, prefix+"_fat_g", "Fat", "g")
+	</div>
+}
+
+templ numberField(f ProfileForm, name, label, unit string) {
+	<label>
+		{ label } <span class="muted">({ unit })</span>
+		<input type="number" inputmode="numeric" min="0" step="1" required name={ name } value={ f.Values[name] } aria-invalid?={ f.Errors[name] != "" }/>
+		if msg := f.Errors[name]; msg != "" {
+			<span class="field-error">{ msg }</span>
+		}
+	</label>
+}
+
+templ foodField(f ProfileForm, name, label string) {
+	<label>
+		{ label }
+		<textarea name={ name } rows="3">{ f.Values[name] }</textarea>
+		if msg := f.Errors[name]; msg != "" {
+			<span class="field-error">{ msg }</span>
+		}
+	</label>
+}

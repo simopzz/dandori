@@ -42,7 +42,7 @@ func layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"manifest\" href=\"/manifest.webmanifest\"><link rel=\"icon\" href=\"/static/icon-192.png\"><link rel=\"apple-touch-icon\" href=\"/static/icon-192.png\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script>\n\t\t\t\tif (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");\n\t\t\t</script></head><body><header><h1>MealOps</h1></header><main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"manifest\" href=\"/manifest.webmanifest\"><link rel=\"icon\" href=\"/static/icon-192.png\"><link rel=\"apple-touch-icon\" href=\"/static/icon-192.png\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script>\n\t\t\t\tif (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");\n\t\t\t</script></head><body><header><h1><a href=\"/\">MealOps</a></h1><nav><a href=\"/profile\">Profile</a></nav></header><main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

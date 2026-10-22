@@ -95,6 +95,8 @@ func (a *App) Handler() http.Handler {
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
 	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
+	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(a.showProfile)))
+	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(a.saveProfile)))
 	return mux
 }
 
@@ -116,6 +118,11 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (a *App) serverError(w http.ResponseWriter, what string, err error) {
+	a.log.Error(what, "err", err)
+	http.Error(w, "Something went wrong; see the server log.", http.StatusInternalServerError)
 }
 
 func (a *App) health(w http.ResponseWriter, r *http.Request) {

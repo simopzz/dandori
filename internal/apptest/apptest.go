@@ -168,3 +168,19 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 	}
 	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body)}
 }
+
+// PostForm submits form to path, as a browser does without HTMX, following
+// any redirect.
+func (h *Harness) PostForm(t testing.TB, path string, form url.Values) Response {
+	t.Helper()
+	res, err := h.Client.PostForm(h.URL+path, form)
+	if err != nil {
+		t.Fatalf("POST %s: %v", path, err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("POST %s: read body: %v", path, err)
+	}
+	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body)}
+}
