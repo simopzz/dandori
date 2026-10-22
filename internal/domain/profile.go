@@ -1,10 +1,6 @@
 package domain
 
-import (
-	"slices"
-	"strings"
-	"unicode"
-)
+import "strings"
 
 // Nutrition is an amount of calories and macros: a day's worth for the
 // Targets and the Untracked Allowance, one meal's worth for a Meal Out.
@@ -18,8 +14,8 @@ type Nutrition struct {
 // Profile is the user's stored nutrition settings. There is one per app.
 type Profile struct {
 	Targets Nutrition
-	// Exclusions and Allergies are foods the user never eats, as normalised
-	// food terms; see Profile.Forbids.
+	// Exclusions and Allergies are foods the user never eats, as the user
+	// named them, normalised by FoodTerms.
 	Exclusions         []string
 	Allergies          []string
 	MealOut            Nutrition
@@ -49,68 +45,6 @@ func (p Profile) Validate() map[string]string {
 
 func (n Nutrition) amounts() map[string]int {
 	return map[string]int{"Kcal": n.Kcal, "ProteinG": n.ProteinG, "CarbsG": n.CarbsG, "FatG": n.FatG}
-}
-
-// Forbids reports whether the Ingredient named ingredient contains one of
-// the Profile's allergies or exclusions, and which. A term matches when its
-// words appear together in the Ingredient's name, ignoring case and plurals:
-// "peanuts" forbids "peanut butter", and "pork" forbids "minced pork" but
-// not "porky's sauce". Allergies are checked first.
-//
-// It matches words, not food categories: "shellfish" does not forbid
-// "prawns". Recipe generation must still be told the terms themselves.
-func (p Profile) Forbids(ingredient string) (term string, forbidden bool) {
-	name := foodWords(ingredient)
-	for _, terms := range [][]string{p.Allergies, p.Exclusions} {
-		for _, term := range terms {
-			if containsWords(name, foodWords(term)) {
-				return term, true
-			}
-		}
-	}
-	return "", false
-}
-
-// foodWords splits a food name into lowercase, singular words.
-func foodWords(s string) []string {
-	words := strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
-	for i, w := range words {
-		words[i] = singular(w)
-	}
-	return words
-}
-
-// singular undoes the regular English plurals: berries, tomatoes, peaches,
-// peanuts. Words too short to be plurals, and those in -ss, are kept. As
-// -ies is the plural of both -y (berry) and -ie (brownie), a singular in -ie
-// is spelled -y too, so either spelling matches either plural.
-func singular(w string) string {
-	switch {
-	case strings.HasSuffix(w, "ie"):
-		return strings.TrimSuffix(w, "ie") + "y"
-	case len(w) <= 3 || strings.HasSuffix(w, "ss") || !strings.HasSuffix(w, "s"):
-		return w
-	case strings.HasSuffix(w, "ies"):
-		return strings.TrimSuffix(w, "ies") + "y"
-	case strings.HasSuffix(w, "oes"), strings.HasSuffix(w, "ches"), strings.HasSuffix(w, "shes"),
-		strings.HasSuffix(w, "xes"), strings.HasSuffix(w, "sses"):
-		return strings.TrimSuffix(w, "es")
-	default:
-		return strings.TrimSuffix(w, "s")
-	}
-}
-
-// containsWords reports whether words holds sub as a contiguous run.
-func containsWords(words, sub []string) bool {
-	if len(sub) == 0 {
-		return false
-	}
-	for i := 0; i+len(sub) <= len(words); i++ {
-		if slices.Equal(words[i:i+len(sub)], sub) {
-			return true
-		}
-	}
-	return false
 }
 
 // FoodTerms normalises a list of foods as the user typed them: one per line

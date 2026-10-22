@@ -6,41 +6,6 @@ import (
 	"github.com/simopzz/mealops/internal/domain"
 )
 
-func TestProfileForbidsIngredientsMatchingAnExclusionOrAllergy(t *testing.T) {
-	p := domain.Profile{
-		Exclusions: domain.FoodTerms("Pork, mushrooms, tomatoes, anchovy, brownies, cookie, pies"),
-		Allergies:  domain.FoodTerms("peanuts\nsesame seeds"),
-	}
-	tests := []struct {
-		ingredient string
-		wantTerm   string // "" when the Ingredient is allowed
-	}{
-		{"pork", "pork"},
-		{"Pork Loin", "pork"},
-		{"minced pork", "pork"},
-		{"button mushroom", "mushrooms"},
-		{"peanut butter", "peanuts"},
-		{"toasted sesame seeds", "sesame seeds"},
-		{"cherry tomato", "tomatoes"},
-		{"anchovies in oil", "anchovy"},
-		{"chocolate brownie", "brownies"},
-		{"oat cookies", "cookie"},
-		{"apple pie", "pies"},
-		{"sesame oil", ""},
-		{"porky's sauce", ""},
-		{"chicken breast", ""},
-		{"spinach", ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.ingredient, func(t *testing.T) {
-			term, forbidden := p.Forbids(tt.ingredient)
-			if forbidden != (tt.wantTerm != "") || term != tt.wantTerm {
-				t.Errorf("Forbids(%q) = %q, %v; want %q", tt.ingredient, term, forbidden, tt.wantTerm)
-			}
-		})
-	}
-}
-
 func TestFoodTermsAreNormalisedAndDeduplicated(t *testing.T) {
 	got := domain.FoodTerms(" Peanuts ,\n\nshellfish; PEANUTS\r\n  Sesame   Seeds ")
 	want := []string{"peanuts", "shellfish", "sesame seeds"}
