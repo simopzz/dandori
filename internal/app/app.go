@@ -17,6 +17,7 @@ import (
 
 	"github.com/simopzz/mealops/internal/agent"
 	"github.com/simopzz/mealops/internal/db"
+	"github.com/simopzz/mealops/internal/demo"
 	"github.com/simopzz/mealops/internal/web"
 )
 
@@ -33,6 +34,9 @@ type Config struct {
 	LLMRetryBackoff time.Duration
 	// MaxTurns bounds the requests to the model in one Run.
 	MaxTurns int
+
+	// Demo offers demo Runs on the Runs page, for trying the agent by hand.
+	Demo bool
 }
 
 // DefaultModel is the latest Claude model.
@@ -83,6 +87,9 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	}
 	a := &App{pool: pool, cfg: cfg.withDefaults(), ports: ports, log: log}
 	a.runs = newRuns()
+	if cfg.Demo {
+		a.RegisterJob(demo.Kind, demo.NewJob)
+	}
 	return a, nil
 }
 

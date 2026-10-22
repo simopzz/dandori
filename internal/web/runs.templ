@@ -56,10 +56,24 @@ var eventLabels = map[string]string{
 	"finished":    "Finished",
 }
 
-// RunsPage lists every Run, newest first.
-templ RunsPage(runs []Run) {
+// RunsPage lists every Run, newest first. In demo mode it offers to start
+// a demo Run.
+templ RunsPage(runs []Run, demo bool) {
 	@layout("MealOps — Runs") {
 		<h2>Runs</h2>
+		if demo {
+			<form method="post" action="/runs" class="demo-start">
+				<input type="hidden" name="kind" value="demo"/>
+				<label>
+					Model
+					<select name="model">
+						<option value="fake">Scripted (no API calls)</option>
+						<option value="claude">Claude (real API, costs money)</option>
+					</select>
+				</label>
+				<button type="submit">Start demo run</button>
+			</form>
+		}
 		if len(runs) == 0 {
 			<p class="muted">No agent has run yet.</p>
 		} else {
@@ -90,7 +104,7 @@ templ RunPage(r Run) {
 		<p class="run-meta">
 			@runStatus(r.Status)
 			<span class="muted">
-				started
+				{ "started " }
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
 			</span>
 		</p>

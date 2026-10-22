@@ -108,6 +108,8 @@ main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
 
 .error { background: var(--error-bg); border: 1px solid var(--error); }
 
+.demo-start { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin: 0 0 1rem; }
+
 .runs { width: 100%; border-collapse: collapse; }
 
 .runs th,

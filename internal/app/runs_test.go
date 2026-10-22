@@ -356,6 +356,36 @@ func TestRunInterruptedByACrashIsFailedOnRestart(t *testing.T) {
 	}
 }
 
+func TestDemoRunsAreOfferedOnlyInDemoMode(t *testing.T) {
+	h := apptest.Start(t)
+	if strings.Contains(text(h.Get(t, "/runs").Body), "Start demo run") {
+		t.Errorf("demo Runs are offered outside demo mode")
+	}
+	if res := h.PostForm(t, "/runs", url.Values{"kind": {"demo"}, "model": {"fake"}}); res.StatusCode != http.StatusBadRequest {
+		t.Errorf("starting a demo Run outside demo mode = %d, want 400", res.StatusCode)
+	}
+
+	// No LLM port: the scripted demo must not need one.
+	h = apptest.Start(t, apptest.WithConfig(func(c *app.Config) { c.Demo = true }))
+	if list := text(h.Get(t, "/runs").Body); !strings.Contains(list, "Start demo run") {
+		t.Fatalf("demo mode does not offer a demo Run:\n%s", list)
+	}
+	res := h.PostForm(t, "/runs", url.Values{"kind": {"demo"}, "model": {"fake"}})
+	if res.StatusCode != http.StatusOK || !strings.HasPrefix(res.Path, "/runs/") {
+		t.Fatalf("starting a demo Run = %d at %s, want its trace panel", res.StatusCode, res.Path)
+	}
+	stream := h.Stream(t, res.Path+"/events", "")
+	readUntil(t, stream, "demo run with a scripted model")
+	readUntil(t, stream, "Retry 1 of 3")
+	h.PostForm(t, res.Path+"/cancel", nil)
+	if rest := stream.Rest(t); rest[len(rest)-1].Data != "cancelled" {
+		t.Errorf("demo Run was not cancelled:\n%s", shown(rest))
+	}
+	if bad := h.PostForm(t, "/runs", url.Values{"kind": {"demo"}, "model": {"gpt"}}); bad.StatusCode != http.StatusBadRequest {
+		t.Errorf("a demo Run with an unknown model = %d, want 400", bad.StatusCode)
+	}
+}
+
 func TestRunWithoutAnLLMFailsClearly(t *testing.T) {
 	h := apptest.Start(t, apptest.WithJob("pantry", pantryJob()))
 	run, _ := finish(t, h, "pantry")

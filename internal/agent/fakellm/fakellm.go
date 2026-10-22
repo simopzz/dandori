@@ -1,5 +1,6 @@
-// Package fakellm is a scripted LLM for tests: each request to the model is
-// answered by the next scripted Step, so agent flows are deterministic.
+// Package fakellm is a scripted LLM, for tests and the demo: each request to
+// the model is answered by the next scripted Step, so agent flows are
+// deterministic.
 package fakellm
 
 import (
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/simopzz/mealops/internal/agent"
 )
@@ -44,6 +46,7 @@ type Step struct {
 	err   error
 	hang  bool
 	after <-chan struct{}
+	wait  time.Duration
 }
 
 // Reply ends the model's turn with text.
@@ -112,6 +115,12 @@ func (s Step) After(ch <-chan struct{}) Step {
 	return s
 }
 
+// Wait has the model take d to answer, as a real one does.
+func (s Step) Wait(d time.Duration) Step {
+	s.wait = d
+	return s
+}
+
 // Send implements agent.LLM.
 func (f *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, error) {
 	f.mu.Lock()
@@ -133,6 +142,13 @@ func (f *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 	if step.after != nil {
 		select {
 		case <-step.after:
+		case <-ctx.Done():
+			return agent.Response{}, ctx.Err()
+		}
+	}
+	if step.wait > 0 {
+		select {
+		case <-time.After(step.wait):
 		case <-ctx.Done():
 			return agent.Response{}, ctx.Err()
 		}

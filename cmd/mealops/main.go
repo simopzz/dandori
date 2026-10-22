@@ -6,8 +6,9 @@
 // Configuration comes from the environment: MEALOPS_DATABASE_URL (required),
 // MEALOPS_ADDR (default 127.0.0.1:8080), MEALOPS_MODEL (default the latest
 // Claude model), MEALOPS_LLM_RETRIES (default 3) and MEALOPS_MAX_TURNS
-// (default 50), where 0 keeps the default, and the Claude credentials
-// (ANTHROPIC_API_KEY, or a profile from `ant auth login`).
+// (default 50), where 0 keeps the default, the Claude credentials
+// (ANTHROPIC_API_KEY, or a profile from `ant auth login`), and MEALOPS_DEMO=1
+// to offer demo Runs on the Runs page.
 package main
 
 import (
@@ -40,7 +41,11 @@ func run(log *slog.Logger, args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg := app.Config{DatabaseURL: os.Getenv("MEALOPS_DATABASE_URL"), Model: os.Getenv("MEALOPS_MODEL")}
+	cfg := app.Config{
+		DatabaseURL: os.Getenv("MEALOPS_DATABASE_URL"),
+		Model:       os.Getenv("MEALOPS_MODEL"),
+		Demo:        os.Getenv("MEALOPS_DEMO") == "1",
+	}
 	if cfg.DatabaseURL == "" {
 		return errors.New("MEALOPS_DATABASE_URL is not set")
 	}

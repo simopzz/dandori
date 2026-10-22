@@ -192,7 +192,11 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 	defer a.runs.wg.Done()
 	defer r.cancel()
 
-	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, a.cfg.Model)})
+	model := a.cfg.Model
+	if job.LLM != nil {
+		model = "a scripted model"
+	}
+	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, model)})
 	err := a.runJob(ctx, r, job)
 
 	status := "succeeded"
@@ -227,11 +231,15 @@ func (a *App) runJob(ctx context.Context, tr agent.Trace, job agent.Job) (err er
 			err = fmt.Errorf("MealOps crashed while running it: %v", p)
 		}
 	}()
-	if a.ports.LLM == nil {
+	llm := a.ports.LLM
+	if job.LLM != nil {
+		llm = job.LLM
+	}
+	if llm == nil {
 		return errors.New("no LLM is configured")
 	}
 	loop := agent.Loop{
-		LLM:      a.ports.LLM,
+		LLM:      llm,
 		Model:    a.cfg.Model,
 		Retries:  a.cfg.LLMRetries,
 		Backoff:  a.cfg.LLMRetryBackoff,
@@ -301,7 +309,7 @@ func (a *App) listRuns(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, "list runs", err)
 		return
 	}
-	templ.Handler(web.RunsPage(list)).ServeHTTP(w, r)
+	templ.Handler(web.RunsPage(list, a.cfg.Demo)).ServeHTTP(w, r)
 }
 
 func (a *App) showRun(w http.ResponseWriter, r *http.Request) {

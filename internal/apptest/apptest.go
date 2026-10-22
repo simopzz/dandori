@@ -45,6 +45,7 @@ type Harness struct {
 type Option func(*settings)
 
 type settings struct {
+	config      func(*app.Config)
 	ports       app.Ports
 	jobs        map[string]agent.Job
 	databaseCut bool
@@ -53,6 +54,11 @@ type settings struct {
 // WithPorts lets a test swap outbound ports for fakes.
 func WithPorts(configure func(*app.Ports)) Option {
 	return func(s *settings) { configure(&s.ports) }
+}
+
+// WithConfig lets a test change the app's configuration.
+func WithConfig(configure func(*app.Config)) Option {
+	return func(s *settings) { s.config = configure }
 }
 
 // WithJob registers a Run kind that always runs job, so a test can start
@@ -127,6 +133,9 @@ func (h *Harness) boot(t testing.TB) {
 		DatabaseURL: h.databaseURL,
 		// Retries are part of what tests check; waiting for them is not.
 		LLMRetryBackoff: time.Millisecond,
+	}
+	if h.settings.config != nil {
+		h.settings.config(&cfg)
 	}
 	a, err := app.New(context.Background(), cfg, h.settings.ports, logger)
 	if err != nil {

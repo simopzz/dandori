@@ -1,6 +1,5 @@
-// Package agent is the hand-rolled tool-use loop (ADR-0003): it talks to the
-// model through the LLM port, runs the job's tools, and emits every step to a
-// Trace.
+// Package agent is the hand-rolled tool-use loop (ADR-0003): it talks to the model
+// through the LLM port, runs the job's tools, and emits every step to a Trace.
 package agent
 
 import (
