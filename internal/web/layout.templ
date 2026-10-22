@@ -1,0 +1,50 @@
+package web
+
+templ layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="theme-color" content="#2f6b3f"/>
+			<title>{ title }</title>
+			<link rel="manifest" href="/manifest.webmanifest"/>
+			<link rel="icon" href="/static/icon-192.png"/>
+			<link rel="apple-touch-icon" href="/static/icon-192.png"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script src="/static/htmx.min.js" defer></script>
+			<script>
+				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+			</script>
+		</head>
+		<body>
+			<header><h1>MealOps</h1></header>
+			<main>
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+// Home is the app shell's landing page.
+templ Home() {
+	@layout("MealOps") {
+		<p>Plan a Cycle, then fill the cart.</p>
+	}
+}
+
+// DatabaseUnavailable is shown while the database is paused or unreachable.
+// It polls the health check, which tells HTMX to reload once it is back.
+templ DatabaseUnavailable() {
+	@layout("MealOps — database unavailable") {
+		<section class="notice" role="alert" hx-get="/healthz" hx-trigger="every 5s" hx-swap="none">
+			<h2>Database unavailable</h2>
+			<p>
+				MealOps can't reach its database. If the Supabase project was paused
+				after a period of inactivity, restore it from the Supabase dashboard.
+				Nothing has been lost.
+			</p>
+			<p class="muted">This page will reload by itself once the database is back.</p>
+		</section>
+	}
+}

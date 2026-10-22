@@ -11,11 +11,11 @@ The stretch one grocery delivery has to last, from the day it arrives to a plann
 _Avoid_: Week, plan period
 
 **Plan**:
-The Cook Sessions of a Cycle together with what fills each of its Slots. There is one Plan per Cycle, and it changes only through an approved Plan Proposal.
+The Prep Sessions of a Cycle together with the Portion filling each of its Slots. There is one Plan per Cycle, and it changes only through an approved Plan Proposal.
 _Avoid_: Schedule, meal plan
 
 **Slot**:
-A specific eating occasion within a Cycle (breakfast, lunch, dinner or snack on a given day), filled by a Portion or a Direct Meal, or marked by an Exception.
+A specific eating occasion within a Cycle (breakfast, lunch, dinner or snack on a given day), filled by a Portion or marked by an Exception.
 _Avoid_: Meal, time block
 
 **Plan Proposal**:
@@ -40,17 +40,13 @@ _Avoid_: Dish
 The persisted collection of every Recipe the user has accepted, whether imported or agent-generated.
 _Avoid_: Cookbook, recipe database
 
-**Cook Session**:
-One cooking of a single Recipe that yields several Portions (default three).
-_Avoid_: Batch, meal prep
+**Prep Session**:
+One preparation of food that yields one or more Portions: cooking or assembling a single Recipe, or setting out Ingredients eaten as they are, in which case it has no Recipe.
+_Avoid_: Cook session, batch, meal prep, direct meal
 
 **Portion**:
-One ready-to-eat serving produced by a Cook Session, kept in a Storage Location and assigned to at most one Slot.
+One ready-to-eat serving produced by a Prep Session, kept in a Storage Location and assigned to at most one Slot.
 _Avoid_: Serving, leftover
-
-**Direct Meal**:
-What fills a breakfast or snack Slot: a Recipe made on the spot, or Ingredients eaten as they are, with no Cook Session or Portions involved.
-_Avoid_: Quick meal, side
 
 **Ingredient**:
 A food as such (chicken breast, rolled oats), with its nutritional values; what a Recipe lists and what a Stock Item is a quantity of.
@@ -110,10 +106,9 @@ _Avoid_: Order, purchase, checkout
 
 ## Rules of the model
 
-- A Cook Session yields three Portions by default: eaten now, eaten as lunch two days later, and a third scheduled two to three days after the second is eaten. The third is typically frozen.
-- A Cook Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Cook Sessions.
-- Only lunch and dinner Slots are filled by Portions; breakfast and snack Slots are filled by Direct Meals.
-- Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on its Recipe and how long it must keep.
+- A Prep Session at dinner yields three Portions by default: eaten now, eaten as lunch two days later, and a third scheduled two to three days after the second is eaten. The third is typically frozen. Other Prep Sessions yield as many Portions as their planned eating needs, often a single one eaten straight away.
+- A Prep Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Prep Sessions.
+- Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor.
 - A Cycle's end date moves only through an approved Plan Proposal, typically extending it when Exceptions leave enough Portions and stock to last longer.
 - Cycles never overlap: a delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items.
