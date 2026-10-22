@@ -18,12 +18,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver pgtestdb connects with
 	"github.com/peterldowns/pgtestdb"
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
 
+	"github.com/simopzz/mealops/internal/agent"
 	"github.com/simopzz/mealops/internal/app"
 	"github.com/simopzz/mealops/internal/db"
 )
@@ -42,12 +44,24 @@ type Option func(*settings)
 
 type settings struct {
 	ports       app.Ports
+	jobs        map[string]agent.Job
 	databaseCut bool
 }
 
 // WithPorts lets a test swap outbound ports for fakes.
 func WithPorts(configure func(*app.Ports)) Option {
 	return func(s *settings) { configure(&s.ports) }
+}
+
+// WithJob registers a Run kind that always runs job, so a test can start
+// it with StartRun.
+func WithJob(kind string, job agent.Job) Option {
+	return func(s *settings) {
+		if s.jobs == nil {
+			s.jobs = map[string]agent.Job{}
+		}
+		s.jobs[kind] = job
+	}
 }
 
 // WithDatabaseCut starts the app while its database is unreachable.
@@ -101,14 +115,24 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if testing.Verbose() {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
-	a, err := app.New(context.Background(), app.Config{DatabaseURL: instance.URL()}, s.ports, logger)
+	cfg := app.Config{
+		DatabaseURL: instance.URL(),
+		// Retries are part of what tests check; waiting for them is not.
+		LLMRetryBackoff: time.Millisecond,
+	}
+	a, err := app.New(context.Background(), cfg, s.ports, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
+	for kind, job := range s.jobs {
+		a.RegisterJob(kind, func(url.Values) (agent.Job, error) { return job, nil })
+	}
 	srv := httptest.NewServer(a.Handler())
 	t.Cleanup(func() {
-		srv.Close()
+		// Stopping the Runs first ends their live streams, which the
+		// server waits for.
 		a.Close()
+		srv.Close()
 	})
 	h.URL, h.Client = srv.URL, srv.Client()
 	return h
@@ -152,9 +176,10 @@ type Response struct {
 	StatusCode int
 	Header     http.Header
 	Body       string
-	// Method is the method of the request that got this response: GET when
-	// a POST was redirected.
+	// Method and Path are those of the request that got this response:
+	// a GET of the new location when a POST was redirected.
 	Method string
+	Path   string
 }
 
 // Get requests path from the app.
@@ -169,7 +194,7 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 	if err != nil {
 		t.Fatalf("GET %s: read body: %v", path, err)
 	}
-	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body)}
+	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }
 
 // PostForm submits form to path, as a browser does without HTMX, following
@@ -204,5 +229,5 @@ func (h *Harness) postForm(t testing.TB, path string, form url.Values, htmx bool
 	if err != nil {
 		t.Fatalf("POST %s: read body: %v", path, err)
 	}
-	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method}
+	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }
