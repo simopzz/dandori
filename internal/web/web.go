@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+// static holds the vendored htmx.min.js, which is htmx 4.0.0 (BSD-2-Clause)
+// from https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js. The database-
+// unavailable page relies on its polling and on the HX-Refresh header.
+//
 //go:embed static
 var static embed.FS
 

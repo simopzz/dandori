@@ -61,15 +61,19 @@ func (a *App) EnsureDatabase(ctx context.Context) error {
 	if err := a.ping(ctx); err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.migrated {
 		return nil
 	}
-	if err := db.Migrate(ctx, a.pool); err != nil {
+	migrateCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	if err := db.Migrate(migrateCtx, a.pool); err != nil {
+		// The database may have dropped mid-migration; that is a pause, not a bug.
+		if pingErr := a.ping(ctx); pingErr != nil {
+			return pingErr
+		}
 		return err
 	}
 	a.migrated = true
@@ -94,8 +98,8 @@ func (a *App) Handler() http.Handler {
 	return mux
 }
 
-// needsDatabase shows the recoverable database-unavailable page instead of
-// next while the database can't be reached.
+// needsDatabase serves next only once the database is ready; while it can't
+// be reached, it shows the recoverable database-unavailable page instead.
 func (a *App) needsDatabase(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := a.EnsureDatabase(r.Context())

@@ -14,7 +14,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -67,22 +69,27 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if adminURL == "" {
 		t.Fatal("MEALOPS_TEST_DATABASE_URL is not set; run tests through mise and start the test database with `mise run testdb`")
 	}
-	admin, err := pgx.ParseConfig(adminURL)
+	admin, err := url.Parse(adminURL)
 	if err != nil {
 		t.Fatalf("parse MEALOPS_TEST_DATABASE_URL: %v", err)
 	}
+	password, _ := admin.User.Password()
+	port := admin.Port()
+	if port == "" {
+		port = "5432"
+	}
 	instance := pgtestdb.Custom(t, pgtestdb.Config{
 		DriverName:                "pgx",
-		Host:                      admin.Host,
-		Port:                      fmt.Sprint(admin.Port),
-		User:                      admin.User,
-		Password:                  admin.Password,
-		Database:                  admin.Database,
-		Options:                   "sslmode=disable",
+		Host:                      admin.Hostname(),
+		Port:                      port,
+		User:                      admin.User.Username(),
+		Password:                  password,
+		Database:                  strings.TrimPrefix(admin.Path, "/"),
+		Options:                   admin.RawQuery, // keeps sslmode and friends from the URL
 		ForceTerminateConnections: true,
 		// Migrate and connect as the admin role, like the app's `postgres`
 		// role on Supabase: enabling pgvector needs more than a plain role.
-		TestRole: &pgtestdb.Role{Username: admin.User, Password: admin.Password},
+		TestRole: &pgtestdb.Role{Username: admin.User.Username(), Password: password},
 	}, goosemigrator.New("migrations", goosemigrator.WithFS(db.Migrations())))
 
 	h := &Harness{adminURL: adminURL, database: instance.Database}

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -75,10 +76,14 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 		log.Warn("database not ready at startup; will retry on request", "err", err)
 	}
 
-	srv := &http.Server{Addr: addr, Handler: a.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	srv := &http.Server{Handler: a.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)
-	go func() { errc <- srv.ListenAndServe() }()
-	log.Info("serving", "url", "http://"+addr)
+	go func() { errc <- srv.Serve(ln) }()
+	log.Info("serving", "addr", ln.Addr().String())
 
 	select {
 	case err := <-errc:
