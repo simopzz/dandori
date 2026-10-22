@@ -14,7 +14,7 @@ func TestUnreachableDatabaseShowsRecoverableErrorAndRecovers(t *testing.T) {
 		t.Fatalf("GET / before cut status = %d, want 200", res.StatusCode)
 	}
 
-	h.CutDatabase()
+	h.CutDatabase(t)
 
 	res := h.Get(t, "/")
 	if res.StatusCode != http.StatusServiceUnavailable {
@@ -30,7 +30,7 @@ func TestUnreachableDatabaseShowsRecoverableErrorAndRecovers(t *testing.T) {
 		t.Errorf("GET /healthz while unreachable status = %d, want 503", health.StatusCode)
 	}
 
-	h.RestoreDatabase()
+	h.RestoreDatabase(t)
 
 	if res := h.Get(t, "/"); res.StatusCode != http.StatusOK {
 		t.Fatalf("GET / after restore status = %d, want 200:\n%s", res.StatusCode, res.Body)
@@ -62,7 +62,7 @@ func TestAppStartsWhileDatabaseIsUnreachable(t *testing.T) {
 		t.Fatalf("GET / status = %d, want 503", res.StatusCode)
 	}
 
-	h.RestoreDatabase()
+	h.RestoreDatabase(t)
 
 	if res := h.Get(t, "/"); res.StatusCode != http.StatusOK {
 		t.Fatalf("GET / after restore status = %d, want 200:\n%s", res.StatusCode, res.Body)

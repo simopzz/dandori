@@ -5,6 +5,8 @@ go 1.27.3
 require (
 	github.com/a-h/templ v0.3.1070
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/peterldowns/pgtestdb v0.1.1
+	github.com/peterldowns/pgtestdb/migrators/goosemigrator v0.1.1
 	github.com/pressly/goose/v3 v3.29.0
 )
 
