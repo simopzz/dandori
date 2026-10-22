@@ -35,8 +35,10 @@ type Harness struct {
 	URL    string
 	Client *http.Client
 
-	adminURL string
-	database string
+	adminURL    string
+	database    string
+	databaseURL string
+	settings    settings
 }
 
 // Option customises the app a test starts.
@@ -106,25 +108,31 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		TestRole: &pgtestdb.Role{Username: admin.User.Username(), Password: password},
 	}, goosemigrator.New("migrations", goosemigrator.WithFS(db.Migrations())))
 
-	h := &Harness{adminURL: adminURL, database: instance.Database}
+	h := &Harness{adminURL: adminURL, database: instance.Database, databaseURL: instance.URL(), settings: s}
 	if s.databaseCut {
 		h.CutDatabase(t)
 	}
+	h.boot(t)
+	return h
+}
 
+// boot starts an app on the harness's database and points the harness at it.
+func (h *Harness) boot(t testing.TB) {
+	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if testing.Verbose() {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
 	cfg := app.Config{
-		DatabaseURL: instance.URL(),
+		DatabaseURL: h.databaseURL,
 		// Retries are part of what tests check; waiting for them is not.
 		LLMRetryBackoff: time.Millisecond,
 	}
-	a, err := app.New(context.Background(), cfg, s.ports, logger)
+	a, err := app.New(context.Background(), cfg, h.settings.ports, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for kind, job := range s.jobs {
+	for kind, job := range h.settings.jobs {
 		a.RegisterJob(kind, func(url.Values) (agent.Job, error) { return job, nil })
 	}
 	srv := httptest.NewServer(a.Handler())
@@ -135,7 +143,14 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		srv.Close()
 	})
 	h.URL, h.Client = srv.URL, srv.Client()
-	return h
+}
+
+// Crash starts a new app on the same database, as when MealOps is killed
+// and started again: the old app gets no chance to record anything, and
+// the harness talks to the new one from now on.
+func (h *Harness) Crash(t testing.TB) {
+	t.Helper()
+	h.boot(t)
 }
 
 // CutDatabase makes the database unreachable, as when Supabase pauses the

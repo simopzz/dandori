@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -177,6 +178,10 @@ func (a *App) startRun(ctx context.Context, kind string, job agent.Job) (int64, 
 	r := &liveRun{id: id, cancel: cancel, pool: a.pool, log: a.log, subs: map[chan web.TraceEvent]struct{}{}}
 	if err := a.runs.add(r); err != nil {
 		cancel()
+		// Never started, so it must not be left looking like it is running.
+		if _, uerr := a.pool.Exec(ctx, `UPDATE run SET status = 'failed', finished_at = now() WHERE id = $1`, id); uerr != nil {
+			a.log.Error("store run status", "run", id, "err", uerr)
+		}
 		return 0, err
 	}
 	go a.execute(runCtx, r, kind, job)
@@ -188,26 +193,14 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 	defer r.cancel()
 
 	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, a.cfg.Model)})
-	var err error
-	if a.ports.LLM == nil {
-		err = errors.New("no LLM is configured")
-	} else {
-		loop := agent.Loop{
-			LLM:      a.ports.LLM,
-			Model:    a.cfg.Model,
-			Retries:  a.cfg.LLMRetries,
-			Backoff:  a.cfg.LLMRetryBackoff,
-			MaxTurns: a.cfg.MaxTurns,
-		}
-		err = loop.Run(ctx, job, r)
-	}
+	err := a.runJob(ctx, r, job)
 
 	status := "succeeded"
 	switch {
 	case a.runs.ctx.Err() != nil:
 		// Not the user's doing: recorded like a Run found interrupted.
 		status = "failed"
-		r.Emit(agent.Event{Kind: agent.EventError, Summary: "Run failed", Detail: "MealOps stopped while it was running"})
+		r.Emit(agent.Event{Kind: agent.EventError, Summary: "Run failed", Detail: interrupted})
 	case ctx.Err() != nil:
 		status = "cancelled"
 	case err != nil:
@@ -225,8 +218,34 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 	r.finish()
 }
 
+// runJob carries out job with the agent loop. A panic, say in a tool, fails
+// the Run rather than MealOps.
+func (a *App) runJob(ctx context.Context, tr agent.Trace, job agent.Job) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			a.log.Error("run panicked", "panic", p, "stack", string(debug.Stack()))
+			err = fmt.Errorf("MealOps crashed while running it: %v", p)
+		}
+	}()
+	if a.ports.LLM == nil {
+		return errors.New("no LLM is configured")
+	}
+	loop := agent.Loop{
+		LLM:      a.ports.LLM,
+		Model:    a.cfg.Model,
+		Retries:  a.cfg.LLMRetries,
+		Backoff:  a.cfg.LLMRetryBackoff,
+		MaxTurns: a.cfg.MaxTurns,
+	}
+	return loop.Run(ctx, job, tr)
+}
+
+// interrupted is why a Run fails when MealOps stops under it.
+const interrupted = "MealOps stopped while it was running"
+
 // abandonInterruptedRuns marks Runs left running by a previous process as
-// failed, since nothing is running them any more.
+// failed, since nothing is running them any more. Their Traces end as if
+// the Run had been stopped by a shutdown.
 func (a *App) abandonInterruptedRuns(ctx context.Context) error {
 	_, err := a.pool.Exec(ctx, `
 		WITH abandoned AS (
@@ -234,10 +253,11 @@ func (a *App) abandonInterruptedRuns(ctx context.Context) error {
 			WHERE status = 'running'
 			RETURNING id
 		)
-		INSERT INTO trace_event (run_id, seq, at, kind, summary)
-		SELECT id, coalesce((SELECT max(seq) FROM trace_event WHERE run_id = abandoned.id), 0) + 1,
-		       now(), 'finished', 'Run failed: MealOps stopped while it was running'
-		FROM abandoned`)
+		INSERT INTO trace_event (run_id, seq, at, kind, summary, detail)
+		SELECT id, coalesce((SELECT max(seq) FROM trace_event WHERE run_id = abandoned.id), 0) + e.n,
+		       now(), e.kind, e.summary, e.detail
+		FROM abandoned, (VALUES (1, 'error', 'Run failed', $1), (2, 'finished', 'Run failed', '')) AS e (n, kind, summary, detail)`,
+		interrupted)
 	if err != nil {
 		return fmt.Errorf("abandon interrupted runs: %w", err)
 	}
@@ -425,10 +445,15 @@ func (a *App) streamRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// The Run has ended, so its status is final.
 	run, _, err = a.loadRun(r.Context(), id)
 	if err != nil {
 		a.log.Error("load run", "err", err)
+		return
+	}
+	if run.Status == "running" {
+		// Nothing here is running it, but its end was never stored (say the
+		// database dropped). Hang up without an end, so the panel doesn't
+		// reload into the same state; the browser retries later.
 		return
 	}
 	writeEvent(w, "", "end", run.Status)

@@ -293,6 +293,69 @@ func TestFailingRunShowsWhyItFailed(t *testing.T) {
 	}
 }
 
+func TestPanickingToolFailsOnlyItsRun(t *testing.T) {
+	job := pantryJob()
+	job.Tools[0].Run = func(context.Context, agent.Trace, json.RawMessage) (string, error) {
+		var pantry map[string]string
+		pantry["oats"] = "500 g" // a bug: the map was never made
+		return "", nil
+	}
+	llm := fakellm.New(
+		fakellm.CallTool("look_up_pantry", map[string]string{"food": "rolled oats"}),
+		fakellm.Reply("You have 500 g of rolled oats."),
+		fakellm.Reply("Still here."),
+	)
+	h := startWith(t, llm, map[string]agent.Job{"pantry": job, "chat": {Prompt: "Hello?"}})
+	run, live := finish(t, h, "pantry")
+
+	if end := live[len(live)-1]; end.Name != "end" || end.Data != "failed" {
+		t.Errorf("stream ended with %s %q, want end failed", end.Name, end.Data)
+	}
+	panel := text(h.Get(t, run).Body)
+	for _, want := range []string{"Error Run failed", "assignment to entry in nil map", "Failed"} {
+		if !strings.Contains(panel, want) {
+			t.Errorf("trace does not show %q:\n%s", want, panel)
+		}
+	}
+	// MealOps is still up and runs the next Run.
+	if _, again := finish(t, h, "chat"); !strings.Contains(shown(again), "Finished Run succeeded") {
+		t.Errorf("a Run after the panic did not succeed:\n%s", shown(again))
+	}
+}
+
+func TestRunGivesUpWhenTheModelNeverFinishes(t *testing.T) {
+	var script []fakellm.Step
+	for range 50 {
+		script = append(script, fakellm.CallTool("look_up_pantry", map[string]string{"food": "rolled oats"}))
+	}
+	h := startWith(t, fakellm.New(script...), map[string]agent.Job{"pantry": pantryJob()})
+	run, _ := finish(t, h, "pantry")
+	if panel := text(h.Get(t, run).Body); !strings.Contains(panel, "Error Run failed the model did not finish within 50 turns") {
+		t.Errorf("trace does not say the model never finished:\n%s", panel)
+	}
+}
+
+func TestRunInterruptedByACrashIsFailedOnRestart(t *testing.T) {
+	h := startWith(t, fakellm.New(fakellm.Hang()), map[string]agent.Job{"pantry": pantryJob()})
+	run := h.StartRun(t, "pantry")
+	readUntil(t, h.Stream(t, run+"/events", ""), "Asking the model")
+
+	h.Crash(t)
+	page := h.Get(t, run)
+	panel := text(page.Body)
+	for _, want := range []string{"Failed", "Error Run failed MealOps stopped while it was running", "Finished Run failed"} {
+		if !strings.Contains(panel, want) {
+			t.Errorf("after a restart the interrupted Run does not show %q:\n%s", want, panel)
+		}
+	}
+	if strings.Contains(page.Body, "data-trace-stream") {
+		t.Errorf("the interrupted Run is still followed live:\n%s", page.Body)
+	}
+	if end := h.Stream(t, run+"/events", "").Rest(t); end[len(end)-1].Data != "failed" {
+		t.Errorf("stream of the interrupted Run ended with %q, want failed", end[len(end)-1].Data)
+	}
+}
+
 func TestRunWithoutAnLLMFailsClearly(t *testing.T) {
 	h := apptest.Start(t, apptest.WithJob("pantry", pantryJob()))
 	run, _ := finish(t, h, "pantry")

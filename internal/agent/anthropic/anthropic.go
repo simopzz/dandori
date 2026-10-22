@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -144,7 +146,13 @@ func classify(ctx context.Context, err error) error {
 	}
 	var apiErr *sdk.Error
 	if !errors.As(err, &apiErr) {
-		return &agent.RetryableError{Err: err}
+		// Reaching the API failed: the network, or a timeout. Anything else
+		// (a request that can't be built) fails the same way every time.
+		var netErr net.Error
+		if errors.As(err, &netErr) || errors.Is(err, io.ErrUnexpectedEOF) {
+			return &agent.RetryableError{Err: err}
+		}
+		return err
 	}
 	switch code := apiErr.StatusCode; {
 	case code == http.StatusRequestTimeout, code == http.StatusConflict,
@@ -158,8 +166,12 @@ func retryAfter(res *http.Response) time.Duration {
 	if res == nil {
 		return 0
 	}
-	if secs, err := strconv.Atoi(res.Header.Get("Retry-After")); err == nil {
+	h := res.Header.Get("Retry-After")
+	if secs, err := strconv.Atoi(h); err == nil {
 		return time.Duration(secs) * time.Second
+	}
+	if at, err := http.ParseTime(h); err == nil {
+		return max(time.Until(at), 0)
 	}
 	return 0
 }
