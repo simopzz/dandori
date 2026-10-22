@@ -1,3 +1,7 @@
+## Branching
+
+Implement each issue on its own feature branch off `main`, named `<issue>-<slug>` (e.g. `6-profile`), created before the first commit. `main` takes work only through PRs. This overrides any skill step that says to commit to the current branch.
+
 ## Agent skills
 
 ### Issue tracker
