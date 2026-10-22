@@ -204,6 +204,10 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 
 	status := "succeeded"
 	switch {
+	case a.runs.ctx.Err() != nil:
+		// Not the user's doing: recorded like a Run found interrupted.
+		status = "failed"
+		r.Emit(agent.Event{Kind: agent.EventError, Summary: "Run failed", Detail: "MealOps stopped while it was running"})
 	case ctx.Err() != nil:
 		status = "cancelled"
 	case err != nil:
@@ -386,8 +390,23 @@ func (a *App) streamRun(w http.ResponseWriter, r *http.Request) {
 		select {
 		case ev, open := <-live:
 			if !open {
-				if !lr.ended() {
-					return // dropped for being slow; the browser reconnects
+				// The Run ended, or we were dropped for being slow; either
+				// way, catch up from the stored trace.
+				ended := lr.ended()
+				missed, err := a.loadEvents(r.Context(), id, after)
+				if err != nil {
+					a.log.Error("load trace", "err", err)
+					return
+				}
+				for _, ev := range missed {
+					if err := send(ev); err != nil {
+						a.log.Error("render trace event", "err", err)
+						return
+					}
+				}
+				if !ended {
+					flusher.Flush()
+					return // the browser reconnects and follows on
 				}
 				live = nil
 				continue
