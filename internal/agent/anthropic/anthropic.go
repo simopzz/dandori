@@ -15,7 +15,7 @@ import (
 	sdk "github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 
-	"github.com/simopzz/mealops/internal/agent"
+	"github.com/simopzz/dandori/internal/agent"
 )
 
 // maxTokens bounds one answer of the model; it keeps a non-streaming

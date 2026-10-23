@@ -19,8 +19,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/simopzz/mealops/internal/agent"
-	"github.com/simopzz/mealops/internal/web"
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/web"
 )
 
 // NewJob builds the agent job of a Run from the form that started it.
@@ -61,7 +61,7 @@ func (rs *runs) add(r *liveRun) error {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
 	if rs.ctx.Err() != nil {
-		return errors.New("MealOps is shutting down")
+		return errors.New("Dandori is shutting down") //nolint:staticcheck // product name shown to the user
 	}
 	rs.live[r.id] = r
 	rs.wg.Add(1)
@@ -223,12 +223,12 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 }
 
 // runJob carries out job with the agent loop. A panic, say in a tool, fails
-// the Run rather than MealOps.
+// the Run rather than Dandori.
 func (a *App) runJob(ctx context.Context, tr agent.Trace, job agent.Job) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			a.log.Error("run panicked", "panic", p, "stack", string(debug.Stack()))
-			err = fmt.Errorf("MealOps crashed while running it: %v", p)
+			err = fmt.Errorf("Dandori crashed while running it: %v", p) //nolint:staticcheck // product name shown to the user
 		}
 	}()
 	llm := a.ports.LLM
@@ -248,8 +248,8 @@ func (a *App) runJob(ctx context.Context, tr agent.Trace, job agent.Job) (err er
 	return loop.Run(ctx, job, tr)
 }
 
-// interrupted is why a Run fails when MealOps stops under it.
-const interrupted = "MealOps stopped while it was running"
+// interrupted is why a Run fails when Dandori stops under it.
+const interrupted = "Dandori stopped while it was running"
 
 // abandonInterruptedRuns marks Runs left running by a previous process as
 // failed, since nothing is running them any more. Their Traces end as if

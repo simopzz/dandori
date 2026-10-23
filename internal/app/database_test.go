@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/simopzz/mealops/internal/apptest"
+	"github.com/simopzz/dandori/internal/apptest"
 )
 
 func TestUnreachableDatabaseShowsRecoverableErrorAndRecovers(t *testing.T) {

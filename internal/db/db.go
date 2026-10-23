@@ -1,4 +1,4 @@
-// Package db connects to the MealOps Postgres database and applies its
+// Package db connects to the Dandori Postgres database and applies its
 // versioned migrations.
 package db
 

@@ -11,8 +11,8 @@ import (
 	"github.com/a-h/templ"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/simopzz/mealops/internal/domain"
-	"github.com/simopzz/mealops/internal/web"
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/web"
 )
 
 func (a *App) showProfile(w http.ResponseWriter, r *http.Request) {

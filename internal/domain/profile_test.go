@@ -3,7 +3,7 @@ package domain_test
 import (
 	"testing"
 
-	"github.com/simopzz/mealops/internal/domain"
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 func TestFoodTermsAreNormalisedAndDeduplicated(t *testing.T) {

@@ -28,11 +28,11 @@ linters:
             - "**/internal/web/**"
             - "!$test"
           deny:
-            - pkg: github.com/simopzz/mealops/internal/app
+            - pkg: github.com/simopzz/dandori/internal/app
               desc: only cmd and apptest may depend on app
-            - pkg: github.com/simopzz/mealops/internal/db
+            - pkg: github.com/simopzz/dandori/internal/db
               desc: db is a leaf; wire it in app
-            - pkg: github.com/simopzz/mealops/internal/web
+            - pkg: github.com/simopzz/dandori/internal/web
               desc: web is a leaf; wire it in app
   exclusions:
     presets:

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/simopzz/mealops/internal/agent"
+	"github.com/simopzz/dandori/internal/agent"
 )
 
 // LLM answers requests from its script, in order. It is safe to script more

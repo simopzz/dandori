@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/simopzz/mealops/internal/apptest"
+	"github.com/simopzz/dandori/internal/apptest"
 )
 
 // validProfile is a complete Profile form: Targets, exclusions and

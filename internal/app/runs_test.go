@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/simopzz/mealops/internal/agent"
-	"github.com/simopzz/mealops/internal/agent/fakellm"
-	"github.com/simopzz/mealops/internal/app"
-	"github.com/simopzz/mealops/internal/apptest"
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/agent/fakellm"
+	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/apptest"
 )
 
 // pantryJob is an agent job with one tool, which looks up how much of a
@@ -317,7 +317,7 @@ func TestPanickingToolFailsOnlyItsRun(t *testing.T) {
 			t.Errorf("trace does not show %q:\n%s", want, panel)
 		}
 	}
-	// MealOps is still up and runs the next Run.
+	// Dandori is still up and runs the next Run.
 	if _, again := finish(t, h, "chat"); !strings.Contains(shown(again), "Finished Run succeeded") {
 		t.Errorf("a Run after the panic did not succeed:\n%s", shown(again))
 	}
@@ -343,7 +343,7 @@ func TestRunInterruptedByACrashIsFailedOnRestart(t *testing.T) {
 	h.Crash(t)
 	page := h.Get(t, run)
 	panel := text(page.Body)
-	for _, want := range []string{"Failed", "Error Run failed MealOps stopped while it was running", "Finished Run failed"} {
+	for _, want := range []string{"Failed", "Error Run failed Dandori stopped while it was running", "Finished Run failed"} {
 		if !strings.Contains(panel, want) {
 			t.Errorf("after a restart the interrupted Run does not show %q:\n%s", want, panel)
 		}

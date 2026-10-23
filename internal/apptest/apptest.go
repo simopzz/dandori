@@ -1,8 +1,8 @@
-// Package apptest starts MealOps in-process over HTTP against a real,
+// Package apptest starts Dandori in-process over HTTP against a real,
 // freshly migrated Postgres + pgvector database of its own, for tests at
 // the app seam.
 //
-// MEALOPS_TEST_DATABASE_URL must point at a disposable Postgres server with
+// DANDORI_TEST_DATABASE_URL must point at a disposable Postgres server with
 // pgvector, as a superuser (`mise run testdb`). pgtestdb migrates a template
 // database once per set of migrations and clones it for every test.
 package apptest
@@ -25,9 +25,9 @@ import (
 	"github.com/peterldowns/pgtestdb"
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
 
-	"github.com/simopzz/mealops/internal/agent"
-	"github.com/simopzz/mealops/internal/app"
-	"github.com/simopzz/mealops/internal/db"
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/db"
 )
 
 // Harness is one running app with its own database.
@@ -87,13 +87,13 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		opt(&s)
 	}
 
-	adminURL := os.Getenv("MEALOPS_TEST_DATABASE_URL")
+	adminURL := os.Getenv("DANDORI_TEST_DATABASE_URL")
 	if adminURL == "" {
-		t.Fatal("MEALOPS_TEST_DATABASE_URL is not set; run tests through mise and start the test database with `mise run testdb`")
+		t.Fatal("DANDORI_TEST_DATABASE_URL is not set; run tests through mise and start the test database with `mise run testdb`")
 	}
 	admin, err := url.Parse(adminURL)
 	if err != nil {
-		t.Fatalf("parse MEALOPS_TEST_DATABASE_URL: %v", err)
+		t.Fatalf("parse DANDORI_TEST_DATABASE_URL: %v", err)
 	}
 	password, _ := admin.User.Password()
 	port := admin.Port()
@@ -154,7 +154,7 @@ func (h *Harness) boot(t testing.TB) {
 	h.URL, h.Client = srv.URL, srv.Client()
 }
 
-// Crash starts a new app on the same database, as when MealOps is killed
+// Crash starts a new app on the same database, as when Dandori is killed
 // and started again: the old app gets no chance to record anything, and
 // the harness talks to the new one from now on.
 func (h *Harness) Crash(t testing.TB) {

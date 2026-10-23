@@ -19,7 +19,7 @@ templ layout(title string) {
 		</head>
 		<body>
 			<header>
-				<h1><a href="/">MealOps</a></h1>
+				<h1><a href="/">Dandori</a></h1>
 				<nav><a href="/profile">Profile</a> <a href="/runs">Runs</a></nav>
 			</header>
 			<main>
@@ -31,7 +31,7 @@ templ layout(title string) {
 
 // Home is the app shell's landing page.
 templ Home() {
-	@layout("MealOps") {
+	@layout("Dandori") {
 		<p>Plan a Cycle, then fill the cart.</p>
 	}
 }
@@ -39,11 +39,11 @@ templ Home() {
 // DatabaseUnavailable is shown while the database is paused or unreachable.
 // It polls the health check, which tells HTMX to reload once it is back.
 templ DatabaseUnavailable() {
-	@layout("MealOps — database unavailable") {
+	@layout("Dandori — database unavailable") {
 		<section class="notice" role="alert" hx-get="/healthz" hx-trigger="every 5s" hx-swap="none">
 			<h2>Database unavailable</h2>
 			<p>
-				MealOps can't reach its database. If the Supabase project was paused
+				Dandori can't reach its database. If the Supabase project was paused
 				after a period of inactivity, restore it from the Supabase dashboard.
 				Nothing has been lost.
 			</p>

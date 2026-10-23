@@ -59,7 +59,7 @@ var eventLabels = map[string]string{
 // RunsPage lists every Run, newest first. In demo mode it offers to start
 // a demo Run.
 templ RunsPage(runs []Run, demo bool) {
-	@layout("MealOps — Runs") {
+	@layout("Dandori — Runs") {
 		<h2>Runs</h2>
 		if demo {
 			<form method="post" action="/runs" class="demo-start">
@@ -99,7 +99,7 @@ templ RunsPage(runs []Run, demo bool) {
 // RunPage is the trace panel of one Run. While the Run is going, the panel
 // follows its Trace Events live and offers to cancel it.
 templ RunPage(r Run) {
-	@layout(fmt.Sprintf("MealOps — Run #%d", r.ID)) {
+	@layout(fmt.Sprintf("Dandori — Run #%d", r.ID)) {
 		<h2>Run #{ fmt.Sprint(r.ID) }: { r.Kind }</h2>
 		<p class="run-meta">
 			@runStatus(r.Status)
