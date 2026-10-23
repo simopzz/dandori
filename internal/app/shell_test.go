@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/simopzz/mealops/internal/apptest"
+	"github.com/simopzz/dandori/internal/apptest"
 )
 
 func TestAppShellLinksAnInstallableManifest(t *testing.T) {
@@ -42,7 +42,7 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 	if err := json.Unmarshal([]byte(res.Body), &manifest); err != nil {
 		t.Fatalf("manifest is not JSON: %v", err)
 	}
-	if manifest.Name != "MealOps" || manifest.StartURL != "/" || manifest.Display != "standalone" {
+	if manifest.Name != "Dandori" || manifest.StartURL != "/" || manifest.Display != "standalone" {
 		t.Errorf("manifest = %+v", manifest)
 	}
 	sizes := map[string]bool{}

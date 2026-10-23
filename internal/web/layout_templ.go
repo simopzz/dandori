@@ -42,7 +42,7 @@ func layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"manifest\" href=\"/manifest.webmanifest\"><link rel=\"icon\" href=\"/static/icon-192.png\"><link rel=\"apple-touch-icon\" href=\"/static/icon-192.png\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script>\n\t\t\t\tif (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");\n\t\t\t</script></head><body><header><h1><a href=\"/\">MealOps</a></h1><nav><a href=\"/profile\">Profile</a> <a href=\"/runs\">Runs</a></nav></header><main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"manifest\" href=\"/manifest.webmanifest\"><link rel=\"icon\" href=\"/static/icon-192.png\"><link rel=\"apple-touch-icon\" href=\"/static/icon-192.png\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script>\n\t\t\t\tif (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");\n\t\t\t</script></head><body><header><h1><a href=\"/\">Dandori</a></h1><nav><a href=\"/profile\">Profile</a> <a href=\"/runs\">Runs</a></nav></header><main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -98,7 +98,7 @@ func Home() templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layout("MealOps").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout("Dandori").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -141,13 +141,13 @@ func DatabaseUnavailable() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<section class=\"notice\" role=\"alert\" hx-get=\"/healthz\" hx-trigger=\"every 5s\" hx-swap=\"none\"><h2>Database unavailable</h2><p>MealOps can't reach its database. If the Supabase project was paused after a period of inactivity, restore it from the Supabase dashboard. Nothing has been lost.</p><p class=\"muted\">This page will reload by itself once the database is back.</p></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<section class=\"notice\" role=\"alert\" hx-get=\"/healthz\" hx-trigger=\"every 5s\" hx-swap=\"none\"><h2>Database unavailable</h2><p>Dandori can't reach its database. If the Supabase project was paused after a period of inactivity, restore it from the Supabase dashboard. Nothing has been lost.</p><p class=\"muted\">This page will reload by itself once the database is back.</p></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layout("MealOps — database unavailable").Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout("Dandori — database unavailable").Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -2,15 +2,15 @@
 
 # Product Vision & Architectural Concept
 
-MealOps is an intelligent, adaptive nutritional assistant and agentic co-pilot designed for individuals who want to eat healthy, structured meals without turning meal planning and cooking into a second full-time job. Unlike traditional meal planning applications — which are rigid, static, and focused purely on theoretical planning — MealOps acts as a real-time co-pilot for your kitchen, capable of orchestrating grocery delivery, tracking pantry and freezer stocks, and dynamically reacting to everyday schedule changes.
+Dandori is an intelligent, adaptive nutritional assistant and agentic co-pilot designed for individuals who want to eat healthy, structured meals without turning meal planning and cooking into a second full-time job. Unlike traditional meal planning applications — which are rigid, static, and focused purely on theoretical planning — Dandori acts as a real-time co-pilot for your kitchen, capable of orchestrating grocery delivery, tracking pantry and freezer stocks, and dynamically reacting to everyday schedule changes.
 
 ## Core Philosophy & Operational Workflow
 
 1. Interactive Onboarding & Goal Profiling
-For users who do not know their exact caloric or macronutrient requirements, MealOps begins with a guided, conversational onboarding profiler. By asking targeted questions regarding body metrics, lifestyle, daily movement, and health goals, the system calculates a personalized baseline for daily calories and macronutrient splits (protein, carbs, fats).
+For users who do not know their exact caloric or macronutrient requirements, Dandori begins with a guided, conversational onboarding profiler. By asking targeted questions regarding body metrics, lifestyle, daily movement, and health goals, the system calculates a personalized baseline for daily calories and macronutrient splits (protein, carbs, fats).
 
 2. Low-Care Cooking & Asymmetric Batching ("Cook 1, Eat 3")
-Recognizing that weekday lunch breaks offer far less time than evening dinners, MealOps shifts the heavy lifting to dinner sessions while keeping active kitchen time to a minimum:
+Recognizing that weekday lunch breaks offer far less time than evening dinners, Dandori shifts the heavy lifting to dinner sessions while keeping active kitchen time to a minimum:
 
 - "Low-Care" Appliance-First Recipes: The engine prioritizes recipes utilizing appliances that require minimal active supervision — such as Microwave Ovens, Electric Ovens, Instant Pots, Air Fryers, and Slow Cookers. Prep work is capped at 10–15 minutes, letting appliances handle the rest passively.
 
@@ -23,13 +23,13 @@ Recognizing that weekday lunch breaks offer far less time than evening dinners, 
     * Portion 3: Tagged and added to the Freezer Stash for zero-prep retrieval on busy days.
 
 3. Real-Time Grocery E-Commerce & Playwright MCP Cart Automation
-To bridge the gap between meal plans and store availability, MealOps integrates directly with online grocery stores (e.g., local supermarket delivery platforms). Driven by a throttled, rate-limited Playwright MCP (Model Context Protocol) Server, the agent safely browses live store catalogs, verifies actual product availability, unit prices, and package sizes, and automatically populates your online shopping cart — grounding every generated recipe in items you can actually buy and deliver.
+To bridge the gap between meal plans and store availability, Dandori integrates directly with online grocery stores (e.g., local supermarket delivery platforms). Driven by a throttled, rate-limited Playwright MCP (Model Context Protocol) Server, the agent safely browses live store catalogs, verifies actual product availability, unit prices, and package sizes, and automatically populates your online shopping cart — grounding every generated recipe in items you can actually buy and deliver.
 
 4. Dynamic Event Recalibration
 When real-life interruptions occur — a last-minute dinner out, an unexpected late meeting, or an unconsumed leftover — the user simply inputs the event. The AI agent instantly recalculates the remainder of the week's meal schedule, reallocating existing pantry and freezer items to guarantee zero food waste while maintaining target weekly nutritional macros.
 
 5. Hands-Free Kitchen "Cooking Mode"
-When it is time to cook, MealOps transitions into a distraction-free interface optimized for smartphones and tablets resting on kitchen counters:
+When it is time to cook, Dandori transitions into a distraction-free interface optimized for smartphones and tablets resting on kitchen counters:
 
 Screen Keep-Alive: Uses the HTML5 Web Screen Wake Lock API to keep the screen active continuously, eliminating the need to unlock the device with wet or messy hands.
 

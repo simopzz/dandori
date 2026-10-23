@@ -1,4 +1,4 @@
-# MealOps
+# Dandori
 
 A personal meal-planning co-pilot for one person cooking for themselves. It plans batch-cooked meals, tracks what is in the kitchen, adapts to schedule changes, and fills an online supermarket cart.
 
@@ -128,4 +128,4 @@ _Avoid_: Log entry, step
 - Cycles never overlap: a delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items.
 - Cycles may have days between them. Those days have no Plan and no Slots, but what is eaten on them still counts toward the Targets.
 - Cancelling a Run rolls nothing back: what it already did (products in the cart, Catalog Products seeded) stays, and running it again finishes the work. A cancelled planning Run produces no Plan Proposal.
-- A Run still going when MealOps stops counts as failed, not cancelled: only the user cancels a Run.
+- A Run still going when Dandori stops counts as failed, not cancelled: only the user cancels a Run.

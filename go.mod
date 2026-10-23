@@ -1,4 +1,4 @@
-module github.com/simopzz/mealops
+module github.com/simopzz/dandori
 
 go 1.27.3
 

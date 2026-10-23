@@ -1,6 +1,6 @@
 // Package demo is a Run kind for trying the agent loop and trace panel by
 // hand, before any real kind of Run exists. It is offered only in demo mode
-// (MEALOPS_DEMO=1).
+// (DANDORI_DEMO=1).
 //
 // The agent answers a pantry question with two toy tools: one looks food up,
 // the other always fails. The model is either scripted (no API calls, a
@@ -15,8 +15,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/simopzz/mealops/internal/agent"
-	"github.com/simopzz/mealops/internal/agent/fakellm"
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 )
 
 // Kind is the demo's kind of Run.

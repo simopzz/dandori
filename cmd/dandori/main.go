@@ -1,13 +1,13 @@
-// Command mealops runs the MealOps app as a single local binary.
+// Command dandori runs the Dandori app as a single local binary.
 //
-//	mealops [serve]   serve the app, migrating the database on startup
-//	mealops migrate   apply pending migrations and exit
+//	dandori [serve]   serve the app, migrating the database on startup
+//	dandori migrate   apply pending migrations and exit
 //
-// Configuration comes from the environment: MEALOPS_DATABASE_URL (required),
-// MEALOPS_ADDR (default 127.0.0.1:8080), MEALOPS_MODEL (default the latest
-// Claude model), MEALOPS_LLM_RETRIES (default 3) and MEALOPS_MAX_TURNS
+// Configuration comes from the environment: DANDORI_DATABASE_URL (required),
+// DANDORI_ADDR (default 127.0.0.1:8080), DANDORI_MODEL (default the latest
+// Claude model), DANDORI_LLM_RETRIES (default 3) and DANDORI_MAX_TURNS
 // (default 50), where 0 keeps the default, the Claude credentials
-// (ANTHROPIC_API_KEY, or a profile from `ant auth login`), and MEALOPS_DEMO=1
+// (ANTHROPIC_API_KEY, or a profile from `ant auth login`), and DANDORI_DEMO=1
 // to offer demo Runs on the Runs page.
 package main
 
@@ -24,15 +24,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/simopzz/mealops/internal/agent/anthropic"
-	"github.com/simopzz/mealops/internal/app"
-	"github.com/simopzz/mealops/internal/db"
+	"github.com/simopzz/dandori/internal/agent/anthropic"
+	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/db"
 )
 
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	if err := run(log, os.Args[1:]); err != nil {
-		log.Error("mealops", "err", err)
+		log.Error("dandori", "err", err)
 		os.Exit(1)
 	}
 }
@@ -42,18 +42,18 @@ func run(log *slog.Logger, args []string) error {
 	defer stop()
 
 	cfg := app.Config{
-		DatabaseURL: os.Getenv("MEALOPS_DATABASE_URL"),
-		Model:       os.Getenv("MEALOPS_MODEL"),
-		Demo:        os.Getenv("MEALOPS_DEMO") == "1",
+		DatabaseURL: os.Getenv("DANDORI_DATABASE_URL"),
+		Model:       os.Getenv("DANDORI_MODEL"),
+		Demo:        os.Getenv("DANDORI_DEMO") == "1",
 	}
 	if cfg.DatabaseURL == "" {
-		return errors.New("MEALOPS_DATABASE_URL is not set")
+		return errors.New("DANDORI_DATABASE_URL is not set")
 	}
 	var err error
-	if cfg.LLMRetries, err = envInt("MEALOPS_LLM_RETRIES"); err != nil {
+	if cfg.LLMRetries, err = envInt("DANDORI_LLM_RETRIES"); err != nil {
 		return err
 	}
-	if cfg.MaxTurns, err = envInt("MEALOPS_MAX_TURNS"); err != nil {
+	if cfg.MaxTurns, err = envInt("DANDORI_MAX_TURNS"); err != nil {
 		return err
 	}
 
@@ -63,7 +63,7 @@ func run(log *slog.Logger, args []string) error {
 	}
 	switch cmd {
 	case "serve":
-		return serve(ctx, log, cfg, envOr("MEALOPS_ADDR", "127.0.0.1:8080"))
+		return serve(ctx, log, cfg, envOr("DANDORI_ADDR", "127.0.0.1:8080"))
 	case "migrate":
 		pool, err := db.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
@@ -100,7 +100,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 	srv := &http.Server{
 		Handler:           a.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
-		// Live trace streams end when MealOps is stopped.
+		// Live trace streams end when Dandori is stopped.
 		BaseContext: func(net.Listener) context.Context { return ctx },
 	}
 	errc := make(chan error, 1)

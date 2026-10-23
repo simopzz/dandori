@@ -191,7 +191,7 @@ func RunsPage(runs []Run, demo bool) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layout("MealOps — Runs").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout("Dandori — Runs").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -353,7 +353,7 @@ func RunPage(r Run) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layout(fmt.Sprintf("MealOps — Run #%d", r.ID)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout(fmt.Sprintf("Dandori — Run #%d", r.ID)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

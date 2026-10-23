@@ -1,4 +1,4 @@
-// Package app wires MealOps together: the database, the outbound ports and
+// Package app wires Dandori together: the database, the outbound ports and
 // the HTTP handlers. Tests start it in-process through internal/apptest.
 package app
 
@@ -15,10 +15,10 @@ import (
 	"github.com/a-h/templ"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/simopzz/mealops/internal/agent"
-	"github.com/simopzz/mealops/internal/db"
-	"github.com/simopzz/mealops/internal/demo"
-	"github.com/simopzz/mealops/internal/web"
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/demo"
+	"github.com/simopzz/dandori/internal/web"
 )
 
 // Config is what the app needs from its environment. Zero values take the
@@ -65,7 +65,7 @@ type Ports struct {
 	LLM agent.LLM
 }
 
-// App is a running MealOps instance.
+// App is a running Dandori instance.
 type App struct {
 	pool  *pgxpool.Pool
 	cfg   Config
@@ -173,7 +173,7 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 		case err != nil:
 			// Reachable but not usable, e.g. a failing migration: a bug, not a pause.
 			a.log.Error("database not ready", "err", err)
-			http.Error(w, "MealOps could not prepare its database; see the server log.", http.StatusInternalServerError)
+			http.Error(w, "Dandori could not prepare its database; see the server log.", http.StatusInternalServerError)
 			return
 		}
 		next.ServeHTTP(w, r)

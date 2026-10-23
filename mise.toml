@@ -4,20 +4,20 @@ go = "1.27.3"
 golangci-lint = "2.15.0"
 
 [env]
-# Local secrets such as MEALOPS_DATABASE_URL; see .env.example.
+# Local secrets such as DANDORI_DATABASE_URL; see .env.example.
 _.file = ".env"
 # Admin connection to a disposable Postgres + pgvector server; seam-1 tests
 # create one database per test on it. Start it with `mise run testdb`.
-MEALOPS_TEST_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
+DANDORI_TEST_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
 
 [tasks.generate]
 description = "Generate Go code from templ templates"
 run = "templ generate"
 
 [tasks.build]
-description = "Build the single mealops binary"
+description = "Build the single dandori binary"
 depends = ["generate"]
-run = "go build -o bin/mealops ./cmd/mealops"
+run = "go build -o bin/dandori ./cmd/dandori"
 
 [tasks.test]
 description = "Run the full test suite (needs the test database)"
@@ -26,12 +26,12 @@ run = "go test ./..."
 
 [tasks.testdb]
 description = "Start the disposable Postgres + pgvector test server (docker needs sudo)"
-run = "sudo docker run -d --rm --name mealops-testdb -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5433:5432 pgvector/pgvector:pg17"
+run = "sudo docker run -d --rm --name dandori-testdb -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5433:5432 pgvector/pgvector:pg17"
 
 [tasks.dev]
-description = "Run the app locally against MEALOPS_DATABASE_URL"
+description = "Run the app locally against DANDORI_DATABASE_URL"
 depends = ["generate"]
-run = "go run ./cmd/mealops serve"
+run = "go run ./cmd/dandori serve"
 
 [tasks.lint]
 description = "Run golangci-lint (config in .golangci.yml)"
