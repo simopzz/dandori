@@ -56,7 +56,9 @@ func (p parsedRecipe) recipe(known map[string]domain.Ingredient) domain.Recipe {
 	for _, pi := range p.Ingredients {
 		ing := domain.Ingredient{Name: domain.IngredientName(pi.Name), Unit: domain.Unit(pi.Unit)}
 		if k, ok := known[ing.Name]; ok {
-			ing = k
+			// Its known values, but the unit the quantity is in, so a unit
+			// that differs from the known one is caught when it is read back.
+			ing.Nutrition = k.Nutrition
 		} else if pi.Nutrition != nil {
 			ing.Nutrition = domain.IngredientNutrition(*pi.Nutrition)
 		}

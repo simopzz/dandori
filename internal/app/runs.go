@@ -322,7 +322,7 @@ func (a *App) listRuns(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) showRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -344,7 +344,7 @@ func (a *App) showRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) cancelRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -368,7 +368,7 @@ func (a *App) cancelRun(w http.ResponseWriter, r *http.Request) {
 // ones after the last the client has (Last-Event-ID, else ?after=), then
 // live ones until the Run ends, then an "end" event with its status.
 func (a *App) streamRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -490,7 +490,7 @@ func writeEvent(w io.Writer, id, name, data string) {
 	fmt.Fprint(w, "\n")
 }
 
-func runID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)

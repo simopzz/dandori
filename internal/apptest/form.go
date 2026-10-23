@@ -38,19 +38,13 @@ func Form(t testing.TB, page, id string) FormData {
 
 	f := FormData{Action: attr(form, "action"), Values: url.Values{}}
 	for n := range form.Descendants() {
-		if n.Type != html.ElementNode || attr(n, "name") == "" || hasAttr(n, "disabled") {
+		if n.Type != html.ElementNode || attr(n, "name") == "" {
 			continue
 		}
 		name := attr(n, "name")
 		switch n.Data {
 		case "input":
-			switch attr(n, "type") {
-			case "submit", "button", "reset":
-			case "checkbox", "radio":
-				if hasAttr(n, "checked") {
-					f.Values.Add(name, attrOr(n, "value", "on"))
-				}
-			default:
+			if attr(n, "type") != "submit" {
 				f.Values.Add(name, attr(n, "value"))
 			}
 		case "textarea":
@@ -95,15 +89,13 @@ func optionValue(o *html.Node) string {
 	return strings.TrimSpace(b.String())
 }
 
-func attr(n *html.Node, key string) string { return attrOr(n, key, "") }
-
-func attrOr(n *html.Node, key, fallback string) string {
+func attr(n *html.Node, key string) string {
 	for _, a := range n.Attr {
 		if a.Key == key {
 			return a.Val
 		}
 	}
-	return fallback
+	return ""
 }
 
 func hasAttr(n *html.Node, key string) bool {

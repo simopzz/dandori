@@ -457,3 +457,88 @@ func TestDraftPageFollowsTheParseWhileItRuns(t *testing.T) {
 		t.Errorf("draft page offers a Recipe before the parse produced one")
 	}
 }
+
+func TestKnownIngredientInAnotherUnitMustBeRequantified(t *testing.T) {
+	h, llm := startRecipes(t)
+	// Drafted while olive oil is still new, measured in pieces (a bottle).
+	bottle := chickpeaCurryParsed()
+	bottle["ingredients"] = []map[string]any{{"name": "olive oil", "quantity": 1, "unit": "piece",
+		"nutrition": map[string]any{"kcal": 4000, "protein_g": 0, "carbs_g": 0, "fat_g": 450}}}
+	llm.Script(fakellm.CallTool("submit_recipe", bottle), fakellm.Reply("Parsed."))
+	draft := parse(t, h, "A bottle of olive oil.")
+
+	// Olive oil becomes known, in ml, before the draft is accepted.
+	acceptFirstRecipe(t, h, llm)
+
+	page := h.Get(t, draft.Path)
+	form := apptest.Form(t, page.Body, "recipe")
+	if !strings.Contains(text(page.Body), "olive oil is measured in ml") || form.Get("ing_quantity_0") != "" {
+		t.Errorf("draft does not ask for the olive oil in ml: quantity = %q\n%s", form.Get("ing_quantity_0"), text(page.Body))
+	}
+	if res := h.PostForm(t, form.Action, form.Values); res.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("accept without a quantity in ml = %d, want 422", res.StatusCode)
+	}
+	form.Values.Set("ing_quantity_0", "15")
+	if res := h.PostForm(t, form.Action, form.Values); !strings.Contains(text(res.Body), "15 ml olive oil") {
+		t.Errorf("requantified draft was not saved:\n%s", text(res.Body))
+	}
+}
+
+func TestRowRenamedToAKnownIngredientInAnotherUnitMustBeRequantified(t *testing.T) {
+	h, llm := startRecipes(t)
+	acceptFirstRecipe(t, h, llm)
+	recipe := libraryRecipe(t, h)
+
+	form := apptest.Form(t, h.Get(t, recipe+"/edit").Body, "recipe")
+	// The lemon (1 piece) becomes rice, which is measured in grams.
+	form.Values.Set("ing_name_3", "basmati rice")
+	form.Values.Set("ing_name_1", "")
+	form.Values.Set("ing_quantity_1", "")
+	res := h.PostForm(t, form.Action, form.Values)
+	if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), "basmati rice is measured in g") {
+		t.Errorf("save = %d, want 422 asking for the quantity in g:\n%s", res.StatusCode, text(res.Body))
+	}
+}
+
+func TestAmountsMustBeFiniteNumbers(t *testing.T) {
+	for _, v := range []string{"NaN", "Inf", "-inf"} {
+		t.Run(v, func(t *testing.T) {
+			h, _ := startRecipes(t, fakellm.CallTool("submit_recipe", parsedRecipe()), fakellm.Reply("Parsed."))
+			form := apptest.Form(t, parse(t, h, pastedRecipe).Body, "recipe")
+			form.Values.Set("ing_quantity_0", v)
+			res := h.PostForm(t, form.Action, form.Values)
+			if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), "Must be a number") {
+				t.Errorf("quantity %s: accept = %d, want 422", v, res.StatusCode)
+			}
+		})
+	}
+}
+
+func TestDraftIsAcceptedOnlyOnce(t *testing.T) {
+	h, _ := startRecipes(t, fakellm.CallTool("submit_recipe", parsedRecipe()), fakellm.Reply("Parsed."))
+	form := apptest.Form(t, parse(t, h, pastedRecipe).Body, "recipe")
+
+	h.PostForm(t, form.Action, form.Values)
+	if again := h.PostForm(t, form.Action, form.Values); again.StatusCode != http.StatusNotFound {
+		t.Errorf("accepting the same draft again = %d, want 404", again.StatusCode)
+	}
+	if n := strings.Count(h.Get(t, "/recipes").Body, `href="/recipes/`); n != 1 {
+		t.Errorf("the Recipe Library has %d Recipes, want 1", n)
+	}
+}
+
+func TestDraftIsNotOfferedWhileTheParseIsStillRunning(t *testing.T) {
+	finishing := make(chan struct{})
+	h, _ := startRecipes(t,
+		fakellm.CallTool("submit_recipe", parsedRecipe()),
+		fakellm.Reply("Parsed.").After(finishing),
+	)
+	defer close(finishing)
+	res := h.PostForm(t, "/recipes/parse", url.Values{"text": {pastedRecipe}})
+	run := "/runs/" + strings.TrimPrefix(res.Path, "/recipe-drafts/")
+	readUntil(t, h.Stream(t, run+"/events", ""), "The draft is saved")
+
+	if page := h.Get(t, res.Path); strings.Contains(page.Body, `id="recipe"`) {
+		t.Errorf("draft offered for acceptance while the model may still change it")
+	}
+}

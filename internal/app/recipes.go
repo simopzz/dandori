@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
@@ -67,8 +69,13 @@ func (a *App) parseRecipe(w http.ResponseWriter, r *http.Request) {
 // showDraft shows the draft a parse Run produced, ready to check and
 // accept, or the Run's trace while there is none.
 func (a *App) showDraft(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
+		return
+	}
+	// While the Run goes on, the model may still change the draft.
+	if live := a.runs.get(id); live != nil {
+		a.showDraftPending(w, r, id)
 		return
 	}
 	draft, found, err := a.loadDraft(r.Context(), id)
@@ -118,7 +125,7 @@ func draftForm(id int64, f web.RecipeForm) web.RecipeForm {
 // acceptDraft saves the draft, as the user corrected it, to the Recipe
 // Library.
 func (a *App) acceptDraft(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -131,21 +138,20 @@ func (a *App) acceptDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	a.submitRecipe(w, r, func(f web.RecipeForm) web.RecipeForm { return draftForm(id, f) },
 		func(ctx context.Context, tx pgx.Tx, rec domain.Recipe) (int64, error) {
-			recipeID, err := storeRecipe(ctx, tx, 0, rec)
-			if err != nil {
+			// Deleting the draft first locks it, so it is accepted only once.
+			if err := deleteDraft(ctx, tx, id); err != nil {
 				return 0, err
 			}
-			_, err = tx.Exec(ctx, `DELETE FROM recipe_draft WHERE run_id = $1`, id)
-			return recipeID, err
+			return storeRecipe(ctx, tx, 0, rec)
 		})
 }
 
 func (a *App) discardDraft(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
-	if _, err := a.pool.Exec(r.Context(), `DELETE FROM recipe_draft WHERE run_id = $1`, id); err != nil {
+	if err := deleteDraft(r.Context(), a.pool, id); err != nil && !errors.Is(err, errNoDraft) {
 		a.serverError(w, "discard draft", err)
 		return
 	}
@@ -206,7 +212,7 @@ func (a *App) updateRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) deleteRecipe(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r) // reads any {id}, not only a Run's
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -242,6 +248,10 @@ func (a *App) submitRecipe(w http.ResponseWriter, r *http.Request,
 		id, err = store(r.Context(), tx, rec)
 		return err
 	})
+	if errors.Is(err, errNoDraft) {
+		http.NotFound(w, r)
+		return
+	}
 	if err != nil {
 		// Keep what was typed rather than replacing the form with an error.
 		a.log.Error("store recipe", "err", err)
@@ -255,7 +265,7 @@ func (a *App) submitRecipe(w http.ResponseWriter, r *http.Request,
 // recipeFromPath loads the Recipe the path names, answering 404 if there
 // is none.
 func (a *App) recipeFromPath(w http.ResponseWriter, r *http.Request) (storedRecipe, bool) {
-	id, ok := runID(w, r) // reads any {id}, not only a Run's
+	id, ok := pathID(w, r)
 	if !ok {
 		return storedRecipe{}, false
 	}
@@ -340,6 +350,9 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 		if row.Name != "" && in("new") != strconv.FormatBool(!isKnown) {
 			f.Rematched = true
 		}
+		// A known Ingredient in another unit, say after a rename: the
+		// quantity means nothing in its unit, so it must be given again.
+		requantify := isKnown && row.Unit != "" && row.Unit != string(ing.Unit)
 		if isKnown {
 			row.Unit = string(ing.Unit)
 			row.Kcal, row.ProteinG, row.CarbsG, row.FatG = "", "", "", ""
@@ -352,6 +365,10 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 			ing.Nutrition.FatG = readAmount(f, out("fat_g"), row.FatG)
 		}
 		quantity := readAmount(f, out("quantity"), row.Quantity)
+		if requantify {
+			row.Quantity = ""
+			f.Errors[out("quantity")] = fmt.Sprintf("%s is measured in %s; give the quantity in %s", ing.Name, ing.Unit, ing.Unit)
+		}
 		rec.Ingredients = append(rec.Ingredients, domain.RecipeIngredient{Ingredient: ing, Quantity: quantity})
 		f.Ingredients = append(f.Ingredients, row)
 	}
@@ -414,7 +431,7 @@ func readAmount(f web.RecipeForm, name, raw string) float64 {
 		return 0
 	}
 	v, err := strconv.ParseFloat(strings.Replace(raw, ",", ".", 1), 64)
-	if err != nil {
+	if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
 		f.Errors[name] = "Must be a number"
 	}
 	return v
@@ -490,6 +507,19 @@ func (a *App) loadDraft(ctx context.Context, runID int64) (parsedRecipe, bool, e
 		return parsedRecipe{}, false, fmt.Errorf("read draft of run %d: %w", runID, err)
 	}
 	return p, true, nil
+}
+
+// errNoDraft means the draft was already accepted or discarded.
+var errNoDraft = errors.New("no such draft")
+
+func deleteDraft(ctx context.Context, db interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}, runID int64) error {
+	tag, err := db.Exec(ctx, `DELETE FROM recipe_draft WHERE run_id = $1`, runID)
+	if err == nil && tag.RowsAffected() == 0 {
+		err = errNoDraft
+	}
+	return err
 }
 
 // storeRecipe stores rec as the Recipe with id, or as a new Recipe when id
