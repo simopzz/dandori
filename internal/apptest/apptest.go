@@ -18,12 +18,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver pgtestdb connects with
 	"github.com/peterldowns/pgtestdb"
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
 
+	"github.com/simopzz/mealops/internal/agent"
 	"github.com/simopzz/mealops/internal/app"
 	"github.com/simopzz/mealops/internal/db"
 )
@@ -33,21 +35,41 @@ type Harness struct {
 	URL    string
 	Client *http.Client
 
-	adminURL string
-	database string
+	adminURL    string
+	database    string
+	databaseURL string
+	settings    settings
 }
 
 // Option customises the app a test starts.
 type Option func(*settings)
 
 type settings struct {
+	config      func(*app.Config)
 	ports       app.Ports
+	jobs        map[string]agent.Job
 	databaseCut bool
 }
 
 // WithPorts lets a test swap outbound ports for fakes.
 func WithPorts(configure func(*app.Ports)) Option {
 	return func(s *settings) { configure(&s.ports) }
+}
+
+// WithConfig lets a test change the app's configuration.
+func WithConfig(configure func(*app.Config)) Option {
+	return func(s *settings) { s.config = configure }
+}
+
+// WithJob registers a Run kind that always runs job, so a test can start
+// it with StartRun.
+func WithJob(kind string, job agent.Job) Option {
+	return func(s *settings) {
+		if s.jobs == nil {
+			s.jobs = map[string]agent.Job{}
+		}
+		s.jobs[kind] = job
+	}
 }
 
 // WithDatabaseCut starts the app while its database is unreachable.
@@ -92,26 +114,52 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		TestRole: &pgtestdb.Role{Username: admin.User.Username(), Password: password},
 	}, goosemigrator.New("migrations", goosemigrator.WithFS(db.Migrations())))
 
-	h := &Harness{adminURL: adminURL, database: instance.Database}
+	h := &Harness{adminURL: adminURL, database: instance.Database, databaseURL: instance.URL(), settings: s}
 	if s.databaseCut {
 		h.CutDatabase(t)
 	}
+	h.boot(t)
+	return h
+}
 
+// boot starts an app on the harness's database and points the harness at it.
+func (h *Harness) boot(t testing.TB) {
+	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if testing.Verbose() {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
-	a, err := app.New(context.Background(), app.Config{DatabaseURL: instance.URL()}, s.ports, logger)
+	cfg := app.Config{
+		DatabaseURL: h.databaseURL,
+		// Retries are part of what tests check; waiting for them is not.
+		LLMRetryBackoff: time.Millisecond,
+	}
+	if h.settings.config != nil {
+		h.settings.config(&cfg)
+	}
+	a, err := app.New(context.Background(), cfg, h.settings.ports, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
+	for kind, job := range h.settings.jobs {
+		a.RegisterJob(kind, func(url.Values) (agent.Job, error) { return job, nil })
+	}
 	srv := httptest.NewServer(a.Handler())
 	t.Cleanup(func() {
-		srv.Close()
+		// Stopping the Runs first ends their live streams, which the
+		// server waits for.
 		a.Close()
+		srv.Close()
 	})
 	h.URL, h.Client = srv.URL, srv.Client()
-	return h
+}
+
+// Crash starts a new app on the same database, as when MealOps is killed
+// and started again: the old app gets no chance to record anything, and
+// the harness talks to the new one from now on.
+func (h *Harness) Crash(t testing.TB) {
+	t.Helper()
+	h.boot(t)
 }
 
 // CutDatabase makes the database unreachable, as when Supabase pauses the
@@ -152,9 +200,10 @@ type Response struct {
 	StatusCode int
 	Header     http.Header
 	Body       string
-	// Method is the method of the request that got this response: GET when
-	// a POST was redirected.
+	// Method and Path are those of the request that got this response:
+	// a GET of the new location when a POST was redirected.
 	Method string
+	Path   string
 }
 
 // Get requests path from the app.
@@ -169,7 +218,7 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 	if err != nil {
 		t.Fatalf("GET %s: read body: %v", path, err)
 	}
-	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body)}
+	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }
 
 // PostForm submits form to path, as a browser does without HTMX, following
@@ -204,5 +253,5 @@ func (h *Harness) postForm(t testing.TB, path string, form url.Values, htmx bool
 	if err != nil {
 		t.Fatalf("POST %s: read body: %v", path, err)
 	}
-	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method}
+	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }

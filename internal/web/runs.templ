@@ -1,0 +1,151 @@
+package web
+
+import (
+	"fmt"
+	"time"
+)
+
+// Run is a Run as its trace panel shows it.
+type Run struct {
+	ID        int64
+	Kind      string
+	Status    string // running, succeeded, failed or cancelled
+	StartedAt time.Time
+	Events    []TraceEvent
+}
+
+// TraceEvent is one step of a Run.
+type TraceEvent struct {
+	Seq     int
+	At      time.Time
+	Kind    string
+	Summary string
+	Detail  string
+}
+
+func (r Run) running() bool { return r.Status == "running" }
+
+// streamURL is where the panel follows a running Run, from the last event
+// it already shows.
+func (r Run) streamURL() string {
+	after := 0
+	if n := len(r.Events); n > 0 {
+		after = r.Events[n-1].Seq
+	}
+	return fmt.Sprintf("/runs/%d/events?after=%d", r.ID, after)
+}
+
+func runURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/runs/%d", id)) }
+
+var statusLabels = map[string]string{
+	"running":   "Running",
+	"succeeded": "Succeeded",
+	"failed":    "Failed",
+	"cancelled": "Cancelled",
+}
+
+var eventLabels = map[string]string{
+	"started":     "Started",
+	"step":        "Step",
+	"message":     "Agent",
+	"tool_call":   "Tool call",
+	"tool_result": "Tool result",
+	"retry":       "Retry",
+	"wait":        "Wait",
+	"error":       "Error",
+	"finished":    "Finished",
+}
+
+// RunsPage lists every Run, newest first. In demo mode it offers to start
+// a demo Run.
+templ RunsPage(runs []Run, demo bool) {
+	@layout("MealOps — Runs") {
+		<h2>Runs</h2>
+		if demo {
+			<form method="post" action="/runs" class="demo-start">
+				<input type="hidden" name="kind" value="demo"/>
+				<label>
+					Model
+					<select name="model">
+						<option value="fake">Scripted (no API calls)</option>
+						<option value="claude">Claude (real API, costs money)</option>
+					</select>
+				</label>
+				<button type="submit">Start demo run</button>
+			</form>
+		}
+		if len(runs) == 0 {
+			<p class="muted">No agent has run yet.</p>
+		} else {
+			<table class="runs">
+				<thead>
+					<tr><th>Run</th><th>Kind</th><th>Status</th><th>Started</th></tr>
+				</thead>
+				<tbody>
+					for _, r := range runs {
+						<tr>
+							<td><a href={ runURL(r.ID) }>#{ fmt.Sprint(r.ID) }</a></td>
+							<td>{ r.Kind }</td>
+							<td>@runStatus(r.Status)</td>
+							<td>@timestamp(r.StartedAt, "2006-01-02 15:04")</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	}
+}
+
+// RunPage is the trace panel of one Run. While the Run is going, the panel
+// follows its Trace Events live and offers to cancel it.
+templ RunPage(r Run) {
+	@layout(fmt.Sprintf("MealOps — Run #%d", r.ID)) {
+		<h2>Run #{ fmt.Sprint(r.ID) }: { r.Kind }</h2>
+		<p class="run-meta">
+			@runStatus(r.Status)
+			<span class="muted">
+				{ "started " }
+				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
+			</span>
+		</p>
+		if r.running() {
+			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/runs/%d/cancel", r.ID)) }>
+				<button type="submit">Cancel run</button>
+			</form>
+		}
+		<ol
+			class="trace"
+			if r.running() {
+				data-trace-stream={ r.streamURL() }
+			}
+		>
+			for _, e := range r.Events {
+				@TraceEventItem(e)
+			}
+		</ol>
+		if r.running() {
+			<script src="/static/trace.js" defer></script>
+		}
+	}
+}
+
+// TraceEventItem is one Trace Event in the panel; the live stream sends
+// these to append.
+templ TraceEventItem(e TraceEvent) {
+	<li class={ "trace-event", "trace-" + e.Kind }>
+		@timestamp(e.At, "15:04:05")
+		<span class="trace-kind">{ eventLabels[e.Kind] }</span>
+		<span class="trace-summary">{ e.Summary }</span>
+		if e.Detail != "" {
+			<pre class="trace-detail">{ e.Detail }</pre>
+		}
+	</li>
+}
+
+templ runStatus(status string) {
+	<span class={ "run-status", "status-" + status }>{ statusLabels[status] }</span>
+}
+
+templ timestamp(t time.Time, layout string) {
+	<time datetime={ t.Format(time.RFC3339) }>{ t.Local().Format(layout) }</time>
+}

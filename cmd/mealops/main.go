@@ -3,8 +3,12 @@
 //	mealops [serve]   serve the app, migrating the database on startup
 //	mealops migrate   apply pending migrations and exit
 //
-// Configuration comes from the environment: MEALOPS_DATABASE_URL (required)
-// and MEALOPS_ADDR (default 127.0.0.1:8080).
+// Configuration comes from the environment: MEALOPS_DATABASE_URL (required),
+// MEALOPS_ADDR (default 127.0.0.1:8080), MEALOPS_MODEL (default the latest
+// Claude model), MEALOPS_LLM_RETRIES (default 3) and MEALOPS_MAX_TURNS
+// (default 50), where 0 keeps the default, the Claude credentials
+// (ANTHROPIC_API_KEY, or a profile from `ant auth login`), and MEALOPS_DEMO=1
+// to offer demo Runs on the Runs page.
 package main
 
 import (
@@ -16,9 +20,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/simopzz/mealops/internal/agent/anthropic"
 	"github.com/simopzz/mealops/internal/app"
 	"github.com/simopzz/mealops/internal/db"
 )
@@ -35,9 +41,20 @@ func run(log *slog.Logger, args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg := app.Config{DatabaseURL: os.Getenv("MEALOPS_DATABASE_URL")}
+	cfg := app.Config{
+		DatabaseURL: os.Getenv("MEALOPS_DATABASE_URL"),
+		Model:       os.Getenv("MEALOPS_MODEL"),
+		Demo:        os.Getenv("MEALOPS_DEMO") == "1",
+	}
 	if cfg.DatabaseURL == "" {
 		return errors.New("MEALOPS_DATABASE_URL is not set")
+	}
+	var err error
+	if cfg.LLMRetries, err = envInt("MEALOPS_LLM_RETRIES"); err != nil {
+		return err
+	}
+	if cfg.MaxTurns, err = envInt("MEALOPS_MAX_TURNS"); err != nil {
+		return err
 	}
 
 	cmd := "serve"
@@ -64,7 +81,7 @@ func run(log *slog.Logger, args []string) error {
 }
 
 func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) error {
-	a, err := app.New(ctx, cfg, app.Ports{}, log)
+	a, err := app.New(ctx, cfg, app.Ports{LLM: anthropic.New()}, log)
 	if err != nil {
 		return err
 	}
@@ -80,7 +97,12 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Handler: a.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Handler:           a.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		// Live trace streams end when MealOps is stopped.
+		BaseContext: func(net.Listener) context.Context { return ctx },
+	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
 	log.Info("serving", "addr", ln.Addr().String())
@@ -93,6 +115,19 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 		defer cancel()
 		return srv.Shutdown(shutdownCtx)
 	}
+}
+
+// envInt reads a whole number from the environment; unset is 0, the default.
+func envInt(key string) (int, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("%s must be a whole number, got %q", key, v)
+	}
+	return n, nil
 }
 
 func envOr(key, fallback string) string {

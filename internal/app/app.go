@@ -15,28 +15,67 @@ import (
 	"github.com/a-h/templ"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/mealops/internal/agent"
 	"github.com/simopzz/mealops/internal/db"
+	"github.com/simopzz/mealops/internal/demo"
 	"github.com/simopzz/mealops/internal/web"
 )
 
-// Config is what the app needs from its environment.
+// Config is what the app needs from its environment. Zero values take the
+// defaults below.
 type Config struct {
 	DatabaseURL string
+
+	// Model is the Claude model agent Runs use.
+	Model string
+	// LLMRetries is how many times a failed request to the model is retried
+	// when the failure is worth retrying; LLMRetryBackoff is the first wait.
+	LLMRetries      int
+	LLMRetryBackoff time.Duration
+	// MaxTurns bounds the requests to the model in one Run.
+	MaxTurns int
+
+	// Demo offers demo Runs on the Runs page, for trying the agent by hand.
+	Demo bool
+}
+
+// DefaultModel is the latest Claude model.
+const DefaultModel = "claude-opus-5-5"
+
+func (c Config) withDefaults() Config {
+	if c.Model == "" {
+		c.Model = DefaultModel
+	}
+	if c.LLMRetries == 0 {
+		c.LLMRetries = 3
+	}
+	if c.LLMRetryBackoff == 0 {
+		c.LLMRetryBackoff = 2 * time.Second
+	}
+	if c.MaxTurns == 0 {
+		c.MaxTurns = 50
+	}
+	return c
 }
 
 // Ports are the outbound dependencies that talk to the outside world. Tests
-// replace them with fakes. The LLM, store and embeddings ports are added by
-// the slices that need them.
-type Ports struct{}
+// replace them with fakes. The store and embeddings ports are added by the
+// slices that need them.
+type Ports struct {
+	LLM agent.LLM
+}
 
 // App is a running MealOps instance.
 type App struct {
 	pool  *pgxpool.Pool
+	cfg   Config
 	ports Ports
 	log   *slog.Logger
 
 	mu       sync.Mutex
 	migrated bool
+
+	runs *runs
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -46,11 +85,20 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	if err != nil {
 		return nil, err
 	}
-	return &App{pool: pool, ports: ports, log: log}, nil
+	a := &App{pool: pool, cfg: cfg.withDefaults(), ports: ports, log: log}
+	a.runs = newRuns()
+	if cfg.Demo {
+		a.RegisterJob(demo.Kind, demo.NewJob)
+	}
+	return a, nil
 }
 
-// Close releases the database connections.
-func (a *App) Close() { a.pool.Close() }
+// Close cancels the Runs still going, waits for them to stop, and releases
+// the database connections.
+func (a *App) Close() {
+	a.runs.stop()
+	a.pool.Close()
+}
 
 // ErrDatabaseUnreachable means the database is paused or can't be reached.
 var ErrDatabaseUnreachable = errors.New("database unreachable")
@@ -76,6 +124,9 @@ func (a *App) EnsureDatabase(ctx context.Context) error {
 		}
 		return err
 	}
+	if err := a.abandonInterruptedRuns(ctx); err != nil {
+		return err
+	}
 	a.migrated = true
 	return nil
 }
@@ -97,6 +148,11 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
 	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(a.showProfile)))
 	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(a.saveProfile)))
+	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(a.listRuns)))
+	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(a.startRunHandler)))
+	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(a.showRun)))
+	mux.Handle("GET /runs/{id}/events", a.needsDatabase(http.HandlerFunc(a.streamRun)))
+	mux.Handle("POST /runs/{id}/cancel", a.needsDatabase(http.HandlerFunc(a.cancelRun)))
 	return mux
 }
 

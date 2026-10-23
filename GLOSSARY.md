@@ -104,6 +104,20 @@ _Avoid_: Shopping list, order
 Adding the Grocery List to the user's online supermarket cart. It stops at the cart: no checkout or payment.
 _Avoid_: Order, purchase, checkout
 
+### Agent
+
+**Run**:
+One execution of an agent task (planning, Recipe parsing, Known Catalog seed or refresh, Cart Fill), from its start until it succeeds, fails or is cancelled.
+_Avoid_: Job, task, execution
+
+**Trace**:
+The ordered Trace Events of one Run, kept with the Run after it ends.
+_Avoid_: Log, history
+
+**Trace Event**:
+One recorded step of a Run: a model message, a tool call or its result, a store action, a throttle wait, a retry or an error.
+_Avoid_: Log entry, step
+
 ## Rules of the model
 
 - A Prep Session at dinner yields three Portions by default: eaten now, eaten as lunch two days later, and a third scheduled two to three days after the second is eaten. The third is typically frozen. Other Prep Sessions yield as many Portions as their planned eating needs, often a single one eaten straight away.
@@ -113,3 +127,5 @@ _Avoid_: Order, purchase, checkout
 - A Cycle's end date moves only through an approved Plan Proposal, typically extending it when Exceptions leave enough Portions and stock to last longer.
 - Cycles never overlap: a delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items.
 - Cycles may have days between them. Those days have no Plan and no Slots, but what is eaten on them still counts toward the Targets.
+- Cancelling a Run rolls nothing back: what it already did (products in the cart, Catalog Products seeded) stays, and running it again finishes the work. A cancelled planning Run produces no Plan Proposal.
+- A Run still going when MealOps stops counts as failed, not cancelled: only the user cancels a Run.
