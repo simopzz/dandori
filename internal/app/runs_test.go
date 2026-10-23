@@ -297,7 +297,7 @@ func TestPanickingToolFailsOnlyItsRun(t *testing.T) {
 	job := pantryJob()
 	job.Tools[0].Run = func(context.Context, agent.Trace, json.RawMessage) (string, error) {
 		var pantry map[string]string
-		pantry["oats"] = "500 g" // a bug: the map was never made
+		pantry["oats"] = "500 g" //nolint:staticcheck // a bug: the map was never made
 		return "", nil
 	}
 	llm := fakellm.New(

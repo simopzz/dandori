@@ -1,6 +1,7 @@
 [tools]
 go = "1.27.3"
 "go:github.com/a-h/templ/cmd/templ" = "0.3.1070"
+golangci-lint = "2.15.0"
 
 [env]
 # Local secrets such as MEALOPS_DATABASE_URL; see .env.example.
@@ -31,3 +32,7 @@ run = "sudo docker run -d --rm --name mealops-testdb -e POSTGRES_PASSWORD=postgr
 description = "Run the app locally against MEALOPS_DATABASE_URL"
 depends = ["generate"]
 run = "go run ./cmd/mealops serve"
+
+[tasks.lint]
+description = "Run golangci-lint (config in .golangci.yml)"
+run = "golangci-lint run ./..."

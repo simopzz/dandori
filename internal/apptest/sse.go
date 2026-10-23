@@ -50,7 +50,7 @@ func (h *Harness) Stream(t testing.TB, path, lastEventID string) *Stream {
 	if lastEventID != "" {
 		req.Header.Set("Last-Event-ID", lastEventID)
 	}
-	res, err := h.Client.Do(req)
+	res, err := h.Client.Do(req) //nolint:bodyclose // the caller closes the stream
 	if err != nil {
 		cancel()
 		t.Fatalf("GET %s: %v", path, err)

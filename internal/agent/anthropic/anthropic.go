@@ -38,7 +38,7 @@ func New(opts ...option.RequestOption) *LLM {
 // Send implements agent.LLM.
 func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, error) {
 	params := sdk.MessageNewParams{
-		Model:     sdk.Model(req.Model),
+		Model:     req.Model,
 		MaxTokens: maxTokens,
 	}
 	if req.System != "" {

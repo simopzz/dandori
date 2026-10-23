@@ -1,0 +1,41 @@
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - copyloopvar
+    - depguard
+    - errorlint
+    - misspell
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - usestdlibvars
+  settings:
+    errcheck:
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+    depguard:
+      rules:
+        # domain, agent, db and web are leaves; only app wires them together.
+        leaves:
+          files:
+            - "**/internal/domain/**"
+            - "**/internal/agent/**"
+            - "**/internal/db/**"
+            - "**/internal/web/**"
+            - "!$test"
+          deny:
+            - pkg: github.com/simopzz/mealops/internal/app
+              desc: only cmd and apptest may depend on app
+            - pkg: github.com/simopzz/mealops/internal/db
+              desc: db is a leaf; wire it in app
+            - pkg: github.com/simopzz/mealops/internal/web
+              desc: web is a leaf; wire it in app
+  exclusions:
+    presets:
+      - std-error-handling
+    paths:
+      - ".*_templ\\.go$"

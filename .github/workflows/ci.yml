@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+      - name: Generate templ code
+        run: mise run generate
+      - name: Generated code is committed
+        run: git diff --exit-code
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: go vet
+        run: mise exec -- go vet ./...
+      - name: golangci-lint
+        run: mise exec -- golangci-lint run ./...
+      - name: Test
+        env:
+          GOFLAGS: -count=1 # never serve cached results for database-backed tests
+        run: mise run test
