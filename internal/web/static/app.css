@@ -161,3 +161,93 @@ main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
 .trace-retry .trace-kind { color: var(--error); }
 
 .trace-wait .trace-kind { color: var(--muted); }
+
+.recipe-paste label,
+.recipe-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.recipe-paste textarea,
+.recipe-form input,
+.recipe-form select,
+.recipe-form textarea {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #b9b19b;
+  border-radius: 0.35rem;
+  background: #fff;
+  width: 100%;
+}
+
+.recipe-paste [aria-invalid="true"],
+.recipe-form [aria-invalid="true"] { border-color: var(--error); }
+
+.recipe-form fieldset {
+  border: 1px solid #cfc8b4;
+  border-radius: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.recipe-form legend { font-weight: 600; padding: 0 0.25rem; }
+
+.ingredient-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 0 0.75rem;
+  align-items: end;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e3ddcc;
+}
+
+.ingredient-row > .nutrition,
+.ingredient-row > .flag,
+.ingredient-row > .field-error { grid-column: 1 / -1; }
+
+.ingredient-row .unit { padding-bottom: 1.1rem; color: var(--muted); }
+
+.ingredient-new { background: var(--warn-bg); border-radius: 0.35rem; padding: 0.5rem; }
+
+.flag { margin: 0 0 0.5rem; font-weight: 600; }
+
+.recipe-paste button,
+.recipe-form button,
+.actions button,
+.actions .button,
+form > .secondary {
+  font: inherit;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--bg);
+  border: 0;
+  border-radius: 0.35rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.secondary,
+.actions .secondary { background: #e6e2d6; color: var(--fg); }
+
+.actions { display: flex; gap: 0.75rem; align-items: center; margin: 1.5rem 0; }
+
+.actions form { margin: 0; }
+
+form > .secondary { margin-top: 0.75rem; }
+
+.recipes { padding: 0; list-style: none; }
+
+.recipes li { padding: 0.5rem 0; border-bottom: 1px solid #cfc8b4; display: flex; flex-direction: column; }
+
+.recipe-facts,
+.per-portion { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.75rem; margin: 0.75rem 0; }
+
+.recipe-facts dt,
+.per-portion dt { font-weight: 600; }
+
+.recipe-facts dd,
+.per-portion dd { margin: 0; }

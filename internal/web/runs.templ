@@ -108,24 +108,31 @@ templ RunPage(r Run) {
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
 			</span>
 		</p>
+		@tracePanel(r)
+	}
+}
+
+// tracePanel is a Run's Trace. While the Run is going, it follows its
+// Trace Events live, reloads the page once the Run ends, and offers to
+// cancel it.
+templ tracePanel(r Run) {
+	if r.running() {
+		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/runs/%d/cancel", r.ID)) }>
+			<button type="submit">Cancel run</button>
+		</form>
+	}
+	<ol
+		class="trace"
 		if r.running() {
-			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/runs/%d/cancel", r.ID)) }>
-				<button type="submit">Cancel run</button>
-			</form>
+			data-trace-stream={ r.streamURL() }
 		}
-		<ol
-			class="trace"
-			if r.running() {
-				data-trace-stream={ r.streamURL() }
-			}
-		>
-			for _, e := range r.Events {
-				@TraceEventItem(e)
-			}
-		</ol>
-		if r.running() {
-			<script src="/static/trace.js" defer></script>
+	>
+		for _, e := range r.Events {
+			@TraceEventItem(e)
 		}
+	</ol>
+	if r.running() {
+		<script src="/static/trace.js" defer></script>
 	}
 }
 

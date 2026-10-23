@@ -1,0 +1,356 @@
+package web
+
+import "fmt"
+
+// PortionNutrition is a Recipe's nutritional values per Portion.
+type PortionNutrition struct {
+	Kcal     int
+	ProteinG int
+	CarbsG   int
+	FatG     int
+}
+
+// RecipeSummary is one Recipe in the Recipe Library list.
+type RecipeSummary struct {
+	ID          int64
+	Name        string
+	Portions    int
+	PrepMinutes int
+	PerPortion  PortionNutrition
+}
+
+// RecipeLibrary is the Recipe Library page: the paste form and every Recipe.
+type RecipeLibrary struct {
+	Recipes []RecipeSummary
+	// Text and Error are a rejected paste, shown back.
+	Text  string
+	Error string
+}
+
+// RecipeView is one saved Recipe.
+type RecipeView struct {
+	ID          int64
+	Name        string
+	Portions    int
+	PrepMinutes int
+	Appliances  []string
+	Steps       []string
+	Ingredients []string // e.g. "600 g chicken breast"
+	PerPortion  PortionNutrition
+}
+
+// RecipeForm is a Recipe as its form shows it, either a parsed draft or a
+// saved Recipe being edited: the raw field values, so a rejected
+// submission is shown back as typed, and an error per field.
+type RecipeForm struct {
+	Title  string
+	Action string
+	Submit string
+	// Discard, when set, is where the draft is discarded.
+	Discard string
+	// Values holds name, portions, prep_minutes, appliances and steps.
+	Values      map[string]string
+	Ingredients []IngredientRow
+	Errors      map[string]string
+	// Rematched means an Ingredient turned from known to new or back since
+	// the form was shown, so it must be checked again.
+	Rematched bool
+	// Failed means the Recipe was valid but could not be stored.
+	Failed bool
+	// PerPortion is shown when the Recipe as it stands is valid.
+	PerPortion *PortionNutrition
+}
+
+// IngredientRow is one Ingredient line of a RecipeForm. A known Ingredient
+// keeps its unit and nutritional values; a new one shows them to confirm.
+type IngredientRow struct {
+	Name     string
+	Quantity string
+	Unit     string
+	Kcal     string
+	ProteinG string
+	CarbsG   string
+	FatG     string
+	New      bool
+}
+
+// DraftPending is a draft whose parse Run has not produced a Recipe: still
+// running, or ended without one.
+type DraftPending struct {
+	Run Run
+}
+
+// blankRows is how many empty Ingredient rows a RecipeForm offers for adding.
+const blankRows = 2
+
+func ingField(name string, i int) string { return fmt.Sprintf("ing_%s_%d", name, i) }
+
+func formatMinutes(m int) string {
+	if m == 0 {
+		return "not given"
+	}
+	return fmt.Sprintf("%d min", m)
+}
+
+// RecipeLibraryPage lists the Recipe Library and takes recipe text to parse.
+templ RecipeLibraryPage(l RecipeLibrary) {
+	@layout("Dandori — Recipes") {
+		<h2>Recipe Library</h2>
+		<form class="recipe-paste" method="post" action="/recipes/parse">
+			<label>
+				Paste a recipe
+				<textarea
+					name="text"
+					rows="8"
+					required
+					if l.Error != "" {
+						aria-invalid="true"
+					}
+				>{ l.Text }</textarea>
+				if l.Error != "" {
+					<span class="field-error">{ l.Error }</span>
+				}
+			</label>
+			<p class="muted">From a website, a note or a message. It becomes a draft you check before it is saved.</p>
+			<button type="submit">Parse recipe</button>
+		</form>
+		if len(l.Recipes) == 0 {
+			<p class="muted">No Recipes yet.</p>
+		} else {
+			<ul class="recipes">
+				for _, r := range l.Recipes {
+					<li>
+						<a href={ templ.SafeURL(fmt.Sprintf("/recipes/%d", r.ID)) }>{ r.Name }</a>
+						<span class="muted">
+							{ fmt.Sprintf("%d Portions · %s · %d kcal, %d g protein per Portion", r.Portions, formatMinutes(r.PrepMinutes), r.PerPortion.Kcal, r.PerPortion.ProteinG) }
+						</span>
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+// RecipePage shows one Recipe with its nutritional values per Portion.
+templ RecipePage(r RecipeView) {
+	@layout("Dandori — " + r.Name) {
+		<h2>{ r.Name }</h2>
+		<dl class="recipe-facts">
+			<dt>Portions</dt>
+			<dd>{ fmt.Sprint(r.Portions) }</dd>
+			<dt>Prep time</dt>
+			<dd>{ formatMinutes(r.PrepMinutes) }</dd>
+			<dt>Appliances</dt>
+			<dd>
+				if len(r.Appliances) == 0 {
+					none
+				}
+				for i, a := range r.Appliances {
+					if i > 0 {
+						{ ", " }
+					}
+					{ a }
+				}
+			</dd>
+		</dl>
+		@perPortion(r.PerPortion)
+		<h3>Ingredients</h3>
+		<ul>
+			for _, ing := range r.Ingredients {
+				<li>{ ing }</li>
+			}
+		</ul>
+		<h3>Steps</h3>
+		<ol>
+			for _, s := range r.Steps {
+				<li>{ s }</li>
+			}
+		</ol>
+		<div class="actions">
+			<a class="button" href={ templ.SafeURL(fmt.Sprintf("/recipes/%d/edit", r.ID)) }>Edit</a>
+			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/recipes/%d/delete", r.ID)) }>
+				<button type="submit" class="secondary">Delete</button>
+			</form>
+		</div>
+	}
+}
+
+templ perPortion(n PortionNutrition) {
+	<dl class="per-portion">
+		<dt>Per Portion</dt>
+		<dd>
+			{ fmt.Sprintf("%d kcal · %d g protein · %d g carbs · %d g fat", n.Kcal, n.ProteinG, n.CarbsG, n.FatG) }
+		</dd>
+	</dl>
+}
+
+// DraftPendingPage follows a parse Run until its draft is ready.
+templ DraftPendingPage(d DraftPending) {
+	@layout("Dandori — Parsing a recipe") {
+		<h2>Parsing a recipe</h2>
+		if d.Run.running() {
+			<p role="status">The recipe is being parsed; the draft appears here when it is ready.</p>
+		} else {
+			<p class="error" role="alert">
+				There is no draft to check: the parse Run ended ({ statusLabels[d.Run.Status] }) without one,
+				or its draft was already accepted or discarded.
+				<a href="/recipes">Back to the Recipe Library</a>
+			</p>
+		}
+		@tracePanel(d.Run)
+	}
+}
+
+// RecipeFormPage is a draft to check and accept, or a Recipe to edit.
+templ RecipeFormPage(f RecipeForm) {
+	@layout("Dandori — " + f.Title) {
+		<h2>{ f.Title }</h2>
+		<form id="recipe" class="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
+			if f.Failed {
+				<p class="error" role="alert">The Recipe could not be saved; try again. Details are in the server log.</p>
+			}
+			if f.Rematched {
+				<p class="error" role="alert">Some Ingredients changed between known and new; check them and submit again.</p>
+			} else if len(f.Errors) > 0 {
+				<p class="error" role="alert">The Recipe was not saved; fix the fields marked below.</p>
+			}
+			@textField(f, "name", "Name")
+			<div class="nutrition">
+				@recipeNumberField(f, "portions", "Portions", "1")
+				@recipeNumberField(f, "prep_minutes", "Prep time (min)", "0")
+			</div>
+			if f.PerPortion != nil {
+				@perPortion(*f.PerPortion)
+			}
+			<fieldset>
+				<legend>Ingredients</legend>
+				<p class="muted">
+					Quantities are in each Ingredient's unit. Nutritional values are per 100 g, per 100 ml or per piece.
+					Clear a row's name and quantity to remove it.
+				</p>
+				if msg := f.Errors["ingredients"]; msg != "" {
+					<p class="field-error">{ msg }</p>
+				}
+				for i, row := range f.Ingredients {
+					@ingredientRow(f, i, row)
+				}
+				for i := range blankRows {
+					@ingredientRow(f, len(f.Ingredients)+i, IngredientRow{Unit: "g", New: true})
+				}
+			</fieldset>
+			<label>
+				Appliances <span class="muted">(one per line)</span>
+				<textarea name="appliances" rows="2">{ f.Values["appliances"] }</textarea>
+			</label>
+			<label>
+				Steps <span class="muted">(one per line)</span>
+				<textarea name="steps" rows="6">{ f.Values["steps"] }</textarea>
+			</label>
+			<button type="submit">{ f.Submit }</button>
+		</form>
+		if f.Discard != "" {
+			<form id="discard" method="post" action={ templ.SafeURL(f.Discard) }>
+				<button type="submit" class="secondary">Discard draft</button>
+			</form>
+		}
+	}
+}
+
+templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
+	<div
+		class={ "ingredient-row", templ.KV("ingredient-new", row.New && row.Name != "") }
+	>
+		<input type="hidden" name={ ingField("new", i) } value={ fmt.Sprint(row.New) }/>
+		@rowInput(f, ingField("name", i), "Ingredient", row.Name, false)
+		@rowInput(f, ingField("quantity", i), "Quantity", row.Quantity, true)
+		if row.New {
+			<label>
+				Unit
+				<select name={ ingField("unit", i) }>
+					for _, u := range []string{"g", "ml", "piece"} {
+						<option value={ u } selected?={ row.Unit == u }>{ u }</option>
+					}
+				</select>
+				if msg := f.Errors[ingField("unit", i)]; msg != "" {
+					<span class="field-error">{ msg }</span>
+				}
+			</label>
+		} else {
+			<input type="hidden" name={ ingField("unit", i) } value={ row.Unit }/>
+			<span class="unit">{ row.Unit }</span>
+		}
+		if row.New {
+			if row.Name != "" {
+				<p class="flag">New Ingredient: confirm its nutritional values.</p>
+			}
+			<div class="nutrition">
+				@rowInput(f, ingField("kcal", i), "kcal", row.Kcal, true)
+				@rowInput(f, ingField("protein_g", i), "Protein (g)", row.ProteinG, true)
+				@rowInput(f, ingField("carbs_g", i), "Carbs (g)", row.CarbsG, true)
+				@rowInput(f, ingField("fat_g", i), "Fat (g)", row.FatG, true)
+			</div>
+			if msg := f.Errors[ingField("nutrition", i)]; msg != "" {
+				<span class="field-error">{ msg }</span>
+			}
+		}
+	</div>
+}
+
+templ rowInput(f RecipeForm, name, label, value string, decimal bool) {
+	<label>
+		{ label }
+		<input
+			type="text"
+			name={ name }
+			value={ value }
+			if decimal {
+				inputmode="decimal"
+			}
+			if f.Errors[name] != "" {
+				aria-invalid="true"
+			}
+		/>
+		if msg := f.Errors[name]; msg != "" {
+			<span class="field-error">{ msg }</span>
+		}
+	</label>
+}
+
+templ textField(f RecipeForm, name, label string) {
+	<label>
+		{ label }
+		<input
+			type="text"
+			required
+			name={ name }
+			value={ f.Values[name] }
+			if f.Errors[name] != "" {
+				aria-invalid="true"
+			}
+		/>
+		if msg := f.Errors[name]; msg != "" {
+			<span class="field-error">{ msg }</span>
+		}
+	</label>
+}
+
+templ recipeNumberField(f RecipeForm, name, label, min string) {
+	<label>
+		{ label }
+		<input
+			type="number"
+			inputmode="numeric"
+			min={ min }
+			step="1"
+			required
+			name={ name }
+			value={ f.Values[name] }
+			if f.Errors[name] != "" {
+				aria-invalid="true"
+			}
+		/>
+		if msg := f.Errors[name]; msg != "" {
+			<span class="field-error">{ msg }</span>
+		}
+	</label>
+}

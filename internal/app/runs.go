@@ -197,7 +197,7 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 		model = "a scripted model"
 	}
 	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, model)})
-	err := a.runJob(ctx, r, job)
+	err := a.runJob(context.WithValue(ctx, runIDKey{}, r.id), r, job)
 
 	status := "succeeded"
 	switch {
@@ -220,6 +220,15 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 	}
 	a.runs.remove(r.id)
 	r.finish()
+}
+
+// runIDKey carries the id of the Run a job's tools are running in, for
+// tools that store their result with the Run.
+type runIDKey struct{}
+
+func runIDFrom(ctx context.Context) int64 {
+	id, _ := ctx.Value(runIDKey{}).(int64)
+	return id
 }
 
 // runJob carries out job with the agent loop. A panic, say in a tool, fails
