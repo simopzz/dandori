@@ -41,4 +41,6 @@ jobs:
       - name: golangci-lint
         run: mise exec -- golangci-lint run ./...
       - name: Test
+        env:
+          GOFLAGS: -count=1 # never serve cached results for database-backed tests
         run: mise run test
