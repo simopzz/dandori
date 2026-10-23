@@ -1,2 +1,6 @@
+.agents/skills
+.claude/skills
+skills-lock.json
+
 bin/
 .env
