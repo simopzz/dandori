@@ -147,7 +147,8 @@ func TestDraftIsCorrectedBeforeItIsAccepted(t *testing.T) {
 	form.Values.Set("name", "Lemon chicken")
 	form.Values.Set("portions", "2")
 	form.Values.Set("ing_quantity_0", "450")
-	// Clearing a row removes the lemon; a blank row adds garlic.
+	// Clearing a row removes the lemon; an added row, new until it is named, adds garlic.
+	form.Values.Set("ing_new_4", "true")
 	form.Values.Set("ing_name_3", "")
 	form.Values.Set("ing_quantity_3", "")
 	form.Values.Set("ing_name_4", "Garlic")
@@ -156,7 +157,8 @@ func TestDraftIsCorrectedBeforeItIsAccepted(t *testing.T) {
 	for field, v := range map[string]string{"kcal": "4", "protein_g": "0,2", "carbs_g": "1", "fat_g": "0"} {
 		form.Values.Set("ing_"+field+"_4", v)
 	}
-	form.Values.Set("steps", "Cook the rice.\n\nRoast the chicken.")
+	// Cleared steps are dropped; a blank one adds a step.
+	form.Values["steps"] = []string{"Cook the rice.", "", "", "Roast the chicken."}
 
 	saved := h.PostForm(t, form.Action, form.Values)
 	if saved.StatusCode != http.StatusOK || !strings.HasPrefix(saved.Path, "/recipes/") {
@@ -264,8 +266,8 @@ func TestParsedIngredientsAreMatchedToKnownIngredients(t *testing.T) {
 	if form.Get("ing_new_1") != "true" || form.Get("ing_kcal_1") != "120" {
 		t.Errorf("chickpeas are not shown as a new Ingredient with estimated values: new = %q, kcal = %q", form.Get("ing_new_1"), form.Get("ing_kcal_1"))
 	}
-	if n := strings.Count(text(draft.Body), "New Ingredient: confirm its nutritional values."); n != 1 {
-		t.Errorf("%d Ingredients are flagged as new, want only chickpeas:\n%s", n, text(draft.Body))
+	if n := strings.Count(draft.Body, `title="New Ingredient: confirm its nutritional values"`); n != 1 {
+		t.Errorf("%d Ingredients are flagged as new, want only chickpeas:\n%s", n, draft.Body)
 	}
 
 	saved := h.PostForm(t, form.Action, form.Values)

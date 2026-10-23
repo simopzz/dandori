@@ -289,7 +289,7 @@ func recipeFormValues(rec domain.Recipe, known map[string]domain.Ingredient) url
 		"portions":     {strconv.Itoa(rec.Portions)},
 		"prep_minutes": {strconv.Itoa(rec.PrepMinutes)},
 		"appliances":   {strings.Join(rec.Appliances, "\n")},
-		"steps":        {strings.Join(rec.Steps, "\n")},
+		"steps":        rec.Steps,
 	}
 	for i, ri := range rec.Ingredients {
 		ing := ri.Ingredient
@@ -317,13 +317,14 @@ func recipeFormValues(rec domain.Recipe, known map[string]domain.Ingredient) url
 func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain.Recipe, web.RecipeForm, bool) {
 	get := func(name string) string { return strings.TrimSpace(form.Get(name)) }
 	f := web.RecipeForm{Values: map[string]string{}, Errors: map[string]string{}}
-	for _, name := range []string{"name", "portions", "prep_minutes", "appliances", "steps"} {
+	for _, name := range []string{"name", "portions", "prep_minutes", "appliances"} {
 		f.Values[name] = get(name)
 	}
+	f.Steps = nonBlank(form["steps"])
 	rec := domain.Recipe{
 		Name:       get("name"),
 		Appliances: domain.FoodTerms(get("appliances")),
-		Steps:      nonBlank(strings.Split(get("steps"), "\n")),
+		Steps:      f.Steps,
 	}
 	rec.Portions = readInt(f, "portions")
 	rec.PrepMinutes = readInt(f, "prep_minutes")

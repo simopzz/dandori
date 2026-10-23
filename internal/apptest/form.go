@@ -38,7 +38,7 @@ func Form(t testing.TB, page, id string) FormData {
 
 	f := FormData{Action: attr(form, "action"), Values: url.Values{}}
 	for n := range form.Descendants() {
-		if n.Type != html.ElementNode || attr(n, "name") == "" {
+		if n.Type != html.ElementNode || attr(n, "name") == "" || inTemplate(n, form) {
 			continue
 		}
 		name := attr(n, "name")
@@ -76,6 +76,16 @@ func Form(t testing.TB, page, id string) FormData {
 		}
 	}
 	return f
+}
+
+// inTemplate reports whether n is template content, which isn't submitted.
+func inTemplate(n, form *html.Node) bool {
+	for p := n.Parent; p != form; p = p.Parent {
+		if p.Data == "template" {
+			return true
+		}
+	}
+	return false
 }
 
 func optionValue(o *html.Node) string {

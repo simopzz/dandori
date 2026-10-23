@@ -48,8 +48,9 @@ type RecipeForm struct {
 	Submit string
 	// Discard, when set, is where the draft is discarded.
 	Discard string
-	// Values holds name, portions, prep_minutes, appliances and steps.
+	// Values holds name, portions, prep_minutes and appliances.
 	Values      map[string]string
+	Steps       []string
 	Ingredients []IngredientRow
 	Errors      map[string]string
 	// Rematched means an Ingredient turned from known to new or back since
@@ -79,9 +80,6 @@ type IngredientRow struct {
 type DraftPending struct {
 	Run Run
 }
-
-// blankRows is how many empty Ingredient rows a RecipeForm offers for adding.
-const blankRows = 2
 
 func ingField(name string, i int) string { return fmt.Sprintf("ing_%s_%d", name, i) }
 
@@ -226,46 +224,78 @@ templ RecipeFormPage(f RecipeForm) {
 				<legend>Ingredients</legend>
 				<p class="muted">
 					Quantities are in each Ingredient's unit. Nutritional values are per 100 g, per 100 ml or per piece.
+					Ingredients marked <span class="badge">New</span> are not in your Recipe Library yet: check their values.
 					Clear a row's name and quantity to remove it.
 				</p>
 				if msg := f.Errors["ingredients"]; msg != "" {
 					<p class="field-error">{ msg }</p>
 				}
-				for i, row := range f.Ingredients {
-					@ingredientRow(f, i, row)
-				}
-				for i := range blankRows {
-					@ingredientRow(f, len(f.Ingredients)+i, IngredientRow{Unit: "g", New: true})
-				}
+				<div class="ingredient-rows">
+					<div class="ingredient-head" aria-hidden="true">
+						<span></span>
+						<span>Ingredient</span>
+						<span>Quantity</span>
+						<span>Unit</span>
+						<span>kcal</span>
+						<span>Protein (g)</span>
+						<span>Carbs (g)</span>
+						<span>Fat (g)</span>
+					</div>
+					<div id="ingredients">
+						for i, row := range f.Ingredients {
+							@ingredientRow(f, i, row)
+						}
+					</div>
+				</div>
+				<template id="ingredients-template">
+					@ingredientRow(RecipeForm{}, 0, IngredientRow{Unit: "g", New: true})
+				</template>
+				<button type="button" class="add" data-add="ingredients">+ Add Ingredient</button>
 			</fieldset>
 			<label>
 				Appliances <span class="muted">(one per line)</span>
 				<textarea name="appliances" rows="2">{ f.Values["appliances"] }</textarea>
 			</label>
-			<label>
-				Steps <span class="muted">(one per line)</span>
-				<textarea name="steps" rows="6">{ f.Values["steps"] }</textarea>
-			</label>
-			<button type="submit">{ f.Submit }</button>
+			<fieldset>
+				<legend>Steps</legend>
+				<p class="muted">Clear a step to remove it.</p>
+				<ol id="steps" class="steps">
+					for _, s := range f.Steps {
+						@stepField(s)
+					}
+				</ol>
+				<template id="steps-template">
+					@stepField("")
+				</template>
+				<button type="button" class="add" data-add="steps">+ Add step</button>
+			</fieldset>
+			<div class="actions">
+				if f.Discard != "" {
+					<button type="submit" form="discard" class="secondary" formnovalidate>Discard draft</button>
+				}
+				<button type="submit">{ f.Submit }</button>
+			</div>
 		</form>
 		if f.Discard != "" {
-			<form id="discard" method="post" action={ templ.SafeURL(f.Discard) }>
-				<button type="submit" class="secondary">Discard draft</button>
-			</form>
+			<form id="discard" method="post" action={ templ.SafeURL(f.Discard) }></form>
 		}
+		<script src="/static/recipe-form.js" defer></script>
 	}
 }
 
 templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
-	<div
-		class={ "ingredient-row", templ.KV("ingredient-new", row.New && row.Name != "") }
-	>
+	<div class="ingredient-row">
 		<input type="hidden" name={ ingField("new", i) } value={ fmt.Sprint(row.New) }/>
+		<span class="row-status">
+			if row.New && row.Name != "" {
+				<span class="badge" title="New Ingredient: confirm its nutritional values">New</span>
+			}
+		</span>
 		@rowInput(f, ingField("name", i), "Ingredient", row.Name, false)
 		@rowInput(f, ingField("quantity", i), "Quantity", row.Quantity, true)
 		if row.New {
 			<label>
-				Unit
+				<span class="cell-label">Unit</span>
 				<select name={ ingField("unit", i) }>
 					for _, u := range []string{"g", "ml", "piece"} {
 						<option value={ u } selected?={ row.Unit == u }>{ u }</option>
@@ -275,30 +305,32 @@ templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
 					<span class="field-error">{ msg }</span>
 				}
 			</label>
-		} else {
-			<input type="hidden" name={ ingField("unit", i) } value={ row.Unit }/>
-			<span class="unit">{ row.Unit }</span>
-		}
-		if row.New {
-			if row.Name != "" {
-				<p class="flag">New Ingredient: confirm its nutritional values.</p>
-			}
-			<div class="nutrition">
-				@rowInput(f, ingField("kcal", i), "kcal", row.Kcal, true)
-				@rowInput(f, ingField("protein_g", i), "Protein (g)", row.ProteinG, true)
-				@rowInput(f, ingField("carbs_g", i), "Carbs (g)", row.CarbsG, true)
-				@rowInput(f, ingField("fat_g", i), "Fat (g)", row.FatG, true)
-			</div>
+			@rowInput(f, ingField("kcal", i), "kcal", row.Kcal, true)
+			@rowInput(f, ingField("protein_g", i), "Protein (g)", row.ProteinG, true)
+			@rowInput(f, ingField("carbs_g", i), "Carbs (g)", row.CarbsG, true)
+			@rowInput(f, ingField("fat_g", i), "Fat (g)", row.FatG, true)
 			if msg := f.Errors[ingField("nutrition", i)]; msg != "" {
-				<span class="field-error">{ msg }</span>
+				<span class="field-error row-error">{ msg }</span>
 			}
+		} else {
+			<span class="unit">
+				<input type="hidden" name={ ingField("unit", i) } value={ row.Unit }/>
+				{ row.Unit }
+			</span>
+			<span class="known muted">Known Ingredient: values from your Recipe Library</span>
 		}
 	</div>
 }
 
+templ stepField(s string) {
+	<li>
+		<textarea name="steps" rows="1" aria-label="Step">{ s }</textarea>
+	</li>
+}
+
 templ rowInput(f RecipeForm, name, label, value string, decimal bool) {
 	<label>
-		{ label }
+		<span class="cell-label">{ label }</span>
 		<input
 			type="text"
 			name={ name }
