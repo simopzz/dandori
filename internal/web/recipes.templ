@@ -22,8 +22,7 @@ type RecipeSummary struct {
 // RecipeLibrary is the Recipe Library page: the paste form and every Recipe.
 type RecipeLibrary struct {
 	Recipes []RecipeSummary
-	// Text and Error are a rejected paste, shown back.
-	Text  string
+	// Error is why a paste was rejected.
 	Error string
 }
 
@@ -104,7 +103,7 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 					if l.Error != "" {
 						aria-invalid="true"
 					}
-				>{ l.Text }</textarea>
+				></textarea>
 				if l.Error != "" {
 					<span class="field-error">{ l.Error }</span>
 				}

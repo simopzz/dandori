@@ -344,6 +344,29 @@ func TestModelIsToldWhatIsWrongWithItsRecipeAndTriesAgain(t *testing.T) {
 	}
 }
 
+func TestModelMustGiveEveryNutritionalValueOfANewIngredient(t *testing.T) {
+	partial := chickpeaCurryParsed()
+	partial["ingredients"] = []map[string]any{
+		{"name": "chickpeas", "quantity": 240, "unit": "g", "nutrition": map[string]any{"kcal": 120}},
+	}
+	h, llm := startRecipes(t,
+		fakellm.CallTool("submit_recipe", partial),
+		fakellm.CallTool("submit_recipe", chickpeaCurryParsed()),
+		fakellm.Reply("Parsed."),
+	)
+	draft := parse(t, h, chickpeaCurry)
+
+	reqs := llm.Requests()
+	last := reqs[len(reqs)-2].Messages
+	if feedback := last[len(last)-1].Content[0]; !feedback.IsError || !strings.Contains(feedback.Text, "protein_g") {
+		t.Errorf("the model is not told its nutrition lacks protein_g:\n%+v", feedback)
+	}
+	// The draft is the full resubmission, not chickpeas with 0 g protein.
+	if form := apptest.Form(t, draft.Body, "recipe"); form.Get("ing_protein_g_1") == "0" {
+		t.Errorf("draft keeps a missing value as 0: %v", form.Values)
+	}
+}
+
 // libraryRecipe is the path of the only Recipe in the Recipe Library.
 func libraryRecipe(t *testing.T, h *apptest.Harness) string {
 	t.Helper()

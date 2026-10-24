@@ -43,6 +43,22 @@ type parsedNutrition struct {
 	FatG     float64 `json:"fat_g"`
 }
 
+// UnmarshalJSON requires every value, so one the model left out is not
+// taken as 0.
+func (n *parsedNutrition) UnmarshalJSON(data []byte) error {
+	var values map[string]*float64
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	for _, key := range []string{"kcal", "protein_g", "carbs_g", "fat_g"} {
+		if values[key] == nil {
+			return fmt.Errorf("nutrition needs kcal, protein_g, carbs_g and fat_g; %s is missing", key)
+		}
+	}
+	*n = parsedNutrition{*values["kcal"], *values["protein_g"], *values["carbs_g"], *values["fat_g"]}
+	return nil
+}
+
 // recipe is the parsed Recipe with its Ingredients matched by name to the
 // known ones, whose unit and nutritional values it takes.
 func (p parsedRecipe) recipe(known map[string]domain.Ingredient) domain.Recipe {

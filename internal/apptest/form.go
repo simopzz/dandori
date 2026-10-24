@@ -56,14 +56,14 @@ func Form(t testing.TB, page, id string) FormData {
 			f.Values.Add(name, strings.TrimPrefix(b.String(), "\n"))
 		case "select":
 			var first, selected string
-			found := false
+			found, firstSet := false, false
 			for o := range n.Descendants() {
 				if o.Type != html.ElementNode || o.Data != "option" {
 					continue
 				}
 				v := optionValue(o)
-				if !found && first == "" {
-					first = v
+				if !firstSet {
+					first, firstSet = v, true
 				}
 				if hasAttr(o, "selected") {
 					selected, found = v, true

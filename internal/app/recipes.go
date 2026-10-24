@@ -448,35 +448,42 @@ type storedRecipe struct {
 }
 
 // loadRecipes loads the Recipe with id, or every Recipe when id is nil,
-// newest first, with their Ingredients.
+// newest first, with their Ingredients. Both queries read one snapshot, so
+// a Recipe saved or deleted meanwhile is either wholly there or not at all.
 func (a *App) loadRecipes(ctx context.Context, id *int64) ([]storedRecipe, error) {
-	rows, _ := a.pool.Query(ctx, `
-		SELECT id, name, portions, prep_minutes, appliances, steps FROM recipe
-		WHERE $1::bigint IS NULL OR id = $1 ORDER BY id DESC`, id)
-	recipes, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (storedRecipe, error) {
-		var r storedRecipe
-		err := row.Scan(&r.id, &r.Name, &r.Portions, &r.PrepMinutes, &r.Appliances, &r.Steps)
-		return r, err
-	})
-	if err != nil || len(recipes) == 0 {
-		return recipes, err
-	}
-	byID := map[int64]*storedRecipe{}
-	for i := range recipes {
-		byID[recipes[i].id] = &recipes[i]
-	}
-	rows, _ = a.pool.Query(ctx, `
-		SELECT ri.recipe_id, ri.quantity, i.name, i.unit, i.kcal, i.protein_g, i.carbs_g, i.fat_g
-		FROM recipe_ingredient ri JOIN ingredient i ON i.id = ri.ingredient_id
-		WHERE $1::bigint IS NULL OR ri.recipe_id = $1
-		ORDER BY ri.recipe_id, ri.position`, id)
-	var recipeID int64
-	var ri domain.RecipeIngredient
-	n := &ri.Ingredient.Nutrition
-	_, err = pgx.ForEachRow(rows, []any{&recipeID, &ri.Quantity, &ri.Ingredient.Name, &ri.Ingredient.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG}, func() error {
-		r := byID[recipeID]
-		r.Ingredients = append(r.Ingredients, ri)
-		return nil
+	var recipes []storedRecipe
+	snapshot := pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
+	err := pgx.BeginTxFunc(ctx, a.pool, snapshot, func(tx pgx.Tx) error {
+		rows, _ := tx.Query(ctx, `
+			SELECT id, name, portions, prep_minutes, appliances, steps FROM recipe
+			WHERE $1::bigint IS NULL OR id = $1 ORDER BY id DESC`, id)
+		var err error
+		recipes, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (storedRecipe, error) {
+			var r storedRecipe
+			err := row.Scan(&r.id, &r.Name, &r.Portions, &r.PrepMinutes, &r.Appliances, &r.Steps)
+			return r, err
+		})
+		if err != nil || len(recipes) == 0 {
+			return err
+		}
+		byID := map[int64]*storedRecipe{}
+		for i := range recipes {
+			byID[recipes[i].id] = &recipes[i]
+		}
+		rows, _ = tx.Query(ctx, `
+			SELECT ri.recipe_id, ri.quantity, i.name, i.unit, i.kcal, i.protein_g, i.carbs_g, i.fat_g
+			FROM recipe_ingredient ri JOIN ingredient i ON i.id = ri.ingredient_id
+			WHERE $1::bigint IS NULL OR ri.recipe_id = $1
+			ORDER BY ri.recipe_id, ri.position`, id)
+		var recipeID int64
+		var ri domain.RecipeIngredient
+		n := &ri.Ingredient.Nutrition
+		_, err = pgx.ForEachRow(rows, []any{&recipeID, &ri.Quantity, &ri.Ingredient.Name, &ri.Ingredient.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG}, func() error {
+			r := byID[recipeID]
+			r.Ingredients = append(r.Ingredients, ri)
+			return nil
+		})
+		return err
 	})
 	return recipes, err
 }
