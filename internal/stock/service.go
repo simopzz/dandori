@@ -86,7 +86,7 @@ var ErrPortionNotFound = errors.New("no such portion")
 type Portion struct {
 	ID int64
 	// Recipe is the name of the Recipe its Prep Session prepared, or empty
-	// when the Prep Session has none.
+	// when the Prep Session set out Ingredients as they are.
 	Recipe   string
 	Location domain.StorageLocation
 }

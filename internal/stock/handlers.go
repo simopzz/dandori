@@ -79,7 +79,7 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 	for _, portion := range portions {
 		row := PortionRow{ID: portion.ID, Recipe: portion.Recipe, Location: string(portion.Location)}
 		if row.Recipe == "" {
-			row.Recipe = "No Recipe"
+			row.Recipe = "Ingredients as they are"
 		}
 		if portion.ID == rej.movedPortion {
 			row.MoveTo, row.Error, found = rej.moveTo, rej.moveError, true

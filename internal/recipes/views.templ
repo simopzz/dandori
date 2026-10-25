@@ -41,6 +41,8 @@ type RecipeView struct {
 	Steps       []string
 	Ingredients []string // e.g. "600 g chicken breast"
 	PerPortion  PortionNutrition
+	// Error is why an action on the Recipe failed.
+	Error string
 }
 
 // RecipeForm is a Recipe as its form shows it, either a parsed draft or a
@@ -137,6 +139,9 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 templ RecipePage(r RecipeView) {
 	@web.Layout("Dandori — " + r.Name) {
 		<h2>{ r.Name }</h2>
+		if r.Error != "" {
+			<p class="error" role="alert">{ r.Error }</p>
+		}
 		<dl class="recipe-facts">
 			<dt>Portions</dt>
 			<dd>{ fmt.Sprint(r.Portions) }</dd>

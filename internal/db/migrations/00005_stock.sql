@@ -10,11 +10,11 @@ CREATE TABLE stock_item (
 );
 
 -- One preparation of food that yields Portions: of a Recipe, or of
--- Ingredients eaten as they are when recipe_id is null. Deleting a Recipe
--- unlinks its Prep Sessions, so their Portions stay.
+-- Ingredients eaten as they are when recipe_id is null. A Recipe with
+-- Prep Sessions can't be deleted, so their Portions keep their Recipe.
 CREATE TABLE prep_session (
     id        bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    recipe_id bigint REFERENCES recipe ON DELETE SET NULL
+    recipe_id bigint REFERENCES recipe
 );
 
 -- One ready-to-eat serving a Prep Session yields, kept in a Storage

@@ -261,15 +261,19 @@ func TestStockIsLinkedFromTheAppShell(t *testing.T) {
 	}
 }
 
-func TestDeletingARecipeKeepsItsPortions(t *testing.T) {
+func TestRecipeWithPortionsIsNotDeleted(t *testing.T) {
 	h := startStock(t)
 	seedPortions(t, h)
+	recipe := libraryRecipe(t, h)
 
-	res := h.PostForm(t, libraryRecipe(t, h)+"/delete", nil)
-	if res.StatusCode != http.StatusOK || res.Path != "/recipes" {
-		t.Fatalf("delete a Recipe with Portions = %d at %s, want the Recipe Library:\n%s", res.StatusCode, res.Path, text(res.Body))
+	res := h.PostForm(t, recipe+"/delete", nil)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "Portions of this Recipe are still kept") {
+		t.Fatalf("delete a Recipe with Portions = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
 	}
-	if ids := portionIDs(t, h); len(ids) != 2 {
-		t.Errorf("Stock page lists %d Portions after their Recipe was deleted, want 2", len(ids))
+	if got := h.Get(t, recipe).StatusCode; got != http.StatusOK {
+		t.Errorf("GET the Recipe after a refused delete = %d, want 200", got)
+	}
+	if stock := text(h.Get(t, "/stock").Body); strings.Count(stock, "Lemon chicken with rice") != 2 {
+		t.Errorf("Stock page does not show both Portions of the Recipe after a refused delete:\n%s", stock)
 	}
 }
