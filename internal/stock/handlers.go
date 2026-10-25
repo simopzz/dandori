@@ -20,6 +20,10 @@ type Handlers struct {
 
 // Show shows the Stock page.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
+	if v := r.URL.Query().Get("variant"); v != "" { // PROTOTYPE (design system)
+		h.showPrototype(w, r, v)
+		return
+	}
 	h.render(w, r, rejection{}, http.StatusOK)
 }
 

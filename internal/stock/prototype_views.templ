@@ -1,0 +1,524 @@
+// PROTOTYPE (design system): throwaway, lives only on prototype/design-system.
+// Four structurally different directions for the Stock page, each with its
+// own app shell. Forms are inert: the switcher swallows every submit.
+
+package stock
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/simopzz/dandori/internal/web"
+)
+
+func qtyNum(q string) string  { return strings.Fields(q)[0] }
+func qtyUnit(q string) string { return strings.Join(strings.Fields(q)[1:], " ") }
+
+func soonNames(p protoPage) string {
+	var names []string
+	for _, it := range p.soon() {
+		names = append(names, it.Name)
+	}
+	return strings.Join(names, ", ")
+}
+
+// protoFields are a Stock Item's fields, shared by every variant so only
+// their styling differs. demoErr shows a rejected quantity.
+templ protoFields(it protoItem, ings []IngredientOption, add, demoErr bool) {
+	if add {
+		<label class="field">
+			<span class="field-label">Ingredient</span>
+			<select name="ingredient">
+				for _, ing := range ings {
+					<option>{ ing.Name } ({ ing.Unit })</option>
+				}
+			</select>
+		</label>
+	}
+	<label class="field">
+		<span class="field-label">Quantity</span>
+		if demoErr {
+			<input type="text" inputmode="decimal" name="quantity" value="two" aria-invalid="true"/>
+			<span class="field-error">Must be a number greater than 0</span>
+		} else if add {
+			<input type="text" inputmode="decimal" name="quantity"/>
+		} else {
+			<input type="text" inputmode="decimal" name="quantity" value={ qtyNum(it.Quantity) }/>
+		}
+	</label>
+	<label class="field">
+		<span class="field-label">Storage Location</span>
+		<select name="location">
+			for _, loc := range locations {
+				<option value={ loc } selected?={ it.Location == loc }>{ title(loc) }</option>
+			}
+		</select>
+	</label>
+	<label class="field">
+		<span class="field-label">Expires <span class="optional">optional</span></span>
+		<input type="date" name="expires_on" value={ it.Expires }/>
+	</label>
+}
+
+templ protoNavLinks() {
+	<a href="/recipes">
+		@web.ProtoIcon("book-open")
+		<span>Recipes</span>
+	</a>
+	<a href="" aria-current="page">
+		@web.ProtoIcon("package")
+		<span>Stock</span>
+	</a>
+	<a href="/profile">
+		@web.ProtoIcon("user")
+		<span>Profile</span>
+	</a>
+}
+
+// ─── D · Ma — Japanese-minimal ────────────────────────────────────────────
+// A quiet ledger: numbered Storage Location sections, hairline rules, one
+// vermilion accent for what needs using. Rows open in place; adding is a sheet.
+
+templ variantD(p protoPage) {
+	<div class="app">
+		<nav class="rail" aria-label="Main">
+			<a class="mark" href="/"><span class="kanji" lang="ja">段取り</span><span class="latin">Dandori</span></a>
+			<div class="rail-links">
+				@protoNavLinks()
+			</div>
+			<a class="rail-aux" href="/runs">Runs</a>
+		</nav>
+		<main>
+			<header class="page-head">
+				<p class="eyebrow"><span lang="ja">在庫</span> · { p.Today }</p>
+				<h1>Stock</h1>
+				if n := len(p.soon()); n > 0 {
+					<p class="lede"><span class="seal" aria-hidden="true"></span>{ fmt.Sprint(n) } to use soon — { soonNames(p) }</p>
+				}
+			</header>
+			for i, loc := range locations {
+				<section class="loc">
+					<h2><span class="num">{ fmt.Sprintf("%02d", i+1) }</span>{ title(loc) }<span class="count">{ fmt.Sprint(len(p.at(loc))) }</span></h2>
+					<ul class="rows">
+						for _, it := range p.at(loc) {
+							<li>
+								<details>
+									<summary>
+										<span class="name">{ it.Name }</span>
+										<span class="qty">{ it.Quantity }</span>
+										if it.Expires != "" {
+											<span class={ "when", templ.KV("urgent", it.urgent()) }>
+												if it.urgent() {
+													<span class="seal" aria-hidden="true"></span>
+												}
+												{ it.when() }
+											</span>
+										}
+									</summary>
+									<form class="edit">
+										@protoFields(it, nil, false, false)
+										<div class="actions">
+											<button type="submit" class="btn">Save</button>
+											<button type="submit" class="btn-text danger">Remove</button>
+										</div>
+									</form>
+								</details>
+							</li>
+						}
+					</ul>
+				</section>
+			}
+			<section class="loc">
+				<h2><span class="num">04</span>Portions<span class="sub">without a Slot</span><span class="count">{ fmt.Sprint(len(p.Portions)) }</span></h2>
+				<ul class="rows">
+					for _, po := range p.Portions {
+						<li class="portion">
+							<span class="name">{ po.Recipe }</span>
+							<form class="move">
+								<fieldset class="seg">
+									<legend class="sr-only">Storage Location</legend>
+									for _, loc := range locations {
+										<label><input type="radio" name={ fmt.Sprintf("loc-%d", po.ID) } value={ loc } checked?={ po.Location == loc }/><span>{ title(loc) }</span></label>
+									}
+								</fieldset>
+								<button type="submit" class="btn-text">Move</button>
+							</form>
+						</li>
+					}
+				</ul>
+			</section>
+		</main>
+		<button class="fab" type="button" popovertarget="add" aria-label="Record a Stock Item">
+			@web.ProtoIcon("plus")
+		</button>
+		<div id="add" popover class="sheet">
+			<div class="sheet-head">
+				<h2>Record a Stock Item</h2>
+				<button type="button" class="btn-text" popovertarget="add" popovertargetaction="hide">Close</button>
+			</div>
+			<form class="edit">
+				<p class="alert" role="alert">Not recorded — fix the field marked below.</p>
+				@protoFields(protoItem{Location: "pantry"}, p.Ingredients, true, true)
+				<div class="actions"><button type="submit" class="btn">Record</button></div>
+			</form>
+		</div>
+	</div>
+}
+
+// ─── A · Editorial — warm ─────────────────────────────────────────────────
+// A food-magazine spread: a headline that tells you the state of the kitchen,
+// a "use soon" feature, and one card per Storage Location.
+
+templ variantA(p protoPage) {
+	<div class="app">
+		<header class="masthead">
+			<a class="brand" href="/">Dandori</a>
+			<p class="dateline">{ p.Today }</p>
+			<nav class="topnav" aria-label="Main">
+				@protoNavLinks()
+				<a href="/runs" class="aux">Runs</a>
+			</nav>
+		</header>
+		<main>
+			<section class="hero">
+				<p class="kicker">Stock</p>
+				<h1>What’s in the kitchen</h1>
+				<p class="standfirst">
+					{ fmt.Sprint(len(p.Items)) } Stock Items and { fmt.Sprint(len(p.Portions)) } Portions waiting for a Slot.
+					if len(p.soon()) > 0 {
+						Use the { soonNames(p) } first.
+					}
+				</p>
+			</section>
+			if len(p.soon()) > 0 {
+				<section class="use-soon" aria-labelledby="soon-h">
+					<h2 id="soon-h">
+						@web.ProtoIcon("clock-alert")
+						Use soon
+					</h2>
+					<ul>
+						for _, it := range p.soon() {
+							<li>
+								<span class="ribbon">{ it.when() }</span>
+								<strong>{ it.Name }</strong>
+								<span class="meta">{ it.Quantity } · { it.Location }</span>
+							</li>
+						}
+					</ul>
+				</section>
+			}
+			<div class="cards">
+				for _, loc := range locations {
+					<article class={ "card", "loc-" + loc }>
+						<header>
+							<span class="loc-icon">
+								@web.ProtoIcon(locIcon(loc))
+							</span>
+							<h2>{ title(loc) }</h2>
+							<span class="meta">{ fmt.Sprint(len(p.at(loc))) } items</span>
+						</header>
+						<ul>
+							for _, it := range p.at(loc) {
+								<li>
+									<details>
+										<summary>
+											<span class="name">{ it.Name }</span>
+											<span class="qty">{ it.Quantity }</span>
+											if it.Expires != "" {
+												<span class={ "when", templ.KV("urgent", it.urgent()) }>{ it.when() }</span>
+											}
+										</summary>
+										<form class="form">
+											@protoFields(it, nil, false, false)
+											<div class="actions">
+												<button type="submit" class="btn">Save changes</button>
+												<button type="submit" class="btn-quiet">Remove</button>
+											</div>
+										</form>
+									</details>
+								</li>
+							}
+						</ul>
+					</article>
+				}
+			</div>
+			<section class="prep">
+				<h2>From your Prep Sessions</h2>
+				<p class="meta">Portions without a Slot</p>
+				<div class="prep-cards">
+					for _, po := range p.Portions {
+						<article>
+							<h3>{ po.Recipe }</h3>
+							<p class="meta">
+								@web.ProtoIcon(locIcon(po.Location))
+								In the { po.Location }
+							</p>
+							<form class="move">
+								<label class="sr-only" for={ fmt.Sprintf("a-move-%d", po.ID) }>Move to</label>
+								<select id={ fmt.Sprintf("a-move-%d", po.ID) }>
+									for _, loc := range locations {
+										<option value={ loc } selected?={ po.Location == loc }>{ title(loc) }</option>
+									}
+								</select>
+								<button type="submit" class="btn-quiet">Move</button>
+							</form>
+						</article>
+					}
+				</div>
+			</section>
+			<section class="card record">
+				<h2>Record a Stock Item</h2>
+				<form class="form">
+					<p class="alert" role="alert">The Stock Item was not recorded — fix the field marked below.</p>
+					@protoFields(protoItem{Location: "pantry"}, p.Ingredients, true, true)
+					<div class="actions"><button type="submit" class="btn">Record</button></div>
+				</form>
+			</section>
+		</main>
+		<nav class="tabbar" aria-label="Main">
+			@protoNavLinks()
+		</nav>
+	</div>
+}
+
+// ─── B · Ledger — calm utility ────────────────────────────────────────────
+// A dense, filterable table with a sidebar. Every action is one click away;
+// changing and adding happen in a side panel.
+
+templ variantB(p protoPage) {
+	<div class="app">
+		<aside class="sidebar">
+			<a class="brand" href="/"><span class="logo">D</span>Dandori</a>
+			<nav aria-label="Main">
+				@protoNavLinks()
+				<hr/>
+				<a href="/runs">
+					@web.ProtoIcon("activity")
+					<span>Runs</span>
+				</a>
+			</nav>
+		</aside>
+		<main>
+			<div class="toolbar">
+				<h1>Stock <span class="badge">{ fmt.Sprint(len(p.Items)) }</span></h1>
+				<button type="button" class="btn primary" popovertarget="add">
+					@web.ProtoIcon("plus")
+					Add item
+				</button>
+			</div>
+			<fieldset class="filters">
+				<legend class="sr-only">Storage Location</legend>
+				<label><input type="radio" name="f" id="f-all" checked/><span>All <i>{ fmt.Sprint(len(p.Items)) }</i></span></label>
+				for _, loc := range locations {
+					<label><input type="radio" name="f" id={ "f-" + loc }/><span>{ title(loc) } <i>{ fmt.Sprint(len(p.at(loc))) }</i></span></label>
+				}
+			</fieldset>
+			if n := len(p.soon()); n > 0 {
+				<div class="callout" role="note">
+					@web.ProtoIcon("clock-alert")
+					<span><b>{ fmt.Sprint(n) } Stock Items</b> expire within 3 days: { soonNames(p) }.</span>
+				</div>
+			}
+			<div class="table-wrap">
+				<table class="grid">
+					<thead>
+						<tr><th>Ingredient</th><th class="num">Quantity</th><th>Location</th><th>Expires</th><th><span class="sr-only">Actions</span></th></tr>
+					</thead>
+					<tbody>
+						for _, it := range p.Items {
+							<tr data-loc={ it.Location }>
+								<td class="name">{ it.Name }</td>
+								<td class="num">{ it.Quantity }</td>
+								<td>
+									<span class={ "loc-badge", "loc-" + it.Location }>
+										@web.ProtoIcon(locIcon(it.Location))
+										{ title(it.Location) }
+									</span>
+								</td>
+								<td>
+									if it.Expires != "" {
+										<span class={ "exp", templ.KV("urgent", it.urgent()) }>{ it.when() }</span>
+										if it.when() != it.Expires {
+											<span class="date">{ it.Expires }</span>
+										}
+									} else {
+										<span class="date">—</span>
+									}
+								</td>
+								<td class="row-actions">
+									<button type="button" class="icon-btn" popovertarget={ fmt.Sprintf("edit-%d", it.ID) } aria-label={ "Change " + it.Name }>
+										@web.ProtoIcon("pencil")
+									</button>
+									<form>
+										<button type="submit" class="icon-btn danger" aria-label={ "Remove " + it.Name }>
+											@web.ProtoIcon("trash-2")
+										</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<h2 class="section">Portions without a Slot <span class="badge">{ fmt.Sprint(len(p.Portions)) }</span></h2>
+			<div class="table-wrap">
+				<table class="grid">
+					<thead><tr><th>Recipe</th><th>Location</th><th>Move to</th></tr></thead>
+					<tbody>
+						for _, po := range p.Portions {
+							<tr data-loc={ po.Location }>
+								<td class="name">{ po.Recipe }</td>
+								<td>
+									<span class={ "loc-badge", "loc-" + po.Location }>
+										@web.ProtoIcon(locIcon(po.Location))
+										{ title(po.Location) }
+									</span>
+								</td>
+								<td>
+									<form class="inline">
+										<select aria-label={ "Move " + po.Recipe + " to" }>
+											for _, loc := range locations {
+												<option value={ loc } selected?={ po.Location == loc }>{ title(loc) }</option>
+											}
+										</select>
+										<button type="submit" class="btn">Move</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</main>
+		<nav class="tabbar" aria-label="Main">
+			@protoNavLinks()
+		</nav>
+		for _, it := range p.Items {
+			<div id={ fmt.Sprintf("edit-%d", it.ID) } popover class="panel">
+				<header>
+					<h2>Change { it.Name }</h2>
+					<button type="button" class="icon-btn" popovertarget={ fmt.Sprintf("edit-%d", it.ID) } popovertargetaction="hide" aria-label="Close">
+						@web.ProtoIcon("x")
+					</button>
+				</header>
+				<form class="form">
+					@protoFields(it, nil, false, false)
+					<div class="actions"><button type="submit" class="btn primary">Save</button></div>
+				</form>
+			</div>
+		}
+		<div id="add" popover class="panel">
+			<header>
+				<h2>Add a Stock Item</h2>
+				<button type="button" class="icon-btn" popovertarget="add" popovertargetaction="hide" aria-label="Close">
+					@web.ProtoIcon("x")
+				</button>
+			</header>
+			<form class="form">
+				<p class="alert" role="alert">Not recorded. Fix the field marked below.</p>
+				@protoFields(protoItem{Location: "pantry"}, p.Ingredients, true, true)
+				<div class="actions"><button type="submit" class="btn primary">Add item</button></div>
+			</form>
+		</div>
+	</div>
+}
+
+// ─── E · Block — bold modern ──────────────────────────────────────────────
+// Big numbers, one colour per Storage Location, one location on screen at a
+// time. Stock Items are chunky tiles; Portions move with one tap.
+
+templ variantE(p protoPage) {
+	<div class="app">
+		<header class="top">
+			<a class="brand" href="/">DANDORI</a>
+			<nav class="topnav" aria-label="Main">
+				@protoNavLinks()
+				<a href="/runs">
+					@web.ProtoIcon("activity")
+					<span>Runs</span>
+				</a>
+			</nav>
+		</header>
+		<main>
+			<h1 class="mega">Stock</h1>
+			<div class="stats">
+				<div class="stat"><b>{ fmt.Sprint(len(p.Items)) }</b><span>Stock Items</span></div>
+				<div class="stat"><b>{ fmt.Sprint(len(p.Portions)) }</b><span>Portions</span></div>
+				<div class="stat hot"><b>{ fmt.Sprint(len(p.soon())) }</b><span>use soon</span></div>
+			</div>
+			<fieldset class="loc-tabs">
+				<legend class="sr-only">Storage Location</legend>
+				for i, loc := range locations {
+					<input type="radio" name="loc" id={ "t-" + loc } checked?={ i == 1 }/>
+					<label for={ "t-" + loc } class={ "tab", "loc-" + loc }>
+						@web.ProtoIcon(locIcon(loc))
+						<span>{ title(loc) }</span>
+						<b>{ fmt.Sprint(len(p.at(loc))) }</b>
+					</label>
+				}
+			</fieldset>
+			for _, loc := range locations {
+				<section class={ "panel", "loc-" + loc } data-loc={ loc } aria-label={ title(loc) }>
+					<div class="tiles">
+						for _, it := range p.at(loc) {
+							<details class="tile">
+								<summary>
+									<span class="name">{ it.Name }</span>
+									<span class="big"><span class="n">{ qtyNum(it.Quantity) }</span><span class="u">{ qtyUnit(it.Quantity) }</span></span>
+									if it.Expires != "" {
+										<span class={ "chip", templ.KV("hot", it.urgent()) }>{ it.when() }</span>
+									}
+								</summary>
+								<form class="form">
+									@protoFields(it, nil, false, false)
+									<div class="actions">
+										<button type="submit" class="btn">Save</button>
+										<button type="submit" class="btn ghost">Remove</button>
+									</div>
+								</form>
+							</details>
+						}
+					</div>
+					if ps := p.portionsAt(loc); len(ps) > 0 {
+						<h2>Portions in the { loc }</h2>
+						<div class="meals">
+							for _, po := range ps {
+								<article class="meal">
+									<h3>{ po.Recipe }</h3>
+									<form class="move">
+										for _, to := range locations {
+											if to != loc {
+												<button type="submit" class={ "mini", "loc-" + to }>
+													@web.ProtoIcon("arrow-right-left")
+													{ title(to) }
+												</button>
+											}
+										}
+									</form>
+								</article>
+							}
+						</div>
+					}
+				</section>
+			}
+			<button type="button" class="big-add" popovertarget="add">
+				@web.ProtoIcon("plus")
+				Add to Stock
+			</button>
+		</main>
+		<nav class="tabbar" aria-label="Main">
+			@protoNavLinks()
+		</nav>
+		<div id="add" popover class="sheet">
+			<div class="sheet-head">
+				<h2>Add to Stock</h2>
+				<button type="button" class="btn ghost" popovertarget="add" popovertargetaction="hide">Close</button>
+			</div>
+			<form class="form">
+				<p class="alert" role="alert">Not recorded — fix the field below.</p>
+				@protoFields(protoItem{Location: "fridge"}, p.Ingredients, true, true)
+				<div class="actions"><button type="submit" class="btn">Add</button></div>
+			</form>
+		</div>
+	</div>
+}

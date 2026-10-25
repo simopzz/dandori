@@ -1,0 +1,104 @@
+// PROTOTYPE (design system): throwaway, lives only on prototype/design-system.
+// Four design-system directions for the Stock page, switchable via ?variant=.
+
+package web
+
+import "strings"
+
+// ProtoVariant is one design direction the switcher cycles through.
+type ProtoVariant struct {
+	Key  string
+	Name string
+}
+
+// ProtoIcon renders a Lucide icon inline; it inherits the text colour.
+templ ProtoIcon(name string) {
+	@templ.Raw(`<svg class="icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">` + protoIcons[name] + `</svg>`)
+}
+
+// ProtoDoc is the bare document a variant renders its own shell inside.
+templ ProtoDoc(title, css string, variants []ProtoVariant, current string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<title>{ title }</title>
+			<link rel="icon" href="/static/icon-192.png"/>
+			<link rel="stylesheet" href={ css }/>
+		</head>
+		<body>
+			{ children... }
+			@ProtoSwitcher(variants, current)
+		</body>
+	</html>
+}
+
+// ProtoSwitcher is the floating bar that cycles the variants. It also makes
+// every form inert, showing a toast instead of submitting.
+templ ProtoSwitcher(variants []ProtoVariant, current string) {
+	<div id="proto-switcher" data-variants={ keys(variants) } data-current={ current }>
+		<button type="button" data-step="-1" aria-label="Previous variant">←</button>
+		<span>
+			for _, v := range variants {
+				if v.Key == current {
+					<b>{ v.Key }</b> { v.Name }
+				}
+			}
+		</span>
+		<button type="button" data-step="1" aria-label="Next variant">→</button>
+	</div>
+	<div id="proto-toast" role="status" hidden>Prototype: nothing was saved.</div>
+	<style>
+		#proto-switcher {
+			position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
+			bottom: calc(9.5rem + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: .5rem;
+			padding: .3rem; background: #111; color: #fff; border-radius: 999px;
+			box-shadow: 0 6px 24px rgba(0,0,0,.35); font: 500 13px/1 ui-monospace, monospace; white-space: nowrap;
+		}
+		#proto-switcher button {
+			all: unset; cursor: pointer; width: 2rem; height: 2rem; display: grid; place-items: center;
+			border-radius: 999px; background: #333;
+		}
+		#proto-switcher button:hover, #proto-switcher button:focus-visible { background: #fff; color: #111; }
+		#proto-switcher b { background: #ff0; color: #111; padding: .15rem .35rem; border-radius: 4px; margin-right: .25rem; }
+		#proto-toast {
+			position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%); top: 1rem;
+			background: #111; color: #ff0; padding: .5rem .9rem; border-radius: 6px; font: 500 13px ui-monospace, monospace;
+		}
+		@media (min-width: 900px) { #proto-switcher { bottom: 1rem; } }
+	</style>
+	<script>
+		(() => {
+			const bar = document.getElementById("proto-switcher");
+			const keys = bar.dataset.variants.split(",");
+			const go = (step) => {
+				const i = (keys.indexOf(bar.dataset.current) + step + keys.length) % keys.length;
+				const url = new URL(location.href);
+				url.searchParams.set("variant", keys[i]);
+				location.replace(url);
+			};
+			bar.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => go(+b.dataset.step)));
+			document.addEventListener("keydown", (e) => {
+				if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+				if (e.key === "ArrowLeft") go(-1);
+				if (e.key === "ArrowRight") go(1);
+			});
+			const toast = document.getElementById("proto-toast");
+			document.addEventListener("submit", (e) => {
+				e.preventDefault();
+				toast.hidden = false;
+				clearTimeout(toast.t);
+				toast.t = setTimeout(() => (toast.hidden = true), 1600);
+			});
+		})();
+	</script>
+}
+
+func keys(vs []ProtoVariant) string {
+	ks := make([]string, len(vs))
+	for i, v := range vs {
+		ks[i] = v.Key
+	}
+	return strings.Join(ks, ",")
+}

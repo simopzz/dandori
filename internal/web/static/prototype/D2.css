@@ -1,0 +1,9 @@
+/* PROTOTYPE (design system) — D2 · Ma on white paper: D with whiter surfaces. Throwaway. */
+@import url(D.css);
+
+:root {
+  --paper: #fdfcfa;
+  --paper-raised: #ffffff;
+  --rule: #e4e0d8;
+  --seal-wash: #faebe6;
+}
