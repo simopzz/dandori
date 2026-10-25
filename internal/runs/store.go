@@ -7,7 +7,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/simopzz/dandori/internal/db"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 func insertRun(ctx context.Context, q db.Querier, kind string) (int64, error) {
@@ -21,7 +20,7 @@ func setStatus(ctx context.Context, q db.Querier, id int64, status string) error
 	return err
 }
 
-func insertEvent(ctx context.Context, q db.Querier, runID int64, ev web.TraceEvent) error {
+func insertEvent(ctx context.Context, q db.Querier, runID int64, ev TraceEvent) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO trace_event (run_id, seq, at, kind, summary, detail)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -29,30 +28,30 @@ func insertEvent(ctx context.Context, q db.Querier, runID int64, ev web.TraceEve
 	return err
 }
 
-func loadRun(ctx context.Context, q db.Querier, id int64) (web.Run, bool, error) {
-	run := web.Run{ID: id}
+func loadRun(ctx context.Context, q db.Querier, id int64) (Run, bool, error) {
+	run := Run{ID: id}
 	err := q.QueryRow(ctx, `SELECT kind, status, started_at FROM run WHERE id = $1`, id).
 		Scan(&run.Kind, &run.Status, &run.StartedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return web.Run{}, false, nil
+		return Run{}, false, nil
 	}
 	if err != nil {
-		return web.Run{}, false, err
+		return Run{}, false, err
 	}
 	return run, true, nil
 }
 
-func loadEvents(ctx context.Context, q db.Querier, id int64, after int) ([]web.TraceEvent, error) {
+func loadEvents(ctx context.Context, q db.Querier, id int64, after int) ([]TraceEvent, error) {
 	rows, _ := q.Query(ctx, `
 		SELECT seq, at, kind, summary, detail FROM trace_event
 		WHERE run_id = $1 AND seq > $2 ORDER BY seq`, id, after)
-	return pgx.CollectRows(rows, pgx.RowToStructByPos[web.TraceEvent])
+	return pgx.CollectRows(rows, pgx.RowToStructByPos[TraceEvent])
 }
 
-func listRuns(ctx context.Context, q db.Querier) ([]web.Run, error) {
+func listRuns(ctx context.Context, q db.Querier) ([]Run, error) {
 	rows, _ := q.Query(ctx, `SELECT id, kind, status, started_at FROM run ORDER BY id DESC LIMIT 100`)
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (web.Run, error) {
-		var run web.Run
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Run, error) {
+		var run Run
 		err := row.Scan(&run.ID, &run.Kind, &run.Status, &run.StartedAt)
 		return run, err
 	})

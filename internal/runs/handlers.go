@@ -12,7 +12,6 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/simopzz/dandori/internal/httpx"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // Handlers serve the Runs pages and the live Trace stream.
@@ -53,7 +52,7 @@ func (h Handlers) List(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, h.Log, "list runs", err)
 		return
 	}
-	templ.Handler(web.RunsPage(list, h.Demo)).ServeHTTP(w, r)
+	templ.Handler(RunsPage(list, h.Demo)).ServeHTTP(w, r)
 }
 
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +74,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, h.Log, "load trace", err)
 		return
 	}
-	templ.Handler(web.RunPage(run)).ServeHTTP(w, r)
+	templ.Handler(RunPage(run)).ServeHTTP(w, r)
 }
 
 func (h Handlers) Cancel(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +120,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Follow before reading the stored trace, so no event falls between.
-	var live chan web.TraceEvent
+	var live chan TraceEvent
 	lr := h.Engine.get(id)
 	if lr != nil {
 		if ch, ok := lr.subscribe(); ok {
@@ -138,9 +137,9 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	flusher := http.NewResponseController(w)
-	send := func(ev web.TraceEvent) error {
+	send := func(ev TraceEvent) error {
 		var html bytes.Buffer
-		if err := web.TraceEventItem(ev).Render(r.Context(), &html); err != nil {
+		if err := TraceEventItem(ev).Render(r.Context(), &html); err != nil {
 			return err
 		}
 		writeEvent(w, strconv.Itoa(ev.Seq), "trace", html.String())

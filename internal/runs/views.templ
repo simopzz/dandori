@@ -1,11 +1,13 @@
-package web
+package runs
 
 import (
 	"fmt"
 	"time"
+
+	"github.com/simopzz/dandori/internal/web"
 )
 
-// Run is a Run as its trace panel shows it.
+// Run is a Run as its pages show it.
 type Run struct {
 	ID        int64
 	Kind      string
@@ -23,7 +25,11 @@ type TraceEvent struct {
 	Detail  string
 }
 
-func (r Run) running() bool { return r.Status == "running" }
+// Running reports whether the Run is still going.
+func (r Run) Running() bool { return r.Status == "running" }
+
+// StatusLabel is the Run's status as the pages show it.
+func (r Run) StatusLabel() string { return statusLabels[r.Status] }
 
 // streamURL is where the panel follows a running Run, from the last event
 // it already shows.
@@ -59,7 +65,7 @@ var eventLabels = map[string]string{
 // RunsPage lists every Run, newest first. In demo mode it offers to start
 // a demo Run.
 templ RunsPage(runs []Run, demo bool) {
-	@layout("Dandori — Runs") {
+	@web.Layout("Dandori — Runs") {
 		<h2>Runs</h2>
 		if demo {
 			<form method="post" action="/runs" class="demo-start">
@@ -99,7 +105,7 @@ templ RunsPage(runs []Run, demo bool) {
 // RunPage is the trace panel of one Run. While the Run is going, the panel
 // follows its Trace Events live and offers to cancel it.
 templ RunPage(r Run) {
-	@layout(fmt.Sprintf("Dandori — Run #%d", r.ID)) {
+	@web.Layout(fmt.Sprintf("Dandori — Run #%d", r.ID)) {
 		<h2>Run #{ fmt.Sprint(r.ID) }: { r.Kind }</h2>
 		<p class="run-meta">
 			@runStatus(r.Status)
@@ -108,22 +114,22 @@ templ RunPage(r Run) {
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
 			</span>
 		</p>
-		@tracePanel(r)
+		@TracePanel(r)
 	}
 }
 
-// tracePanel is a Run's Trace. While the Run is going, it follows its
+// TracePanel is a Run's Trace. While the Run is going, it follows its
 // Trace Events live, reloads the page once the Run ends, and offers to
 // cancel it.
-templ tracePanel(r Run) {
-	if r.running() {
+templ TracePanel(r Run) {
+	if r.Running() {
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/runs/%d/cancel", r.ID)) }>
 			<button type="submit">Cancel run</button>
 		</form>
 	}
 	<ol
 		class="trace"
-		if r.running() {
+		if r.Running() {
 			data-trace-stream={ r.streamURL() }
 		}
 	>
@@ -131,7 +137,7 @@ templ tracePanel(r Run) {
 			@TraceEventItem(e)
 		}
 	</ol>
-	if r.running() {
+	if r.Running() {
 		<script src="/static/trace.js" defer></script>
 	}
 }

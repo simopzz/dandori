@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/simopzz/dandori/internal/domain"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // recipeFormValues is the form a Recipe is shown in, marking which of its
@@ -45,9 +44,9 @@ func recipeFormValues(rec domain.Recipe, known map[string]domain.Ingredient) url
 // can be saved: it is valid, and no Ingredient turned from known to new or
 // back since the form was shown, so every new Ingredient's nutritional
 // values have been seen.
-func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain.Recipe, web.RecipeForm, bool) {
+func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
 	get := func(name string) string { return strings.TrimSpace(form.Get(name)) }
-	f := web.RecipeForm{Values: map[string]string{}, Errors: map[string]string{}}
+	f := RecipeForm{Values: map[string]string{}, Errors: map[string]string{}}
 	for _, name := range []string{"name", "portions", "prep_minutes", "appliances"} {
 		f.Values[name] = get(name)
 	}
@@ -62,7 +61,7 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 
 	for i := 0; form.Has(fmt.Sprintf("ing_name_%d", i)); i++ {
 		in := func(name string) string { return get(fmt.Sprintf("ing_%s_%d", name, i)) }
-		row := web.IngredientRow{
+		row := IngredientRow{
 			Name:     domain.IngredientName(in("name")),
 			Quantity: in("quantity"),
 			Unit:     in("unit"),
@@ -113,7 +112,7 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 	}
 	ok := len(f.Errors) == 0 && !f.Rematched
 	if len(f.Errors) == 0 {
-		n := web.PortionNutrition(rec.NutritionPerPortion())
+		n := PortionNutrition(rec.NutritionPerPortion())
 		f.PerPortion = &n
 	}
 	return rec, f, ok
@@ -140,7 +139,7 @@ func recipeField(path string) string {
 	return path
 }
 
-func readInt(f web.RecipeForm, name string) int {
+func readInt(f RecipeForm, name string) int {
 	raw := f.Values[name]
 	if raw == "" {
 		f.Errors[name] = "Required"
@@ -157,7 +156,7 @@ func readInt(f web.RecipeForm, name string) int {
 }
 
 // readAmount reads a decimal amount, taking a comma as the decimal point.
-func readAmount(f web.RecipeForm, name, raw string) float64 {
+func readAmount(f RecipeForm, name, raw string) float64 {
 	if raw == "" {
 		f.Errors[name] = "Required"
 		return 0
