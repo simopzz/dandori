@@ -19,3 +19,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 ### Code layout
 
 Code is grouped by feature, each with handlers, a `Service` and a store. See `docs/adr/0006-package-by-feature-with-a-service-per-feature.md` before adding or moving code.
+
+### UI
+
+Any UI work follows the design system in `docs/design.md`: build pages from the shared templ components in `internal/web` and style with the tokens in `app.css`. The rules code review checks are in `docs/agents/coding-standards.md`.

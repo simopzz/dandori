@@ -98,51 +98,59 @@ func formatMinutes(m int) string {
 
 // RecipeLibraryPage lists the Recipe Library and takes recipe text to parse.
 templ RecipeLibraryPage(l RecipeLibrary) {
-	@web.Layout("Dandori — Recipes") {
-		<h2>Recipe Library</h2>
-		<form class="recipe-paste" method="post" action="/recipes/parse">
-			<label>
-				Paste a recipe
-				<textarea
-					name="text"
-					rows="8"
-					required
-					if l.Error != "" {
-						aria-invalid="true"
-					}
-				></textarea>
-				if l.Error != "" {
-					<span class="field-error">{ l.Error }</span>
-				}
-			</label>
-			<p class="muted">From a website, a note or a message. It becomes a draft you check before it is saved.</p>
-			<button type="submit">Parse recipe</button>
-		</form>
+	@web.Layout("Dandori — Recipes", web.TabRecipes) {
+		@web.PageHeader("レシピ", "Recipe Library")
 		if len(l.Recipes) == 0 {
-			<p class="muted">No Recipes yet.</p>
+			@web.Empty() {
+				No Recipes yet.
+			}
 		} else {
-			<ul class="recipes">
+			@web.Rows() {
 				for _, r := range l.Recipes {
-					<li>
-						<a href={ templ.SafeURL(fmt.Sprintf("/recipes/%d", r.ID)) }>{ r.Name }</a>
-						<span class="muted">
+					@web.Row() {
+						<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/recipes/%d", r.ID)) }>{ r.Name }</a>
+						<span class="row-meta">
 							{ fmt.Sprintf("%d Portions · %s · %d kcal, %d g protein per Portion", r.Portions, formatMinutes(r.PrepMinutes), r.PerPortion.Kcal, r.PerPortion.ProteinG) }
 						</span>
-					</li>
+					}
 				}
-			</ul>
+			}
+		}
+		@web.AddSheet("paste-recipe", "Paste a recipe", l.Error != "") {
+			<form class="stack" method="post" action="/recipes/parse">
+				@web.Field("Recipe text", "", l.Error) {
+					<textarea
+						name="text"
+						rows="8"
+						required
+						if l.Error != "" {
+							aria-invalid="true"
+						}
+					></textarea>
+				}
+				@web.Hint() {
+					From a website, a note or a message. It becomes a draft you check before it is saved.
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						Parse recipe
+					}
+				}
+			</form>
 		}
 	}
 }
 
 // RecipePage shows one Recipe with its nutritional values per Portion.
 templ RecipePage(r RecipeView) {
-	@web.Layout("Dandori — " + r.Name) {
-		<h2>{ r.Name }</h2>
+	@web.Layout("Dandori — "+r.Name, web.TabRecipes) {
+		@web.PageHeader("レシピ", r.Name)
 		if r.Error != "" {
-			<p class="error" role="alert">{ r.Error }</p>
+			@web.Alert() {
+				{ r.Error }
+			}
 		}
-		<dl class="recipe-facts">
+		<dl>
 			<dt>Portions</dt>
 			<dd>{ fmt.Sprint(r.Portions) }</dd>
 			<dt>Prep time</dt>
@@ -161,29 +169,35 @@ templ RecipePage(r RecipeView) {
 			</dd>
 		</dl>
 		@perPortion(r.PerPortion)
-		<h3>Ingredients</h3>
-		<ul>
-			for _, ing := range r.Ingredients {
-				<li>{ ing }</li>
+		@web.Section(1, "Ingredients") {
+			<ul>
+				for _, ing := range r.Ingredients {
+					<li>{ ing }</li>
+				}
+			</ul>
+		}
+		@web.Section(2, "Steps") {
+			<ol>
+				for _, s := range r.Steps {
+					<li>{ s }</li>
+				}
+			</ol>
+		}
+		@web.Actions() {
+			@web.ButtonLink(templ.SafeURL(fmt.Sprintf("/recipes/%d/edit", r.ID))) {
+				Edit
 			}
-		</ul>
-		<h3>Steps</h3>
-		<ol>
-			for _, s := range r.Steps {
-				<li>{ s }</li>
-			}
-		</ol>
-		<div class="actions">
-			<a class="button" href={ templ.SafeURL(fmt.Sprintf("/recipes/%d/edit", r.ID)) }>Edit</a>
 			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/recipes/%d/delete", r.ID)) }>
-				<button type="submit" class="secondary">Delete</button>
+				@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
+					Delete
+				}
 			</form>
-		</div>
+		}
 	}
 }
 
 templ perPortion(n PortionNutrition) {
-	<dl class="per-portion">
+	<dl>
 		<dt>Per Portion</dt>
 		<dd>
 			{ fmt.Sprintf("%d kcal · %d g protein · %d g carbs · %d g fat", n.Kcal, n.ProteinG, n.CarbsG, n.FatG) }
@@ -193,16 +207,18 @@ templ perPortion(n PortionNutrition) {
 
 // DraftPendingPage follows a parse Run until its draft is ready.
 templ DraftPendingPage(d DraftPending) {
-	@web.Layout("Dandori — Parsing a recipe") {
-		<h2>Parsing a recipe</h2>
+	@web.Layout("Dandori — Parsing a recipe", web.TabRecipes) {
+		@web.PageHeader("レシピ", "Parsing a recipe")
 		if d.Run.Running() {
-			<p role="status">The recipe is being parsed; the draft appears here when it is ready.</p>
+			@web.Notice() {
+				The recipe is being parsed; the draft appears here when it is ready.
+			}
 		} else {
-			<p class="error" role="alert">
+			@web.Alert() {
 				There is no draft to check: the parse Run ended ({ d.Run.StatusLabel() }) without one,
 				or its draft was already accepted or discarded.
 				<a href="/recipes">Back to the Recipe Library</a>
-			</p>
+			}
 		}
 		@runs.TracePanel(d.Run)
 	}
@@ -210,36 +226,49 @@ templ DraftPendingPage(d DraftPending) {
 
 // RecipeFormPage is a draft to check and accept, or a Recipe to edit.
 templ RecipeFormPage(f RecipeForm) {
-	@web.Layout("Dandori — " + f.Title) {
-		<h2>{ f.Title }</h2>
-		<form id="recipe" class="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
+	@web.Layout("Dandori — "+f.Title, web.TabRecipes) {
+		@web.PageHeader("レシピ", f.Title)
+		<form id="recipe" method="post" action={ templ.SafeURL(f.Action) }>
 			if f.Failed {
-				<p class="error" role="alert">The Recipe could not be saved; try again. Details are in the server log.</p>
+				@web.Alert() {
+					The Recipe could not be saved; try again. Details are in the server log.
+				}
 			}
 			if f.Rematched {
-				<p class="error" role="alert">Some Ingredients changed between known and new; check them and submit again.</p>
-			} else if len(f.Errors) > 0 {
-				<p class="error" role="alert">The Recipe was not saved; fix the fields marked below.</p>
-			}
-			@textField(f, "name", "Name")
-			<div class="nutrition">
-				@recipeNumberField(f, "portions", "Portions", "1")
-				@recipeNumberField(f, "prep_minutes", "Prep time (min)", "0")
-			</div>
-			if f.PerPortion != nil {
-				@perPortion(*f.PerPortion)
-			}
-			<fieldset>
-				<legend>Ingredients</legend>
-				<p class="muted">
-					Quantities are in each Ingredient's unit. Nutritional values are per 100 g, per 100 ml or per piece.
-					Ingredients marked <span class="badge">New</span> are not in your Recipe Library yet: check their values.
-					Clear a row's name and quantity to remove it.
-				</p>
-				if msg := f.Errors["ingredients"]; msg != "" {
-					<p class="field-error">{ msg }</p>
+				@web.Alert() {
+					Some Ingredients changed between known and new; check them and submit again.
 				}
-				<div class="ingredient-rows">
+			} else if len(f.Errors) > 0 {
+				@web.Alert() {
+					The Recipe was not saved; fix the fields marked below.
+				}
+			}
+			<div class="stack section">
+				@textField(f, "name", "Name")
+				@web.FieldRow() {
+					@recipeNumberField(f, "portions", "Portions", "", "1")
+					@recipeNumberField(f, "prep_minutes", "Prep time", "min", "0")
+				}
+				if f.PerPortion != nil {
+					@perPortion(*f.PerPortion)
+				}
+			</div>
+			@web.FieldGroup(1, "Ingredients") {
+				@web.Hint() {
+					Quantities are in each Ingredient's unit. Nutritional values are per 100 g, per 100 ml or per piece.
+					Ingredients marked { " " }
+					@web.Tag(true, "") {
+						New
+					}
+					{ " " } are not in your Recipe Library yet: check their values.
+					Clear a row's name and quantity to remove it.
+				}
+				if msg := f.Errors["ingredients"]; msg != "" {
+					<p>
+						@web.FieldError(msg)
+					</p>
+				}
+				<div class="ingredient-grid">
 					<div class="ingredient-head" aria-hidden="true">
 						<span></span>
 						<span>Ingredient</span>
@@ -259,15 +288,19 @@ templ RecipeFormPage(f RecipeForm) {
 				<template id="ingredients-template">
 					@ingredientRow(RecipeForm{}, 0, IngredientRow{Unit: "g", New: true})
 				</template>
-				<button type="button" class="add" data-add="ingredients">+ Add Ingredient</button>
-			</fieldset>
-			<label>
-				Appliances <span class="muted">(one per line)</span>
-				<textarea name="appliances" rows="2">{ f.Values["appliances"] }</textarea>
-			</label>
-			<fieldset>
-				<legend>Steps</legend>
-				<p class="muted">Clear a step to remove it.</p>
+				@web.TextButton(templ.Attributes{"type": "button", "data-add": "ingredients"}) {
+					+ Add Ingredient
+				}
+			}
+			<div class="section">
+				@web.Field("Appliances", "one per line", "") {
+					<textarea name="appliances" rows="2">{ f.Values["appliances"] }</textarea>
+				}
+			</div>
+			@web.FieldGroup(2, "Steps") {
+				@web.Hint() {
+					Clear a step to remove it.
+				}
 				<ol id="steps" class="steps">
 					for _, s := range f.Steps {
 						@stepField(s)
@@ -276,14 +309,20 @@ templ RecipeFormPage(f RecipeForm) {
 				<template id="steps-template">
 					@stepField("")
 				</template>
-				<button type="button" class="add" data-add="steps">+ Add step</button>
-			</fieldset>
-			<div class="actions">
-				if f.Discard != "" {
-					<button type="submit" form="discard" class="secondary" formnovalidate>Discard draft</button>
+				@web.TextButton(templ.Attributes{"type": "button", "data-add": "steps"}) {
+					+ Add step
 				}
-				<button type="submit">{ f.Submit }</button>
-			</div>
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					{ f.Submit }
+				}
+				if f.Discard != "" {
+					@web.DestructiveButton(templ.Attributes{"type": "submit", "form": "discard", "formnovalidate": true}) {
+						Discard draft
+					}
+				}
+			}
 		</form>
 		if f.Discard != "" {
 			<form id="discard" method="post" action={ templ.SafeURL(f.Discard) }></form>
@@ -297,36 +336,36 @@ templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
 		<input type="hidden" name={ ingField("new", i) } value={ fmt.Sprint(row.New) }/>
 		<span class="row-status">
 			if row.New && row.Name != "" {
-				<span class="badge" title="New Ingredient: confirm its nutritional values">New</span>
+				@web.Tag(true, "New Ingredient: confirm its nutritional values") {
+					New
+				}
 			}
 		</span>
 		@rowInput(f, ingField("name", i), "Ingredient", row.Name, false)
 		@rowInput(f, ingField("quantity", i), "Quantity", row.Quantity, true)
 		if row.New {
-			<label>
-				<span class="cell-label">Unit</span>
+			@web.CellField("Unit", f.Errors[ingField("unit", i)]) {
 				<select name={ ingField("unit", i) }>
 					for _, u := range []string{"g", "ml", "piece"} {
 						<option value={ u } selected?={ row.Unit == u }>{ u }</option>
 					}
 				</select>
-				if msg := f.Errors[ingField("unit", i)]; msg != "" {
-					<span class="field-error">{ msg }</span>
-				}
-			</label>
+			}
 			@rowInput(f, ingField("kcal", i), "kcal", row.Kcal, true)
 			@rowInput(f, ingField("protein_g", i), "Protein (g)", row.ProteinG, true)
 			@rowInput(f, ingField("carbs_g", i), "Carbs (g)", row.CarbsG, true)
 			@rowInput(f, ingField("fat_g", i), "Fat (g)", row.FatG, true)
 			if msg := f.Errors[ingField("nutrition", i)]; msg != "" {
-				<span class="field-error row-error">{ msg }</span>
+				<span class="row-error">
+					@web.FieldError(msg)
+				</span>
 			}
 		} else {
 			<span class="unit">
 				<input type="hidden" name={ ingField("unit", i) } value={ row.Unit }/>
 				{ row.Unit }
 			</span>
-			<span class="known muted">Known Ingredient: values from your Recipe Library</span>
+			<span class="known">Known Ingredient: values from your Recipe Library</span>
 		}
 	</div>
 }
@@ -338,8 +377,7 @@ templ stepField(s string) {
 }
 
 templ rowInput(f RecipeForm, name, label, value string, decimal bool) {
-	<label>
-		<span class="cell-label">{ label }</span>
+	@web.CellField(label, f.Errors[name]) {
 		<input
 			type="text"
 			name={ name }
@@ -351,15 +389,11 @@ templ rowInput(f RecipeForm, name, label, value string, decimal bool) {
 				aria-invalid="true"
 			}
 		/>
-		if msg := f.Errors[name]; msg != "" {
-			<span class="field-error">{ msg }</span>
-		}
-	</label>
+	}
 }
 
 templ textField(f RecipeForm, name, label string) {
-	<label>
-		{ label }
+	@web.Field(label, "", f.Errors[name]) {
 		<input
 			type="text"
 			required
@@ -369,15 +403,11 @@ templ textField(f RecipeForm, name, label string) {
 				aria-invalid="true"
 			}
 		/>
-		if msg := f.Errors[name]; msg != "" {
-			<span class="field-error">{ msg }</span>
-		}
-	</label>
+	}
 }
 
-templ recipeNumberField(f RecipeForm, name, label, min string) {
-	<label>
-		{ label }
+templ recipeNumberField(f RecipeForm, name, label, unit, min string) {
+	@web.Field(label, unit, f.Errors[name]) {
 		<input
 			type="number"
 			inputmode="numeric"
@@ -390,8 +420,5 @@ templ recipeNumberField(f RecipeForm, name, label, min string) {
 				aria-invalid="true"
 			}
 		/>
-		if msg := f.Errors[name]; msg != "" {
-			<span class="field-error">{ msg }</span>
-		}
-	</label>
+	}
 }

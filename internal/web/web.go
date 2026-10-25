@@ -12,8 +12,16 @@ import (
 // from https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js. The database-
 // unavailable page relies on its polling and on the HX-Refresh header.
 //
+// static/fonts holds the latin subsets of Shippori Mincho (500, 700) and
+// Zen Kaku Gothic New (400, 700), both SIL OFL 1.1 (static/fonts/OFL.txt),
+// from Fontsource (@fontsource/shippori-mincho, @fontsource/zen-kaku-gothic-new).
+//
 //go:embed static
 var static embed.FS
+
+// themeColour is the browser chrome's colour: the paper, --color-bg in
+// app.css. The manifest's theme_color and background_color match it.
+const themeColour = "#fdfcfa"
 
 //go:embed root/manifest.webmanifest
 var manifest []byte

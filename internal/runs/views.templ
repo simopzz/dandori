@@ -65,25 +65,32 @@ var eventLabels = map[string]string{
 // RunsPage lists every Run, newest first. In demo mode it offers to start
 // a demo Run.
 templ RunsPage(runs []Run, demo bool) {
-	@web.Layout("Dandori — Runs") {
-		<h2>Runs</h2>
+	@web.Layout("Dandori — Runs", web.TabRuns) {
+		@web.PageHeader("実行", "Runs")
 		if demo {
-			<form method="post" action="/runs" class="demo-start">
+			<form method="post" action="/runs" class="section">
 				<input type="hidden" name="kind" value="demo"/>
-				<label>
-					Model
-					<select name="model">
-						<option value="fake">Scripted (no API calls)</option>
-						<option value="claude">Claude (real API, costs money)</option>
-					</select>
-				</label>
-				<button type="submit">Start demo run</button>
+				@web.FieldRow() {
+					@web.Field("Model", "", "") {
+						<select name="model">
+							<option value="fake">Scripted (no API calls)</option>
+							<option value="claude">Claude (real API, costs money)</option>
+						</select>
+					}
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						Start demo run
+					}
+				}
 			</form>
 		}
 		if len(runs) == 0 {
-			<p class="muted">No agent has run yet.</p>
+			@web.Empty() {
+				No agent has run yet.
+			}
 		} else {
-			<table class="runs">
+			<table>
 				<thead>
 					<tr><th>Run</th><th>Kind</th><th>Status</th><th>Started</th></tr>
 				</thead>
@@ -105,15 +112,14 @@ templ RunsPage(runs []Run, demo bool) {
 // RunPage is the trace panel of one Run. While the Run is going, the panel
 // follows its Trace Events live and offers to cancel it.
 templ RunPage(r Run) {
-	@web.Layout(fmt.Sprintf("Dandori — Run #%d", r.ID)) {
-		<h2>Run #{ fmt.Sprint(r.ID) }: { r.Kind }</h2>
-		<p class="run-meta">
-			@runStatus(r.Status)
-			<span class="muted">
-				{ "started " }
+	@web.Layout(fmt.Sprintf("Dandori — Run #%d", r.ID), web.TabRuns) {
+		@web.PageHeader("実行", fmt.Sprintf("Run #%d: %s", r.ID, r.Kind)) {
+			<p class="lede">
+				@runStatus(r.Status)
+				{ " started " }
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
-			</span>
-		</p>
+			</p>
+		}
 		@TracePanel(r)
 	}
 }
@@ -124,7 +130,9 @@ templ RunPage(r Run) {
 templ TracePanel(r Run) {
 	if r.Running() {
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/runs/%d/cancel", r.ID)) }>
-			<button type="submit">Cancel run</button>
+			@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
+				Cancel run
+			}
 		</form>
 	}
 	<ol
@@ -155,8 +163,11 @@ templ TraceEventItem(e TraceEvent) {
 	</li>
 }
 
+// runStatus is a Run's status; a failed Run's needs attention.
 templ runStatus(status string) {
-	<span class={ "run-status", "status-" + status }>{ statusLabels[status] }</span>
+	@web.Tag(status == "failed", "") {
+		{ statusLabels[status] }
+	}
 }
 
 templ timestamp(t time.Time, layout string) {

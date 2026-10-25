@@ -1,14 +1,26 @@
 package web
 
+// Tab is the shell tab a page belongs to, marked as current.
+type Tab string
+
+const (
+	NoTab      Tab = ""
+	TabRecipes Tab = "/recipes"
+	TabStock   Tab = "/stock"
+	TabProfile Tab = "/profile"
+	TabRuns    Tab = "/runs"
+)
+
 // Layout is the page shell every page renders inside: the head, the
-// header with the navigation, and the page's content in main.
-templ Layout(title string) {
+// navigation (bottom tabs on a phone, a rail on desktop) with the page's
+// tab marked, and the page's content.
+templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<meta name="theme-color" content="#2f6b3f"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<meta name="theme-color" content={ themeColour }/>
 			<title>{ title }</title>
 			<link rel="manifest" href="/manifest.webmanifest"/>
 			<link rel="icon" href="/static/icon-192.png"/>
@@ -20,36 +32,59 @@ templ Layout(title string) {
 			</script>
 		</head>
 		<body>
-			<header>
-				<h1><a href="/">Dandori</a></h1>
-				<nav><a href="/recipes">Recipes</a> <a href="/stock">Stock</a> <a href="/profile">Profile</a> <a href="/runs">Runs</a></nav>
-			</header>
-			<main>
+			<nav class="shell" aria-label="Main">
+				<a class="wordmark" href="/"><span class="wordmark-ja" lang="ja">段取り</span><span class="wordmark-latin">Dandori</span></a>
+				@tab(TabRecipes, current, "book-open", "Recipes", false)
+				@tab(TabStock, current, "package", "Stock", false)
+				@tab(TabProfile, current, "user", "Profile", false)
+				@tab(TabRuns, current, "activity", "Runs", true)
+			</nav>
+			<main class="page">
 				{ children... }
 			</main>
 		</body>
 	</html>
 }
 
+// tab is one link of the shell; aux ones sit apart, at the rail's foot.
+templ tab(t, current Tab, icon, label string, aux bool) {
+	<a
+		class={ "tab", templ.KV("tab-aux", aux) }
+		href={ templ.SafeURL(t) }
+		if t == current {
+			aria-current="page"
+		}
+	>
+		@Icon(icon)
+		<span>{ label }</span>
+	</a>
+}
+
 // Home is the app shell's landing page.
 templ Home() {
-	@Layout("Dandori") {
-		<p>Plan a Cycle, then fill the cart.</p>
+	@Layout("Dandori", NoTab) {
+		@PageHeader("段取り", "Dandori") {
+			<p class="lede">Plan a Cycle, then fill the cart.</p>
+		}
 	}
 }
 
 // DatabaseUnavailable is shown while the database is paused or unreachable.
 // It polls the health check, which tells HTMX to reload once it is back.
 templ DatabaseUnavailable() {
-	@Layout("Dandori — database unavailable") {
-		<section class="notice" role="alert" hx-get="/healthz" hx-trigger="every 5s" hx-swap="none">
-			<h2>Database unavailable</h2>
-			<p>
-				Dandori can't reach its database. If the Supabase project was paused
-				after a period of inactivity, restore it from the Supabase dashboard.
-				Nothing has been lost.
-			</p>
-			<p class="muted">This page will reload by itself once the database is back.</p>
-		</section>
+	@Layout("Dandori — database unavailable", NoTab) {
+		@PageHeader("休止", "Database unavailable")
+		<div hx-get="/healthz" hx-trigger="every 5s" hx-swap="none">
+			@Alert() {
+				<p>
+					Dandori can't reach its database. If the Supabase project was paused
+					after a period of inactivity, restore it from the Supabase dashboard.
+					Nothing has been lost.
+				</p>
+			}
+			@Hint() {
+				This page will reload by itself once the database is back.
+			}
+		</div>
 	}
 }

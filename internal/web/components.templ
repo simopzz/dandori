@@ -1,0 +1,241 @@
+package web
+
+import (
+	"fmt"
+	"time"
+)
+
+// The shared components every page is built from. docs/design.md says when
+// to use each; app.css styles them.
+
+// Icon is a Lucide icon, inline, in the text colour. It is decorative: say
+// what it means in text next to it or in an aria-label.
+templ Icon(name string) {
+	@templ.Raw(`<svg class="icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">` + icons[name] + `</svg>`)
+}
+
+// PageHeader opens a page: an eyebrow with the page's Japanese name and
+// today's date, then the title. Children, if any, are a lede below it.
+templ PageHeader(ja, title string) {
+	<header class="page-header">
+		<p class="eyebrow"><span lang="ja">{ ja }</span> · { time.Now().Format("Monday 2 January") }</p>
+		<h1>{ title }</h1>
+		{ children... }
+	</header>
+}
+
+// Section is a numbered group of a page's content under a heading.
+templ Section(num int, title string) {
+	<section class="section">
+		<h2 class="section-heading">
+			@number(num)
+			{ title }
+		</h2>
+		{ children... }
+	</section>
+}
+
+// FieldGroup is a Section of a form: its fields under a numbered legend.
+templ FieldGroup(num int, legend string) {
+	<fieldset class="section">
+		<legend class="section-heading">
+			@number(num)
+			{ legend }
+		</legend>
+		{ children... }
+	</fieldset>
+}
+
+templ number(n int) {
+	<span class="num">{ fmt.Sprintf("%02d", n) }</span>
+}
+
+// Hint is a quiet paragraph explaining what follows.
+templ Hint() {
+	<p class="hint">{ children... }</p>
+}
+
+// Empty says a list has nothing in it yet.
+templ Empty() {
+	<p class="empty">{ children... }</p>
+}
+
+// Rows is a list of Rows or EditRows.
+templ Rows() {
+	<ul class="rows">
+		{ children... }
+	</ul>
+}
+
+// Row is one line of a list. Lay it out with a row-title, a row-figure,
+// row-meta and a row-action.
+templ Row() {
+	<li class="row row-static">
+		{ children... }
+	</li>
+}
+
+// EditRow is one line of a list that opens in place to edit: summary is
+// the line, the children are what it opens to.
+templ EditRow(open bool, summary templ.Component) {
+	<li class="row">
+		<details open?={ open }>
+			<summary>
+				@summary
+				<span class="row-edit">
+					@Icon("chevron-down")
+					<span class="sr-only">Change</span>
+				</span>
+			</summary>
+			<div class="row-body">
+				{ children... }
+			</div>
+		</details>
+	</li>
+}
+
+// Field is a labelled form control: the control is the children. hint,
+// when set, follows the label (e.g. "optional"); err is why the value was
+// rejected.
+templ Field(label, hint, err string) {
+	<label class="field">
+		<span class="field-label">
+			{ label }
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
+		</span>
+		{ children... }
+		@FieldError(err)
+	</label>
+}
+
+// CellField is a Field in a grid whose column heads name it, so its label
+// is shown only on a phone, where the heads are hidden.
+templ CellField(label, err string) {
+	<label class="field">
+		<span class="field-label cell-label">{ label }</span>
+		{ children... }
+		@FieldError(err)
+	</label>
+}
+
+// FieldError is why a value was rejected, or nothing.
+templ FieldError(err string) {
+	if err != "" {
+		<span class="field-error">{ err }</span>
+	}
+}
+
+// FieldRow lays a few short Fields side by side, wrapping on a phone.
+templ FieldRow() {
+	<div class="field-row">
+		{ children... }
+	</div>
+}
+
+// Actions is the row of buttons that ends a form.
+templ Actions() {
+	<div class="actions">
+		{ children... }
+	</div>
+}
+
+// Button is the primary action, in ink. attrs must give its type.
+templ Button(attrs templ.Attributes) {
+	<button class="btn" { attrs... }>
+		{ children... }
+	</button>
+}
+
+// ButtonLink is a link that looks like a Button.
+templ ButtonLink(href templ.SafeURL) {
+	<a class="btn" href={ href }>
+		{ children... }
+	</a>
+}
+
+// TextButton is a secondary action. attrs must give its type.
+templ TextButton(attrs templ.Attributes) {
+	<button class="btn-text" { attrs... }>
+		{ children... }
+	</button>
+}
+
+// DestructiveButton removes or discards something. attrs must give its type.
+templ DestructiveButton(attrs templ.Attributes) {
+	<button class="btn-text btn-danger" { attrs... }>
+		{ children... }
+	</button>
+}
+
+// Choice is one option of a Segmented choice.
+type Choice struct {
+	Value string
+	Label string
+}
+
+// Segmented chooses one of a few options with square toggles. selected
+// is the chosen Value; err is why a choice was rejected.
+templ Segmented(legend, name string, choices []Choice, selected, err string) {
+	<fieldset
+		class="seg"
+		if err != "" {
+			aria-invalid="true"
+		}
+	>
+		<legend class="sr-only">{ legend }</legend>
+		for _, c := range choices {
+			<label><input type="radio" name={ name } value={ c.Value } required checked?={ selected == c.Value }/><span>{ c.Label }</span></label>
+		}
+	</fieldset>
+	@FieldError(err)
+}
+
+// Alert says something went wrong, on the accent wash.
+templ Alert() {
+	<div class="alert" role="alert">
+		{ children... }
+	</div>
+}
+
+// Notice confirms something happened.
+templ Notice() {
+	<p class="notice" role="status">
+		{ children... }
+	</p>
+}
+
+// Tag is a short label on a row or field. accent marks one that needs
+// attention; its text must say why.
+templ Tag(accent bool, title string) {
+	<span
+		class={ "tag", templ.KV("tag-accent", accent) }
+		if title != "" {
+			title={ title }
+		}
+	>
+		{ children... }
+	</span>
+}
+
+// AddSheet is a page's primary add action: a square + that opens the add
+// form, the children, as a sheet. open shows it already open, for a
+// rejected submission.
+templ AddSheet(id, title string, open bool) {
+	<button class="fab" type="button" popovertarget={ id } aria-label={ title }>
+		@Icon("plus")
+	</button>
+	<div id={ id } class="sheet" popover data-open?={ open }>
+		<div class="sheet-head">
+			<h2>{ title }</h2>
+			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">Close</button>
+		</div>
+		{ children... }
+	</div>
+	if open {
+		<script>
+			for (const sheet of document.querySelectorAll(".sheet[data-open]")) sheet.showPopover();
+		</script>
+	}
+}
