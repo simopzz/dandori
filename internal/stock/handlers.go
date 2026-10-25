@@ -55,6 +55,8 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 		return
 	}
 	p := StockPage{Add: rej.add}
+	// A rejected change or move of something gone has nothing to show back.
+	found := rej.changedItem == 0 && rej.movedPortion == 0
 	for _, ing := range ingredients {
 		p.Ingredients = append(p.Ingredients, IngredientOption{Name: ing.Name, Unit: string(ing.Unit)})
 	}
@@ -70,7 +72,7 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 			row.ExpiresOn = it.ExpiresOn.Format(dateLayout)
 		}
 		if it.ID == rej.changedItem {
-			row.Form = rej.change
+			row.Form, found = rej.change, true
 		}
 		p.Items = append(p.Items, row)
 	}
@@ -80,9 +82,13 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 			row.Recipe = "No Recipe"
 		}
 		if portion.ID == rej.movedPortion {
-			row.MoveTo, row.Error = rej.moveTo, rej.moveError
+			row.MoveTo, row.Error, found = rej.moveTo, rej.moveError, true
 		}
 		p.Portions = append(p.Portions, row)
+	}
+	if !found {
+		http.NotFound(w, r)
+		return
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
 }

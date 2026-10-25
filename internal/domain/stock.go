@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"math"
 	"slices"
 	"time"
 )
@@ -40,7 +41,10 @@ type StockItem struct {
 // such as "Quantity". A valid Stock Item returns none.
 func (s StockItem) Validate() map[string]string {
 	problems := map[string]string{}
-	if s.Quantity <= 0 {
+	switch {
+	case math.IsNaN(s.Quantity) || math.IsInf(s.Quantity, 0):
+		problems["Quantity"] = "Must be a number"
+	case s.Quantity <= 0:
 		problems["Quantity"] = "Must be more than 0"
 	}
 	if msg := s.Location.Validate(); msg != "" {

@@ -166,6 +166,10 @@ func TestChangingAStockItemThatIsGoneIsNotFound(t *testing.T) {
 	if res := h.PostForm(t, form.Action, form.Values); res.StatusCode != http.StatusNotFound {
 		t.Errorf("change a removed Stock Item = %d, want 404", res.StatusCode)
 	}
+	form.Values.Set("quantity", "")
+	if res := h.PostForm(t, form.Action, form.Values); res.StatusCode != http.StatusNotFound {
+		t.Errorf("invalid change to a removed Stock Item = %d, want 404", res.StatusCode)
+	}
 }
 
 // seedPortions adds a Prep Session of the Lemon chicken with rice Recipe
@@ -242,6 +246,10 @@ func TestPortionIsMovedToAnotherStorageLocation(t *testing.T) {
 	move.Values.Set("location", "fridge")
 	if res := h.PostForm(t, "/portions/999999/move", move.Values); res.StatusCode != http.StatusNotFound {
 		t.Errorf("move a Portion that doesn't exist = %d, want 404", res.StatusCode)
+	}
+	move.Values.Set("location", "garage")
+	if res := h.PostForm(t, "/portions/999999/move", move.Values); res.StatusCode != http.StatusNotFound {
+		t.Errorf("invalid move of a Portion that doesn't exist = %d, want 404", res.StatusCode)
 	}
 }
 
