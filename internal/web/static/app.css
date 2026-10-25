@@ -315,3 +315,54 @@ main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
 
 .recipe-facts dd,
 .per-portion dd { margin: 0; }
+
+.stock-items { padding: 0; list-style: none; }
+
+.stock-items li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #cfc8b4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.stock-what { font-weight: 600; }
+
+.stock-items details { flex-basis: 100%; }
+
+.stock-form label,
+.stock-move label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.stock-move { display: flex; gap: 0.5rem; align-items: flex-end; margin-left: auto; }
+
+.stock-move label { margin: 0; }
+
+.stock-form input,
+.stock-form select,
+.stock-move select {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #b9b19b;
+  border-radius: 0.35rem;
+  background: #fff;
+}
+
+.stock-form [aria-invalid="true"],
+.stock-move [aria-invalid="true"] { border-color: var(--error); }
+
+.stock button {
+  font: inherit;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--bg);
+  border: 0;
+  border-radius: 0.35rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}

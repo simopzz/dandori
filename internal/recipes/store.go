@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
@@ -102,6 +103,12 @@ func saveRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe) 
 
 func deleteRecipe(ctx context.Context, q db.Querier, id int64) error {
 	_, err := q.Exec(ctx, `DELETE FROM recipe WHERE id = $1`, id)
+	// 23503 is a foreign key violation: only a Prep Session refers to a
+	// Recipe without cascading.
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return ErrHasPortions
+	}
 	return err
 }
 

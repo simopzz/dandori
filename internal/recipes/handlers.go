@@ -145,7 +145,13 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.renderRecipe(w, r, rec, "", http.StatusOK)
+}
+
+// renderRecipe shows rec, with problem saying why an action on it failed.
+func (h Handlers) renderRecipe(w http.ResponseWriter, r *http.Request, rec Stored, problem string, status int) {
 	view := RecipeView{
+		Error:       problem,
 		ID:          rec.ID,
 		Name:        rec.Name,
 		Portions:    rec.Portions,
@@ -158,7 +164,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		view.Ingredients = append(view.Ingredients,
 			fmt.Sprintf("%s %s %s", formatAmount(ri.Quantity), ri.Ingredient.Unit, ri.Ingredient.Name))
 	}
-	templ.Handler(RecipePage(view)).ServeHTTP(w, r)
+	templ.Handler(RecipePage(view), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
 func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +204,14 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.Service.Delete(r.Context(), id); err != nil {
+	switch err := h.Service.Delete(r.Context(), id); {
+	case errors.Is(err, ErrHasPortions):
+		rec, ok := h.recipeFromPath(w, r)
+		if ok {
+			h.renderRecipe(w, r, rec, "Portions of this Recipe are still kept, so it can't be deleted.", http.StatusConflict)
+		}
+		return
+	case err != nil:
 		httpx.ServerError(w, h.Log, "delete recipe", err)
 		return
 	}

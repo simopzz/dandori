@@ -22,6 +22,7 @@ import (
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/stock"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -81,6 +82,7 @@ type App struct {
 	runs    *runs.Engine
 	recipes *recipes.Service
 	profile *profile.Service
+	stock   *stock.Service
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -100,6 +102,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	}, log)
 	a.recipes = recipes.New(pool, a.runs)
 	a.profile = profile.New(pool)
+	a.stock = stock.New(pool)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -158,6 +161,7 @@ func (a *App) Handler() http.Handler {
 	runs := runs.Handlers{Engine: a.runs, Log: a.log, Demo: a.cfg.Demo}
 	recipes := recipes.Handlers{Service: a.recipes, Log: a.log}
 	profile := profile.Handlers{Service: a.profile, Log: a.log}
+	stock := stock.Handlers{Service: a.stock, Log: a.log}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
@@ -173,6 +177,11 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /recipes/{id}", a.needsDatabase(http.HandlerFunc(recipes.Update)))
 	mux.Handle("GET /recipes/{id}/edit", a.needsDatabase(http.HandlerFunc(recipes.Edit)))
 	mux.Handle("POST /recipes/{id}/delete", a.needsDatabase(http.HandlerFunc(recipes.Delete)))
+	mux.Handle("GET /stock", a.needsDatabase(http.HandlerFunc(stock.Show)))
+	mux.Handle("POST /stock-items", a.needsDatabase(http.HandlerFunc(stock.Add)))
+	mux.Handle("POST /stock-items/{id}", a.needsDatabase(http.HandlerFunc(stock.Update)))
+	mux.Handle("POST /stock-items/{id}/delete", a.needsDatabase(http.HandlerFunc(stock.Remove)))
+	mux.Handle("POST /portions/{id}/move", a.needsDatabase(http.HandlerFunc(stock.MovePortion)))
 	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(runs.List)))
 	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(runs.Start)))
 	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(runs.Show)))

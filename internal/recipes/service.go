@@ -17,6 +17,10 @@ import (
 // ErrNotFound means there is no Recipe with that id.
 var ErrNotFound = errors.New("no such recipe")
 
+// ErrHasPortions means a Recipe can't be deleted because Portions of it
+// are still kept.
+var ErrHasPortions = errors.New("recipe has portions")
+
 // ErrDraftGone means the draft was already accepted or discarded.
 var ErrDraftGone = errors.New("no such draft")
 
@@ -98,7 +102,8 @@ func (s *Service) Update(ctx context.Context, id int64, rec domain.Recipe) error
 	})
 }
 
-// Delete deletes the Recipe with id, if there is one.
+// Delete deletes the Recipe with id, if there is one. It returns
+// ErrHasPortions while a Prep Session of it has Portions.
 func (s *Service) Delete(ctx context.Context, id int64) error {
 	return deleteRecipe(ctx, s.pool, id)
 }
