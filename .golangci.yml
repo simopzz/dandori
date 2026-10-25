@@ -40,6 +40,7 @@ linters:
             - "**/internal/runs/**"
             - "**/internal/httpx/**"
             - "**/internal/recipes/**"
+            - "**/internal/profile/**"
             - "!$test"
           deny:
             - pkg: github.com/simopzz/dandori/internal/app

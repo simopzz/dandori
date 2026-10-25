@@ -19,6 +19,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/demo"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
@@ -79,6 +80,7 @@ type App struct {
 
 	runs    *runs.Engine
 	recipes *recipes.Service
+	profile *profile.Service
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -97,6 +99,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		MaxTurns: a.cfg.MaxTurns,
 	}, log)
 	a.recipes = recipes.New(pool, a.runs)
+	a.profile = profile.New(pool)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -154,12 +157,13 @@ func (a *App) ping(ctx context.Context) error {
 func (a *App) Handler() http.Handler {
 	runs := runs.Handlers{Engine: a.runs, Log: a.log, Demo: a.cfg.Demo}
 	recipes := recipes.Handlers{Service: a.recipes, Log: a.log}
+	profile := profile.Handlers{Service: a.profile, Log: a.log}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
 	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
-	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(a.showProfile)))
-	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(a.saveProfile)))
+	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(profile.Show)))
+	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(profile.Save)))
 	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(recipes.Library)))
 	mux.Handle("POST /recipes/parse", a.needsDatabase(http.HandlerFunc(recipes.Parse)))
 	mux.Handle("GET /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.ShowDraft)))
@@ -185,7 +189,7 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 		switch {
 		case errors.Is(err, ErrDatabaseUnreachable):
 			a.log.Warn("database unavailable", "err", err)
-			if isHTMX(r) {
+			if httpx.IsHTMX(r) {
 				// Reload into the error page rather than swap it into a fragment.
 				w.Header().Set("HX-Refresh", "true")
 			}
@@ -201,12 +205,6 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 	})
 }
 
-func (a *App) serverError(w http.ResponseWriter, what string, err error) {
-	httpx.ServerError(w, a.log, what, err)
-}
-
-func isHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
-
 // RegisterJob makes Runs of kind startable with POST /runs.
 func (a *App) RegisterJob(kind string, newJob runs.NewJob) { a.runs.Register(kind, newJob) }
 
@@ -214,7 +212,7 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	status, code := "ok", http.StatusOK
 	if err := a.ping(r.Context()); err != nil {
 		status, code = "unavailable", http.StatusServiceUnavailable
-	} else if isHTMX(r) {
+	} else if httpx.IsHTMX(r) {
 		// The database-unavailable page polls this; reload it once we're back.
 		w.Header().Set("HX-Refresh", "true")
 	}
