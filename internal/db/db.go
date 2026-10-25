@@ -9,6 +9,8 @@ import (
 	"io/fs"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -19,6 +21,14 @@ var migrations embed.FS
 
 // Migrations exposes the embedded migration files, e.g. to fingerprint them.
 func Migrations() embed.FS { return migrations }
+
+// Querier runs queries on the pool or within a transaction, so stores can
+// take part in a transaction their caller started.
+type Querier interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 // Open creates a connection pool without connecting, so a paused or
 // unreachable database does not stop the app from starting.

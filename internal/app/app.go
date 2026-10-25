@@ -18,6 +18,8 @@ import (
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/demo"
+	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -67,15 +69,14 @@ type Ports struct {
 
 // App is a running Dandori instance.
 type App struct {
-	pool  *pgxpool.Pool
-	cfg   Config
-	ports Ports
-	log   *slog.Logger
+	pool *pgxpool.Pool
+	cfg  Config
+	log  *slog.Logger
 
 	mu       sync.Mutex
 	migrated bool
 
-	runs *runs
+	runs *runs.Engine
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -85,8 +86,14 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, cfg: cfg.withDefaults(), ports: ports, log: log}
-	a.runs = newRuns()
+	a := &App{pool: pool, cfg: cfg.withDefaults(), log: log}
+	a.runs = runs.New(pool, runs.Config{
+		LLM:      ports.LLM,
+		Model:    a.cfg.Model,
+		Retries:  a.cfg.LLMRetries,
+		Backoff:  a.cfg.LLMRetryBackoff,
+		MaxTurns: a.cfg.MaxTurns,
+	}, log)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -96,7 +103,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 // Close cancels the Runs still going, waits for them to stop, and releases
 // the database connections.
 func (a *App) Close() {
-	a.runs.stop()
+	a.runs.Stop()
 	a.pool.Close()
 }
 
@@ -124,7 +131,7 @@ func (a *App) EnsureDatabase(ctx context.Context) error {
 		}
 		return err
 	}
-	if err := a.abandonInterruptedRuns(ctx); err != nil {
+	if err := a.runs.AbandonInterrupted(ctx); err != nil {
 		return err
 	}
 	a.migrated = true
@@ -142,6 +149,7 @@ func (a *App) ping(ctx context.Context) error {
 
 // Handler returns the app's HTTP routes.
 func (a *App) Handler() http.Handler {
+	runs := runs.Handlers{Engine: a.runs, Log: a.log, Demo: a.cfg.Demo}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
@@ -157,11 +165,11 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /recipes/{id}", a.needsDatabase(http.HandlerFunc(a.updateRecipe)))
 	mux.Handle("GET /recipes/{id}/edit", a.needsDatabase(http.HandlerFunc(a.editRecipe)))
 	mux.Handle("POST /recipes/{id}/delete", a.needsDatabase(http.HandlerFunc(a.deleteRecipe)))
-	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(a.listRuns)))
-	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(a.startRunHandler)))
-	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(a.showRun)))
-	mux.Handle("GET /runs/{id}/events", a.needsDatabase(http.HandlerFunc(a.streamRun)))
-	mux.Handle("POST /runs/{id}/cancel", a.needsDatabase(http.HandlerFunc(a.cancelRun)))
+	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(runs.List)))
+	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(runs.Start)))
+	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(runs.Show)))
+	mux.Handle("GET /runs/{id}/events", a.needsDatabase(http.HandlerFunc(runs.Stream)))
+	mux.Handle("POST /runs/{id}/cancel", a.needsDatabase(http.HandlerFunc(runs.Cancel)))
 	return mux
 }
 
@@ -190,11 +198,13 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 }
 
 func (a *App) serverError(w http.ResponseWriter, what string, err error) {
-	a.log.Error(what, "err", err)
-	http.Error(w, "Something went wrong; see the server log.", http.StatusInternalServerError)
+	httpx.ServerError(w, a.log, what, err)
 }
 
 func isHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
+
+// RegisterJob makes Runs of kind startable with POST /runs.
+func (a *App) RegisterJob(kind string, newJob runs.NewJob) { a.runs.Register(kind, newJob) }
 
 func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	status, code := "ok", http.StatusOK

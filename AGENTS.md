@@ -15,3 +15,7 @@ Default five-label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, 
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Code layout
+
+Code is grouped by feature, each with handlers, a `Service` and a store. See `docs/adr/0006-package-by-feature-with-a-service-per-feature.md` before adding or moving code.

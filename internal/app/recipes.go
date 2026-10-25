@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -58,7 +59,7 @@ func (a *App) parseRecipe(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, "load ingredients", err)
 		return
 	}
-	id, err := a.startRun(r.Context(), recipeParseKind, a.recipeParseJob(text, known))
+	id, err := a.runs.Start(r.Context(), recipeParseKind, a.recipeParseJob(text, known))
 	if err != nil {
 		a.serverError(w, "start recipe parse", err)
 		return
@@ -69,12 +70,12 @@ func (a *App) parseRecipe(w http.ResponseWriter, r *http.Request) {
 // showDraft shows the draft a parse Run produced, ready to check and
 // accept, or the Run's trace while there is none.
 func (a *App) showDraft(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
+	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return
 	}
 	// While the Run goes on, the model may still change the draft.
-	if live := a.runs.get(id); live != nil {
+	if a.runs.Live(id) {
 		a.showDraftPending(w, r, id)
 		return
 	}
@@ -97,7 +98,7 @@ func (a *App) showDraft(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) showDraftPending(w http.ResponseWriter, r *http.Request, id int64) {
-	run, found, err := a.loadRun(r.Context(), id)
+	run, found, err := a.runs.Get(r.Context(), id)
 	if err != nil {
 		a.serverError(w, "load run", err)
 		return
@@ -106,7 +107,7 @@ func (a *App) showDraftPending(w http.ResponseWriter, r *http.Request, id int64)
 		http.NotFound(w, r)
 		return
 	}
-	run.Events, err = a.loadEvents(r.Context(), id, 0)
+	run.Events, err = a.runs.Trace(r.Context(), id, 0)
 	if err != nil {
 		a.serverError(w, "load trace", err)
 		return
@@ -125,7 +126,7 @@ func draftForm(id int64, f web.RecipeForm) web.RecipeForm {
 // acceptDraft saves the draft, as the user corrected it, to the Recipe
 // Library.
 func (a *App) acceptDraft(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
+	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return
 	}
@@ -147,7 +148,7 @@ func (a *App) acceptDraft(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) discardDraft(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
+	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return
 	}
@@ -212,7 +213,7 @@ func (a *App) updateRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) deleteRecipe(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
+	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return
 	}
@@ -265,7 +266,7 @@ func (a *App) submitRecipe(w http.ResponseWriter, r *http.Request,
 // recipeFromPath loads the Recipe the path names, answering 404 if there
 // is none.
 func (a *App) recipeFromPath(w http.ResponseWriter, r *http.Request) (storedRecipe, bool) {
-	id, ok := pathID(w, r)
+	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return storedRecipe{}, false
 	}
