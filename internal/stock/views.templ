@@ -42,10 +42,10 @@ type ItemRow struct {
 // PortionRow is one Portion without a Slot, with its move form.
 type PortionRow struct {
 	ID       int64
-	What     string // its Recipe, or what says it has none
+	Recipe   string // its Prep Session's Recipe, or what says it has none
 	Location string
-	// Moving is the Storage Location a rejected move asked for, and Error why.
-	Moving string
+	// MoveTo is the Storage Location a rejected move asked for, and Error why.
+	MoveTo string
 	Error  string
 }
 
@@ -134,11 +134,11 @@ templ itemRow(it ItemRow) {
 
 templ portionRow(p PortionRow) {
 	<li>
-		<span class="stock-what">{ p.What }</span>
+		<span class="stock-what">{ p.Recipe }</span>
 		<span>{ p.Location }</span>
 		<form id={ fmt.Sprintf("portion-%d", p.ID) } class="stock-move" method="post" action={ templ.SafeURL(fmt.Sprintf("/portions/%d/move", p.ID)) }>
 			if p.Error != "" {
-				@locationSelect(p.Moving, true)
+				@locationSelect(p.MoveTo, true)
 				<span class="field-error">{ p.Error }</span>
 			} else {
 				@locationSelect(p.Location, false)

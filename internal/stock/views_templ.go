@@ -50,10 +50,10 @@ type ItemRow struct {
 // PortionRow is one Portion without a Slot, with its move form.
 type PortionRow struct {
 	ID       int64
-	What     string // its Recipe, or what says it has none
+	Recipe   string // its Prep Session's Recipe, or what says it has none
 	Location string
-	// Moving is the Storage Location a rejected move asked for, and Error why.
-	Moving string
+	// MoveTo is the Storage Location a rejected move asked for, and Error why.
+	MoveTo string
 	Error  string
 }
 
@@ -482,9 +482,9 @@ func portionRow(p PortionRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(p.What)
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(p.Recipe)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/stock/views.templ`, Line: 137, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/stock/views.templ`, Line: 137, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -534,7 +534,7 @@ func portionRow(p PortionRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if p.Error != "" {
-			templ_7745c5c3_Err = locationSelect(p.Moving, true).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = locationSelect(p.MoveTo, true).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

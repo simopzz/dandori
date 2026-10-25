@@ -17,8 +17,14 @@ const (
 // StorageLocations lists every StorageLocation.
 var StorageLocations = []StorageLocation{Pantry, Fridge, Freezer}
 
-// Valid reports whether l is one of the StorageLocations.
-func (l StorageLocation) Valid() bool { return slices.Contains(StorageLocations, l) }
+// Validate returns what is wrong with l, or "" when it is one of the
+// StorageLocations.
+func (l StorageLocation) Validate() string {
+	if !slices.Contains(StorageLocations, l) {
+		return "Must be pantry, fridge or freezer"
+	}
+	return ""
+}
 
 // StockItem is a quantity of one Ingredient, in its Unit, held in a
 // Storage Location.
@@ -37,8 +43,8 @@ func (s StockItem) Validate() map[string]string {
 	if s.Quantity <= 0 {
 		problems["Quantity"] = "Must be more than 0"
 	}
-	if !s.Location.Valid() {
-		problems["Location"] = "Must be pantry, fridge or freezer"
+	if msg := s.Location.Validate(); msg != "" {
+		problems["Location"] = msg
 	}
 	return problems
 }

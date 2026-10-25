@@ -18,23 +18,24 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
+// Show shows the Stock page.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, rejection{}, http.StatusOK)
 }
 
-// rejection is a submission the Stock page is shown back with: the add
-// form, a Stock Item's change form or a Portion's move.
+// rejection is a rejected submission the Stock page is shown back with:
+// the add form, a Stock Item's change form or a Portion's move.
 type rejection struct {
 	add ItemForm
-	// item is the id of the Stock Item whose change was rejected, and
-	// change its form as typed.
-	item   int64
-	change ItemForm
-	// portion is the id of the Portion whose move was rejected, to moving
-	// for the reason in moveError.
-	portion   int64
-	moving    string
-	moveError string
+	// changedItem is the id of the Stock Item whose change was rejected,
+	// and change its form as typed.
+	changedItem int64
+	change      ItemForm
+	// movedPortion is the id of the Portion whose move was rejected:
+	// moveTo is the Storage Location asked for, moveError why it can't be.
+	movedPortion int64
+	moveTo       string
+	moveError    string
 }
 
 func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, status int) {
@@ -68,24 +69,25 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 		if it.ExpiresOn != nil {
 			row.ExpiresOn = it.ExpiresOn.Format(dateLayout)
 		}
-		if it.ID == rej.item {
+		if it.ID == rej.changedItem {
 			row.Form = rej.change
 		}
 		p.Items = append(p.Items, row)
 	}
 	for _, portion := range portions {
-		row := PortionRow{ID: portion.ID, What: portion.Recipe, Location: string(portion.Location)}
-		if row.What == "" {
-			row.What = "Ingredients as they are"
+		row := PortionRow{ID: portion.ID, Recipe: portion.Recipe, Location: string(portion.Location)}
+		if row.Recipe == "" {
+			row.Recipe = "No Recipe"
 		}
-		if portion.ID == rej.portion {
-			row.Moving, row.Error = rej.moving, rej.moveError
+		if portion.ID == rej.movedPortion {
+			row.MoveTo, row.Error = rej.moveTo, rej.moveError
 		}
 		p.Portions = append(p.Portions, row)
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
+// Add records a Stock Item.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -121,7 +123,7 @@ func (h Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	item, problems := readStockItem(r.PostForm)
 	if len(problems) > 0 {
-		h.render(w, r, rejection{item: id, change: ItemForm{Values: typed(r.PostForm), Errors: problems}}, http.StatusUnprocessableEntity)
+		h.render(w, r, rejection{changedItem: id, change: ItemForm{Values: typed(r.PostForm), Errors: problems}}, http.StatusUnprocessableEntity)
 		return
 	}
 	switch err := h.Service.Update(r.Context(), id, item); {
@@ -135,6 +137,7 @@ func (h Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/stock", http.StatusSeeOther)
 }
 
+// Remove removes a Stock Item.
 func (h Handlers) Remove(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -161,7 +164,7 @@ func (h Handlers) MovePortion(w http.ResponseWriter, r *http.Request) {
 	var invalid *InvalidError
 	switch err := h.Service.MovePortion(r.Context(), id, location); {
 	case errors.As(err, &invalid):
-		h.render(w, r, rejection{portion: id, moving: string(location), moveError: invalid.Fields["Location"]}, http.StatusUnprocessableEntity)
+		h.render(w, r, rejection{movedPortion: id, moveTo: string(location), moveError: invalid.Fields["Location"]}, http.StatusUnprocessableEntity)
 		return
 	case errors.Is(err, ErrPortionNotFound):
 		http.NotFound(w, r)

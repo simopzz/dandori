@@ -252,3 +252,16 @@ func TestStockIsLinkedFromTheAppShell(t *testing.T) {
 		t.Errorf("app shell does not link to the Stock page:\n%s", page)
 	}
 }
+
+func TestDeletingARecipeKeepsItsPortions(t *testing.T) {
+	h := startStock(t)
+	seedPortions(t, h)
+
+	res := h.PostForm(t, libraryRecipe(t, h)+"/delete", nil)
+	if res.StatusCode != http.StatusOK || res.Path != "/recipes" {
+		t.Fatalf("delete a Recipe with Portions = %d at %s, want the Recipe Library:\n%s", res.StatusCode, res.Path, text(res.Body))
+	}
+	if ids := portionIDs(t, h); len(ids) != 2 {
+		t.Errorf("Stock page lists %d Portions after their Recipe was deleted, want 2", len(ids))
+	}
+}

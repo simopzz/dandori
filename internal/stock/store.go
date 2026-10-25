@@ -11,25 +11,21 @@ import (
 
 func loadItems(ctx context.Context, q db.Querier) ([]Item, error) {
 	rows, _ := q.Query(ctx, `
-		SELECT s.id, s.quantity, s.location, s.expires_on,
-		       i.name, i.unit, i.kcal, i.protein_g, i.carbs_g, i.fat_g
+		SELECT s.id, s.quantity, s.location, s.expires_on, i.name, i.unit
 		FROM stock_item s JOIN ingredient i ON i.id = s.ingredient_id
 		ORDER BY i.name, s.id`)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Item, error) {
 		var it Item
-		n := &it.Ingredient.Nutrition
-		err := row.Scan(&it.ID, &it.Quantity, &it.Location, &it.ExpiresOn,
-			&it.Ingredient.Name, &it.Ingredient.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG)
+		err := row.Scan(&it.ID, &it.Quantity, &it.Location, &it.ExpiresOn, &it.Ingredient.Name, &it.Ingredient.Unit)
 		return it, err
 	})
 }
 
 func loadIngredients(ctx context.Context, q db.Querier) ([]domain.Ingredient, error) {
-	rows, _ := q.Query(ctx, `SELECT name, unit, kcal, protein_g, carbs_g, fat_g FROM ingredient ORDER BY name`)
+	rows, _ := q.Query(ctx, `SELECT name, unit FROM ingredient ORDER BY name`)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) {
 		var ing domain.Ingredient
-		n := &ing.Nutrition
-		err := row.Scan(&ing.Name, &ing.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG)
+		err := row.Scan(&ing.Name, &ing.Unit)
 		return ing, err
 	})
 }

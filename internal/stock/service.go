@@ -45,13 +45,14 @@ type Service struct {
 // New creates the Service.
 func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
-// Items loads every Stock Item, by Ingredient name.
+// Items loads every Stock Item, by Ingredient name, with its Ingredient's
+// name and unit.
 func (s *Service) Items(ctx context.Context) ([]Item, error) {
 	return loadItems(ctx, s.pool)
 }
 
-// Ingredients loads every known Ingredient, by name: those a Stock Item
-// can be recorded for.
+// Ingredients loads the name and unit of every known Ingredient, by name:
+// those a Stock Item can be recorded for.
 func (s *Service) Ingredients(ctx context.Context) ([]domain.Ingredient, error) {
 	return loadIngredients(ctx, s.pool)
 }
@@ -85,7 +86,7 @@ var ErrPortionNotFound = errors.New("no such portion")
 type Portion struct {
 	ID int64
 	// Recipe is the name of the Recipe its Prep Session prepared, or empty
-	// when the Prep Session set out Ingredients as they are.
+	// when the Prep Session has none.
 	Recipe   string
 	Location domain.StorageLocation
 }
@@ -97,8 +98,8 @@ func (s *Service) Portions(ctx context.Context) ([]Portion, error) {
 
 // MovePortion moves the Portion with id to location.
 func (s *Service) MovePortion(ctx context.Context, id int64, location domain.StorageLocation) error {
-	if !location.Valid() {
-		return &InvalidError{Fields: map[string]string{"Location": "Must be pantry, fridge or freezer"}}
+	if msg := location.Validate(); msg != "" {
+		return &InvalidError{Fields: map[string]string{"Location": msg}}
 	}
 	return movePortion(ctx, s.pool, id, location)
 }
