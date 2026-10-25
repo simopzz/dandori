@@ -1,6 +1,8 @@
 package web
 
-templ layout(title string) {
+// Layout is the page shell every page renders inside: the head, the
+// header with the navigation, and the page's content in main.
+templ Layout(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -31,7 +33,7 @@ templ layout(title string) {
 
 // Home is the app shell's landing page.
 templ Home() {
-	@layout("Dandori") {
+	@Layout("Dandori") {
 		<p>Plan a Cycle, then fill the cart.</p>
 	}
 }
@@ -39,7 +41,7 @@ templ Home() {
 // DatabaseUnavailable is shown while the database is paused or unreachable.
 // It polls the health check, which tells HTMX to reload once it is back.
 templ DatabaseUnavailable() {
-	@layout("Dandori — database unavailable") {
+	@Layout("Dandori — database unavailable") {
 		<section class="notice" role="alert" hx-get="/healthz" hx-trigger="every 5s" hx-swap="none">
 			<h2>Database unavailable</h2>
 			<p>

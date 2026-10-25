@@ -7,7 +7,6 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/simopzz/dandori/internal/httpx"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // Handlers serve the Profile page.
@@ -22,11 +21,11 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, h.Log, "load profile", err)
 		return
 	}
-	f := web.ProfileForm{Values: map[string]string{}, Saved: r.URL.Query().Has("saved")}
+	f := ProfileForm{Values: map[string]string{}, Saved: r.URL.Query().Has("saved")}
 	if found {
 		f.Values = profileValues(p)
 	}
-	templ.Handler(web.ProfilePage(f)).ServeHTTP(w, r)
+	templ.Handler(ProfilePage(f)).ServeHTTP(w, r)
 }
 
 func (h Handlers) Save(w http.ResponseWriter, r *http.Request) {
@@ -40,13 +39,13 @@ func (h Handlers) Save(w http.ResponseWriter, r *http.Request) {
 	}
 	p, problems := parseProfile(r.PostForm)
 	if len(problems) > 0 {
-		h.renderForm(w, r, web.ProfileForm{Values: typed, Errors: problems}, http.StatusUnprocessableEntity)
+		h.renderForm(w, r, ProfileForm{Values: typed, Errors: problems}, http.StatusUnprocessableEntity)
 		return
 	}
 	if err := h.Service.Save(r.Context(), p); err != nil {
 		// Keep what was typed rather than swapping a bare error over the form.
 		h.Log.Error("save profile", "err", err)
-		h.renderForm(w, r, web.ProfileForm{Values: typed, Failed: true}, http.StatusInternalServerError)
+		h.renderForm(w, r, ProfileForm{Values: typed, Failed: true}, http.StatusInternalServerError)
 		return
 	}
 	if !httpx.IsHTMX(r) {
@@ -54,15 +53,15 @@ func (h Handlers) Save(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
 		return
 	}
-	h.renderForm(w, r, web.ProfileForm{Values: profileValues(p), Saved: true}, http.StatusOK)
+	h.renderForm(w, r, ProfileForm{Values: profileValues(p), Saved: true}, http.StatusOK)
 }
 
 // renderForm answers a submission: HTMX swaps the form in place,
 // a plain browser gets the whole page.
-func (h Handlers) renderForm(w http.ResponseWriter, r *http.Request, f web.ProfileForm, status int) {
-	c := web.ProfilePage(f)
+func (h Handlers) renderForm(w http.ResponseWriter, r *http.Request, f ProfileForm, status int) {
+	c := ProfilePage(f)
 	if httpx.IsHTMX(r) {
-		c = web.ProfileFormFragment(f)
+		c = ProfileFormFragment(f)
 	}
 	templ.Handler(c, templ.WithStatus(status)).ServeHTTP(w, r)
 }

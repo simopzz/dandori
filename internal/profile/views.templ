@@ -1,4 +1,6 @@
-package web
+package profile
+
+import "github.com/simopzz/dandori/internal/web"
 
 // ProfileForm is the Profile as the form shows it: the raw field values, so
 // a rejected submission is shown back as typed, and an error per field.
@@ -12,7 +14,7 @@ type ProfileForm struct {
 
 // ProfilePage shows the Profile for viewing and editing.
 templ ProfilePage(f ProfileForm) {
-	@layout("Dandori — Profile") {
+	@web.Layout("Dandori — Profile") {
 		<h2>Profile</h2>
 		@ProfileFormFragment(f)
 	}
@@ -57,14 +59,14 @@ templ ProfileFormFragment(f ProfileForm) {
 
 templ nutritionFields(f ProfileForm, prefix string) {
 	<div class="nutrition">
-		@numberField(f, prefix+"_kcal", "Calories", "kcal")
-		@numberField(f, prefix+"_protein_g", "Protein", "g")
-		@numberField(f, prefix+"_carbs_g", "Carbs", "g")
-		@numberField(f, prefix+"_fat_g", "Fat", "g")
+		@numberInput(f, prefix+"_kcal", "Calories", "kcal")
+		@numberInput(f, prefix+"_protein_g", "Protein", "g")
+		@numberInput(f, prefix+"_carbs_g", "Carbs", "g")
+		@numberInput(f, prefix+"_fat_g", "Fat", "g")
 	</div>
 }
 
-templ numberField(f ProfileForm, name, label, unit string) {
+templ numberInput(f ProfileForm, name, label, unit string) {
 	<label>
 		{ label } <span class="muted">({ unit })</span>
 		<input type="number" inputmode="numeric" min="0" step="1" required name={ name } value={ f.Values[name] }

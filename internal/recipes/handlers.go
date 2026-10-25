@@ -12,7 +12,6 @@ import (
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // Handlers serve the Recipe Library pages.
@@ -22,25 +21,25 @@ type Handlers struct {
 }
 
 func (h Handlers) Library(w http.ResponseWriter, r *http.Request) {
-	h.renderLibrary(w, r, web.RecipeLibrary{}, http.StatusOK)
+	h.renderLibrary(w, r, RecipeLibrary{}, http.StatusOK)
 }
 
-func (h Handlers) renderLibrary(w http.ResponseWriter, r *http.Request, l web.RecipeLibrary, status int) {
+func (h Handlers) renderLibrary(w http.ResponseWriter, r *http.Request, l RecipeLibrary, status int) {
 	recipes, err := h.Service.List(r.Context())
 	if err != nil {
 		httpx.ServerError(w, h.Log, "load recipes", err)
 		return
 	}
 	for _, rec := range recipes {
-		l.Recipes = append(l.Recipes, web.RecipeSummary{
+		l.Recipes = append(l.Recipes, RecipeSummary{
 			ID:          rec.ID,
 			Name:        rec.Name,
 			Portions:    rec.Portions,
 			PrepMinutes: rec.PrepMinutes,
-			PerPortion:  web.PortionNutrition(rec.NutritionPerPortion()),
+			PerPortion:  PortionNutrition(rec.NutritionPerPortion()),
 		})
 	}
-	templ.Handler(web.RecipeLibraryPage(l), templ.WithStatus(status)).ServeHTTP(w, r)
+	templ.Handler(RecipeLibraryPage(l), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
 // Parse starts a Run parsing the pasted text, and sends the user to the
@@ -52,7 +51,7 @@ func (h Handlers) Parse(w http.ResponseWriter, r *http.Request) {
 	}
 	text := strings.TrimSpace(r.PostForm.Get("text"))
 	if text == "" {
-		h.renderLibrary(w, r, web.RecipeLibrary{Error: "Paste a recipe to parse"}, http.StatusUnprocessableEntity)
+		h.renderLibrary(w, r, RecipeLibrary{Error: "Paste a recipe to parse"}, http.StatusUnprocessableEntity)
 		return
 	}
 	id, err := h.Service.StartParse(r.Context(), text)
@@ -85,7 +84,7 @@ func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, f, _ := readRecipeForm(recipeFormValues(draft, known), known)
-	templ.Handler(web.RecipeFormPage(draftForm(id, f))).ServeHTTP(w, r)
+	templ.Handler(RecipeFormPage(draftForm(id, f))).ServeHTTP(w, r)
 }
 
 func (h Handlers) showDraftPending(w http.ResponseWriter, r *http.Request, id int64) {
@@ -98,10 +97,10 @@ func (h Handlers) showDraftPending(w http.ResponseWriter, r *http.Request, id in
 		http.NotFound(w, r)
 		return
 	}
-	templ.Handler(web.DraftPendingPage(web.DraftPending{Run: run})).ServeHTTP(w, r)
+	templ.Handler(DraftPendingPage(DraftPending{Run: run})).ServeHTTP(w, r)
 }
 
-func draftForm(id int64, f web.RecipeForm) web.RecipeForm {
+func draftForm(id int64, f RecipeForm) RecipeForm {
 	f.Title = "Check the parsed Recipe"
 	f.Action = fmt.Sprintf("/recipe-drafts/%d", id)
 	f.Submit = "Accept Recipe"
@@ -123,7 +122,7 @@ func (h Handlers) AcceptDraft(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	h.submit(w, r, func(f web.RecipeForm) web.RecipeForm { return draftForm(id, f) },
+	h.submit(w, r, func(f RecipeForm) RecipeForm { return draftForm(id, f) },
 		func(ctx context.Context, rec domain.Recipe) (int64, error) {
 			return h.Service.AcceptDraft(ctx, id, rec)
 		})
@@ -146,20 +145,20 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	view := web.RecipeView{
+	view := RecipeView{
 		ID:          rec.ID,
 		Name:        rec.Name,
 		Portions:    rec.Portions,
 		PrepMinutes: rec.PrepMinutes,
 		Appliances:  rec.Appliances,
 		Steps:       rec.Steps,
-		PerPortion:  web.PortionNutrition(rec.NutritionPerPortion()),
+		PerPortion:  PortionNutrition(rec.NutritionPerPortion()),
 	}
 	for _, ri := range rec.Ingredients {
 		view.Ingredients = append(view.Ingredients,
 			fmt.Sprintf("%s %s %s", formatAmount(ri.Quantity), ri.Ingredient.Unit, ri.Ingredient.Name))
 	}
-	templ.Handler(web.RecipePage(view)).ServeHTTP(w, r)
+	templ.Handler(RecipePage(view)).ServeHTTP(w, r)
 }
 
 func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
@@ -173,10 +172,10 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, f, _ := readRecipeForm(recipeFormValues(rec.Recipe, known), known)
-	templ.Handler(web.RecipeFormPage(editForm(rec.ID, f))).ServeHTTP(w, r)
+	templ.Handler(RecipeFormPage(editForm(rec.ID, f))).ServeHTTP(w, r)
 }
 
-func editForm(id int64, f web.RecipeForm) web.RecipeForm {
+func editForm(id int64, f RecipeForm) RecipeForm {
 	f.Title = "Edit Recipe"
 	f.Action = fmt.Sprintf("/recipes/%d", id)
 	f.Submit = "Save Recipe"
@@ -188,7 +187,7 @@ func (h Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	h.submit(w, r, func(f web.RecipeForm) web.RecipeForm { return editForm(rec.ID, f) },
+	h.submit(w, r, func(f RecipeForm) RecipeForm { return editForm(rec.ID, f) },
 		func(ctx context.Context, updated domain.Recipe) (int64, error) {
 			return rec.ID, h.Service.Update(ctx, rec.ID, updated)
 		})
@@ -209,7 +208,7 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 // submit reads a submitted Recipe form and, when it is valid, saves it with
 // save; otherwise it shows the form back, framed by frame.
 func (h Handlers) submit(w http.ResponseWriter, r *http.Request,
-	frame func(web.RecipeForm) web.RecipeForm,
+	frame func(RecipeForm) RecipeForm,
 	save func(context.Context, domain.Recipe) (int64, error),
 ) {
 	if err := r.ParseForm(); err != nil {
@@ -223,7 +222,7 @@ func (h Handlers) submit(w http.ResponseWriter, r *http.Request,
 	}
 	rec, f, ok := readRecipeForm(r.PostForm, known)
 	if !ok {
-		templ.Handler(web.RecipeFormPage(frame(f)), templ.WithStatus(http.StatusUnprocessableEntity)).ServeHTTP(w, r)
+		templ.Handler(RecipeFormPage(frame(f)), templ.WithStatus(http.StatusUnprocessableEntity)).ServeHTTP(w, r)
 		return
 	}
 	id, err := save(r.Context(), rec)
@@ -235,7 +234,7 @@ func (h Handlers) submit(w http.ResponseWriter, r *http.Request,
 		// Keep what was typed rather than replacing the form with an error.
 		h.Log.Error("store recipe", "err", err)
 		f.Failed = true
-		templ.Handler(web.RecipeFormPage(frame(f)), templ.WithStatus(http.StatusInternalServerError)).ServeHTTP(w, r)
+		templ.Handler(RecipeFormPage(frame(f)), templ.WithStatus(http.StatusInternalServerError)).ServeHTTP(w, r)
 		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("/recipes/%d", id), http.StatusSeeOther)

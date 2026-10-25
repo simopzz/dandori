@@ -1,4 +1,5 @@
-// Package web holds the templ pages and the static assets of the app shell.
+// Package web is the app shell: the Layout every page renders in, the
+// shell's own pages, and the static assets. Each feature keeps its own pages.
 package web
 
 import (

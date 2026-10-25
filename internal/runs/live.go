@@ -8,7 +8,6 @@ import (
 
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/db"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // liveRun is a Run in progress. It is the Run's trace sink: every Trace
@@ -21,7 +20,7 @@ type liveRun struct {
 
 	mu   sync.Mutex
 	seq  int
-	subs map[chan web.TraceEvent]struct{}
+	subs map[chan TraceEvent]struct{}
 	done bool
 }
 
@@ -30,7 +29,7 @@ func (r *liveRun) Emit(e agent.Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.seq++
-	ev := web.TraceEvent{
+	ev := TraceEvent{
 		Seq: r.seq,
 		// Postgres keeps microseconds; so does the live copy.
 		At:      time.Now().Truncate(time.Microsecond),
@@ -58,18 +57,18 @@ func (r *liveRun) Emit(e agent.Event) {
 
 // subscribe follows the Run's Trace Events from now on. It returns false
 // once the Run has ended.
-func (r *liveRun) subscribe() (chan web.TraceEvent, bool) {
+func (r *liveRun) subscribe() (chan TraceEvent, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.done {
 		return nil, false
 	}
-	ch := make(chan web.TraceEvent, 64)
+	ch := make(chan TraceEvent, 64)
 	r.subs[ch] = struct{}{}
 	return ch, true
 }
 
-func (r *liveRun) unsubscribe(ch chan web.TraceEvent) {
+func (r *liveRun) unsubscribe(ch chan TraceEvent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.subs[ch]; ok {

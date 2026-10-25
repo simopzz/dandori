@@ -12,7 +12,6 @@ import (
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/runs"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // ErrNotFound means there is no Recipe with that id.
@@ -116,14 +115,14 @@ func (s *Service) StartParse(ctx context.Context, text string) (int64, error) {
 
 // ParseRun loads the parse Run with id and its Trace, for while its draft
 // is pending. found is false when there is no such parse Run.
-func (s *Service) ParseRun(ctx context.Context, id int64) (run web.Run, found bool, err error) {
+func (s *Service) ParseRun(ctx context.Context, id int64) (run runs.Run, found bool, err error) {
 	run, found, err = s.runs.Get(ctx, id)
 	if err != nil || !found || run.Kind != recipeParseKind {
-		return web.Run{}, false, err
+		return runs.Run{}, false, err
 	}
 	run.Events, err = s.runs.Trace(ctx, id, 0)
 	if err != nil {
-		return web.Run{}, false, err
+		return runs.Run{}, false, err
 	}
 	return run, true, nil
 }

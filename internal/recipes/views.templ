@@ -1,6 +1,11 @@
-package web
+package recipes
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/web"
+)
 
 // PortionNutrition is a Recipe's nutritional values per Portion.
 type PortionNutrition struct {
@@ -77,7 +82,7 @@ type IngredientRow struct {
 // DraftPending is a draft whose parse Run has not produced a Recipe: still
 // running, or ended without one.
 type DraftPending struct {
-	Run Run
+	Run runs.Run
 }
 
 func ingField(name string, i int) string { return fmt.Sprintf("ing_%s_%d", name, i) }
@@ -91,7 +96,7 @@ func formatMinutes(m int) string {
 
 // RecipeLibraryPage lists the Recipe Library and takes recipe text to parse.
 templ RecipeLibraryPage(l RecipeLibrary) {
-	@layout("Dandori — Recipes") {
+	@web.Layout("Dandori — Recipes") {
 		<h2>Recipe Library</h2>
 		<form class="recipe-paste" method="post" action="/recipes/parse">
 			<label>
@@ -130,7 +135,7 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 
 // RecipePage shows one Recipe with its nutritional values per Portion.
 templ RecipePage(r RecipeView) {
-	@layout("Dandori — " + r.Name) {
+	@web.Layout("Dandori — " + r.Name) {
 		<h2>{ r.Name }</h2>
 		<dl class="recipe-facts">
 			<dt>Portions</dt>
@@ -183,24 +188,24 @@ templ perPortion(n PortionNutrition) {
 
 // DraftPendingPage follows a parse Run until its draft is ready.
 templ DraftPendingPage(d DraftPending) {
-	@layout("Dandori — Parsing a recipe") {
+	@web.Layout("Dandori — Parsing a recipe") {
 		<h2>Parsing a recipe</h2>
-		if d.Run.running() {
+		if d.Run.Running() {
 			<p role="status">The recipe is being parsed; the draft appears here when it is ready.</p>
 		} else {
 			<p class="error" role="alert">
-				There is no draft to check: the parse Run ended ({ statusLabels[d.Run.Status] }) without one,
+				There is no draft to check: the parse Run ended ({ d.Run.StatusLabel() }) without one,
 				or its draft was already accepted or discarded.
 				<a href="/recipes">Back to the Recipe Library</a>
 			</p>
 		}
-		@tracePanel(d.Run)
+		@runs.TracePanel(d.Run)
 	}
 }
 
 // RecipeFormPage is a draft to check and accept, or a Recipe to edit.
 templ RecipeFormPage(f RecipeForm) {
-	@layout("Dandori — " + f.Title) {
+	@web.Layout("Dandori — " + f.Title) {
 		<h2>{ f.Title }</h2>
 		<form id="recipe" class="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
 			if f.Failed {

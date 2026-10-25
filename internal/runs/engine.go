@@ -16,7 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/agent"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // Config is how Runs use the model.
@@ -120,17 +119,17 @@ func (e *Engine) Cancel(id int64) bool {
 }
 
 // Get loads the Run with id, without its Trace.
-func (e *Engine) Get(ctx context.Context, id int64) (web.Run, bool, error) {
+func (e *Engine) Get(ctx context.Context, id int64) (Run, bool, error) {
 	return loadRun(ctx, e.pool, id)
 }
 
 // Trace loads the Run's Trace Events after the one numbered after.
-func (e *Engine) Trace(ctx context.Context, id int64, after int) ([]web.TraceEvent, error) {
+func (e *Engine) Trace(ctx context.Context, id int64, after int) ([]TraceEvent, error) {
 	return loadEvents(ctx, e.pool, id, after)
 }
 
 // List loads the latest Runs, newest first.
-func (e *Engine) List(ctx context.Context) ([]web.Run, error) {
+func (e *Engine) List(ctx context.Context) ([]Run, error) {
 	return listRuns(ctx, e.pool)
 }
 
@@ -141,7 +140,7 @@ func (e *Engine) Start(ctx context.Context, kind string, job agent.Job) (int64, 
 		return 0, err
 	}
 	runCtx, cancel := context.WithCancel(e.ctx)
-	r := &liveRun{id: id, cancel: cancel, q: e.pool, log: e.log, subs: map[chan web.TraceEvent]struct{}{}}
+	r := &liveRun{id: id, cancel: cancel, q: e.pool, log: e.log, subs: map[chan TraceEvent]struct{}{}}
 	if err := e.add(r); err != nil {
 		cancel()
 		// Never started, so it must not be left looking like it is running.
