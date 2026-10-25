@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -38,6 +39,37 @@ func TestColourValuesAreOnlyTokens(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The browser chrome's colour can't read a token, so themeColour and the
+// manifest repeat the paper colour; they must match it.
+func TestThemeColourIsThePaper(t *testing.T) {
+	css, err := os.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`--color-bg: (#[0-9a-fA-F]+);`).FindSubmatch(css)
+	if m == nil {
+		t.Fatal("app.css has no --color-bg token")
+	}
+	paper := string(m[1])
+
+	var manifestColours struct {
+		Theme      string `json:"theme_color"`
+		Background string `json:"background_color"`
+	}
+	if err := json.Unmarshal(manifest, &manifestColours); err != nil {
+		t.Fatal(err)
+	}
+	for name, got := range map[string]string{
+		"themeColour":                 themeColour,
+		"manifest's theme_color":      manifestColours.Theme,
+		"manifest's background_color": manifestColours.Background,
+	} {
+		if got != paper {
+			t.Errorf("%s = %s, want --color-bg %s", name, got, paper)
+		}
 	}
 }
 

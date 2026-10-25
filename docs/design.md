@@ -40,13 +40,16 @@ Type: `--font-display` is Shippori Mincho (500, 700) for headings,
 latin subsets, self-hosted in `static/fonts` (SIL OFL, `static/fonts/OFL.txt`);
 Japanese text falls back to the system's Mincho or Gothic.
 
+`--font-mono` is for code and trace details.
+
 Space: `--space-1` … `--space-7` (0.25rem to 4rem). Shape: `--radius` is 0, so
-every control is square. Size: `--tap` (2.75rem, 44px) is the smallest touch
-target.
+every control is square; `--focus-ring` is the focus outline. Size: `--tap`
+(2.75rem, 44px) is the smallest touch target; `--measure` is the column's
+width; `--rail-width` and `--tabs-height` size the shell.
 
 `themeColour` in `internal/web/web.go` and the manifest's colours repeat
-`--color-bg` because the browser can't read a custom property there; keep
-them in step.
+`--color-bg` because the browser can't read a custom property there;
+`colours_test.go` checks they stay in step.
 
 ## Layout
 
@@ -97,13 +100,17 @@ elements themselves.
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop. Pass `open` when the form was rejected. One per page. |
 | `Icon(name)` | A Lucide icon, inline SVG in the text colour. Add icons to `icons.go`. |
 
+Two layout classes go on elements a component can't wrap, such as a
+`<form>`: `stack` spaces its children evenly in a column (a form's fields and
+alert), and `section` gives an unnumbered group a `Section`'s spacing.
+
 Base elements (`input`, `select`, `textarea`, `table`, `dl`, `h1`–`h3`, lists)
 are styled once in `app.css`: underline-only inputs, square bordered
 textareas, tables ruled like rows, `dl` as a two-column list of facts.
 
 Two feature-shaped components live in `app.css` because nothing else needs
-them yet: the Recipe Draft form's `ingredient-grid` and the Run `trace`
-panel.
+them yet: the Recipe Draft form (`ingredient-grid`, `draft-steps`) and the
+Run `trace` panel.
 
 ## Accessibility baseline
 

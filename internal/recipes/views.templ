@@ -301,7 +301,7 @@ templ RecipeFormPage(f RecipeForm) {
 				@web.Hint() {
 					Clear a step to remove it.
 				}
-				<ol id="steps" class="steps">
+				<ol id="steps" class="draft-steps">
 					for _, s := range f.Steps {
 						@stepField(s)
 					}
@@ -334,7 +334,7 @@ templ RecipeFormPage(f RecipeForm) {
 templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
 	<div class="ingredient-row">
 		<input type="hidden" name={ ingField("new", i) } value={ fmt.Sprint(row.New) }/>
-		<span class="row-status">
+		<span class="ingredient-status">
 			if row.New && row.Name != "" {
 				@web.Tag(true, "New Ingredient: confirm its nutritional values") {
 					New
@@ -356,7 +356,7 @@ templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
 			@rowInput(f, ingField("carbs_g", i), "Carbs (g)", row.CarbsG, true)
 			@rowInput(f, ingField("fat_g", i), "Fat (g)", row.FatG, true)
 			if msg := f.Errors[ingField("nutrition", i)]; msg != "" {
-				<span class="row-error">
+				<span class="ingredient-error">
 					@web.FieldError(msg)
 				</span>
 			}

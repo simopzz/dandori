@@ -5,7 +5,7 @@
 :root {
   /* colour: near-white paper, sumi ink, one vermilion seal */
   --color-bg: #fdfcfa;            /* paper */
-  --color-surface: #ffffff;       /* raised: sheets, code */
+  --color-surface: #ffffff;       /* raised: the add sheet, trace details */
   --color-text: #1a1a18;          /* sumi ink, 17:1 on bg */
   --color-text-soft: #5c5a54;     /* soft ink, 6.7:1 on bg */
   --color-rule: #e4e0d8;          /* hairline between rows */
@@ -187,7 +187,7 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-1);
   min-height: var(--tabs-height);
   text-decoration: none;
   font-size: 0.75rem;
@@ -482,7 +482,7 @@ a.row-title:hover { text-decoration: underline; }
   .sheet { margin: auto; width: 28rem; border: 1px solid var(--color-rule-strong); }
 }
 
-/* ingredient grid: the Recipe Draft form's Ingredient lines */
+/* Recipe Draft form: its Ingredient grid and step list */
 
 .ingredient-grid { margin-bottom: var(--space-3); }
 
@@ -499,12 +499,12 @@ a.row-title:hover { text-decoration: underline; }
 
 .ingredient-row { border-bottom: 1px solid var(--color-rule); }
 
-.ingredient-row .row-status,
+.ingredient-row .ingredient-status,
 .ingredient-row .unit { align-self: center; }
 
 .ingredient-row .known { grid-column: span 4; align-self: center; font-size: 0.85rem; color: var(--color-text-soft); }
 
-.ingredient-row .row-error { grid-column: 2 / -1; }
+.ingredient-row .ingredient-error { grid-column: 2 / -1; }
 
 .cell-label {
   position: absolute;
@@ -522,19 +522,19 @@ a.row-title:hover { text-decoration: underline; }
 
   .ingredient-row > :nth-child(-n + 3) { grid-column: 1 / -1; }
 
-  .ingredient-row .row-status:empty { display: none; }
+  .ingredient-row .ingredient-status:empty { display: none; }
 
   .ingredient-row > :nth-child(4),
   .ingredient-row > :nth-child(5) { grid-column: span 2; }
 
-  .ingredient-row .row-error { grid-column: 1 / -1; }
+  .ingredient-row .ingredient-error { grid-column: 1 / -1; }
 
   .cell-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 }
 
-.steps li { margin-bottom: var(--space-2); }
+.draft-steps li { margin-bottom: var(--space-2); }
 
-.steps textarea { field-sizing: content; min-height: var(--tap); vertical-align: top; }
+.draft-steps textarea { field-sizing: content; min-height: var(--tap); vertical-align: top; }
 
 /* trace panel: a Run's Trace Events */
 

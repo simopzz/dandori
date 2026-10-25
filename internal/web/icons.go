@@ -1,8 +1,15 @@
 package web
 
-// icons are Lucide icons v0.460.0 (ISC, https://lucide.dev/license): the
-// inner markup of each 24×24 SVG, rendered by Icon. Add one by copying its
-// markup from https://lucide.dev/icons.
+// icons are Lucide icons v0.460.0: the inner markup of each 24×24 SVG,
+// rendered by Icon. Add one by copying its markup from
+// https://lucide.dev/icons.
+//
+// Lucide is ISC licensed (https://lucide.dev/license): Copyright (c) for
+// portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather
+// (MIT). All other copyright (c) for Lucide are held by Lucide Contributors
+// 2022. Permission to use, copy, modify, and/or distribute this software for
+// any purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 var icons = map[string]string{
 	"activity":     `<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>`,
 	"book-open":    `<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>`,
