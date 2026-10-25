@@ -11,6 +11,7 @@ import (
 
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/runs"
 )
 
 // recipeParseKind is the kind of Run that parses pasted recipe text into a
@@ -193,7 +194,7 @@ func (a *App) recipeParseJob(text string, known map[string]domain.Ingredient) ag
 				if _, err := a.pool.Exec(ctx, `
 					INSERT INTO recipe_draft (run_id, recipe) VALUES ($1, $2)
 					ON CONFLICT (run_id) DO UPDATE SET recipe = EXCLUDED.recipe`,
-					runIDFrom(ctx), p); err != nil {
+					runs.IDFrom(ctx), p); err != nil {
 					return "", fmt.Errorf("store the draft: %w", err)
 				}
 				return "The draft is saved for the user to check.", nil
