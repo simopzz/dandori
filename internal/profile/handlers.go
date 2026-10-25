@@ -1,0 +1,68 @@
+package profile
+
+import (
+	"log/slog"
+	"net/http"
+
+	"github.com/a-h/templ"
+
+	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// Handlers serve the Profile page.
+type Handlers struct {
+	Service *Service
+	Log     *slog.Logger
+}
+
+func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
+	p, found, err := h.Service.Get(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load profile", err)
+		return
+	}
+	f := web.ProfileForm{Values: map[string]string{}, Saved: r.URL.Query().Has("saved")}
+	if found {
+		f.Values = profileValues(p)
+	}
+	templ.Handler(web.ProfilePage(f)).ServeHTTP(w, r)
+}
+
+func (h Handlers) Save(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	typed := map[string]string{}
+	for name := range r.PostForm {
+		typed[name] = r.PostForm.Get(name)
+	}
+	p, problems := parseProfile(r.PostForm)
+	if len(problems) > 0 {
+		h.renderForm(w, r, web.ProfileForm{Values: typed, Errors: problems}, http.StatusUnprocessableEntity)
+		return
+	}
+	if err := h.Service.Save(r.Context(), p); err != nil {
+		// Keep what was typed rather than swapping a bare error over the form.
+		h.Log.Error("save profile", "err", err)
+		h.renderForm(w, r, web.ProfileForm{Values: typed, Failed: true}, http.StatusInternalServerError)
+		return
+	}
+	if !httpx.IsHTMX(r) {
+		// Redirect, so reloading the page doesn't resubmit the form.
+		http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
+		return
+	}
+	h.renderForm(w, r, web.ProfileForm{Values: profileValues(p), Saved: true}, http.StatusOK)
+}
+
+// renderForm answers a submission: HTMX swaps the form in place,
+// a plain browser gets the whole page.
+func (h Handlers) renderForm(w http.ResponseWriter, r *http.Request, f web.ProfileForm, status int) {
+	c := web.ProfilePage(f)
+	if httpx.IsHTMX(r) {
+		c = web.ProfileFormFragment(f)
+	}
+	templ.Handler(c, templ.WithStatus(status)).ServeHTTP(w, r)
+}
