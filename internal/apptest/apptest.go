@@ -181,6 +181,21 @@ func (h *Harness) setAllowConnections(t testing.TB, allow bool) {
 	h.admin(t, fmt.Sprintf("ALTER DATABASE %s ALLOW_CONNECTIONS %t", pgx.Identifier{h.database}.Sanitize(), allow))
 }
 
+// Exec runs sql on the app's database, for fixtures of what the app can't
+// create through its pages yet.
+func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, h.databaseURL)
+	if err != nil {
+		t.Fatalf("connect to test database: %v", err)
+	}
+	defer conn.Close(ctx)
+	if _, err := conn.Exec(ctx, sql, args...); err != nil {
+		t.Fatalf("%s: %v", sql, err)
+	}
+}
+
 // admin runs sql on the test database server as the superuser.
 func (h *Harness) admin(t testing.TB, sql string, args ...any) {
 	t.Helper()
