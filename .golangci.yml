@@ -34,11 +34,12 @@ linters:
               desc: db is a leaf; wire it in app
             - pkg: github.com/simopzz/dandori/internal/web
               desc: web is a leaf; wire it in app
-        # Shared machinery never depends on the features or on app (ADR-0006).
+        # Shared machinery and the features never depend on app (ADR-0006).
         shared:
           files:
             - "**/internal/runs/**"
             - "**/internal/httpx/**"
+            - "**/internal/recipes/**"
             - "!$test"
           deny:
             - pkg: github.com/simopzz/dandori/internal/app

@@ -1,4 +1,4 @@
-package app
+package recipes
 
 import (
 	"context"
@@ -104,16 +104,6 @@ func (p parsedRecipe) problems(known map[string]domain.Ingredient) []string {
 	return problems
 }
 
-func nonBlank(lines []string) []string {
-	out := []string{}
-	for _, l := range lines {
-		if l = strings.TrimSpace(l); l != "" {
-			out = append(out, l)
-		}
-	}
-	return out
-}
-
 const recipeParseSystem = `You turn recipe text the user pasted into a structured Recipe for their Recipe Library.
 
 Call submit_recipe with the whole Recipe. Then end your turn with one short sentence.
@@ -162,10 +152,10 @@ var submitRecipeSchema = json.RawMessage(`{
   "required": ["name", "portions", "prep_minutes", "appliances", "steps", "ingredients"]
 }`)
 
-// recipeParseJob parses text into a draft Recipe, stored with the Run.
-// known are the Ingredients already in the Recipe Library, which the model
-// is told to reuse.
-func (a *App) recipeParseJob(text string, known map[string]domain.Ingredient) agent.Job {
+// parseJob parses text into a draft Recipe, stored with the Run. known are
+// the Ingredients already in the Recipe Library, which the model is told
+// to reuse.
+func (s *Service) parseJob(text string, known map[string]domain.Ingredient) agent.Job {
 	var prompt strings.Builder
 	prompt.WriteString("Known Ingredients:\n")
 	if len(known) == 0 {
@@ -191,10 +181,7 @@ func (a *App) recipeParseJob(text string, known map[string]domain.Ingredient) ag
 				if problems := p.problems(known); len(problems) > 0 {
 					return "", errors.New("fix these and submit again:\n" + strings.Join(problems, "\n"))
 				}
-				if _, err := a.pool.Exec(ctx, `
-					INSERT INTO recipe_draft (run_id, recipe) VALUES ($1, $2)
-					ON CONFLICT (run_id) DO UPDATE SET recipe = EXCLUDED.recipe`,
-					runs.IDFrom(ctx), p); err != nil {
+				if err := saveDraft(ctx, s.pool, runs.IDFrom(ctx), p); err != nil {
 					return "", fmt.Errorf("store the draft: %w", err)
 				}
 				return "The draft is saved for the user to check.", nil

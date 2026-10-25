@@ -19,6 +19,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/demo"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -76,7 +77,8 @@ type App struct {
 	mu       sync.Mutex
 	migrated bool
 
-	runs *runs.Engine
+	runs    *runs.Engine
+	recipes *recipes.Service
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -94,6 +96,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Backoff:  a.cfg.LLMRetryBackoff,
 		MaxTurns: a.cfg.MaxTurns,
 	}, log)
+	a.recipes = recipes.New(pool, a.runs)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -150,21 +153,22 @@ func (a *App) ping(ctx context.Context) error {
 // Handler returns the app's HTTP routes.
 func (a *App) Handler() http.Handler {
 	runs := runs.Handlers{Engine: a.runs, Log: a.log, Demo: a.cfg.Demo}
+	recipes := recipes.Handlers{Service: a.recipes, Log: a.log}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
 	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
 	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(a.showProfile)))
 	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(a.saveProfile)))
-	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(a.showRecipeLibrary)))
-	mux.Handle("POST /recipes/parse", a.needsDatabase(http.HandlerFunc(a.parseRecipe)))
-	mux.Handle("GET /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(a.showDraft)))
-	mux.Handle("POST /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(a.acceptDraft)))
-	mux.Handle("POST /recipe-drafts/{id}/discard", a.needsDatabase(http.HandlerFunc(a.discardDraft)))
-	mux.Handle("GET /recipes/{id}", a.needsDatabase(http.HandlerFunc(a.showRecipe)))
-	mux.Handle("POST /recipes/{id}", a.needsDatabase(http.HandlerFunc(a.updateRecipe)))
-	mux.Handle("GET /recipes/{id}/edit", a.needsDatabase(http.HandlerFunc(a.editRecipe)))
-	mux.Handle("POST /recipes/{id}/delete", a.needsDatabase(http.HandlerFunc(a.deleteRecipe)))
+	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(recipes.Library)))
+	mux.Handle("POST /recipes/parse", a.needsDatabase(http.HandlerFunc(recipes.Parse)))
+	mux.Handle("GET /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.ShowDraft)))
+	mux.Handle("POST /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.AcceptDraft)))
+	mux.Handle("POST /recipe-drafts/{id}/discard", a.needsDatabase(http.HandlerFunc(recipes.DiscardDraft)))
+	mux.Handle("GET /recipes/{id}", a.needsDatabase(http.HandlerFunc(recipes.Show)))
+	mux.Handle("POST /recipes/{id}", a.needsDatabase(http.HandlerFunc(recipes.Update)))
+	mux.Handle("GET /recipes/{id}/edit", a.needsDatabase(http.HandlerFunc(recipes.Edit)))
+	mux.Handle("POST /recipes/{id}/delete", a.needsDatabase(http.HandlerFunc(recipes.Delete)))
 	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(runs.List)))
 	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(runs.Start)))
 	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(runs.Show)))
