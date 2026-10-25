@@ -197,7 +197,7 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 		model = "a scripted model"
 	}
 	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, model)})
-	err := a.runJob(ctx, r, job)
+	err := a.runJob(context.WithValue(ctx, runIDKey{}, r.id), r, job)
 
 	status := "succeeded"
 	switch {
@@ -220,6 +220,15 @@ func (a *App) execute(ctx context.Context, r *liveRun, kind string, job agent.Jo
 	}
 	a.runs.remove(r.id)
 	r.finish()
+}
+
+// runIDKey carries the id of the Run a job's tools are running in, for
+// tools that store their result with the Run.
+type runIDKey struct{}
+
+func runIDFrom(ctx context.Context) int64 {
+	id, _ := ctx.Value(runIDKey{}).(int64)
+	return id
 }
 
 // runJob carries out job with the agent loop. A panic, say in a tool, fails
@@ -313,7 +322,7 @@ func (a *App) listRuns(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) showRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -335,7 +344,7 @@ func (a *App) showRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) cancelRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -359,7 +368,7 @@ func (a *App) cancelRun(w http.ResponseWriter, r *http.Request) {
 // ones after the last the client has (Last-Event-ID, else ?after=), then
 // live ones until the Run ends, then an "end" event with its status.
 func (a *App) streamRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := runID(w, r)
+	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
@@ -481,7 +490,7 @@ func writeEvent(w io.Writer, id, name, data string) {
 	fmt.Fprint(w, "\n")
 }
 
-func runID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
