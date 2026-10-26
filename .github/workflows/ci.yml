@@ -38,6 +38,8 @@ jobs:
         run: test -z "$(gofmt -l .)"
       - name: go vet
         run: mise exec -- go vet ./...
+      - name: Colours are only tokens
+        run: mise exec -- go test ./internal/web -run 'TestColourValuesAreOnlyTokens|TestThemeColourIsThePaper'
       - name: golangci-lint
         run: mise exec -- golangci-lint run ./...
       - name: Test

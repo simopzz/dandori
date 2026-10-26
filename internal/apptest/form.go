@@ -44,7 +44,13 @@ func Form(t testing.TB, page, id string) FormData {
 		name := attr(n, "name")
 		switch n.Data {
 		case "input":
-			if attr(n, "type") != "submit" {
+			switch attr(n, "type") {
+			case "submit":
+			case "radio", "checkbox":
+				if hasAttr(n, "checked") {
+					f.Values.Add(name, attr(n, "value"))
+				}
+			default:
 				f.Values.Add(name, attr(n, "value"))
 			}
 		case "textarea":

@@ -50,145 +50,157 @@ type PortionRow struct {
 }
 
 templ Page(p StockPage) {
-	@web.Layout("Dandori — Stock") {
-		<h2>Stock</h2>
-		<section class="stock">
-			<h3>Stock Items</h3>
+	@web.Layout("Dandori — Stock", web.TabStock) {
+		@web.PageHeader("在庫", "Stock")
+		@web.Section(1, "Stock Items") {
 			if len(p.Items) == 0 {
-				<p class="muted">No Stock Items yet.</p>
+				@web.Empty() {
+					No Stock Items yet.
+				}
 			} else {
-				<ul class="stock-items">
+				@web.Rows() {
 					for _, it := range p.Items {
 						@itemRow(it)
 					}
-				</ul>
+				}
 			}
 			if len(p.Ingredients) == 0 {
-				<p class="muted">Stock Items are of Ingredients the Recipe Library knows: accept a Recipe first.</p>
-			} else {
-				@addForm(p)
+				@web.Hint() {
+					Stock Items are of Ingredients the Recipe Library knows: accept a Recipe first.
+				}
 			}
-		</section>
-		<section class="stock">
-			<h3>Portions without a Slot</h3>
+		}
+		@web.Section(2, "Portions without a Slot") {
 			if len(p.Portions) == 0 {
-				<p class="muted">No Portions without a Slot.</p>
+				@web.Empty() {
+					No Portions without a Slot.
+				}
 			} else {
-				<ul class="stock-items">
+				@web.Rows() {
 					for _, portion := range p.Portions {
 						@portionRow(portion)
 					}
-				</ul>
+				}
 			}
-		</section>
+		}
+		if len(p.Ingredients) > 0 {
+			@addSheet(p)
+		}
 	}
 }
 
-templ addForm(p StockPage) {
-	<form id="add-stock-item" class="stock-form" method="post" action="/stock-items">
-		<h4>Record a Stock Item</h4>
-		if len(p.Add.Errors) > 0 {
-			<p class="error" role="alert">The Stock Item was not recorded; fix the fields marked below.</p>
-		}
-		<label>
-			Ingredient
-			<select name="ingredient" required
-				if p.Add.Errors["ingredient"] != "" {
-					aria-invalid="true"
+templ addSheet(p StockPage) {
+	@web.AddSheet("record-stock-item", "Record a Stock Item", len(p.Add.Errors) > 0) {
+		<form id="add-stock-item" class="stack" method="post" action="/stock-items">
+			if len(p.Add.Errors) > 0 {
+				@web.Alert() {
+					The Stock Item was not recorded; fix the fields marked below.
 				}
-			>
-				for _, ing := range p.Ingredients {
-					<option value={ ing.Name } selected?={ p.Add.Values["ingredient"] == ing.Name }>{ ing.Name } ({ ing.Unit })</option>
+			}
+			@web.Field("Ingredient", "", p.Add.Errors["ingredient"]) {
+				<select name="ingredient" required
+					if p.Add.Errors["ingredient"] != "" {
+						aria-invalid="true"
+					}
+				>
+					for _, ing := range p.Ingredients {
+						<option value={ ing.Name } selected?={ p.Add.Values["ingredient"] == ing.Name }>{ ing.Name } ({ ing.Unit })</option>
+					}
+				</select>
+			}
+			@itemFields(p.Add)
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					Record
 				}
-			</select>
-			@fieldError(p.Add, "ingredient")
-		</label>
-		@itemFields(p.Add)
-		<button type="submit">Record</button>
-	</form>
+			}
+		</form>
+	}
 }
 
 templ itemRow(it ItemRow) {
-	<li>
-		<span class="stock-what">{ it.Ingredient }</span>
-		<span>{ it.Quantity }</span>
+	@web.EditRow(len(it.Form.Errors) > 0, itemSummary(it)) {
+		<form id={ fmt.Sprintf("stock-item-%d", it.ID) } class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d", it.ID)) }>
+			if len(it.Form.Errors) > 0 {
+				@web.Alert() {
+					The Stock Item was not changed; fix the fields marked below.
+				}
+			}
+			@itemFields(it.Form)
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					Save
+				}
+				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": fmt.Sprintf("remove-stock-item-%d", it.ID)}) {
+					Remove
+				}
+			}
+		</form>
+		<form id={ fmt.Sprintf("remove-stock-item-%d", it.ID) } method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d/delete", it.ID)) }></form>
+	}
+}
+
+templ itemSummary(it ItemRow) {
+	<span class="row-title">{ it.Ingredient }</span>
+	<span class="row-figure">{ it.Quantity }</span>
+	<span class="row-meta">
 		<span>{ it.Location }</span>
 		if it.ExpiresOn != "" {
 			<span>expires { it.ExpiresOn }</span>
 		}
-		<details open?={ len(it.Form.Errors) > 0 }>
-			<summary>Change</summary>
-			<form id={ fmt.Sprintf("stock-item-%d", it.ID) } class="stock-form" method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d", it.ID)) }>
-				if len(it.Form.Errors) > 0 {
-					<p class="error" role="alert">The Stock Item was not changed; fix the fields marked below.</p>
-				}
-				@itemFields(it.Form)
-				<button type="submit">Save</button>
-			</form>
-			<form id={ fmt.Sprintf("remove-stock-item-%d", it.ID) } method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d/delete", it.ID)) }>
-				<button type="submit">Remove</button>
-			</form>
-		</details>
-	</li>
+	</span>
 }
 
 templ portionRow(p PortionRow) {
-	<li>
-		<span class="stock-what">{ p.Recipe }</span>
-		<span>{ p.Location }</span>
-		<form id={ fmt.Sprintf("portion-%d", p.ID) } class="stock-move" method="post" action={ templ.SafeURL(fmt.Sprintf("/portions/%d/move", p.ID)) }>
+	@web.Row() {
+		<span class="row-title">{ p.Recipe }</span>
+		<span class="row-meta"><span>{ p.Location }</span></span>
+		<form id={ fmt.Sprintf("portion-%d", p.ID) } class="row-action" method="post" action={ templ.SafeURL(fmt.Sprintf("/portions/%d/move", p.ID)) }>
 			if p.Error != "" {
-				@locationSelect(p.MoveTo, true)
-				<span class="field-error">{ p.Error }</span>
+				@web.Segmented("Move to", "location", locationChoices(), p.MoveTo, p.Error)
 			} else {
-				@locationSelect(p.Location, false)
+				@web.Segmented("Move to", "location", locationChoices(), p.Location, "")
 			}
-			<button type="submit">Move</button>
+			@web.TextButton(templ.Attributes{"type": "submit"}) {
+				Move
+			}
 		</form>
-	</li>
+	}
+}
+
+func locationChoices() []web.Choice {
+	var choices []web.Choice
+	for _, loc := range domain.StorageLocations {
+		choices = append(choices, web.Choice{Value: string(loc), Label: string(loc)})
+	}
+	return choices
 }
 
 // itemFields are the fields a Stock Item is recorded and changed with.
 templ itemFields(f ItemForm) {
-	<label>
-		Quantity
+	@web.Field("Quantity", "", f.Errors["quantity"]) {
 		<input type="text" inputmode="decimal" required name="quantity" value={ f.Values["quantity"] }
 			if f.Errors["quantity"] != "" {
 				aria-invalid="true"
 			}
 		/>
-		@fieldError(f, "quantity")
-	</label>
-	@locationSelect(f.Values["location"], f.Errors["location"] != "")
-	@fieldError(f, "location")
-	<label>
-		Expires <span class="muted">(optional)</span>
+	}
+	@web.Field("Storage Location", "", f.Errors["location"]) {
+		<select name="location" required
+			if f.Errors["location"] != "" {
+				aria-invalid="true"
+			}
+		>
+			for _, loc := range domain.StorageLocations {
+				<option value={ string(loc) } selected?={ f.Values["location"] == string(loc) }>{ string(loc) }</option>
+			}
+		</select>
+	}
+	@web.Field("Expires", "optional", f.Errors["expires_on"]) {
 		<input type="date" name="expires_on" value={ f.Values["expires_on"] }
 			if f.Errors["expires_on"] != "" {
 				aria-invalid="true"
 			}
 		/>
-		@fieldError(f, "expires_on")
-	</label>
-}
-
-templ locationSelect(selected string, invalid bool) {
-	<label>
-		Storage Location
-		<select name="location" required
-			if invalid {
-				aria-invalid="true"
-			}
-		>
-			for _, loc := range domain.StorageLocations {
-				<option value={ string(loc) } selected?={ selected == string(loc) }>{ string(loc) }</option>
-			}
-		</select>
-	</label>
-}
-
-templ fieldError(f ItemForm, name string) {
-	if msg := f.Errors[name]; msg != "" {
-		<span class="field-error">{ msg }</span>
 	}
 }

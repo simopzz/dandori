@@ -60,3 +60,40 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 		t.Errorf("service worker status = %d", sw.StatusCode)
 	}
 }
+
+func TestAppShellMarksTheCurrentTab(t *testing.T) {
+	h := apptest.Start(t)
+
+	for _, path := range []string{"/recipes", "/stock", "/profile", "/runs"} {
+		page := h.Get(t, path).Body
+		if n := strings.Count(page, `aria-current="page"`); n != 1 {
+			t.Errorf("%s marks %d tabs as current, want 1", path, n)
+		}
+		if !strings.Contains(page, `href="`+path+`" aria-current="page"`) {
+			t.Errorf("%s does not mark its own tab as current:\n%s", path, page)
+		}
+	}
+	if page := h.Get(t, "/").Body; strings.Contains(page, `aria-current="page"`) {
+		t.Errorf("Home marks a tab as current:\n%s", page)
+	}
+}
+
+func TestAppShellServesItsFonts(t *testing.T) {
+	h := apptest.Start(t)
+
+	css := h.Get(t, "/static/app.css").Body
+	fonts := 0
+	for _, part := range strings.Split(css, "url(")[1:] {
+		src := part[:strings.Index(part, ")")]
+		if !strings.HasSuffix(src, ".woff2") {
+			continue
+		}
+		fonts++
+		if res := h.Get(t, "/static/"+src); res.StatusCode != http.StatusOK {
+			t.Errorf("font %s status = %d", src, res.StatusCode)
+		}
+	}
+	if fonts != 4 {
+		t.Errorf("app.css loads %d fonts, want Shippori Mincho 500 and 700 and Zen Kaku Gothic New 400 and 700", fonts)
+	}
+}
