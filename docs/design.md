@@ -57,7 +57,8 @@ width; `--rail-width` and `--tabs-height` size the shell.
 - **One calm column** (`--measure`, 42rem), with generous space above each
   section. No cards, no shadows, no boxes around content.
 - **The shell** (`Layout`): on a phone, bottom tabs, each an icon and a label,
-  with a vermilion bar over the current one. From 900px, a left rail with the
+  with a vermilion bar over the current one, and a small horizontal 段取り
+  DANDORI masthead above the page linking Home. From 900px, a left rail with the
   vertical 段取り wordmark over DANDORI, the tabs, and Runs at the rail's foot.
   Tabs are Recipes, Stock and Profile; Runs is secondary. A page passes its
   `Tab` to `Layout`, which marks it `aria-current="page"`.

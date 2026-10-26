@@ -179,7 +179,21 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-.wordmark { display: none; }
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  text-decoration: none;
+}
+
+.wordmark-ja { font: 700 1.25rem/1 var(--font-display); letter-spacing: 0.15em; }
+
+.wordmark-latin { font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--color-text-soft); }
+
+.shell .wordmark { display: none; }
+
+.masthead { margin-bottom: var(--space-4); }
 
 .tab {
   flex: 1;
@@ -223,17 +237,16 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
     padding: var(--space-6) var(--space-5);
   }
 
-  .wordmark { display: flex; flex-direction: column; text-decoration: none; margin-bottom: var(--space-7); }
+  .shell .wordmark { display: flex; flex-direction: column; align-items: stretch; gap: 0; margin-bottom: var(--space-7); }
 
-  .wordmark-ja {
-    font: 700 1.75rem/1 var(--font-display);
+  .shell .wordmark-ja {
+    font-size: 1.75rem;
     writing-mode: vertical-rl;
-    letter-spacing: 0.15em;
     margin-bottom: var(--space-3);
     align-self: flex-start;
   }
 
-  .wordmark-latin { font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--color-text-soft); }
+  .masthead { display: none; }
 
   .tab { flex: none; flex-direction: row; justify-content: flex-start; gap: var(--space-3); font-size: 0.9rem; min-height: var(--tap); }
 
