@@ -15,7 +15,8 @@ Every colour, space and radius is a custom property on `:root` at the top of
 `app.css`. That block is the only place a colour value may be written;
 `internal/web/colours_test.go` fails CI on a hex or `rgb()` colour anywhere
 else in `app.css` or in any `.templ` file. Tokens are named for their role, so
-dark mode can later be one `prefers-color-scheme` block that reassigns them.
+dark mode can later be one `prefers-color-scheme` block that reassigns them
+(the test allows literals in any `:root` block).
 
 | Token | Value | Use |
 | --- | --- | --- |
@@ -97,8 +98,8 @@ elements themselves.
 | `Alert()` | Something went wrong: a rejected form, a failure. On the accent wash. |
 | `Notice()` | Something happened as asked ("Profile saved."). |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status). `accent` when it needs attention. |
-| `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop. Pass `open` when the form was rejected. One per page. |
-| `Icon(name)` | A Lucide icon, inline SVG in the text colour. Add icons to `icons.go`. |
+| `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
+| `Icon(name)` | A Lucide icon, inline SVG in the text colour. Add icons to `icons.go`; an unknown name fails the render. |
 
 Two layout classes go on elements a component can't wrap, such as a
 `<form>`: `stack` spaces its children evenly in a column (a form's fields and
@@ -117,8 +118,8 @@ Run `trace` panel.
 - Text and controls meet WCAG AA contrast on `--color-bg` (ink 17:1, soft ink
   6.7:1, accent 5.8:1, paper on accent 5.8:1, accent on its wash 5.2:1).
 - Touch targets are at least `--tap` (44px).
-- Focus is always visible: a 2px vermilion ring, or a 2px vermilion underline
-  on inputs.
+- Focus is always visible: a 2px vermilion ring on every control, inputs
+  included, so a focused field stands out from an invalid one.
 - `prefers-reduced-motion` turns off transitions and animations.
 - Meaning is never carried by colour alone: an error says what is wrong and
   is marked `!`, an invalid field has a thicker underline and

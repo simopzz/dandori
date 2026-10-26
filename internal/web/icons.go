@@ -1,5 +1,27 @@
 package web
 
+import (
+	"context"
+	"fmt"
+	"io"
+
+	"github.com/a-h/templ"
+)
+
+// Icon is a Lucide icon, inline, in the text colour. It is decorative: say
+// what it means in text next to it or in an aria-label. A name missing from
+// icons fails the render, so a typo shows up in tests, not as a blank.
+func Icon(name string) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		path, ok := icons[name]
+		if !ok {
+			return fmt.Errorf("web: no icon %q in icons.go", name)
+		}
+		_, err := io.WriteString(w, `<svg class="icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">`+path+`</svg>`)
+		return err
+	})
+}
+
 // icons are Lucide icons v0.460.0: the inner markup of each 24×24 SVG,
 // rendered by Icon. Add one by copying its markup from
 // https://lucide.dev/icons.

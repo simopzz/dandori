@@ -8,12 +8,6 @@ import (
 // The shared components every page is built from. docs/design.md says when
 // to use each; app.css styles them.
 
-// Icon is a Lucide icon, inline, in the text colour. It is decorative: say
-// what it means in text next to it or in an aria-label.
-templ Icon(name string) {
-	@templ.Raw(`<svg class="icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">` + icons[name] + `</svg>`)
-}
-
 // PageHeader opens a page: an eyebrow with the page's Japanese name and
 // today's date, then the title. Children, if any, are a lede below it.
 templ PageHeader(ja, title string) {
@@ -221,21 +215,24 @@ templ Tag(accent bool, title string) {
 
 // AddSheet is a page's primary add action: a square + that opens the add
 // form, the children, as a sheet. open shows it already open, for a
-// rejected submission.
+// rejected submission, with focus on the first rejected field.
 templ AddSheet(id, title string, open bool) {
 	<button class="fab" type="button" popovertarget={ id } aria-label={ title }>
 		@Icon("plus")
 	</button>
-	<div id={ id } class="sheet" popover data-open?={ open }>
+	<div id={ id } class="sheet" popover role="dialog" aria-labelledby={ id + "-title" } data-open?={ open }>
 		<div class="sheet-head">
-			<h2>{ title }</h2>
+			<h2 id={ id + "-title" }>{ title }</h2>
 			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">Close</button>
 		</div>
 		{ children... }
 	</div>
 	if open {
 		<script>
-			for (const sheet of document.querySelectorAll(".sheet[data-open]")) sheet.showPopover();
+			for (const sheet of document.querySelectorAll(".sheet[data-open]")) {
+				sheet.showPopover();
+				sheet.querySelector("[aria-invalid=true]")?.focus();
+			}
 		</script>
 	}
 }

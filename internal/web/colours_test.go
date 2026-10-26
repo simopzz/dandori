@@ -73,19 +73,17 @@ func TestThemeColourIsThePaper(t *testing.T) {
 	}
 }
 
-// tokensRemoved blanks the first :root block's contents, keeping its lines
-// so line numbers still match.
+// tokensRemoved blanks the contents of every :root block, including one
+// inside a media query (dark mode), keeping their lines so line numbers
+// still match.
 func tokensRemoved(t *testing.T, css string) string {
-	start := strings.Index(css, ":root {")
-	if start < 0 {
+	blocks := regexp.MustCompile(`:root \{[^}]*\}`)
+	if !blocks.MatchString(css) {
 		t.Fatal("app.css has no :root token block")
 	}
-	end := start + strings.Index(css[start:], "\n}")
-	if end < start {
-		t.Fatal("app.css's :root token block is not closed")
-	}
-	blank := regexp.MustCompile(`[^\n]`).ReplaceAllString(css[start:end], "")
-	return css[:start] + blank + css[end:]
+	return blocks.ReplaceAllStringFunc(css, func(block string) string {
+		return regexp.MustCompile(`[^\n]`).ReplaceAllString(block, "")
+	})
 }
 
 type literal struct {

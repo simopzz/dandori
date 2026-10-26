@@ -105,6 +105,8 @@ th {
 
 td { border-bottom: 1px solid var(--color-rule); padding: var(--space-3) var(--space-3) var(--space-3) 0; }
 
+td a { display: inline-flex; align-items: center; min-width: var(--tap); min-height: var(--tap); }
+
 input,
 select,
 textarea {
@@ -126,9 +128,8 @@ textarea {
 }
 
 input:focus-visible,
-select:focus-visible { outline: 0; border-bottom: 2px solid var(--color-accent); }
-
-textarea:focus-visible { outline: var(--focus-ring); outline-offset: 0; }
+select:focus-visible,
+textarea:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
 [aria-invalid="true"] { border-bottom: 2px solid var(--color-accent); }
 
@@ -310,7 +311,7 @@ legend.section-heading + * { clear: both; }
 
 .row-title { flex: 1 1 12rem; }
 
-a.row-title { text-decoration: none; }
+a.row-title { display: flex; align-items: center; min-height: var(--tap); text-decoration: none; }
 
 a.row-title:hover { text-decoration: underline; }
 
