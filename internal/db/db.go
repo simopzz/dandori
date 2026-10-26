@@ -1,5 +1,5 @@
-// Package db connects to the Dandori Postgres database and applies its
-// versioned migrations.
+// Package db connects to the Dandori Postgres database, applies its
+// versioned migrations and records the installation's Content Language.
 package db
 
 import (
@@ -49,15 +49,12 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 // Language unless one is recorded already, and returns the recorded one.
 func RecordContentLanguage(ctx context.Context, q Querier, language domain.ContentLanguage) (domain.ContentLanguage, error) {
 	var recorded domain.ContentLanguage
+	// The no-op update returns the recorded row, even when another start
+	// inserted it meanwhile.
 	err := q.QueryRow(ctx, `
-		WITH inserted AS (
-			INSERT INTO installation (content_language) VALUES ($1)
-			ON CONFLICT (id) DO NOTHING
-			RETURNING content_language
-		)
-		SELECT content_language FROM inserted
-		UNION ALL
-		SELECT content_language FROM installation`, language).Scan(&recorded)
+		INSERT INTO installation (content_language) VALUES ($1)
+		ON CONFLICT (id) DO UPDATE SET content_language = installation.content_language
+		RETURNING content_language`, language).Scan(&recorded)
 	if err != nil {
 		return "", fmt.Errorf("record the content language: %w", err)
 	}

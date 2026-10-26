@@ -56,9 +56,18 @@ func WithPorts(configure func(*app.Ports)) Option {
 	return func(s *settings) { configure(&s.ports) }
 }
 
-// WithConfig lets a test change the app's configuration.
+// WithConfig lets a test change the app's configuration, on top of any
+// earlier change.
 func WithConfig(configure func(*app.Config)) Option {
-	return func(s *settings) { s.config = configure }
+	return func(s *settings) {
+		earlier := s.config
+		s.config = func(c *app.Config) {
+			if earlier != nil {
+				earlier(c)
+			}
+			configure(c)
+		}
+	}
 }
 
 // WithJob registers a Run kind that always runs job, so a test can start
@@ -163,8 +172,9 @@ func (h *Harness) Crash(t testing.TB) {
 }
 
 // Restart starts a new app on the same database with opts applied on top
-// of the harness's own, as when Dandori is stopped, reconfigured and started
-// again. The harness talks to the new app from now on.
+// of the harness's own, as when Dandori is reconfigured and started again.
+// Like Crash, it leaves the old app running; the harness talks to the new
+// one from now on.
 func (h *Harness) Restart(t testing.TB, opts ...Option) {
 	t.Helper()
 	for _, opt := range opts {

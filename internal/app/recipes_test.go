@@ -604,3 +604,13 @@ func TestTypographicApostropheMatchesTheKnownIngredient(t *testing.T) {
 		t.Errorf("the Recipe form does not match fiocchi d‘avena to the known Ingredient: %d\n%s", res.StatusCode, text(res.Body))
 	}
 }
+
+func TestPastedTextIsKeptInTheParseRunsTrace(t *testing.T) {
+	h, _ := startRecipes(t, fakellm.CallTool("submit_recipe", parsedRecipe()), fakellm.Reply("Parsed the Recipe."))
+	draft := parse(t, h, pastedRecipe)
+
+	run := h.Get(t, "/runs/"+strings.TrimPrefix(draft.Path, "/recipe-drafts/"))
+	if !strings.Contains(text(run.Body), "600g chicken breast, 240g basmati rice") {
+		t.Errorf("the Run's Trace does not keep the pasted text:\n%s", text(run.Body))
+	}
+}
