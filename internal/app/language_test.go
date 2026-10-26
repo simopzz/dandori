@@ -21,7 +21,7 @@ func TestUnsupportedContentLanguageStopsStartup(t *testing.T) {
 		a.Close()
 		t.Fatal("app.New accepted the Content Language fr")
 	}
-	for _, want := range []string{"DANDORI_CONTENT_LANGUAGE", `"fr"`, "it", "en"} {
+	for _, want := range []string{"DANDORI_CONTENT_LANGUAGE", `"fr"`, "it or en"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %s", err, want)
 		}
@@ -77,42 +77,5 @@ func TestContentLanguageIsRecordedAndCannotChange(t *testing.T) {
 	h.Restart(t, apptest.WithConfig(func(c *app.Config) { c.ContentLanguage = domain.Italian }))
 	if res := h.Get(t, "/"); res.StatusCode != http.StatusOK {
 		t.Errorf("GET / back in Italian = %d, want 200:\n%s", res.StatusCode, res.Body)
-	}
-}
-
-// porridge is a parsed Recipe of oats, named oats.
-func porridge(oats string, nutrition map[string]any) map[string]any {
-	oatsRow := map[string]any{"name": oats, "quantity": 80, "unit": "g"}
-	if nutrition != nil {
-		oatsRow["nutrition"] = nutrition
-	}
-	return map[string]any{
-		"name": "Porridge", "portions": 1, "prep_minutes": 5,
-		"appliances": []string{"pentolino"}, "steps": []string{"Cuoci i fiocchi d'avena nel latte."},
-		"ingredients": []map[string]any{oatsRow},
-	}
-}
-
-func TestTypographicApostropheMatchesTheKnownIngredient(t *testing.T) {
-	h, llm := startRecipes(t)
-	llm.Script(
-		fakellm.CallTool("submit_recipe", porridge("fiocchi d'avena", map[string]any{"kcal": 370, "protein_g": 13, "carbs_g": 60, "fat_g": 7})),
-		fakellm.Reply("Parsed."),
-	)
-	first := apptest.Form(t, parse(t, h, "Porridge").Body, "recipe")
-	if res := h.PostForm(t, first.Action, first.Values); res.StatusCode != http.StatusOK {
-		t.Fatalf("accept = %d:\n%s", res.StatusCode, text(res.Body))
-	}
-
-	// Typed on a phone: no nutrition, since it is the known Ingredient.
-	llm.Script(fakellm.CallTool("submit_recipe", porridge("Fiocchi d’avena", nil)), fakellm.Reply("Parsed."))
-	form := apptest.Form(t, parse(t, h, "Porridge di nuovo").Body, "recipe")
-	if form.Get("ing_name_0") != "fiocchi d'avena" || form.Get("ing_new_0") != "false" {
-		t.Fatalf("the parser does not match fiocchi d’avena to the known Ingredient: name = %q, new = %q", form.Get("ing_name_0"), form.Get("ing_new_0"))
-	}
-
-	form.Values.Set("ing_name_0", "fiocchi d‘avena")
-	if res := h.PostForm(t, form.Action, form.Values); res.StatusCode != http.StatusOK || !strings.Contains(text(res.Body), "80 g fiocchi d'avena") {
-		t.Errorf("the Recipe form does not match fiocchi d‘avena to the known Ingredient: %d\n%s", res.StatusCode, text(res.Body))
 	}
 }

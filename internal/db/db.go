@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 //go:embed migrations/*.sql
@@ -41,6 +43,25 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 		cfg.ConnConfig.ConnectTimeout = 5 * time.Second
 	}
 	return pgxpool.NewWithConfig(ctx, cfg)
+}
+
+// RecordContentLanguage records language as the installation's Content
+// Language unless one is recorded already, and returns the recorded one.
+func RecordContentLanguage(ctx context.Context, q Querier, language domain.ContentLanguage) (domain.ContentLanguage, error) {
+	var recorded domain.ContentLanguage
+	err := q.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO installation (content_language) VALUES ($1)
+			ON CONFLICT (id) DO NOTHING
+			RETURNING content_language
+		)
+		SELECT content_language FROM inserted
+		UNION ALL
+		SELECT content_language FROM installation`, language).Scan(&recorded)
+	if err != nil {
+		return "", fmt.Errorf("record the content language: %w", err)
+	}
+	return recorded, nil
 }
 
 // Migrate applies every pending migration.

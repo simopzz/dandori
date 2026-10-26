@@ -176,18 +176,9 @@ func (e *ContentLanguageChangedError) Error() string {
 // checkContentLanguage records the configured Content Language on first
 // start, and refuses a later start with a different one.
 func (a *App) checkContentLanguage(ctx context.Context) error {
-	var recorded domain.ContentLanguage
-	err := a.pool.QueryRow(ctx, `
-		WITH inserted AS (
-			INSERT INTO installation (content_language) VALUES ($1)
-			ON CONFLICT (id) DO NOTHING
-			RETURNING content_language
-		)
-		SELECT content_language FROM inserted
-		UNION ALL
-		SELECT content_language FROM installation`, a.cfg.ContentLanguage).Scan(&recorded)
+	recorded, err := db.RecordContentLanguage(ctx, a.pool, a.cfg.ContentLanguage)
 	if err != nil {
-		return fmt.Errorf("record the content language: %w", err)
+		return err
 	}
 	if recorded != a.cfg.ContentLanguage {
 		return &ContentLanguageChangedError{Recorded: recorded, Configured: a.cfg.ContentLanguage}
