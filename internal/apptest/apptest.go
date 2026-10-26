@@ -162,6 +162,17 @@ func (h *Harness) Crash(t testing.TB) {
 	h.boot(t)
 }
 
+// Restart starts a new app on the same database with opts applied on top
+// of the harness's own, as when Dandori is stopped, reconfigured and started
+// again. The harness talks to the new app from now on.
+func (h *Harness) Restart(t testing.TB, opts ...Option) {
+	t.Helper()
+	for _, opt := range opts {
+		opt(&h.settings)
+	}
+	h.boot(t)
+}
+
 // CutDatabase makes the database unreachable, as when Supabase pauses the
 // project: open connections drop and new ones are refused.
 func (h *Harness) CutDatabase(t testing.TB) {

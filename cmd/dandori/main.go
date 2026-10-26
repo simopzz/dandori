@@ -4,7 +4,8 @@
 //	dandori migrate   apply pending migrations and exit
 //
 // Configuration comes from the environment: DANDORI_DATABASE_URL (required),
-// DANDORI_ADDR (default 127.0.0.1:8080), DANDORI_MODEL (default the latest
+// DANDORI_CONTENT_LANGUAGE (it or en, default en; fixed once the database
+// has been started with it), DANDORI_ADDR (default 127.0.0.1:8080), DANDORI_MODEL (default the latest
 // Claude model), DANDORI_LLM_RETRIES (default 3) and DANDORI_MAX_TURNS
 // (default 50), where 0 keeps the default, the Claude credentials
 // (ANTHROPIC_API_KEY, or a profile from `ant auth login`), and DANDORI_DEMO=1
@@ -27,6 +28,7 @@ import (
 	"github.com/simopzz/dandori/internal/agent/anthropic"
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 func main() {
@@ -42,9 +44,10 @@ func run(log *slog.Logger, args []string) error {
 	defer stop()
 
 	cfg := app.Config{
-		DatabaseURL: os.Getenv("DANDORI_DATABASE_URL"),
-		Model:       os.Getenv("DANDORI_MODEL"),
-		Demo:        os.Getenv("DANDORI_DEMO") == "1",
+		DatabaseURL:     os.Getenv("DANDORI_DATABASE_URL"),
+		ContentLanguage: domain.ContentLanguage(os.Getenv("DANDORI_CONTENT_LANGUAGE")),
+		Model:           os.Getenv("DANDORI_MODEL"),
+		Demo:            os.Getenv("DANDORI_DEMO") == "1",
 	}
 	if cfg.DatabaseURL == "" {
 		return errors.New("DANDORI_DATABASE_URL is not set")
@@ -88,8 +91,11 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 	defer a.Close()
 
 	// A paused database must not stop the app: it shows the error page and
-	// migrates once the database is reachable.
-	if err := a.EnsureDatabase(ctx); err != nil {
+	// migrates once the database is reachable. A changed Content Language
+	// must.
+	if err := a.EnsureDatabase(ctx); errors.As(err, new(*app.ContentLanguageChangedError)) {
+		return err
+	} else if err != nil {
 		log.Warn("database not ready at startup; will retry on request", "err", err)
 	}
 

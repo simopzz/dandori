@@ -64,6 +64,10 @@ func FoodTerms(text string) []string {
 	return terms
 }
 
+// typographicApostrophes folds the apostrophes phones type into a straight
+// one, so "fiocchi d’avena" is the known "fiocchi d'avena".
+var typographicApostrophes = strings.NewReplacer("’", "'", "‘", "'")
+
 func normaliseFood(s string) string {
-	return strings.Join(strings.Fields(strings.ToLower(s)), " ")
+	return strings.Join(strings.Fields(strings.ToLower(typographicApostrophes.Replace(s))), " ")
 }
