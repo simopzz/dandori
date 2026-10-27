@@ -73,6 +73,18 @@ func parseProfile(form url.Values) (domain.Profile, map[string]string) {
 	}
 	p.Exclusions = domain.FoodTerms(get("exclusions"))
 	p.Allergies = domain.FoodTerms(get("allergies"))
+	p.SlotTimes = domain.SlotTimes{}
+	for _, k := range domain.SlotKinds {
+		name := slotTimeField(k)
+		switch t, err := domain.ParseTimeOfDay(get(name)); {
+		case get(name) == "":
+			problems[name] = "Required"
+		case err != nil:
+			problems[name] = "Must be a time"
+		default:
+			p.SlotTimes[k] = t
+		}
+	}
 
 	invalid := p.Validate()
 	for _, f := range numberFields {
@@ -80,8 +92,17 @@ func parseProfile(form url.Values) (domain.Profile, map[string]string) {
 			problems[f.name] = msg
 		}
 	}
+	for _, k := range domain.SlotKinds {
+		if msg, ok := invalid["SlotTimes."+string(k)]; ok && problems[slotTimeField(k)] == "" {
+			problems[slotTimeField(k)] = msg
+		}
+	}
 	return p, problems
 }
+
+// slotTimeField is the form field of the time of day of Slots of kind k,
+// e.g. "lunch_at".
+func slotTimeField(k domain.SlotKind) string { return string(k) + "_at" }
 
 func profileValues(p domain.Profile) map[string]string {
 	values := map[string]string{}
@@ -90,5 +111,8 @@ func profileValues(p domain.Profile) map[string]string {
 	}
 	values["exclusions"] = strings.Join(p.Exclusions, "\n")
 	values["allergies"] = strings.Join(p.Allergies, "\n")
+	for _, k := range domain.SlotKinds {
+		values[slotTimeField(k)] = p.SlotTimes[k].String()
+	}
 	return values
 }

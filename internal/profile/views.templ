@@ -63,6 +63,17 @@ templ ProfileFormFragment(f ProfileForm) {
 			}
 			@nutritionFields(f, "untracked")
 		}
+		@web.FieldGroup(5, "Slot times") {
+			@web.Hint() {
+				The time of day of each kind of Slot. A Cycle starts at the first Slot after its Delivery arrives.
+			}
+			@web.FieldRow() {
+				@web.TimeField("Breakfast", "breakfast_at", f.Values["breakfast_at"], f.Errors["breakfast_at"])
+				@web.TimeField("Lunch", "lunch_at", f.Values["lunch_at"], f.Errors["lunch_at"])
+				@web.TimeField("Snack", "snack_at", f.Values["snack_at"], f.Errors["snack_at"])
+				@web.TimeField("Dinner", "dinner_at", f.Values["dinner_at"], f.Errors["dinner_at"])
+			}
+		}
 		@web.Actions() {
 			@web.Button(templ.Attributes{"type": "submit"}) {
 				Save Profile
@@ -95,3 +106,4 @@ templ foodField(f ProfileForm, name, label string) {
 		<textarea name={ name } rows="3">{ f.Values[name] }</textarea>
 	}
 }
+

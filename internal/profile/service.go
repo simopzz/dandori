@@ -1,5 +1,5 @@
 // Package profile is the user's Profile: their Targets, dietary exclusions
-// and allergies, Meal Out estimate and Untracked Allowance.
+// and allergies, Meal Out estimate, Untracked Allowance and Slot times.
 package profile
 
 import (

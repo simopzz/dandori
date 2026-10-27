@@ -127,9 +127,9 @@ func (n Nutrition) plus(o Nutrition) Nutrition {
 }
 
 // inPlan reports whether s is a Slot the Plan fills: from From to the
-// Cycle's last day.
+// Cycle's last Slot.
 func (c PlanCheck) inPlan(s Slot) bool {
-	return !s.Before(c.From) && !s.On.After(c.Cycle.LastDay())
+	return !s.Before(c.From) && s.Before(c.Cycle.Until())
 }
 
 // Days is every day of the Cycle under the Plan, in order.
@@ -163,7 +163,7 @@ func (c PlanCheck) Days() []PlanDay {
 	}
 
 	var days []PlanDay
-	for d := c.Cycle.DeliveryOn; !d.After(c.Cycle.LastDay()); d = d.AddDate(0, 0, 1) {
+	for d := c.Cycle.Start.On; !d.After(c.Cycle.LastDay()); d = d.AddDate(0, 0, 1) {
 		day := PlanDay{On: d, Eaten: eaten(d)}
 		if start := d.AddDate(0, 0, -6); !start.Before(c.Since) {
 			var sum Nutrition
@@ -204,7 +204,7 @@ func ValidatePlan(c PlanCheck) []Violation {
 			add(RuleBeforeStart, "%s is prepared for %s, before the Plan Proposal starts at %s", name, ps.At, c.From)
 		case !past && ps.At.Before(FirstUnprepared(c.From, c.Today)):
 			add(RuleAlreadyPrepared, "%s is prepared for %s, today: what is prepared today is taken as done, so new Prep Sessions start tomorrow", name, ps.At)
-		case ps.At.On.After(c.Cycle.LastDay()):
+		case !ps.At.Before(c.Cycle.Until()):
 			add(RulePrepSessionOutsideCycle, "%s is prepared for %s, after the Cycle ends", name, ps.At)
 		}
 		if len(ps.Portions) == 0 {

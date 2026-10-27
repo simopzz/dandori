@@ -1,6 +1,7 @@
 package planning
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -22,22 +23,51 @@ func ingredientFields(ing *domain.Ingredient) []any {
 	return []any{&ing.Name, &ing.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG, &ing.FallsUnder}
 }
 
-func loadLatestCycle(ctx context.Context, q db.Querier) (*Cycle, error) {
+// cycleColumns are a Cycle's columns, as scanCycle reads them.
+var cycleColumns = `id, delivery_on, ` + db.Minutes("window_from") + `, ` + db.Minutes("window_to") + `, ordered,
+	starts_on, starts_with, ends_on, closed_on, closed_with, status, needs_proposal`
+
+func scanCycle(row pgx.Row) (*Cycle, error) {
 	var c Cycle
-	err := q.QueryRow(ctx, `
-		SELECT id, delivery_on, ends_on, closed_on FROM cycle
-		ORDER BY delivery_on DESC LIMIT 1`).Scan(&c.ID, &c.DeliveryOn, &c.EndsOn, &c.ClosedOn)
+	var closedOn *time.Time
+	var closedWith *domain.SlotKind
+	d := &c.Delivery
+	err := row.Scan(&c.ID, &d.On, &d.From, &d.To, &d.Ordered,
+		&c.Start.On, &c.Start.Kind, &c.EndsOn, &closedOn, &closedWith, &c.Status, &c.NeedsProposal)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
+	}
+	if closedOn != nil {
+		c.ClosedAt = &domain.Slot{On: *closedOn, Kind: *closedWith}
 	}
 	return &c, err
 }
 
+// loadLatestCycle loads the Cycle delivered last, or nil when there is
+// none.
+func loadLatestCycle(ctx context.Context, q db.Querier) (*Cycle, error) {
+	return scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle ORDER BY delivery_on DESC LIMIT 1`))
+}
+
+// loadCycleWith loads the Cycle with status upcoming or current, or nil
+// when none has it.
+func loadCycleWith(ctx context.Context, q db.Querier, status string) (*Cycle, error) {
+	return scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE status = $1`, status))
+}
+
 func loadCycle(ctx context.Context, q db.Querier, id int64) (Cycle, error) {
-	c := Cycle{ID: id}
-	err := q.QueryRow(ctx, `SELECT delivery_on, ends_on, closed_on FROM cycle WHERE id = $1`, id).
-		Scan(&c.DeliveryOn, &c.EndsOn, &c.ClosedOn)
-	return c, err
+	c, err := scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE id = $1`, id))
+	if c == nil {
+		return Cycle{}, cmp.Or(err, pgx.ErrNoRows)
+	}
+	return *c, err
+}
+
+// lockCycles serialises changes to Cycles: opening, moving, dropping and
+// arriving.
+func lockCycles(ctx context.Context, q db.Querier) error {
+	_, err := q.Exec(ctx, `LOCK TABLE cycle IN EXCLUSIVE MODE`)
+	return err
 }
 
 // lockCycleOf locks the Cycle of the Plan Proposal with id, if there is one.
@@ -47,35 +77,106 @@ func lockCycleOf(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// loadSince loads the first Cycle's delivery date.
+// loadSince loads the first Cycle's first day.
 func loadSince(ctx context.Context, q db.Querier) (time.Time, error) {
 	var since time.Time
-	err := q.QueryRow(ctx, `SELECT min(delivery_on) FROM cycle`).Scan(&since)
+	err := q.QueryRow(ctx, `SELECT min(starts_on) FROM cycle`).Scan(&since)
 	return since, err
 }
 
+// insertCycle stores c as the upcoming Cycle.
 func insertCycle(ctx context.Context, q db.Querier, c domain.Cycle) error {
-	_, err := q.Exec(ctx, `INSERT INTO cycle (delivery_on, ends_on) VALUES ($1, $2)`, c.DeliveryOn, c.EndsOn)
+	d := c.Delivery
+	_, err := q.Exec(ctx, `
+		INSERT INTO cycle (delivery_on, window_from, window_to, ordered, starts_on, starts_with, ends_on)
+		VALUES ($1, `+db.Time("$2")+`, `+db.Time("$3")+`, $4, $5, $6, $7)`,
+		d.On, d.From, d.To, d.Ordered, c.Start.On, c.Start.Kind, c.EndsOn)
 	return err
 }
 
-// closeCycle closes the Cycle with id early on the delivery date on,
-// dropping the Prep Sessions never prepared, taking the Portions carried
-// over out of their Slots, and rejecting the Plan Proposals still pending,
-// which can no longer apply, with note.
-func closeCycle(ctx context.Context, q db.Querier, id int64, on time.Time, o domain.Opening, note string) error {
-	if _, err := q.Exec(ctx, `UPDATE cycle SET closed_on = $2 WHERE id = $1`, id, on); err != nil {
+// updateDelivery stores c's Delivery, first Slot and end date as those of
+// the Cycle with id.
+func updateDelivery(ctx context.Context, q db.Querier, id int64, c domain.Cycle) error {
+	d := c.Delivery
+	_, err := q.Exec(ctx, `
+		UPDATE cycle SET delivery_on = $2, window_from = `+db.Time("$3")+`, window_to = `+db.Time("$4")+`,
+			ordered = $5, starts_on = $6, starts_with = $7, ends_on = $8
+		WHERE id = $1`, id, d.On, d.From, d.To, d.Ordered, c.Start.On, c.Start.Kind, c.EndsOn)
+	return err
+}
+
+// moveCycle marks the Plan of the Cycle with id, moved to c, as needing a
+// new Plan Proposal: it rejects the pending ones with note, and drops the
+// Prep Sessions and Slots now outside the Cycle. Its Delivery hasn't
+// arrived, so none of its Prep Sessions was prepared.
+func moveCycle(ctx context.Context, q db.Querier, id int64, c domain.Cycle, note string) error {
+	if err := setNeedsProposal(ctx, q, id, true); err != nil {
 		return err
 	}
-	if _, err := q.Exec(ctx, `
+	if err := rejectPending(ctx, q, id, note); err != nil {
+		return err
+	}
+	start, until := c.Start, c.Until()
+	outside := func(day, kind string) string {
+		return `((` + day + `, ` + order(kind) + `) < ($2::date, $3) OR (` + day + `, ` + order(kind) + `) >= ($4::date, $5))`
+	}
+	args := []any{id, start.On, slotOrder(start), until.On, slotOrder(until)}
+	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE cycle_id = $1 AND `+outside("prepared_on", "prepared_for"), args...); err != nil {
+		return err
+	}
+	_, err := q.Exec(ctx, `DELETE FROM slot WHERE cycle_id = $1 AND `+outside("day", "kind"), args...)
+	return err
+}
+
+func setNeedsProposal(ctx context.Context, q db.Querier, id int64, needs bool) error {
+	_, err := q.Exec(ctx, `UPDATE cycle SET needs_proposal = $2 WHERE id = $1`, id, needs)
+	return err
+}
+
+func setStatus(ctx context.Context, q db.Querier, id int64, status string) error {
+	_, err := q.Exec(ctx, `UPDATE cycle SET status = $2 WHERE id = $1`, id, status)
+	return err
+}
+
+// rejectPending rejects the Plan Proposals of the Cycle with id still
+// pending, with note.
+func rejectPending(ctx context.Context, q db.Querier, id int64, note string) error {
+	_, err := q.Exec(ctx, `
 		UPDATE plan_proposal SET status = 'rejected', note = $2, decided_at = now()
-		WHERE cycle_id = $1 AND status = 'pending'`, id, note); err != nil {
+		WHERE cycle_id = $1 AND status = 'pending'`, id, note)
+	return err
+}
+
+// closeCycle closes the Cycle with id as the next Delivery's arrival a
+// says, rejecting the Plan Proposals still pending, which can no longer
+// apply, with note. Closing early, it drops the Prep Sessions never
+// prepared and takes the Portions carried over out of their Slots.
+func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival, note string) error {
+	var closedOn *time.Time
+	var closedWith *domain.SlotKind
+	if c := a.Current.ClosedAt; c != nil {
+		closedOn, closedWith = &c.On, &c.Kind
+	}
+	if _, err := q.Exec(ctx, `UPDATE cycle SET status = 'closed', closed_on = $2, closed_with = $3 WHERE id = $1`, id, closedOn, closedWith); err != nil {
 		return err
 	}
-	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, o.DroppedPrepSessions); err != nil {
+	if err := rejectPending(ctx, q, id, note); err != nil {
 		return err
 	}
-	_, err := q.Exec(ctx, `DELETE FROM slot WHERE portion_id = ANY($1)`, o.CarriedOver)
+	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, a.DroppedPrepSessions); err != nil {
+		return err
+	}
+	_, err := q.Exec(ctx, `DELETE FROM slot WHERE portion_id = ANY($1)`, a.CarriedOver)
+	return err
+}
+
+// deleteCycle deletes the Cycle with id, with its Prep Sessions and their
+// Portions, its Slots and its Plan Proposals.
+func deleteCycle(ctx context.Context, q db.Querier, id int64) error {
+	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE cycle_id = $1`, id); err != nil {
+		return err
+	}
+	_, err := q.Exec(ctx, `DELETE FROM cycle WHERE id = $1`, id)
 	return err
 }
 
@@ -294,15 +395,15 @@ func loadKept(ctx context.Context, q db.Querier, id int64, from, prepared domain
 	return keptPortions(ctx, q, refs)
 }
 
-// loadEarlier loads what the Slots before from eat, on the days from six
-// before c's delivery on: all a trailing seven days of c can reach. They
+// loadEarlier loads what the Slots before from eat, from six days before
+// c's first day on: all a trailing seven days of c can reach. They
 // are earlier Cycles' Slots, and c's own that a Plan from from on keeps.
 func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) ([]domain.DayNutrition, error) {
 	refs, err := loadPortionRefs(ctx, q, `
 		SELECT p.id, p.prep_session_id, s.day, s.kind
 		FROM slot s JOIN portion p ON p.id = s.portion_id
 		WHERE s.day >= $1::date - 6 AND (s.day, `+order("s.kind")+`) < ($2::date, $3)`,
-		c.DeliveryOn, from.On, slotOrder(from))
+		c.Start.On, from.On, slotOrder(from))
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +434,7 @@ func replacePlan(ctx context.Context, q db.Querier, c Cycle, from, prepared doma
 		return err
 	}
 	// Slots before from are what stays; validation flags a Plan filling them.
-	inPlan := func(s domain.Slot) bool { return !s.Before(from) && c.inCycle(s.On) }
+	inPlan := func(s domain.Slot) bool { return !s.Before(from) && c.Contains(s) }
 	fill := func(portion int64, s domain.Slot) error {
 		_, err := q.Exec(ctx, `INSERT INTO slot (cycle_id, day, kind, portion_id) VALUES ($1, $2, $3, $4)`, c.ID, s.On, s.Kind, portion)
 		return err

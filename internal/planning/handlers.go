@@ -32,26 +32,110 @@ const (
 
 // Show shows the Plan page.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, CycleForm{}, http.StatusOK)
+	h.render(w, r, PlanPage{}, http.StatusOK)
 }
 
-func (h Handlers) render(w http.ResponseWriter, r *http.Request, open CycleForm, status int) {
+// render shows the Plan page p, filled in with the Cycles, keeping a
+// rejected open or change form p carries.
+func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, status int) {
 	o, err := h.Service.Overview(r.Context())
 	if err != nil {
 		httpx.ServerError(w, h.Log, "load plan", err)
 		return
 	}
-	p := PlanPage{Open: open}
-	if o.Cycle != nil {
-		p.Cycle = &CycleView{Delivered: o.Cycle.DeliveryOn.Format(longDate), Ends: o.Cycle.EndsOn.Format(longDate)}
+	change := CycleForm{}
+	if p.Upcoming != nil {
+		change = p.Upcoming.Change
 	}
-	if o.Plan != nil {
-		p.HasPlan, p.Calendar = true, calendarOf(*o.Plan)
+	n := 1
+	if o.Current != nil {
+		p.Current = cycleView(*o.Current, n)
+		n += 3
+		if o.PlanNext {
+			p.PlanNext = o.Current.Cycle.EndsOn.Format(longDate)
+		}
 	}
-	for _, pr := range o.Proposals {
-		p.Proposals = append(p.Proposals, ProposalRow{ID: pr.ID, Title: proposalTitle(pr.Origin), Status: pr.Status})
+	p.Upcoming = nil
+	if o.Upcoming != nil {
+		p.Upcoming = cycleView(*o.Upcoming, n)
+		p.Upcoming.Change = deliveryValues(o.Upcoming.Cycle.Delivery)
+		if change.Values != nil {
+			p.Upcoming.Change = change
+		}
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
+}
+
+func cycleView(cp CyclePlan, number int) *CycleView {
+	c := cp.Cycle
+	v := &CycleView{
+		ID:        c.ID,
+		Number:    number,
+		Delivery:  describeDelivery(c.Delivery, longDate),
+		Ordered:   c.Delivery.Ordered,
+		Starts:    c.Start.String(),
+		Ends:      c.EndsOn.Format(longDate),
+		NeedsPlan: c.NeedsProposal,
+	}
+	if cp.Plan != nil {
+		v.HasPlan, v.Calendar = true, calendarOf(*cp.Plan)
+	}
+	for _, pr := range cp.Proposals {
+		v.Proposals = append(v.Proposals, ProposalRow{ID: pr.ID, Title: proposalTitle(pr.Origin), Status: pr.Status})
+	}
+	return v
+}
+
+// describeDelivery is d's date, in layout, and window, e.g. "Thu 12 Nov,
+// 18:00–20:00".
+func describeDelivery(d domain.Delivery, layout string) string {
+	return d.On.Format(layout) + ", " + d.From.String() + "–" + d.To.String()
+}
+
+// deliveryValues are d as the change-the-Delivery form shows it.
+func deliveryValues(d domain.Delivery) CycleForm {
+	ordered := ""
+	if d.Ordered {
+		ordered = "yes"
+	}
+	return CycleForm{Values: map[string]string{
+		"delivery_on": d.On.Format(dateLayout),
+		"window_from": d.From.String(),
+		"window_to":   d.To.String(),
+		"ordered":     ordered,
+	}}
+}
+
+// typed is what was typed in form's fields names, to show a rejected form
+// back as it was.
+func typed(form url.Values, names ...string) map[string]string {
+	values := map[string]string{}
+	for _, name := range names {
+		values[name] = form.Get(name)
+	}
+	return values
+}
+
+// cycleProblems turns err, from opening a Cycle or changing its Delivery,
+// into what is wrong keyed by form field name, adding to problems. It
+// returns false for an error that isn't the user's to fix.
+func cycleProblems(err error, problems map[string]string) bool {
+	var invalid *InvalidError
+	var overlap *OverlapError
+	switch {
+	case errors.As(err, &invalid):
+		if msg := invalid.Fields["EndsOn"]; msg != "" {
+			problems["ends_on"] = msg
+		}
+		if msg := invalid.Fields["Delivery.To"]; msg != "" {
+			problems["window_to"] = msg
+		}
+	case errors.As(err, &overlap):
+		problems["delivery_on"] = "Must be after the current Cycle's delivery on " + overlap.Current.Format(longDate)
+	case err != nil:
+		return false
+	}
+	return true
 }
 
 // OpenCycle opens a Cycle.
@@ -60,53 +144,107 @@ func (h Handlers) OpenCycle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	c, problems := readCycle(r.PostForm)
+	d, problems := readDelivery(r.PostForm)
+	endsOn := domain.DefaultCycleEnd(d.On)
+	if ends := strings.TrimSpace(r.PostForm.Get("ends_on")); ends != "" {
+		if t, err := time.Parse(dateLayout, ends); err != nil {
+			problems["ends_on"] = "Must be a date"
+		} else {
+			endsOn = t
+		}
+	}
 	if len(problems) == 0 {
-		var invalid *InvalidError
-		var overlap *OverlapError
-		switch err := h.Service.OpenCycle(r.Context(), c); {
-		case errors.As(err, &invalid):
-			if msg := invalid.Fields["EndsOn"]; msg != "" {
-				problems["ends_on"] = msg
-			}
-		case errors.As(err, &overlap):
-			problems["delivery_on"] = "Must be after the current Cycle's delivery on " + overlap.Current.Format(longDate)
-		case err != nil:
+		switch err := h.Service.OpenCycle(r.Context(), d, endsOn); {
+		case errors.Is(err, ErrCycleUpcoming):
+			h.render(w, r, PlanPage{Problem: "A Cycle is already upcoming: change its Delivery instead."}, http.StatusConflict)
+			return
+		case !cycleProblems(err, problems):
 			httpx.ServerError(w, h.Log, "open cycle", err)
 			return
 		}
 	}
 	if len(problems) > 0 {
-		values := map[string]string{"delivery_on": r.PostForm.Get("delivery_on"), "ends_on": r.PostForm.Get("ends_on")}
-		h.render(w, r, CycleForm{Values: values, Errors: problems}, http.StatusUnprocessableEntity)
+		values := typed(r.PostForm, "delivery_on", "window_from", "window_to", "ends_on")
+		h.render(w, r, PlanPage{Open: CycleForm{Values: values, Errors: problems}}, http.StatusUnprocessableEntity)
 		return
 	}
 	http.Redirect(w, r, "/plan", http.StatusSeeOther)
 }
 
-// readCycle reads the open-a-Cycle form, returning the Cycle and what is
-// wrong with it keyed by form field name. The end date defaults to ten
-// days after delivery.
-func readCycle(form url.Values) (domain.Cycle, map[string]string) {
-	problems := map[string]string{}
-	var c domain.Cycle
-	delivery := strings.TrimSpace(form.Get("delivery_on"))
-	if delivery == "" {
-		problems["delivery_on"] = "Required"
-	} else if d, err := time.Parse(dateLayout, delivery); err != nil {
-		problems["delivery_on"] = "Must be a date"
-	} else {
-		c.DeliveryOn = d
-		c.EndsOn = domain.DefaultCycleEnd(d)
+// ChangeDelivery moves the upcoming Cycle's Delivery or marks it ordered.
+func (h Handlers) ChangeDelivery(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
 	}
-	if ends := strings.TrimSpace(form.Get("ends_on")); ends != "" {
-		if d, err := time.Parse(dateLayout, ends); err != nil {
-			problems["ends_on"] = "Must be a date"
-		} else {
-			c.EndsOn = d
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	d, problems := readDelivery(r.PostForm)
+	d.Ordered = r.PostForm.Get("ordered") == "yes"
+	if len(problems) == 0 {
+		switch err := h.Service.ChangeDelivery(r.Context(), id, d); {
+		case errors.Is(err, ErrNotUpcoming):
+			h.render(w, r, PlanPage{Problem: "That Cycle's Delivery has arrived, or the Cycle was dropped: it can no longer be changed."}, http.StatusConflict)
+			return
+		case !cycleProblems(err, problems):
+			httpx.ServerError(w, h.Log, "change delivery", err)
+			return
 		}
 	}
-	return c, problems
+	if len(problems) > 0 {
+		values := typed(r.PostForm, "delivery_on", "window_from", "window_to", "ordered")
+		h.render(w, r, PlanPage{Upcoming: &CycleView{Change: CycleForm{Values: values, Errors: problems}}}, http.StatusUnprocessableEntity)
+		return
+	}
+	http.Redirect(w, r, "/plan", http.StatusSeeOther)
+}
+
+// Drop drops the upcoming Cycle.
+func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	switch err := h.Service.Drop(r.Context(), id); {
+	case errors.Is(err, ErrNotUpcoming):
+		h.render(w, r, PlanPage{Problem: "That Cycle's Delivery has arrived, or the Cycle was already dropped."}, http.StatusConflict)
+	case errors.Is(err, ErrDeliveryOrdered):
+		h.render(w, r, PlanPage{Problem: "The Delivery was ordered, so its Cycle can't be dropped."}, http.StatusConflict)
+	case err != nil:
+		httpx.ServerError(w, h.Log, "drop cycle", err)
+	default:
+		http.Redirect(w, r, "/plan", http.StatusSeeOther)
+	}
+}
+
+// readDelivery reads a Delivery's date and window from form, returning
+// what is wrong with them keyed by form field name.
+func readDelivery(form url.Values) (domain.Delivery, map[string]string) {
+	problems := map[string]string{}
+	var d domain.Delivery
+	if on := strings.TrimSpace(form.Get("delivery_on")); on == "" {
+		problems["delivery_on"] = "Required"
+	} else if t, err := time.Parse(dateLayout, on); err != nil {
+		problems["delivery_on"] = "Must be a date"
+	} else {
+		d.On = t
+	}
+	for name, to := range map[string]*domain.TimeOfDay{"window_from": &d.From, "window_to": &d.To} {
+		raw := strings.TrimSpace(form.Get(name))
+		if raw == "" {
+			problems[name] = "Required"
+			continue
+		}
+		t, err := domain.ParseTimeOfDay(raw)
+		if err != nil {
+			problems[name] = "Must be a time"
+			continue
+		}
+		*to = t
+	}
+	return d, problems
 }
 
 // ShowProposal shows a Plan Proposal.
@@ -132,7 +270,7 @@ func (h Handlers) renderProposal(w http.ResponseWriter, r *http.Request, id int6
 	}
 	page := ProposalPage{
 		ID:         p.ID,
-		Title:      proposalTitle(p.Origin) + " for the Cycle delivered " + p.Cycle.DeliveryOn.Format(longDate),
+		Title:      proposalTitle(p.Origin) + " for the Cycle delivered " + p.Cycle.Delivery.On.Format(longDate),
 		Status:     p.Status,
 		Note:       p.Note,
 		Unreadable: p.Unreadable,
@@ -160,7 +298,7 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ErrDecided):
 		h.renderProposal(w, r, id, "This Plan Proposal was already decided.", http.StatusConflict)
 	case errors.Is(err, ErrCycleClosed):
-		h.renderProposal(w, r, id, "This Plan Proposal's Cycle has closed: a later delivery started the next one.", http.StatusConflict)
+		h.renderProposal(w, r, id, "This Plan Proposal's Cycle has closed: a later Delivery started the next one.", http.StatusConflict)
 	case errors.Is(err, ErrStartsInPast):
 		h.renderProposal(w, r, id, "This Plan Proposal starts in the past, so it was not approved: what was prepared and eaten since stays.", http.StatusConflict)
 	case errors.As(err, &unreadable):

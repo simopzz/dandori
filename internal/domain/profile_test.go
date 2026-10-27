@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -24,6 +25,7 @@ func TestProfileValidation(t *testing.T) {
 		Targets:            domain.Nutrition{Kcal: 2000, ProteinG: 150, CarbsG: 200, FatG: 70},
 		MealOut:            domain.Nutrition{Kcal: 900, ProteinG: 35, CarbsG: 90, FatG: 40},
 		UntrackedAllowance: domain.Nutrition{Kcal: 150, ProteinG: 5, CarbsG: 15, FatG: 5},
+		SlotTimes:          domain.DefaultSlotTimes,
 	}
 	tests := []struct {
 		name   string
@@ -36,10 +38,13 @@ func TestProfileValidation(t *testing.T) {
 		{"negative Meal Out protein", func(p *domain.Profile) { p.MealOut.ProteinG = -1 }, map[string]string{"MealOut.ProteinG": "Can't be negative"}},
 		{"Untracked Allowance just under the calorie Target", func(p *domain.Profile) { p.UntrackedAllowance.Kcal = 1999 }, map[string]string{}},
 		{"Untracked Allowance equal to the calorie Target", func(p *domain.Profile) { p.UntrackedAllowance.Kcal = 2000 }, map[string]string{"UntrackedAllowance.Kcal": "Must be less than the daily calorie Target"}},
+		{"lunch at breakfast time", func(p *domain.Profile) { p.SlotTimes[domain.Lunch] = 8 * 60 }, map[string]string{"SlotTimes.lunch": "Must be after breakfast"}},
+		{"dinner before snack", func(p *domain.Profile) { p.SlotTimes[domain.Dinner] = 16 * 60 }, map[string]string{"SlotTimes.dinner": "Must be after snack"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := valid
+			p.SlotTimes = maps.Clone(valid.SlotTimes)
 			tt.change(&p)
 			got := p.Validate()
 			if len(got) != len(tt.want) {
