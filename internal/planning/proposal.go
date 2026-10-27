@@ -91,7 +91,8 @@ func readSlot(on string, kind domain.SlotKind) (domain.Slot, error) {
 }
 
 // readPlan reads a stored Plan Proposal's Plan, checking its dates, eating
-// occasions and Storage Locations.
+// occasions, Storage Locations and quantities, and normalising its
+// Ingredient names.
 func readPlan(raw []byte) (proposedPlan, error) {
 	var p proposedPlan
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -109,6 +110,15 @@ func readPlan(raw []byte) (proposedPlan, error) {
 		ps := &p.PrepSessions[i]
 		if ps.at, err = readSlot(ps.On, ps.Kind); err != nil {
 			return p, err
+		}
+		if ps.RecipeID != nil && len(ps.Ingredients) > 0 {
+			return p, unreadable("the Prep Session at %s has both a Recipe and Ingredients set out as they are", ps.at)
+		}
+		for j := range ps.Ingredients {
+			ing := &ps.Ingredients[j]
+			if ing.Name = domain.IngredientName(ing.Name); ing.Quantity <= 0 {
+				return p, unreadable("%q is set out in a quantity of %g", ing.Name, ing.Quantity)
+			}
 		}
 		for j := range ps.Portions {
 			portion := &ps.Portions[j]

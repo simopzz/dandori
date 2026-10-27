@@ -40,6 +40,11 @@ func loadCycle(ctx context.Context, q db.Querier, id int64) (Cycle, error) {
 	return c, err
 }
 
+func lockCycle(ctx context.Context, q db.Querier, id int64) error {
+	_, err := q.Exec(ctx, `SELECT FROM cycle WHERE id = $1 FOR UPDATE`, id)
+	return err
+}
+
 // loadSince loads the first Cycle's delivery date.
 func loadSince(ctx context.Context, q db.Querier) (time.Time, error) {
 	var since time.Time
@@ -264,17 +269,17 @@ func order(kind string) string {
 func slotOrder(s domain.Slot) int { return slices.Index(domain.SlotKinds, s.Kind) + 1 }
 
 // loadKept loads the Portions a Plan of the Cycle with id from the Slot
-// from on may put in Slots: those prepared before from and not eaten
-// before it, either without a Slot or in one of the Cycle's from from on,
-// which the Plan replaces.
-func loadKept(ctx context.Context, q db.Querier, id int64, from domain.Slot) ([]domain.KeptPortion, error) {
+// from on may put in Slots: those of Prep Sessions before prepared, which
+// stay, not eaten before from, either without a Slot or in one of the
+// Cycle's from from on, which the Plan replaces.
+func loadKept(ctx context.Context, q db.Querier, id int64, from, prepared domain.Slot) ([]domain.KeptPortion, error) {
 	refs, err := loadPortionRefs(ctx, q, `
 		SELECT p.id, p.prep_session_id, NULL::date, NULL::text
 		FROM portion p JOIN prep_session ps ON ps.id = p.prep_session_id
 		LEFT JOIN slot s ON s.portion_id = p.id
-		WHERE (ps.cycle_id IS DISTINCT FROM $1 OR (ps.prepared_on, `+order("ps.prepared_for")+`) < ($2::date, $3))
+		WHERE (ps.cycle_id IS DISTINCT FROM $1 OR (ps.prepared_on, `+order("ps.prepared_for")+`) < ($4::date, $5))
 		  AND (s.id IS NULL OR (s.cycle_id = $1 AND (s.day, `+order("s.kind")+`) >= ($2::date, $3)))
-		ORDER BY p.id`, id, from.On, slotOrder(from))
+		ORDER BY p.id`, id, from.On, slotOrder(from), prepared.On, slotOrder(prepared))
 	if err != nil {
 		return nil, err
 	}
@@ -306,9 +311,9 @@ func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) (
 
 // replacePlan replaces the Plan of c from the Slot from on with plan: its
 // Prep Sessions, their Portions, and the Slots they and the kept Portions
-// fill. Prep Sessions before from stay, with their Portions; those not
+// fill. Prep Sessions before prepared stay, with their Portions; those not
 // eaten before from lose their Slot, for plan to fill again.
-func replacePlan(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, plan proposedPlan) error {
+func replacePlan(ctx context.Context, q db.Querier, c Cycle, from, prepared domain.Slot, plan proposedPlan) error {
 	if _, err := q.Exec(ctx, `
 		DELETE FROM slot WHERE cycle_id = $1 AND (day, `+order("kind")+`) >= ($2::date, $3)`,
 		c.ID, from.On, slotOrder(from)); err != nil {
@@ -316,7 +321,7 @@ func replacePlan(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, p
 	}
 	if _, err := q.Exec(ctx, `
 		DELETE FROM prep_session WHERE cycle_id = $1 AND (prepared_on, `+order("prepared_for")+`) >= ($2::date, $3)`,
-		c.ID, from.On, slotOrder(from)); err != nil {
+		c.ID, prepared.On, slotOrder(prepared)); err != nil {
 		return err
 	}
 	// Slots before from are what stays; validation flags a Plan filling them.

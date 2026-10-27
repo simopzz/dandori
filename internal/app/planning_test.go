@@ -445,6 +445,25 @@ func TestApprovalMidCycleKeepsWhatWasPrepared(t *testing.T) {
 	}
 }
 
+func TestApprovalStartingTodayKeepsTodaysPrepSessions(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-02")
+
+	// From tonight on, nothing: the Lemon chicken with rice cooked today
+	// stays, its Portions without a Slot; tomorrow's lemon is dropped.
+	approvePlan(t, h, `{"from": {"on": "2026-11-02", "kind": "dinner"}, "prep_sessions": []}`)
+	stock := text(h.Get(t, "/stock").Body)
+	if n := strings.Count(stock, "Lemon chicken with rice"); n != 3 || !strings.Contains(stock, "No Portions waiting for their Slot.") {
+		t.Errorf("Stock page shows %d Portions of today's Prep Session, want 3 without a Slot:\n%s", n, stock)
+	}
+	today.set(t, "2026-11-03")
+	if stock := text(h.Get(t, "/stock").Body); strings.Contains(stock, "Ingredients as they are") {
+		t.Errorf("tomorrow's Prep Session was not replaced:\n%s", stock)
+	}
+}
+
 func TestPlanProposalStartingInThePastIsNotApproved(t *testing.T) {
 	h, today := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
@@ -460,6 +479,50 @@ func TestPlanProposalStartingInThePastIsNotApproved(t *testing.T) {
 	}
 	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Plan yet") {
 		t.Errorf("a Plan Proposal starting in the past became the Plan:\n%s", plan)
+	}
+}
+
+func TestDecidedPlanProposalIsNotCheckedAgain(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	proposal := proposePlan(t, h, lemonPlan(t, h))
+	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
+	h.PostForm(t, approve.Action, approve.Values)
+	today.set(t, "2026-11-03")
+
+	if page := text(h.Get(t, proposal).Body); strings.Contains(page, "breaks the rules") {
+		t.Errorf("an approved Plan Proposal is checked against today:\n%s", page)
+	}
+}
+
+func TestUnreadablePlanProposalSaysWhyAndCanBeRejected(t *testing.T) {
+	h, _ := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	proposal := proposePlan(t, h, `{"prep_sessions": [
+		{"on": "2026-11-03", "kind": "snack", "ingredients": [{"name": "dragon fruit", "quantity": 1}], "portions": [
+			{"location": "fridge", "eat_on": "2026-11-03", "eat_kind": "snack"}]}]}`)
+
+	res := h.Get(t, proposal)
+	if page := text(res.Body); res.StatusCode != http.StatusOK || !strings.Contains(page, `can't be read: there is no Ingredient "dragon fruit"`) {
+		t.Fatalf("GET an unreadable Plan Proposal = %d, want it saying why:\n%s", res.StatusCode, page)
+	}
+	if strings.Contains(res.Body, `id="approve"`) {
+		t.Errorf("an unreadable Plan Proposal can be approved:\n%s", text(res.Body))
+	}
+	reject := apptest.Form(t, res.Body, "reject")
+	if page := text(h.PostForm(t, reject.Action, reject.Values).Body); !strings.Contains(page, "rejected") {
+		t.Errorf("an unreadable Plan Proposal was not rejected:\n%s", page)
+	}
+}
+
+func TestPlanProposalNamesIngredientsHoweverWritten(t *testing.T) {
+	h, _ := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, `{"prep_sessions": [
+		{"on": "2026-11-03", "kind": "snack", "ingredients": [{"name": " Lemon", "quantity": 1}], "portions": [
+			{"location": "fridge", "eat_on": "2026-11-03", "eat_kind": "snack"}]}]}`)
+	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "snack lemon") {
+		t.Errorf("Plan page does not show the lemon:\n%s", plan)
 	}
 }
 

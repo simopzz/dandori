@@ -71,6 +71,7 @@ type ProposalPage struct {
 	Title      string
 	Status     string
 	Note       string
+	Unreadable string // why its Plan can't be read; empty when it can
 	Violations []string
 	Calendar   []CalendarDay
 	Sessions   []PrepSessionRow
@@ -210,49 +211,64 @@ templ ProposalView(p ProposalPage) {
 				</ul>
 			}
 		}
-		@web.Section(1, "Slots") {
-			@calendar(p.Calendar)
-		}
-		@web.Section(2, "Prep Sessions") {
-			if len(p.Sessions) == 0 {
-				@web.Empty() {
-					No Prep Sessions.
+		if p.Unreadable != "" {
+			@web.Alert() {
+				This Plan Proposal can't be read: { p.Unreadable }.
+			}
+			if p.Status == "pending" {
+				@web.Section(1, "Decide") {
+					@rejectForm(p.ID)
 				}
-			} else {
-				@web.Rows() {
-					for _, s := range p.Sessions {
-						@web.Row() {
-							<span class="row-title">{ s.What }</span>
-							<span class="row-meta">
-								<span>{ s.At }</span>
-								<span>{ s.Portions }</span>
-								<span>{ s.Locations }</span>
-							</span>
+			}
+		} else {
+			@web.Section(1, "Slots") {
+				@calendar(p.Calendar)
+			}
+			@web.Section(2, "Prep Sessions") {
+				if len(p.Sessions) == 0 {
+					@web.Empty() {
+						No Prep Sessions.
+					}
+				} else {
+					@web.Rows() {
+						for _, s := range p.Sessions {
+							@web.Row() {
+								<span class="row-title">{ s.What }</span>
+								<span class="row-meta">
+									<span>{ s.At }</span>
+									<span>{ s.Portions }</span>
+									<span>{ s.Locations }</span>
+								</span>
+							}
 						}
 					}
 				}
 			}
-		}
-		if p.Status == "pending" {
-			@web.Section(3, "Decide") {
-				<form id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/approve", p.ID)) }>
-					@web.Actions() {
-						@web.Button(templ.Attributes{"type": "submit"}) {
-							Approve
+			if p.Status == "pending" {
+				@web.Section(3, "Decide") {
+					<form id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/approve", p.ID)) }>
+						@web.Actions() {
+							@web.Button(templ.Attributes{"type": "submit"}) {
+								Approve
+							}
 						}
-					}
-				</form>
-				<form id="reject" class="stack section" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/reject", p.ID)) }>
-					@web.Field("Note", "optional, for the next Plan Proposal", "") {
-						<textarea name="note" rows="3"></textarea>
-					}
-					@web.Actions() {
-						@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
-							Reject
-						}
-					}
-				</form>
+					</form>
+					@rejectForm(p.ID)
+				}
 			}
 		}
 	}
+}
+
+templ rejectForm(id int64) {
+	<form id="reject" class="stack section" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/reject", id)) }>
+		@web.Field("Note", "optional, for the next Plan Proposal", "") {
+			<textarea name="note" rows="3"></textarea>
+		}
+		@web.Actions() {
+			@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
+				Reject
+			}
+		}
+	</form>
 }

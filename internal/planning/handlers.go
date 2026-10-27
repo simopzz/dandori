@@ -127,10 +127,12 @@ func (h Handlers) ShowProposal(w http.ResponseWriter, r *http.Request) {
 	page := ProposalPage{
 		ID:       p.ID,
 		Title:    proposalTitle(p.Origin) + " for the Cycle delivered " + p.Cycle.DeliveryOn.Format(longDate),
-		Status:   p.Status,
-		Note:     p.Note,
-		Calendar: calendarOf(p.Check),
-		Sessions: prepSessionRows(p.Check.Plan),
+		Status:     p.Status,
+		Note:       p.Note,
+		Unreadable: p.Unreadable,
+	}
+	if p.Unreadable == "" {
+		page.Calendar, page.Sessions = calendarOf(p.Check), prepSessionRows(p.Check.Plan)
 	}
 	for _, v := range p.Violations {
 		page.Violations = append(page.Violations, v.Message)
@@ -144,6 +146,7 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	var unreadable *UnreadableError
 	switch err := h.Service.Approve(r.Context(), id); {
 	case errors.Is(err, ErrNotFound):
 		http.NotFound(w, r)
@@ -153,6 +156,8 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "This Plan Proposal's Cycle has closed: a later delivery started the next one.", http.StatusConflict)
 	case errors.Is(err, ErrStartsInPast):
 		http.Error(w, "This Plan Proposal starts in the past, so it was not approved: what was prepared and eaten since stays.", http.StatusConflict)
+	case errors.As(err, &unreadable):
+		http.Error(w, "This Plan Proposal can't be read, so it was not approved: "+unreadable.Reason+".", http.StatusConflict)
 	case errors.Is(err, ErrInapplicable):
 		http.Error(w, "This Plan Proposal no longer fits what is kept, so it was not approved; the Plan is unchanged.", http.StatusConflict)
 	case err != nil:

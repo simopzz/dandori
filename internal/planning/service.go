@@ -86,6 +86,9 @@ type Proposal struct {
 	Origin string
 	Status string
 	Note   string
+	// Unreadable is why its Plan can't be read, if it can't; Check and
+	// Violations are then empty.
+	Unreadable string
 	// Check is the proposed Plan with what it was validated against.
 	Check      domain.PlanCheck
 	Violations []domain.Violation
@@ -192,8 +195,9 @@ func (s *Service) OpenCycle(ctx context.Context, c domain.Cycle) error {
 type checked struct {
 	cycle    Cycle
 	proposed proposedPlan
-	from     domain.Slot
-	check    domain.PlanCheck
+	// from is the first Slot it replaces, prepared the first Prep Session.
+	from, prepared domain.Slot
+	check          domain.PlanCheck
 }
 
 // checkProposal reads stored's Plan, with its Recipes and Ingredients, and
@@ -214,7 +218,8 @@ func (s *Service) checkProposal(ctx context.Context, q db.Querier, stored stored
 	if err != nil {
 		return ch, err
 	}
-	kept, err := loadKept(ctx, q, ch.cycle.ID, ch.from)
+	ch.prepared = domain.FirstUnprepared(ch.from, s.today())
+	kept, err := loadKept(ctx, q, ch.cycle.ID, ch.from, ch.prepared)
 	if err != nil {
 		return ch, err
 	}
@@ -231,11 +236,18 @@ func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 			return err
 		}
 		ch, err := s.checkProposal(ctx, tx, stored)
+		p = Proposal{ID: stored.ID, Cycle: ch.cycle, Origin: stored.Origin, Status: stored.Status, Note: stored.Note, Check: ch.check}
+		if unreadable := (*UnreadableError)(nil); errors.As(err, &unreadable) {
+			p.Unreadable = unreadable.Reason
+			return nil
+		}
 		if err != nil {
 			return err
 		}
-		p = Proposal{ID: stored.ID, Cycle: ch.cycle, Origin: stored.Origin, Status: stored.Status, Note: stored.Note, Check: ch.check}
-		p.Violations = domain.ValidatePlan(p.Check)
+		// A decided Plan Proposal's rules were for the day it was decided.
+		if stored.Status == "pending" {
+			p.Violations = domain.ValidatePlan(p.Check)
+		}
 		return nil
 	})
 	return p, err
@@ -250,6 +262,11 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if err != nil {
 			return err
 		}
+		// Serialises approvals of one Cycle with each other and with the
+		// delivery that closes it.
+		if err := lockCycle(ctx, tx, stored.CycleID); err != nil {
+			return err
+		}
 		ch, err := s.checkProposal(ctx, tx, stored)
 		if err != nil {
 			return err
@@ -262,7 +279,7 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if slices.ContainsFunc(domain.ValidatePlan(ch.check), func(v domain.Violation) bool { return v.Rule == domain.RuleStartsInPast }) {
 			return ErrStartsInPast
 		}
-		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.proposed)
+		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
 		// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
 		// Portion taken twice.
 		var pgErr *pgconn.PgError

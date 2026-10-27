@@ -136,7 +136,7 @@ _Avoid_: Log entry, step
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor.
 - The Plan is taken to happen as dated until an Exception says otherwise: a Prep Session is prepared from its day on, and a Portion is eaten once the day of its Slot is past. Prepared Portions not yet eaten are what the kitchen holds.
-- A Plan Proposal replaces the Plan only from a Slot on, never one already past: the Prep Sessions before it stay, and their Portions not yet eaten are the Plan Proposal's to put in Slots again.
+- A Plan Proposal replaces the Plan only from a Slot on, never one already past: the Prep Sessions before it stay, and so do today's, already taken as prepared, and their Portions not yet eaten are the Plan Proposal's to put in Slots again.
 - A Cycle's end date moves only through an approved Plan Proposal, typically extending it when Exceptions leave enough Portions and stock to last longer.
 - Cycles never overlap: a delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items.
 - Cycles may have days between them. Those days have no Plan and no Slots, but what is eaten on them still counts toward the Targets.

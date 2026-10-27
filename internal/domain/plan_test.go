@@ -404,7 +404,22 @@ func TestPlanProposalChangesThePlanOnlyFromItsStart(t *testing.T) {
 			func(c *domain.PlanCheck) { c.Today = day("2026-11-06") },
 			[]domain.Rule{domain.RuleStartsInPast},
 		},
-		{"a start today", func(c *domain.PlanCheck) { c.Today = day("2026-11-05") }, nil},
+		{
+			// Thursday's three meals would be prepared today, which is taken as
+			// done: a Plan starting today schedules Prep Sessions from tomorrow.
+			"a start today",
+			func(c *domain.PlanCheck) { c.Today = day("2026-11-05") },
+			[]domain.Rule{domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared},
+		},
+		{
+			"a start today with Prep Sessions from tomorrow",
+			func(c *domain.PlanCheck) {
+				c.Today = day("2026-11-05")
+				c.Plan.PrepSessions = slices.DeleteFunc(c.Plan.PrepSessions, func(ps domain.PrepSession) bool { return !ps.At.On.After(c.Today) })
+				c.Earlier = append(c.Earlier, domain.DayNutrition{On: day("2026-11-05"), Nutrition: domain.Nutrition{Kcal: 1500, ProteinG: 75}})
+			},
+			nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

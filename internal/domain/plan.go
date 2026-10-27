@@ -25,6 +25,16 @@ type Slot struct {
 	Kind SlotKind
 }
 
+// FirstUnprepared is the first Slot a Plan from the Slot from on, made on
+// today, may prepare a Prep Session at: from, but never today, since a
+// Prep Session is taken as prepared from its day on.
+func FirstUnprepared(from Slot, today time.Time) Slot {
+	if tomorrow := (Slot{On: today.AddDate(0, 0, 1), Kind: SlotKinds[0]}); from.Before(tomorrow) {
+		return tomorrow
+	}
+	return from
+}
+
 // Before reports whether s comes earlier than o.
 func (s Slot) Before(o Slot) bool {
 	if !s.On.Equal(o.On) {

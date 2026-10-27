@@ -15,6 +15,7 @@ const (
 	RuleUnplannedPortion        Rule = "unplanned-portion"
 	RuleStartsInPast            Rule = "starts-in-past"
 	RuleBeforeStart             Rule = "before-start"
+	RuleAlreadyPrepared         Rule = "already-prepared"
 	RulePrepSessionOutsideCycle Rule = "prep-session-outside-cycle"
 	RuleEatenOutsideCycle       Rule = "eaten-outside-cycle"
 	RuleEatenBeforePrepared     Rule = "eaten-before-prepared"
@@ -192,7 +193,8 @@ func ValidatePlan(c PlanCheck) []Violation {
 		filled[s.key()] = name
 	}
 
-	if c.From.On.Before(c.Today) {
+	past := c.From.On.Before(c.Today)
+	if past {
 		add(RuleStartsInPast, "The Plan Proposal changes the Plan from %s, which is past: what was prepared and eaten since stays", c.From)
 	}
 	for _, ps := range c.Plan.PrepSessions {
@@ -200,6 +202,8 @@ func ValidatePlan(c PlanCheck) []Violation {
 		switch {
 		case ps.At.Before(c.From):
 			add(RuleBeforeStart, "%s is prepared for %s, before the Plan Proposal starts at %s", name, ps.At, c.From)
+		case !past && ps.At.Before(FirstUnprepared(c.From, c.Today)):
+			add(RuleAlreadyPrepared, "%s is prepared for %s, today: what is prepared today is taken as done, so new Prep Sessions start tomorrow", name, ps.At)
 		case ps.At.On.After(c.Cycle.LastDay()):
 			add(RulePrepSessionOutsideCycle, "%s is prepared for %s, after the Cycle ends", name, ps.At)
 		}
