@@ -22,6 +22,10 @@ var ErrNotFound = errors.New("no such plan proposal")
 // ErrDecided means the Plan Proposal was already approved or rejected.
 var ErrDecided = errors.New("plan proposal already decided")
 
+// ErrCycleClosed means the Plan Proposal's Cycle was closed early by the
+// next delivery, so its Plan can no longer change.
+var ErrCycleClosed = errors.New("plan proposal's cycle has closed")
+
 // ErrInapplicable means a Plan Proposal no longer fits what is kept: it
 // fills a Slot twice, or puts a Portion in a Slot that is gone or already
 // in one.
@@ -134,7 +138,7 @@ func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, plan domain.
 }
 
 // OpenCycle opens c as the current Cycle. A delivery before the current
-// Cycle ends closes it early, carrying its leftovers over as Portions
+// Cycle ends closes it early, carrying what is left over as Portions
 // without a Slot.
 func (s *Service) OpenCycle(ctx context.Context, c domain.Cycle) error {
 	if invalid := c.Validate(); len(invalid) > 0 {
@@ -218,8 +222,17 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if err != nil {
 			return err
 		}
+		// Its days and leftovers now belong to the next Cycle.
+		if c.ClosedOn != nil {
+			return ErrCycleClosed
+		}
 		plan, err := readPlan(stored.Plan)
 		if err != nil {
+			return err
+		}
+		// Every Recipe and Ingredient must exist, or the Plan stored would
+		// quietly miss them.
+		if _, err := plan.resolve(ctx, tx); err != nil {
 			return err
 		}
 		err = replacePlan(ctx, tx, c, plan)

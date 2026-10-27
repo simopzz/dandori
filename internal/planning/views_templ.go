@@ -584,7 +584,7 @@ func openSheet(f CycleForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "A delivery before the current Cycle ends closes it: its leftovers become Portions without a Slot.")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "A delivery before the current Cycle ends closes it: what is left of it becomes Portions without a Slot.")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

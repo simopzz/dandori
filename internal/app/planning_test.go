@@ -298,6 +298,25 @@ func TestDeliveryBeforeTheCycleEndsClosesItAndCarriesOverLeftovers(t *testing.T)
 	}
 }
 
+func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
+	h := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	first := proposePlan(t, h, lemonPlan(t, h))
+	approve := apptest.Form(t, h.Get(t, first).Body, "approve")
+	h.PostForm(t, approve.Action, approve.Values)
+	stale := proposePlan(t, h, lemonPlan(t, h))
+	staleApprove := apptest.Form(t, h.Get(t, stale).Body, "approve")
+	openCycle(t, h, "2026-11-05", "")
+
+	res := h.PostForm(t, staleApprove.Action, staleApprove.Values)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "Cycle has closed") {
+		t.Fatalf("approve a Plan Proposal of a closed Cycle = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "Lemon chicken with rice freezer") {
+		t.Errorf("approving a closed Cycle's Plan Proposal lost the carried-over Portion:\n%s", stock)
+	}
+}
+
 func TestPlanIsLinkedFromTheAppShell(t *testing.T) {
 	h := apptest.Start(t)
 	if page := h.Get(t, "/").Body; !strings.Contains(page, `href="/plan"`) {

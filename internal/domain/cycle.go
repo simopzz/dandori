@@ -57,8 +57,8 @@ type Opening struct {
 	// delivery date on: they are never prepared.
 	DroppedPrepSessions []int64
 	// CarriedOver are the Portions the current Plan has eaten from the new
-	// delivery date on but prepared before it: leftovers, which lose their
-	// Slot.
+	// delivery date on but prepared before it: they carry over and lose
+	// their Slot.
 	CarriedOver []int64
 }
 
