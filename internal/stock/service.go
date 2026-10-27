@@ -5,6 +5,7 @@ package stock
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -39,11 +40,15 @@ type Item struct {
 
 // Service is the stock's use cases.
 type Service struct {
-	pool *pgxpool.Pool
+	pool  *pgxpool.Pool
+	today func() time.Time
 }
 
-// New creates the Service.
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+// New creates the Service; today is the day it is, which decides what the
+// Plan has cooked and eaten so far.
+func New(pool *pgxpool.Pool, today func() time.Time) *Service {
+	return &Service{pool: pool, today: today}
+}
 
 // Items loads every Stock Item, by Ingredient name, with its Ingredient's
 // name and unit.
@@ -82,18 +87,23 @@ func (s *Service) Remove(ctx context.Context, id int64) error {
 // ErrPortionNotFound means there is no Portion with that id.
 var ErrPortionNotFound = errors.New("no such portion")
 
-// Portion is a Portion without a Slot.
+// Portion is a Portion in the kitchen: its Prep Session is cooked, and it
+// is not yet eaten.
 type Portion struct {
 	ID int64
 	// Recipe is the name of the Recipe its Prep Session prepared, or empty
 	// when the Prep Session set out Ingredients as they are.
 	Recipe   string
 	Location domain.StorageLocation
+	// Slot is where it is to be eaten, or nil for a Portion without a Slot.
+	Slot *domain.Slot
 }
 
-// Portions loads every Portion without a Slot, by Recipe.
+// Portions loads every Portion in the kitchen, by Recipe. The Plan is taken
+// to happen as dated: a Prep Session is cooked from its day on, and a
+// Portion is eaten once the day of its Slot is past.
 func (s *Service) Portions(ctx context.Context) ([]Portion, error) {
-	return loadPortions(ctx, s.pool)
+	return loadPortions(ctx, s.pool, s.today())
 }
 
 // MovePortion moves the Portion with id to location.

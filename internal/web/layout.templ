@@ -5,6 +5,7 @@ type Tab string
 
 const (
 	NoTab      Tab = ""
+	TabPlan    Tab = "/plan"
 	TabRecipes Tab = "/recipes"
 	TabStock   Tab = "/stock"
 	TabProfile Tab = "/profile"
@@ -34,6 +35,7 @@ templ Layout(title string, current Tab) {
 		<body>
 			<nav class="shell" aria-label="Main">
 				@wordmark("")
+				@tab(TabPlan, current, "calendar", "Plan", false)
 				@tab(TabRecipes, current, "book-open", "Recipes", false)
 				@tab(TabStock, current, "package", "Stock", false)
 				@tab(TabProfile, current, "user", "Profile", false)

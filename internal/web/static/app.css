@@ -352,6 +352,14 @@ a.row-title:hover { text-decoration: underline; }
   .row-static .row-meta { flex-basis: auto; }
 
   .row-static .row-action { flex-basis: auto; margin-left: auto; }
+
+  /* With an action, the details are a second line under the name, so the
+     action keeps its place however long they are. */
+  .row-static:has(> .row-action) { display: grid; grid-template-columns: 1fr auto; }
+
+  .row-static:has(> .row-action) .row-meta { grid-column: 1; }
+
+  .row-static:has(> .row-action) .row-action { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 }
 
 /* forms: underline fields, square buttons */
