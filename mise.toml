@@ -28,6 +28,16 @@ run = "go test ./..."
 description = "Start the disposable Postgres + pgvector test server (docker needs sudo)"
 run = "sudo docker run -d --rm --name dandori-testdb -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5433:5432 pgvector/pgvector:pg17"
 
+[tasks.check]
+description = "Run every check CI runs: gofmt, go vet, golangci-lint and the full test suite"
+depends = ["generate"]
+run = [
+  'unformatted=$(gofmt -l .); if [ -n "$unformatted" ]; then echo "gofmt needed:"; echo "$unformatted"; exit 1; fi',
+  "go vet ./...",
+  "golangci-lint run ./...",
+  "go test ./...",
+]
+
 [tasks.dev]
 description = "Run the app locally against DANDORI_DATABASE_URL"
 depends = ["generate"]
