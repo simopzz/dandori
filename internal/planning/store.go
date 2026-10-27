@@ -94,14 +94,14 @@ func insertCycle(ctx context.Context, q db.Querier, c domain.Cycle) error {
 	return err
 }
 
-// updateDelivery stores c's Delivery and first Slot as those of the Cycle
-// with id.
+// updateDelivery stores c's Delivery, first Slot and end date as those of
+// the Cycle with id.
 func updateDelivery(ctx context.Context, q db.Querier, id int64, c domain.Cycle) error {
 	d := c.Delivery
 	_, err := q.Exec(ctx, `
 		UPDATE cycle SET delivery_on = $2, window_from = `+db.Time("$3")+`, window_to = `+db.Time("$4")+`,
-			ordered = $5, starts_on = $6, starts_with = $7
-		WHERE id = $1`, id, d.On, d.From, d.To, d.Ordered, c.Start.On, c.Start.Kind)
+			ordered = $5, starts_on = $6, starts_with = $7, ends_on = $8
+		WHERE id = $1`, id, d.On, d.From, d.To, d.Ordered, c.Start.On, c.Start.Kind, c.EndsOn)
 	return err
 }
 

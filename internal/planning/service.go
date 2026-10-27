@@ -230,11 +230,11 @@ func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, from domain.
 	return check, err
 }
 
-// newCycle is the Cycle delivered by d and planned to end on endsOn, its
-// first Slot after the window by the Profile's Slot times.
-func (s *Service) newCycle(ctx context.Context, d domain.Delivery, endsOn time.Time) (domain.Cycle, error) {
+// newCycle is the Cycle build makes with the Profile's Slot times, which
+// place its first Slot after the window.
+func (s *Service) newCycle(ctx context.Context, build func(domain.SlotTimes) domain.Cycle) (domain.Cycle, error) {
 	p, _, err := s.profile.Get(ctx)
-	c := domain.NewCycle(d, endsOn, p.SlotTimes)
+	c := build(p.SlotTimes)
 	if invalid := c.Validate(); err == nil && len(invalid) > 0 {
 		err = &InvalidError{Fields: invalid}
 	}
@@ -248,7 +248,7 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 	if err := s.Arrive(ctx); err != nil {
 		return err
 	}
-	c, err := s.newCycle(ctx, d, endsOn)
+	c, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return domain.NewCycle(d, endsOn, times) })
 	if err != nil {
 		return err
 	}
@@ -278,9 +278,10 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 
 // ChangeDelivery changes the Delivery of the upcoming Cycle with id to d,
 // keeping it ordered once it was. A move shifts the Cycle's first Slot,
-// drops what its Plan has outside the moved Cycle, rejects its pending
-// Plan Proposals and marks its Plan as needing a new one; so too the
-// current Cycle's Plan, if it no longer reaches the Delivery.
+// and its end date when the Delivery is later; it drops what the Plan has
+// outside the moved Cycle, rejects its pending Plan Proposals and marks
+// its Plan as needing a new one; so too the current Cycle's Plan, if it no
+// longer reaches the Delivery.
 func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Delivery) error {
 	if err := s.Arrive(ctx); err != nil {
 		return err
@@ -297,7 +298,7 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 			return ErrNotUpcoming
 		}
 		d.Ordered = d.Ordered || upcoming.Delivery.Ordered
-		moved, err := s.newCycle(ctx, d, upcoming.EndsOn)
+		moved, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return upcoming.MovedTo(d, times) })
 		if err != nil {
 			return err
 		}

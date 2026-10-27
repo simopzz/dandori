@@ -171,6 +171,18 @@ func (c Cycle) Drop() error {
 	return nil
 }
 
+// MovedTo is the Cycle delivered by d instead, its first Slot at times. A
+// Delivery moved later moves the end date as many days later, since it is
+// to last as long; one moved earlier leaves it, for the next Plan Proposal
+// to judge from what is left.
+func (c Cycle) MovedTo(d Delivery, times SlotTimes) Cycle {
+	ends := c.EndsOn
+	if d.On.After(c.Delivery.On) {
+		ends = ends.Add(d.On.Sub(c.Delivery.On))
+	}
+	return NewCycle(d, ends, times)
+}
+
 // MoveDelivery checks the upcoming Cycle, delivered after current (nil
 // when there is none), can become moved, a Cycle delivered at another
 // time. It reports whether current's Plan, which reached the upcoming

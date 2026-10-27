@@ -315,3 +315,31 @@ func TestSlotsEarlierOnTheDeliveryDayStayWithTheCurrentCycle(t *testing.T) {
 		t.Errorf("LastDay() = %s, want the delivery day 2026-11-08, its lunch still in it", current.LastDay().Format(time.DateOnly))
 	}
 }
+
+func TestMovingADeliveryLaterMovesTheEndDateWithIt(t *testing.T) {
+	c := delivered("2026-11-12", "18:00", "20:00", "2026-11-22")
+	tests := []struct {
+		name, delivery, wantEnds string
+		wantStart                *domain.Slot
+	}{
+		// The Delivery is to last as long, so the Cycle keeps its length.
+		{"two days later", "2026-11-14", "2026-11-24", at("2026-11-14", domain.Dinner)},
+		// What is left may last to the same end date: the next Plan
+		// Proposal judges.
+		{"two days earlier", "2026-11-10", "2026-11-22", at("2026-11-10", domain.Dinner)},
+		{"the same day, another window", "2026-11-12", "2026-11-22", at("2026-11-12", domain.Dinner)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := c.Delivery
+			d.On = day(tt.delivery)
+			got := c.MovedTo(d, domain.DefaultSlotTimes)
+			if !got.EndsOn.Equal(day(tt.wantEnds)) {
+				t.Errorf("EndsOn = %s, want %s", got.EndsOn.Format(time.DateOnly), tt.wantEnds)
+			}
+			if got.Start != *tt.wantStart {
+				t.Errorf("Start = %s, want %s", got.Start, *tt.wantStart)
+			}
+		})
+	}
+}

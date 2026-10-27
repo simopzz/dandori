@@ -659,11 +659,12 @@ func TestMovingAnUpcomingDeliveryNeedsANewPlanProposal(t *testing.T) {
 	}
 	page := text(res.Body)
 	for _, want := range []string{
-		"Upcoming Cycle Delivery Wed 11 Nov 2026, 09:00–11:00 tentative Starts lunch on Wed 11 Nov",
+		// A day later, it is to last a day longer.
+		"Upcoming Cycle Delivery Wed 11 Nov 2026, 09:00–11:00 tentative Starts lunch on Wed 11 Nov Ends Sat 21 Nov 2026",
 		// Both Plans: the upcoming one moved, and the current one ends on
 		// the 10th, no longer reaching it.
 		"Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Tue 10 Nov 2026 A Delivery moved: this Plan needs a new Plan Proposal.",
-		"Ends Fri 20 Nov 2026 A Delivery moved: this Plan needs a new Plan Proposal.",
+		"Ends Sat 21 Nov 2026 A Delivery moved: this Plan needs a new Plan Proposal.",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("Plan page does not show %q:\n%s", want, page)
@@ -693,7 +694,6 @@ func TestMovingADeliveryIsCheckedLikeOpeningIt(t *testing.T) {
 		message string
 	}{
 		{map[string]string{"delivery_on": "2026-11-02"}, "Must be after the current Cycle's delivery on Mon 2 Nov 2026"},
-		{map[string]string{"delivery_on": "2026-11-21"}, "Must be before the Cycle's end date"},
 		{map[string]string{"window_to": "17:00"}, "Must be after the start of the window"},
 	} {
 		res := changeDelivery(t, h, tt.changes)

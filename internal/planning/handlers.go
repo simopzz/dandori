@@ -192,11 +192,6 @@ func (h Handlers) ChangeDelivery(w http.ResponseWriter, r *http.Request) {
 			httpx.ServerError(w, h.Log, "change delivery", err)
 			return
 		}
-		// The end date isn't on this form: say so at the date that moved.
-		if _, ok := problems["ends_on"]; ok {
-			delete(problems, "ends_on")
-			problems["delivery_on"] = "Must be before the Cycle's end date"
-		}
 	}
 	if len(problems) > 0 {
 		values := typed(r.PostForm, "delivery_on", "window_from", "window_to", "ordered")
