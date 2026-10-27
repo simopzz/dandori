@@ -34,15 +34,7 @@ jobs:
         run: mise run generate
       - name: Generated code is committed
         run: git diff --exit-code
-      - name: gofmt
-        run: test -z "$(gofmt -l .)"
-      - name: go vet
-        run: mise exec -- go vet ./...
-      - name: Colours are only tokens
-        run: mise exec -- go test ./internal/web -run 'TestColourValuesAreOnlyTokens|TestThemeColourIsThePaper'
-      - name: golangci-lint
-        run: mise exec -- golangci-lint run ./...
-      - name: Test
+      - name: Check
         env:
           GOFLAGS: -count=1 # never serve cached results for database-backed tests
-        run: mise run test
+        run: mise run check

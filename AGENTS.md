@@ -1,6 +1,10 @@
-## Branching
+## Working on an issue
 
 Implement each issue on its own feature branch off `main`, named `<issue>-<slug>` (e.g. `6-profile`), created before the first commit. `main` takes work only through PRs. This overrides any skill step that says to commit to the current branch.
+
+Before writing code, list the domain decisions the issue leaves open (behaviour it implies but doesn't state) and confirm them with the user.
+
+Before every commit, run `mise run check`: everything CI runs.
 
 ## Agent skills
 
@@ -19,6 +23,10 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 ### Code layout
 
 Code is grouped by feature, each with handlers, a `Service` and a store. See `docs/adr/0006-package-by-feature-with-a-service-per-feature.md` before adding or moving code.
+
+### Tests
+
+Tests sit at the two seams issues name, Seam-1 (the app over HTTP) and Seam-2 (the domain core). See `docs/agents/testing.md` before writing one.
 
 ### UI
 

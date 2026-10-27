@@ -14,6 +14,12 @@ Rules code review checks against. Each says what it protects.
   `internal/web/colours_test.go` enforces it in CI. Spaces and radii use
   `--space-*` and `--radius`. *Protects: a palette changed in one place, and
   dark mode as one block later.*
+- **Pages speak the glossary.** What a template shows uses `GLOSSARY.md`'s
+  terms, never a word it lists under _Avoid_;
+  `internal/web/glossary_test.go` enforces it in CI. A word used in its
+  ordinary sense, not as the avoided synonym, goes in that test's
+  `ordinarySense` list with the reason. *Protects: the user reads the same
+  words the model and the code use.*
 - **No per-feature restyling of base elements.** No selectors like
   `.profile input` or `.stock-form select` in `app.css`: change the base style
   for everyone, or add a component. The exceptions are the feature components

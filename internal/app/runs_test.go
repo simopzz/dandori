@@ -47,8 +47,13 @@ func startWith(t *testing.T, llm agent.LLM, jobs map[string]agent.Job) *apptest.
 	return apptest.Start(t, opts...)
 }
 
-// text is what an event or page shows, without markup.
+// text is what an event or page shows, without markup: of a whole page,
+// only its main content, so a failing test doesn't print the shell.
 func text(s string) string {
+	if _, main, ok := strings.Cut(s, "<main"); ok {
+		s, _, _ = strings.Cut(main, "</main>")
+		s = "<main" + s
+	}
 	var b strings.Builder
 	inTag := false
 	for _, r := range s {

@@ -35,17 +35,29 @@ linters:
             - pkg: github.com/simopzz/dandori/internal/web
               desc: web is a leaf; wire it in app
         # Shared machinery and the features never depend on app (ADR-0006).
+        # Every package under internal/ is one, so a new feature is covered.
         shared:
           files:
-            - "**/internal/runs/**"
-            - "**/internal/httpx/**"
-            - "**/internal/recipes/**"
-            - "**/internal/profile/**"
-            - "**/internal/stock/**"
+            - "**/internal/**"
+            - "!**/internal/app/**"
+            - "!**/internal/apptest/**"
             - "!$test"
           deny:
             - pkg: github.com/simopzz/dandori/internal/app
               desc: only cmd and apptest may depend on app
+        # Feature dependencies are one-way (ADR-0006): planning uses the
+        # Profile and is used by app alone; stock gets planning's arrivals
+        # as a function, wired in app.
+        planning-is-downstream:
+          files:
+            - "**/internal/**"
+            - "!**/internal/planning/**"
+            - "!**/internal/app/**"
+            - "!**/internal/apptest/**"
+            - "!$test"
+          deny:
+            - pkg: github.com/simopzz/dandori/internal/planning
+              desc: only app wires planning; pass what a feature needs from it as a function
   exclusions:
     presets:
       - std-error-handling
