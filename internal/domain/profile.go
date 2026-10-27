@@ -20,6 +20,8 @@ type Profile struct {
 	Allergies          []string
 	MealOut            Nutrition
 	UntrackedAllowance Nutrition
+	// SlotTimes is the time of day of each kind of Slot.
+	SlotTimes SlotTimes
 }
 
 // Validate returns what is wrong with the Profile, keyed by field path such
@@ -39,6 +41,12 @@ func (p Profile) Validate() map[string]string {
 	} else if p.UntrackedAllowance.Kcal >= p.Targets.Kcal {
 		// Otherwise no Slot could ever be filled.
 		problems["UntrackedAllowance.Kcal"] = "Must be less than the daily calorie Target"
+	}
+	// Slots follow each other in the order of a day.
+	for i, k := range SlotKinds[1:] {
+		if before := SlotKinds[i]; p.SlotTimes[k] <= p.SlotTimes[before] {
+			problems["SlotTimes."+string(k)] = "Must be after " + string(before)
+		}
 	}
 	return problems
 }

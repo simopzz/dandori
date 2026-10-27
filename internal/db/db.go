@@ -83,3 +83,14 @@ func mustSub(fsys fs.FS, dir string) fs.FS {
 	}
 	return sub
 }
+
+// Minutes is the SQL for the time column col as a domain.TimeOfDay: minutes
+// after midnight.
+func Minutes(col string) string {
+	return `(extract(hour FROM ` + col + `) * 60 + extract(minute FROM ` + col + `))::int`
+}
+
+// Time is the SQL for the parameter param, a domain.TimeOfDay, as a time.
+func Time(param string) string {
+	return `make_time(` + param + `::int / 60, ` + param + `::int % 60, 0)`
+}

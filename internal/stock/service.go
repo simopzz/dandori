@@ -40,14 +40,17 @@ type Item struct {
 
 // Service is the stock's use cases.
 type Service struct {
-	pool  *pgxpool.Pool
-	today func() time.Time
+	pool   *pgxpool.Pool
+	today  func() time.Time
+	arrive func(context.Context) error
 }
 
 // New creates the Service; today is the day it is, which decides what the
-// Plan has cooked and eaten so far.
-func New(pool *pgxpool.Pool, today func() time.Time) *Service {
-	return &Service{pool: pool, today: today}
+// Plan has cooked and eaten so far, and arrive takes a Delivery whose
+// window has ended as arrived, carrying over what is left of the Cycle it
+// closes.
+func New(pool *pgxpool.Pool, today func() time.Time, arrive func(context.Context) error) *Service {
+	return &Service{pool: pool, today: today, arrive: arrive}
 }
 
 // Items loads every Stock Item, by Ingredient name, with its Ingredient's
@@ -103,6 +106,9 @@ type Portion struct {
 // to happen as dated: a Prep Session is cooked from its day on, and a
 // Portion is eaten once the day of its Slot is past.
 func (s *Service) Portions(ctx context.Context) ([]Portion, error) {
+	if err := s.arrive(ctx); err != nil {
+		return nil, err
+	}
 	return loadPortions(ctx, s.pool, s.today())
 }
 

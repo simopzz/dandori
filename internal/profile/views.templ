@@ -63,6 +63,17 @@ templ ProfileFormFragment(f ProfileForm) {
 			}
 			@nutritionFields(f, "untracked")
 		}
+		@web.FieldGroup(5, "Slot times") {
+			@web.Hint() {
+				When each meal is eaten. A Cycle starts at the first meal after its Delivery arrives.
+			}
+			@web.FieldRow() {
+				@timeInput(f, "breakfast_at", "Breakfast")
+				@timeInput(f, "lunch_at", "Lunch")
+				@timeInput(f, "snack_at", "Snack")
+				@timeInput(f, "dinner_at", "Dinner")
+			}
+		}
 		@web.Actions() {
 			@web.Button(templ.Attributes{"type": "submit"}) {
 				Save Profile
@@ -93,5 +104,15 @@ templ numberInput(f ProfileForm, name, label, unit string) {
 templ foodField(f ProfileForm, name, label string) {
 	@web.Field(label, "", f.Errors[name]) {
 		<textarea name={ name } rows="3">{ f.Values[name] }</textarea>
+	}
+}
+
+templ timeInput(f ProfileForm, name, label string) {
+	@web.Field(label, "", f.Errors[name]) {
+		<input type="time" required name={ name } value={ f.Values[name] }
+			if f.Errors[name] != "" {
+				aria-invalid="true"
+			}
+		/>
 	}
 }

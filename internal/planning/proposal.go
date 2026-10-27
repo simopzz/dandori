@@ -30,9 +30,9 @@ type proposedPlan struct {
 // start is the first Slot of c the Plan replaces.
 func (p proposedPlan) start(c Cycle) (domain.Slot, error) {
 	if p.from == nil {
-		return c.firstSlot(), nil
+		return c.Start, nil
 	}
-	if !c.inCycle(p.from.On) {
+	if !c.Contains(*p.from) {
 		return domain.Slot{}, unreadable("it starts at %s, outside its Cycle", *p.from)
 	}
 	return *p.from, nil

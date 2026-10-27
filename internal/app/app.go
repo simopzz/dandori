@@ -51,7 +51,8 @@ type Config struct {
 	Demo bool
 
 	// Now is the clock: the Plan is taken to happen as dated, so today
-	// decides what is cooked and what is eaten. time.Now when nil.
+	// decides what is cooked and what is eaten, and a Delivery arrives at
+	// the end of its window. time.Now when nil.
 	Now func() time.Time
 }
 
@@ -125,8 +126,8 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	a.recipes = recipes.New(pool, a.runs, a.cfg.ContentLanguage)
 	a.profile = profile.New(pool)
 	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
-	a.stock = stock.New(pool, today)
-	a.plan = planning.New(pool, a.profile, today)
+	a.plan = planning.New(pool, a.profile, a.cfg.Now)
+	a.stock = stock.New(pool, today, a.plan.Arrive)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -219,6 +220,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
 	mux.Handle("GET /plan", a.needsDatabase(http.HandlerFunc(plan.Show)))
 	mux.Handle("POST /cycles", a.needsDatabase(http.HandlerFunc(plan.OpenCycle)))
+	mux.Handle("POST /cycles/{id}/delivery", a.needsDatabase(http.HandlerFunc(plan.ChangeDelivery)))
+	mux.Handle("POST /cycles/{id}/drop", a.needsDatabase(http.HandlerFunc(plan.Drop)))
 	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(http.HandlerFunc(plan.ShowProposal)))
 	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(http.HandlerFunc(plan.Approve)))
 	mux.Handle("POST /plan-proposals/{id}/reject", a.needsDatabase(http.HandlerFunc(plan.Reject)))

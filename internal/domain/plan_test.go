@@ -30,7 +30,7 @@ func single(on string, kind domain.SlotKind) domain.PrepSession {
 // from the delivery on, and is checked the day before.
 func week(snack domain.Nutrition) domain.PlanCheck {
 	c := domain.PlanCheck{
-		Cycle: domain.Cycle{DeliveryOn: day("2026-11-02"), EndsOn: day("2026-11-08")},
+		Cycle: delivered("2026-11-02", "07:00", "07:30", "2026-11-08"),
 		From:  *at("2026-11-02", domain.Breakfast),
 		Today: day("2026-11-01"),
 		Since: day("2026-11-02"),
@@ -229,7 +229,7 @@ func TestTrailingSevenDays(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := domain.PlanCheck{
-				Cycle: domain.Cycle{DeliveryOn: day("2026-11-09"), EndsOn: day("2026-11-10")},
+				Cycle: delivered("2026-11-09", "07:00", "07:30", "2026-11-10"),
 				Since: day(tt.since),
 				Profile: domain.Profile{
 					Targets:            domain.Nutrition{Kcal: 2000, ProteinG: 100},
@@ -257,13 +257,16 @@ func TestTrailingSevenDays(t *testing.T) {
 	}
 }
 
-func TestEarlyClosedCycleEndsTheDayBeforeTheNextDelivery(t *testing.T) {
-	closed := day("2026-11-06")
+func TestEarlyClosedCycleEndsBeforeTheNextCyclesFirstSlot(t *testing.T) {
 	c := week(onTarget)
-	c.Cycle.ClosedOn = &closed
+	c.Cycle.ClosedAt = at("2026-11-06", domain.Breakfast)
 	c.Plan = domain.Plan{}
 	if days := c.Days(); len(days) != 4 || !days[3].On.Equal(day("2026-11-05")) {
-		t.Errorf("Days() of a Cycle closed on 6 Nov = %d days, want 2–5 Nov", len(days))
+		t.Errorf("Days() of a Cycle closed at breakfast on 6 Nov = %d days, want 2–5 Nov", len(days))
+	}
+	c.Cycle.ClosedAt = at("2026-11-06", domain.Snack)
+	if days := c.Days(); len(days) != 5 || !days[4].On.Equal(day("2026-11-06")) {
+		t.Errorf("Days() of a Cycle closed at snack on 6 Nov = %d days, want 2–6 Nov", len(days))
 	}
 }
 

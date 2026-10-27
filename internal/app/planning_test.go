@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -15,13 +16,20 @@ import (
 // clock is the app's clock in a test; set it to the day it is.
 type clock struct{ now time.Time }
 
+// set sets the clock to noon on day.
 func (c *clock) set(t *testing.T, day string) {
 	t.Helper()
-	d, err := time.Parse(time.DateOnly, day)
+	c.setAt(t, day+" 12:00")
+}
+
+// setAt sets the clock to moment, as YYYY-MM-DD HH:MM.
+func (c *clock) setAt(t *testing.T, moment string) {
+	t.Helper()
+	d, err := time.Parse(time.DateOnly+" 15:04", moment)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.now = d.Add(12 * time.Hour)
+	c.now = d
 }
 
 // startPlanning starts the app with the Lemon chicken with rice Recipe in
@@ -42,11 +50,20 @@ func startPlanning(t *testing.T) (*apptest.Harness, *clock) {
 	return h, today
 }
 
-// openCycle opens a Cycle through the Plan page's form.
+// openCycle opens a Cycle through the Plan page's form, its Delivery
+// arriving before breakfast.
 func openCycle(t *testing.T, h *apptest.Harness, delivery, ends string) apptest.Response {
+	t.Helper()
+	return openCycleIn(t, h, delivery, "07:00", "07:30", ends)
+}
+
+// openCycleIn opens a Cycle delivered in the window from–to.
+func openCycleIn(t *testing.T, h *apptest.Harness, delivery, from, to, ends string) apptest.Response {
 	t.Helper()
 	form := apptest.Form(t, h.Get(t, "/plan").Body, "open-cycle")
 	form.Values.Set("delivery_on", delivery)
+	form.Values.Set("window_from", from)
+	form.Values.Set("window_to", to)
 	form.Values.Set("ends_on", ends)
 	return h.PostForm(t, form.Action, form.Values)
 }
@@ -72,15 +89,29 @@ func lemonPlan(t *testing.T, h *apptest.Harness) string {
 // Cycle, as the planner will, and returns the path of its page.
 func proposePlan(t *testing.T, h *apptest.Harness, plan string) string {
 	t.Helper()
+	return proposePlanFor(t, h, "", plan)
+}
+
+// proposePlanFor stores plan as an initial Plan Proposal for the Cycle
+// delivered on delivery, or the latest one when delivery is empty.
+func proposePlanFor(t *testing.T, h *apptest.Harness, delivery, plan string) string {
+	t.Helper()
 	before := proposalPaths(t, h)
 	h.Exec(t, `
 		INSERT INTO plan_proposal (cycle_id, origin, plan)
-		SELECT id, 'initial', $1 FROM cycle ORDER BY delivery_on DESC LIMIT 1`, plan)
+		SELECT id, 'initial', $1 FROM cycle
+		WHERE $2 = '' OR delivery_on = $2::text::date
+		ORDER BY delivery_on DESC LIMIT 1`, plan, delivery)
 	after := proposalPaths(t, h)
 	if len(after) != len(before)+1 {
 		t.Fatalf("the Plan page lists %d Plan Proposals, want %d", len(after), len(before)+1)
 	}
-	return after[0]
+	for _, p := range after {
+		if !slices.Contains(before, p) {
+			return p
+		}
+	}
+	panic("unreachable")
 }
 
 // proposalPaths are the Plan Proposals the Plan page links, newest first.
@@ -108,35 +139,38 @@ func TestCycleIsOpenedWithADeliveryAndEndDate(t *testing.T) {
 	if res.StatusCode != http.StatusOK || res.Path != "/plan" || res.Method != http.MethodGet {
 		t.Fatalf("open Cycle = %d %s %s, want the Plan page after a redirect:\n%s", res.StatusCode, res.Method, res.Path, text(res.Body))
 	}
-	if plan := text(res.Body); !strings.Contains(plan, "Delivered Mon 2 Nov 2026 Ends Mon 9 Nov 2026") {
+	if plan := text(res.Body); !strings.Contains(plan, "Upcoming Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Mon 9 Nov 2026") {
 		t.Errorf("Plan page does not show the Cycle:\n%s", plan)
 	}
 }
 
 func TestCycleEndsTenDaysAfterDeliveryByDefault(t *testing.T) {
 	h, _ := startPlanning(t)
-	if plan := text(openCycle(t, h, "2026-11-02", "").Body); !strings.Contains(plan, "Delivered Mon 2 Nov 2026 Ends Thu 12 Nov 2026") {
+	if plan := text(openCycle(t, h, "2026-11-02", "").Body); !strings.Contains(plan, "Ends Thu 12 Nov 2026") {
 		t.Errorf("Plan page does not show the Cycle ending ten days after delivery:\n%s", plan)
 	}
 }
 
 func TestInvalidCycleIsRejected(t *testing.T) {
 	tests := []struct {
-		name, delivery, ends, message string
+		name, delivery, from, to, ends, message string
 	}{
-		{"no delivery date", "", "2026-11-12", "Required"},
-		{"delivery not a date", "Monday", "", "Must be a date"},
-		{"end not a date", "2026-11-02", "soon", "Must be a date"},
-		{"ending before delivery", "2026-11-02", "2026-11-01", "Must be after the delivery date"},
+		{"no delivery date", "", "18:00", "20:00", "2026-11-12", "Required"},
+		{"delivery not a date", "Monday", "18:00", "20:00", "", "Must be a date"},
+		{"end not a date", "2026-11-02", "18:00", "20:00", "soon", "Must be a date"},
+		{"ending before delivery", "2026-11-02", "18:00", "20:00", "2026-11-01", "Must be after the delivery date"},
+		{"no window", "2026-11-02", "", "20:00", "", "Required"},
+		{"window not a time", "2026-11-02", "18:00", "evening", "", "Must be a time"},
+		{"window ending before it starts", "2026-11-02", "18:00", "17:00", "", "Must be after the start of the window"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h, _ := startPlanning(t)
-			res := openCycle(t, h, tt.delivery, tt.ends)
+			res := openCycleIn(t, h, tt.delivery, tt.from, tt.to, tt.ends)
 			if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), tt.message) {
 				t.Fatalf("open Cycle = %d, want 422 saying %q:\n%s", res.StatusCode, tt.message, text(res.Body))
 			}
-			if !hasField(res.Body, "delivery_on", tt.delivery) || !hasField(res.Body, "ends_on", tt.ends) {
+			if !hasField(res.Body, "delivery_on", tt.delivery) || !hasField(res.Body, "window_to", tt.to) || !hasField(res.Body, "ends_on", tt.ends) {
 				t.Errorf("rejected form does not keep what was typed:\n%s", res.Body)
 			}
 			if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Cycle yet.") {
@@ -147,8 +181,9 @@ func TestInvalidCycleIsRejected(t *testing.T) {
 }
 
 func TestCycleDeliveredOnOrBeforeTheCurrentOneIsRejected(t *testing.T) {
-	h, _ := startPlanning(t)
+	h, today := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
+	today.set(t, "2026-11-03")
 
 	res := openCycle(t, h, "2026-11-02", "")
 	if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), "Must be after the current Cycle's delivery on Mon 2 Nov 2026") {
@@ -287,24 +322,47 @@ func TestRejectedPlanProposalKeepsTheNote(t *testing.T) {
 	}
 }
 
-func TestDeliveryBeforeTheCycleEndsClosesItAndCarriesOverWhatIsLeft(t *testing.T) {
+func TestOpeningACycleLeavesTheCurrentOneUntilItsDeliveryArrives(t *testing.T) {
 	h, today := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 	approvePlan(t, h, lemonsPlan(t, h))
 
-	today.set(t, "2026-11-05")
-	res := openCycle(t, h, "2026-11-05", "")
+	today.set(t, "2026-11-04")
+	res := openCycleIn(t, h, "2026-11-05", "10:00", "12:00", "")
 	if res.StatusCode != http.StatusOK || res.Path != "/plan" {
 		t.Fatalf("open Cycle = %d at %s, want the Plan page:\n%s", res.StatusCode, res.Path, text(res.Body))
 	}
-	if page := text(res.Body); !strings.Contains(page, "Delivered Thu 5 Nov 2026 Ends Sun 15 Nov 2026") || !strings.Contains(page, "No Plan yet") {
-		t.Errorf("Plan page does not show the new Cycle without a Plan:\n%s", page)
+	page := text(res.Body)
+	for _, want := range []string{
+		"01 Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Thu 12 Nov 2026",
+		"dinner Lemon chicken with rice",
+		// The Delivery ends before lunch: lunch is the new Cycle's first Slot.
+		"04 Upcoming Cycle Delivery Thu 5 Nov 2026, 10:00–12:00 tentative Starts lunch on Thu 5 Nov Ends Sun 15 Nov 2026",
+		"Upcoming Plan No Plan yet",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Plan page does not show %q:\n%s", want, page)
+		}
 	}
+	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "Lemon chicken with rice freezer for dinner on Sat 7 Nov") {
+		t.Errorf("opening a Cycle carried over the current one's Portions:\n%s", stock)
+	}
+
+	today.setAt(t, "2026-11-05 11:59")
+	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "Upcoming Cycle") {
+		t.Errorf("the Cycle is current before its Delivery window ends:\n%s", page)
+	}
+
 	// The Lemon chicken with rice to eat on the 7th was cooked before the
-	// delivery: it carries over. The lemons of the 6th were never set out.
+	// Delivery: it carries over. The lemons of the 6th were never set out.
+	today.setAt(t, "2026-11-05 12:00")
 	stock := text(h.Get(t, "/stock").Body)
-	if strings.Count(stock, "Lemon chicken with rice freezer") != 1 || len(portionIDs(t, h)) != 1 {
-		t.Errorf("Stock page does not show exactly the carried-over Portion:\n%s", stock)
+	if strings.Count(stock, "Lemon chicken with rice freezer") != 1 || strings.Contains(stock, "Sat 7 Nov") || len(portionIDs(t, h)) != 1 {
+		t.Errorf("Stock page does not show exactly the carried-over Portion, without a Slot:\n%s", stock)
+	}
+	page = text(h.Get(t, "/plan").Body)
+	if !strings.Contains(page, "01 Cycle Delivery Thu 5 Nov 2026") || strings.Contains(page, "Upcoming Cycle") || strings.Contains(page, "Mon 2 Nov 2026") {
+		t.Errorf("Plan page does not show the arrived Cycle as the current one:\n%s", page)
 	}
 }
 
@@ -320,7 +378,7 @@ func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
 	openCycle(t, h, "2026-11-05", "")
 
 	page := text(h.Get(t, stale).Body)
-	if !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: Its Cycle closed early: the next delivery arrived on Thu 5 Nov.") {
+	if !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: Its Cycle closed: the next Delivery arrived on Thu 5 Nov.") {
 		t.Errorf("a closed Cycle's pending Plan Proposal was not rejected, saying why:\n%s", page)
 	}
 	res := h.PostForm(t, staleApprove.Action, staleApprove.Values)
@@ -545,5 +603,189 @@ func TestUnknownPlanProposalIsNotFound(t *testing.T) {
 	h, _ := startPlanning(t)
 	if res := h.Get(t, "/plan-proposals/999999"); res.StatusCode != http.StatusNotFound {
 		t.Errorf("GET an unknown Plan Proposal = %d, want 404", res.StatusCode)
+	}
+}
+
+func TestWhileACycleIsUpcomingTheCurrentPlanCanStillChange(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-04")
+	openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "")
+
+	// The user ate out on Thursday: from Friday on, a lemon for a snack.
+	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-06", "kind": "breakfast"},
+		"prep_sessions": [
+			{"on": "2026-11-06", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+				{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "snack"}]}]}`)
+	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
+	res := h.PostForm(t, approve.Action, approve.Values)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("approve a current Plan Proposal while a Cycle is upcoming = %d:\n%s", res.StatusCode, text(res.Body))
+	}
+	if page := text(res.Body); !strings.Contains(page, "Fri 6 Nov 170 kcal") || !strings.Contains(page, "Upcoming Cycle") {
+		t.Errorf("Plan page does not show the changed current Plan beside the upcoming Cycle:\n%s", page)
+	}
+}
+
+// changeDelivery submits the upcoming Cycle's Delivery form with changes.
+func changeDelivery(t *testing.T, h *apptest.Harness, changes map[string]string) apptest.Response {
+	t.Helper()
+	form := apptest.Form(t, h.Get(t, "/plan").Body, "delivery")
+	for k, v := range changes {
+		form.Values.Set(k, v)
+	}
+	return h.PostForm(t, form.Action, form.Values)
+}
+
+func TestMovingAnUpcomingDeliveryNeedsANewPlanProposal(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "2026-11-10")
+	approvePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-07")
+	openCycleIn(t, h, "2026-11-10", "18:00", "20:00", "2026-11-20")
+	approvePlan(t, h, `{"prep_sessions": [
+		{"on": "2026-11-10", "kind": "dinner", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+			{"location": "fridge", "eat_on": "2026-11-10", "eat_kind": "dinner"}]}]}`)
+	pending := proposePlan(t, h, `{"prep_sessions": []}`)
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "needs a new Plan Proposal") {
+		t.Fatalf("a Plan needs a new Plan Proposal before any move:\n%s", page)
+	}
+
+	// The supermarket has no slot on the 10th: the 11th, in the morning.
+	res := changeDelivery(t, h, map[string]string{"delivery_on": "2026-11-11", "window_from": "09:00", "window_to": "11:00"})
+	if res.StatusCode != http.StatusOK || res.Path != "/plan" {
+		t.Fatalf("move the Delivery = %d at %s:\n%s", res.StatusCode, res.Path, text(res.Body))
+	}
+	page := text(res.Body)
+	for _, want := range []string{
+		"Upcoming Cycle Delivery Wed 11 Nov 2026, 09:00–11:00 tentative Starts lunch on Wed 11 Nov",
+		// Both Plans: the upcoming one moved, and the current one ends on
+		// the 10th, no longer reaching it.
+		"Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Tue 10 Nov 2026 A Delivery moved: this Plan needs a new Plan Proposal.",
+		"Ends Fri 20 Nov 2026 A Delivery moved: this Plan needs a new Plan Proposal.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Plan page does not show %q:\n%s", want, page)
+		}
+	}
+	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: Its Delivery moved to Wed 11 Nov, 09:00–11:00.") {
+		t.Errorf("the moved Cycle's pending Plan Proposal was not rejected, saying why:\n%s", page)
+	}
+
+	// A new Plan Proposal for the moved Cycle clears it.
+	approvePlan(t, h, `{"prep_sessions": [
+		{"on": "2026-11-11", "kind": "dinner", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+			{"location": "fridge", "eat_on": "2026-11-11", "eat_kind": "dinner"}]}]}`)
+	if page := text(h.Get(t, "/plan").Body); strings.Count(page, "needs a new Plan Proposal") != 1 {
+		t.Errorf("an approved Plan Proposal leaves its Plan needing one, or clears another's:\n%s", page)
+	}
+}
+
+func TestMovingADeliveryIsCheckedLikeOpeningIt(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	today.set(t, "2026-11-08")
+	openCycleIn(t, h, "2026-11-12", "18:00", "20:00", "2026-11-20")
+
+	for _, tt := range []struct {
+		changes map[string]string
+		message string
+	}{
+		{map[string]string{"delivery_on": "2026-11-02"}, "Must be after the current Cycle's delivery on Mon 2 Nov 2026"},
+		{map[string]string{"delivery_on": "2026-11-21"}, "Must be before the Cycle's end date"},
+		{map[string]string{"window_to": "17:00"}, "Must be after the start of the window"},
+	} {
+		res := changeDelivery(t, h, tt.changes)
+		if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), tt.message) {
+			t.Errorf("change the Delivery to %v = %d, want 422 saying %q:\n%s", tt.changes, res.StatusCode, tt.message, text(res.Body))
+		}
+	}
+	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "Thu 12 Nov 2026, 18:00–20:00") {
+		t.Errorf("a refused change moved the Delivery:\n%s", page)
+	}
+}
+
+func TestDeliveryIsTentativeUntilMarkedOrdered(t *testing.T) {
+	h, _ := startPlanning(t)
+	openCycleIn(t, h, "2026-11-02", "18:00", "20:00", "")
+
+	res := changeDelivery(t, h, map[string]string{"ordered": "yes"})
+	page := text(res.Body)
+	if res.StatusCode != http.StatusOK || !strings.Contains(page, "Mon 2 Nov 2026, 18:00–20:00 ordered") {
+		t.Fatalf("mark the Delivery ordered = %d, want it shown ordered:\n%s", res.StatusCode, page)
+	}
+	if strings.Contains(page, "needs a new Plan Proposal") {
+		t.Errorf("marking the Delivery ordered, unmoved, leaves the Plan needing a new Plan Proposal:\n%s", page)
+	}
+	// Ordered, it can still move, and stays ordered.
+	if page := text(changeDelivery(t, h, map[string]string{"window_from": "19:00", "window_to": "21:00"}).Body); !strings.Contains(page, "Mon 2 Nov 2026, 19:00–21:00 ordered") {
+		t.Errorf("moving an ordered Delivery does not keep it ordered:\n%s", page)
+	}
+}
+
+func TestDroppingAnUpcomingCycle(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-08")
+	openCycleIn(t, h, "2026-11-12", "18:00", "20:00", "")
+	proposal := proposePlan(t, h, `{"prep_sessions": [
+		{"on": "2026-11-13", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+			{"location": "fridge", "eat_on": "2026-11-13", "eat_kind": "snack"}]}]}`)
+
+	drop := apptest.Form(t, h.Get(t, "/plan").Body, "drop")
+	res := h.PostForm(t, drop.Action, drop.Values)
+	if res.StatusCode != http.StatusOK || res.Path != "/plan" {
+		t.Fatalf("drop the upcoming Cycle = %d at %s:\n%s", res.StatusCode, res.Path, text(res.Body))
+	}
+	if page := text(res.Body); strings.Contains(page, "Upcoming Cycle") || !strings.Contains(page, "Cycle Delivery Mon 2 Nov 2026") {
+		t.Errorf("Plan page still shows the dropped Cycle, or lost the current one:\n%s", page)
+	}
+	if res := h.Get(t, proposal); res.StatusCode != http.StatusNotFound {
+		t.Errorf("GET a dropped Cycle's Plan Proposal = %d, want 404", res.StatusCode)
+	}
+	// The current Cycle's days after the 12th are days between Cycles.
+	today.set(t, "2026-11-13")
+	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "Cycle Delivery Mon 2 Nov 2026") {
+		t.Errorf("the dropped Cycle's Delivery date closed the current Cycle:\n%s", page)
+	}
+}
+
+func TestAnOrderedDeliverysCycleIsNotDropped(t *testing.T) {
+	h, _ := startPlanning(t)
+	openCycleIn(t, h, "2026-11-02", "18:00", "20:00", "")
+	drop := apptest.Form(t, h.Get(t, "/plan").Body, "drop")
+	changeDelivery(t, h, map[string]string{"ordered": "yes"})
+
+	if page := h.Get(t, "/plan").Body; strings.Contains(page, `id="drop"`) {
+		t.Errorf("an ordered Delivery's Cycle is offered for dropping:\n%s", text(page))
+	}
+	res := h.PostForm(t, drop.Action, drop.Values)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "The Delivery was ordered, so its Cycle can't be dropped.") {
+		t.Errorf("drop an ordered Delivery's Cycle = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+}
+
+func TestPlanTheNextCycleIsOfferedFromThreeDaysBeforeTheEndDate(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	today.set(t, "2026-11-08")
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Plan the next Cycle") {
+		t.Errorf("Plan the next Cycle is offered four days before the end date:\n%s", page)
+	}
+
+	today.set(t, "2026-11-09")
+	page := text(h.Get(t, "/plan").Body)
+	if !strings.Contains(page, "This Cycle ends on Thu 12 Nov 2026: time to plan the next one") || !strings.Contains(page, "Plan the next Cycle") {
+		t.Errorf("Plan the next Cycle is not offered three days before the end date:\n%s", page)
+	}
+
+	openCycleIn(t, h, "2026-11-12", "18:00", "20:00", "")
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Plan the next Cycle") {
+		t.Errorf("Plan the next Cycle is offered while one is upcoming:\n%s", page)
+	}
+	if page := h.Get(t, "/plan").Body; strings.Contains(page, `id="open-cycle"`) {
+		t.Errorf("a Cycle can be opened while one is upcoming")
 	}
 }

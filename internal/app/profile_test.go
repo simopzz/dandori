@@ -11,7 +11,8 @@ import (
 )
 
 // validProfile is a complete Profile form: Targets, exclusions and
-// allergies, the Meal Out default and the Untracked Allowance.
+// allergies, the Meal Out default, the Untracked Allowance and the Slot
+// times.
 func validProfile() url.Values {
 	return url.Values{
 		"target_kcal":      {"2200"},
@@ -31,6 +32,11 @@ func validProfile() url.Values {
 		"untracked_protein_g": {"5"},
 		"untracked_carbs_g":   {"15"},
 		"untracked_fat_g":     {"5"},
+
+		"breakfast_at": {"08:00"},
+		"lunch_at":     {"13:00"},
+		"snack_at":     {"17:00"},
+		"dinner_at":    {"20:00"},
 	}
 }
 
@@ -204,5 +210,32 @@ func TestAppShellLinksToTheProfile(t *testing.T) {
 
 	if page := h.Get(t, "/").Body; !strings.Contains(page, `href="/profile"`) {
 		t.Errorf("app shell does not link to the Profile:\n%s", page)
+	}
+}
+
+func TestProfileHoldsATimeOfDayPerSlotKind(t *testing.T) {
+	h := apptest.Start(t)
+	page := h.Get(t, "/profile").Body
+	for name, value := range map[string]string{"breakfast_at": "08:00", "lunch_at": "13:00", "snack_at": "17:00", "dinner_at": "20:00"} {
+		if !hasField(page, name, value) {
+			t.Errorf("a new Profile does not offer %s = %s", name, value)
+		}
+	}
+
+	profile := validProfile()
+	profile.Set("lunch_at", "12:30")
+	h.PostForm(t, "/profile", profile)
+	if page := h.Get(t, "/profile").Body; !hasField(page, "lunch_at", "12:30") {
+		t.Errorf("saved Profile does not show lunch at 12:30:\n%s", page)
+	}
+
+	profile.Set("dinner_at", "16:00")
+	res := h.PostForm(t, "/profile", profile)
+	if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), "Must be after snack") {
+		t.Errorf("dinner before snack = %d, want 422 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	profile.Set("dinner_at", "late")
+	if res := h.PostForm(t, "/profile", profile); res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), "Must be a time") {
+		t.Errorf("dinner at no time = %d, want 422 saying why:\n%s", res.StatusCode, text(res.Body))
 	}
 }
