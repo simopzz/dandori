@@ -72,6 +72,7 @@ type ProposalPage struct {
 	Status     string
 	Note       string
 	Unreadable string // why its Plan can't be read; empty when it can
+	Problem    string // why the user's decision was refused, if it was
 	Violations []string
 	Calendar   []CalendarDay
 	Sessions   []PrepSessionRow
@@ -190,6 +191,11 @@ templ ProposalView(p ProposalPage) {
 	@web.Layout("Dandori — Plan Proposal", web.TabPlan) {
 		@web.PageHeader("献立案", "Plan Proposal") {
 			<p class="lede">{ p.Title }</p>
+		}
+		if p.Problem != "" {
+			@web.Alert() {
+				{ p.Problem }
+			}
 		}
 		<p>
 			@web.Tag(p.Status == "pending", "") {

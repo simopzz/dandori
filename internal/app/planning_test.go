@@ -474,8 +474,12 @@ func TestPlanProposalStartingInThePastIsNotApproved(t *testing.T) {
 		t.Errorf("Plan Proposal page does not say it starts in the past:\n%s", page)
 	}
 	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
-	if res := h.PostForm(t, approve.Action, approve.Values); res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "starts in the past") {
+	res := h.PostForm(t, approve.Action, approve.Values)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "starts in the past, so it was not approved") {
 		t.Fatalf("approve a Plan Proposal starting in the past = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if !strings.Contains(text(res.Body), "Initial Plan Proposal for the Cycle delivered") {
+		t.Errorf("a refused approval does not show the Plan Proposal again:\n%s", text(res.Body))
 	}
 	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Plan yet") {
 		t.Errorf("a Plan Proposal starting in the past became the Plan:\n%s", plan)
