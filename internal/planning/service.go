@@ -24,7 +24,8 @@ var ErrNotFound = errors.New("no such plan proposal")
 var ErrDecided = errors.New("plan proposal already decided")
 
 // ErrCycleClosed means the Plan Proposal's Cycle was closed early by the
-// next delivery, so its Plan can no longer change.
+// next delivery, so its Plan can no longer change. Closing rejects the
+// Cycle's pending Plan Proposals, so only one stored after it meets this.
 var ErrCycleClosed = errors.New("plan proposal's cycle has closed")
 
 // ErrStartsInPast means the Plan Proposal would replace the Plan from a
@@ -153,7 +154,7 @@ func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, from domain.
 
 // OpenCycle opens c as the current Cycle. A delivery before the current
 // Cycle ends closes it early, carrying what is left over as Portions
-// without a Slot.
+// without a Slot and rejecting its pending Plan Proposals.
 func (s *Service) OpenCycle(ctx context.Context, c domain.Cycle) error {
 	if invalid := c.Validate(); len(invalid) > 0 {
 		return &InvalidError{Fields: invalid}

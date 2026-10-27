@@ -138,7 +138,7 @@ _Avoid_: Log entry, step
 - The Plan is taken to happen as dated until an Exception says otherwise: a Prep Session is prepared from its day on, and a Portion is eaten once the day of its Slot is past. Prepared Portions not yet eaten are what the kitchen holds.
 - A Plan Proposal replaces the Plan only from a Slot on, never one already past: the Prep Sessions before it stay, and so do today's, already taken as prepared, and their Portions not yet eaten are the Plan Proposal's to put in Slots again.
 - A Cycle's end date moves only through an approved Plan Proposal, typically extending it when Exceptions leave enough Portions and stock to last longer.
-- Cycles never overlap: a delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items.
+- Cycles never overlap: a delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items. Its Plan Proposals still pending are rejected, since its Plan no longer changes.
 - Cycles may have days between them. Those days have no Plan and no Slots, but what is eaten on them still counts toward the Targets.
 - Cancelling a Run rolls nothing back: what it already did (products in the cart, Catalog Products seeded) stays, and running it again finishes the work. A cancelled planning Run produces no Plan Proposal.
 - A Run still going when Dandori stops counts as failed, not cancelled: only the user cancels a Run.

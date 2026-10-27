@@ -319,8 +319,12 @@ func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
 	today.set(t, "2026-11-05")
 	openCycle(t, h, "2026-11-05", "")
 
+	page := text(h.Get(t, stale).Body)
+	if !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: Its Cycle closed early: the next delivery arrived on Thu 5 Nov.") {
+		t.Errorf("a closed Cycle's pending Plan Proposal was not rejected, saying why:\n%s", page)
+	}
 	res := h.PostForm(t, staleApprove.Action, staleApprove.Values)
-	if res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "Cycle has closed") {
+	if res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "already decided") {
 		t.Fatalf("approve a Plan Proposal of a closed Cycle = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
 	}
 	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "Lemon chicken with rice freezer") {

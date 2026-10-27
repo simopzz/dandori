@@ -58,10 +58,17 @@ func insertCycle(ctx context.Context, q db.Querier, c domain.Cycle) error {
 }
 
 // closeCycle closes the Cycle with id early on the delivery date on,
-// dropping the Prep Sessions never prepared and taking the leftovers out of
-// their Slots.
+// dropping the Prep Sessions never prepared, taking the Portions carried
+// over out of their Slots, and rejecting the Plan Proposals still pending,
+// which can no longer apply.
 func closeCycle(ctx context.Context, q db.Querier, id int64, on time.Time, o domain.Opening) error {
 	if _, err := q.Exec(ctx, `UPDATE cycle SET closed_on = $2 WHERE id = $1`, id, on); err != nil {
+		return err
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE plan_proposal SET status = 'rejected', note = $2, decided_at = now()
+		WHERE cycle_id = $1 AND status = 'pending'`,
+		id, "Its Cycle closed early: the next delivery arrived on "+on.Format(shortDate)+"."); err != nil {
 		return err
 	}
 	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, o.DroppedPrepSessions); err != nil {
