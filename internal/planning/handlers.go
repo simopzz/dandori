@@ -131,8 +131,8 @@ func (h Handlers) renderProposal(w http.ResponseWriter, r *http.Request, id int6
 		return
 	}
 	page := ProposalPage{
-		ID:       p.ID,
-		Title:    proposalTitle(p.Origin) + " for the Cycle delivered " + p.Cycle.DeliveryOn.Format(longDate),
+		ID:         p.ID,
+		Title:      proposalTitle(p.Origin) + " for the Cycle delivered " + p.Cycle.DeliveryOn.Format(longDate),
 		Status:     p.Status,
 		Note:       p.Note,
 		Unreadable: p.Unreadable,
