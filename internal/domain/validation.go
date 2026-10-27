@@ -13,6 +13,8 @@ type Rule string
 const (
 	RuleNoPortions              Rule = "no-portions"
 	RuleUnplannedPortion        Rule = "unplanned-portion"
+	RuleStartsInPast            Rule = "starts-in-past"
+	RuleBeforeStart             Rule = "before-start"
 	RulePrepSessionOutsideCycle Rule = "prep-session-outside-cycle"
 	RuleEatenOutsideCycle       Rule = "eaten-outside-cycle"
 	RuleEatenBeforePrepared     Rule = "eaten-before-prepared"
@@ -51,14 +53,21 @@ type DayNutrition struct {
 
 // PlanCheck is a proposed Plan with everything Plan validation needs.
 type PlanCheck struct {
-	Cycle   Cycle
-	Plan    Plan
+	Cycle Cycle
+	// Plan is the Cycle's Plan from From on: a Plan Proposal replaces only
+	// that part, and what comes before it stays.
+	Plan Plan
+	// From is the first Slot the Plan replaces; Today is the day it is
+	// checked on, which From may not come before.
+	From    Slot
+	Today   time.Time
 	Profile Profile
-	// Kept are the Portions without a Slot the Plan may use.
+	// Kept are the Portions the Plan may put in Slots: those without a Slot,
+	// and those prepared before From and not eaten before it.
 	Kept []KeptPortion
-	// Earlier is what earlier Cycles' Plans have eaten in their Slots on
-	// days before the Cycle. A day missing from it, such as one between
-	// Cycles, counts only the Untracked Allowance.
+	// Earlier is what Slots before From eat: earlier Cycles', and this
+	// Cycle's that stay. A day missing from it, such as one between Cycles,
+	// counts only the Untracked Allowance.
 	Earlier []DayNutrition
 	// Since is the first Cycle's delivery date: nothing was planned before
 	// it, so trailing seven days reaching before it aren't checked.
@@ -116,8 +125,10 @@ func (n Nutrition) plus(o Nutrition) Nutrition {
 	return Nutrition{Kcal: n.Kcal + o.Kcal, ProteinG: n.ProteinG + o.ProteinG, CarbsG: n.CarbsG + o.CarbsG, FatG: n.FatG + o.FatG}
 }
 
-func (c PlanCheck) inCycle(d time.Time) bool {
-	return !d.Before(c.Cycle.DeliveryOn) && !d.After(c.Cycle.LastDay())
+// inPlan reports whether s is a Slot the Plan fills: from From to the
+// Cycle's last day.
+func (c PlanCheck) inPlan(s Slot) bool {
+	return !s.Before(c.From) && !s.On.After(c.Cycle.LastDay())
 }
 
 // Days is every day of the Cycle under the Plan, in order.
@@ -126,7 +137,7 @@ func (c PlanCheck) Days() []PlanDay {
 	for _, ps := range c.Plan.PrepSessions {
 		n := ps.NutritionPerPortion()
 		for _, p := range ps.Portions {
-			if p.EatAt != nil && c.inCycle(p.EatAt.On) {
+			if p.EatAt != nil && c.inPlan(*p.EatAt) {
 				day := p.EatAt.On.Format(time.DateOnly)
 				slots[day] = slots[day].plus(n)
 			}
@@ -137,16 +148,14 @@ func (c PlanCheck) Days() []PlanDay {
 		kept[k.ID] = k.Nutrition
 	}
 	for _, k := range c.Plan.Kept {
-		if n, ok := kept[k.PortionID]; ok && c.inCycle(k.Slot.On) {
+		if n, ok := kept[k.PortionID]; ok && c.inPlan(k.Slot) {
 			day := k.Slot.On.Format(time.DateOnly)
 			slots[day] = slots[day].plus(n)
 		}
 	}
 	for _, e := range c.Earlier {
 		day := e.On.Format(time.DateOnly)
-		if !c.inCycle(e.On) {
-			slots[day] = slots[day].plus(e.Nutrition)
-		}
+		slots[day] = slots[day].plus(e.Nutrition)
 	}
 	eaten := func(d time.Time) Nutrition {
 		return slots[d.Format(time.DateOnly)].plus(c.Profile.UntrackedAllowance)
@@ -183,10 +192,16 @@ func ValidatePlan(c PlanCheck) []Violation {
 		filled[s.key()] = name
 	}
 
+	if c.From.On.Before(c.Today) {
+		add(RuleStartsInPast, "The Plan Proposal changes the Plan from %s, which is past: what was prepared and eaten since stays", c.From)
+	}
 	for _, ps := range c.Plan.PrepSessions {
 		name := ps.Name()
-		if !c.inCycle(ps.At.On) {
-			add(RulePrepSessionOutsideCycle, "%s is prepared for %s, outside the Cycle", name, ps.At)
+		switch {
+		case ps.At.Before(c.From):
+			add(RuleBeforeStart, "%s is prepared for %s, before the Plan Proposal starts at %s", name, ps.At, c.From)
+		case ps.At.On.After(c.Cycle.LastDay()):
+			add(RulePrepSessionOutsideCycle, "%s is prepared for %s, after the Cycle ends", name, ps.At)
 		}
 		if len(ps.Portions) == 0 {
 			add(RuleNoPortions, "%s at %s yields no Portion", name, ps.At)
@@ -225,9 +240,9 @@ func ValidatePlan(c PlanCheck) []Violation {
 				add(RuleEatenBeforePrepared, "%s is eaten at %s, before it is prepared at %s", name, *p.EatAt, ps.At)
 			}
 			switch {
-			case p.EatAt.On.Before(c.Cycle.DeliveryOn):
-				add(RuleEatenOutsideCycle, "%s is eaten at %s, before the Cycle starts", name, *p.EatAt)
-			case c.inCycle(p.EatAt.On):
+			case p.EatAt.Before(c.From):
+				add(RuleBeforeStart, "%s is eaten at %s, before the Plan Proposal starts at %s", name, *p.EatAt, c.From)
+			case c.inPlan(*p.EatAt):
 				fill(*p.EatAt, name)
 			}
 		}
@@ -249,8 +264,12 @@ func ValidatePlan(c PlanCheck) []Violation {
 			continue
 		}
 		used[k.PortionID] = true
-		if !c.inCycle(k.Slot.On) {
-			add(RuleEatenOutsideCycle, "The kept Portion of %s is put in %s, outside the Cycle", portion.Name, k.Slot)
+		switch {
+		case k.Slot.Before(c.From):
+			add(RuleBeforeStart, "The kept Portion of %s is put in %s, before the Plan Proposal starts at %s", portion.Name, k.Slot, c.From)
+			continue
+		case !c.inPlan(k.Slot):
+			add(RuleEatenOutsideCycle, "The kept Portion of %s is put in %s, after the Cycle ends", portion.Name, k.Slot)
 			continue
 		}
 		fill(k.Slot, "the kept Portion of "+portion.Name)

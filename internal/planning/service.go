@@ -5,6 +5,7 @@ package planning
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,10 @@ var ErrDecided = errors.New("plan proposal already decided")
 // ErrCycleClosed means the Plan Proposal's Cycle was closed early by the
 // next delivery, so its Plan can no longer change.
 var ErrCycleClosed = errors.New("plan proposal's cycle has closed")
+
+// ErrStartsInPast means the Plan Proposal would replace the Plan from a
+// day already past.
+var ErrStartsInPast = errors.New("plan proposal starts in the past")
 
 // ErrInapplicable means a Plan Proposal no longer fits what is kept: it
 // fills a Slot twice, or puts a Portion in a Slot that is gone or already
@@ -51,6 +56,11 @@ type Cycle struct {
 
 func (c Cycle) inCycle(d time.Time) bool {
 	return !d.Before(c.DeliveryOn) && !d.After(c.LastDay())
+}
+
+// firstSlot is the Cycle's first eating occasion.
+func (c Cycle) firstSlot() domain.Slot {
+	return domain.Slot{On: c.DeliveryOn, Kind: domain.SlotKinds[0]}
 }
 
 // ProposalSummary is a Plan Proposal in a list.
@@ -85,12 +95,13 @@ type Proposal struct {
 type Service struct {
 	pool    *pgxpool.Pool
 	profile *profile.Service
+	today   func() time.Time
 }
 
 // New creates the Service; Plans are checked against the Profile in
-// profile.
-func New(pool *pgxpool.Pool, profile *profile.Service) *Service {
-	return &Service{pool: pool, profile: profile}
+// profile, on the day today says it is.
+func New(pool *pgxpool.Pool, profile *profile.Service, today func() time.Time) *Service {
+	return &Service{pool: pool, profile: profile, today: today}
 }
 
 // snapshot reads several queries as of one moment.
@@ -115,22 +126,22 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 		if err != nil {
 			return err
 		}
-		check, err := s.check(ctx, tx, *o.Cycle, plan, kept)
+		check, err := s.check(ctx, tx, *o.Cycle, o.Cycle.firstSlot(), plan, kept)
 		o.Plan = &check
 		return err
 	})
 	return o, err
 }
 
-// check gathers what a Plan of c, using the Portions without a Slot kept,
-// is validated against.
-func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, plan domain.Plan, kept []domain.KeptPortion) (domain.PlanCheck, error) {
+// check gathers what a Plan of c from the Slot from on, putting the
+// Portions kept in Slots, is validated against.
+func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, plan domain.Plan, kept []domain.KeptPortion) (domain.PlanCheck, error) {
 	p, _, err := s.profile.Get(ctx)
 	if err != nil {
 		return domain.PlanCheck{}, err
 	}
-	check := domain.PlanCheck{Cycle: c.Cycle, Plan: plan, Profile: p, Kept: kept}
-	if check.Earlier, err = loadEarlier(ctx, q, c); err != nil {
+	check := domain.PlanCheck{Cycle: c.Cycle, Plan: plan, From: from, Today: s.today(), Profile: p, Kept: kept}
+	if check.Earlier, err = loadEarlier(ctx, q, c, from); err != nil {
 		return check, err
 	}
 	check.Since, err = loadSince(ctx, q)
@@ -177,6 +188,40 @@ func (s *Service) OpenCycle(ctx context.Context, c domain.Cycle) error {
 	})
 }
 
+// checked is a stored Plan Proposal read and checked.
+type checked struct {
+	cycle    Cycle
+	proposed proposedPlan
+	from     domain.Slot
+	check    domain.PlanCheck
+}
+
+// checkProposal reads stored's Plan, with its Recipes and Ingredients, and
+// gathers what it is validated against.
+func (s *Service) checkProposal(ctx context.Context, q db.Querier, stored storedProposal) (checked, error) {
+	var ch checked
+	var err error
+	if ch.cycle, err = loadCycle(ctx, q, stored.CycleID); err != nil {
+		return ch, err
+	}
+	if ch.proposed, err = readPlan(stored.Plan); err != nil {
+		return ch, err
+	}
+	if ch.from, err = ch.proposed.start(ch.cycle); err != nil {
+		return ch, err
+	}
+	plan, err := ch.proposed.resolve(ctx, q)
+	if err != nil {
+		return ch, err
+	}
+	kept, err := loadKept(ctx, q, ch.cycle.ID, ch.from)
+	if err != nil {
+		return ch, err
+	}
+	ch.check, err = s.check(ctx, q, ch.cycle, ch.from, plan, kept)
+	return ch, err
+}
+
 // Proposal loads the Plan Proposal with id and checks its Plan.
 func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 	var p Proposal
@@ -185,57 +230,39 @@ func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 		if err != nil {
 			return err
 		}
-		p = Proposal{ID: stored.ID, Origin: stored.Origin, Status: stored.Status, Note: stored.Note}
-		if p.Cycle, err = loadCycle(ctx, tx, stored.CycleID); err != nil {
-			return err
-		}
-		proposed, err := readPlan(stored.Plan)
+		ch, err := s.checkProposal(ctx, tx, stored)
 		if err != nil {
 			return err
 		}
-		plan, err := proposed.resolve(ctx, tx)
-		if err != nil {
-			return err
-		}
-		kept, err := loadKept(ctx, tx, p.Cycle.ID)
-		if err != nil {
-			return err
-		}
-		if p.Check, err = s.check(ctx, tx, p.Cycle, plan, kept); err != nil {
-			return err
-		}
+		p = Proposal{ID: stored.ID, Cycle: ch.cycle, Origin: stored.Origin, Status: stored.Status, Note: stored.Note, Check: ch.check}
 		p.Violations = domain.ValidatePlan(p.Check)
 		return nil
 	})
 	return p, err
 }
 
-// Approve makes the Plan Proposal with id its Cycle's Plan, replacing the
-// Plan it had, all at once or not at all.
+// Approve makes the Plan Proposal with id its Cycle's Plan from the Slot
+// it starts at, all at once or not at all. What the Plan has before that
+// stays: Prep Sessions taken as prepared, and Portions taken as eaten.
 func (s *Service) Approve(ctx context.Context, id int64) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		stored, err := pending(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		c, err := loadCycle(ctx, tx, stored.CycleID)
+		ch, err := s.checkProposal(ctx, tx, stored)
 		if err != nil {
 			return err
 		}
-		// Its days and leftovers now belong to the next Cycle.
-		if c.ClosedOn != nil {
+		// Its days and what is left of them now belong to the next Cycle.
+		if ch.cycle.ClosedOn != nil {
 			return ErrCycleClosed
 		}
-		plan, err := readPlan(stored.Plan)
-		if err != nil {
-			return err
+		// What was prepared and eaten since its start can't be replaced.
+		if slices.ContainsFunc(domain.ValidatePlan(ch.check), func(v domain.Violation) bool { return v.Rule == domain.RuleStartsInPast }) {
+			return ErrStartsInPast
 		}
-		// Every Recipe and Ingredient must exist, or the Plan stored would
-		// quietly miss them.
-		if _, err := plan.resolve(ctx, tx); err != nil {
-			return err
-		}
-		err = replacePlan(ctx, tx, c, plan)
+		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.proposed)
 		// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
 		// Portion taken twice.
 		var pgErr *pgconn.PgError

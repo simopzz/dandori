@@ -151,6 +151,8 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "This Plan Proposal was already decided.", http.StatusConflict)
 	case errors.Is(err, ErrCycleClosed):
 		http.Error(w, "This Plan Proposal's Cycle has closed: a later delivery started the next one.", http.StatusConflict)
+	case errors.Is(err, ErrStartsInPast):
+		http.Error(w, "This Plan Proposal starts in the past, so it was not approved: what was prepared and eaten since stays.", http.StatusConflict)
 	case errors.Is(err, ErrInapplicable):
 		http.Error(w, "This Plan Proposal no longer fits what is kept, so it was not approved; the Plan is unchanged.", http.StatusConflict)
 	case err != nil:

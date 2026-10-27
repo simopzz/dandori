@@ -8,12 +8,15 @@ import (
 )
 
 // StockPage is the Stock page: every Stock Item, the form to record one,
-// and every Portion without a Slot.
+// and every Portion in the kitchen.
 type StockPage struct {
 	Ingredients []IngredientOption
 	Add         ItemForm
 	Items       []ItemRow
-	Portions    []PortionRow
+	// Waiting are the Portions cooked for a Slot still to come; Portions
+	// those without a Slot.
+	Waiting  []PortionRow
+	Portions []PortionRow
 }
 
 // IngredientOption is a known Ingredient a Stock Item can be recorded for.
@@ -44,6 +47,9 @@ type PortionRow struct {
 	ID       int64
 	Recipe   string // its Prep Session's Recipe, or what says it has none
 	Location string
+	// For is the Slot it waits for, e.g. "lunch on Wed 4 Nov"; empty for a
+	// Portion without a Slot.
+	For string
 	// MoveTo is the Storage Location a rejected move asked for, and Error why.
 	MoveTo string
 	Error  string
@@ -70,7 +76,20 @@ templ Page(p StockPage) {
 				}
 			}
 		}
-		@web.Section(2, "Portions without a Slot") {
+		@web.Section(2, "Portions waiting for their Slot") {
+			if len(p.Waiting) == 0 {
+				@web.Empty() {
+					No Portions waiting for their Slot.
+				}
+			} else {
+				@web.Rows() {
+					for _, portion := range p.Waiting {
+						@portionRow(portion)
+					}
+				}
+			}
+		}
+		@web.Section(3, "Portions without a Slot") {
 			if len(p.Portions) == 0 {
 				@web.Empty() {
 					No Portions without a Slot.
@@ -154,7 +173,12 @@ templ itemSummary(it ItemRow) {
 templ portionRow(p PortionRow) {
 	@web.Row() {
 		<span class="row-title">{ p.Recipe }</span>
-		<span class="row-meta"><span>{ p.Location }</span></span>
+		<span class="row-meta">
+			<span>{ p.Location }</span>
+			if p.For != "" {
+				<span>{ "for " + p.For }</span>
+			}
+		</span>
 		<form id={ fmt.Sprintf("portion-%d", p.ID) } class="row-action" method="post" action={ templ.SafeURL(fmt.Sprintf("/portions/%d/move", p.ID)) }>
 			if p.Error != "" {
 				@web.Segmented("Move to", "location", locationChoices(), p.MoveTo, p.Error)

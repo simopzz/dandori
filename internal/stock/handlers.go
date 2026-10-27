@@ -84,7 +84,12 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 		if portion.ID == rej.movedPortion {
 			row.MoveTo, row.Error, found = rej.moveTo, rej.moveError, true
 		}
-		p.Portions = append(p.Portions, row)
+		if portion.Slot == nil {
+			p.Portions = append(p.Portions, row)
+			continue
+		}
+		row.For = portion.Slot.String()
+		p.Waiting = append(p.Waiting, row)
 	}
 	if !found {
 		http.NotFound(w, r)

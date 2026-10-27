@@ -2,6 +2,7 @@ package stock
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -64,18 +65,26 @@ func deleteItem(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// loadPortions loads every Portion without a Slot.
-func loadPortions(ctx context.Context, q db.Querier) ([]Portion, error) {
+// loadPortions loads every Portion cooked by today and not eaten before
+// it. A Prep Session from before planning has no day: it is cooked.
+func loadPortions(ctx context.Context, q db.Querier, today time.Time) ([]Portion, error) {
 	rows, _ := q.Query(ctx, `
-		SELECT p.id, coalesce(r.name, ''), p.location
+		SELECT p.id, coalesce(r.name, ''), p.location, s.day, s.kind
 		FROM portion p
 		JOIN prep_session ps ON ps.id = p.prep_session_id
 		LEFT JOIN recipe r ON r.id = ps.recipe_id
-		WHERE NOT EXISTS (SELECT FROM slot s WHERE s.portion_id = p.id)
-		ORDER BY r.name, p.id`)
+		LEFT JOIN slot s ON s.portion_id = p.id
+		WHERE (ps.prepared_on IS NULL OR ps.prepared_on <= $1)
+		  AND (s.day IS NULL OR s.day >= $1)
+		ORDER BY r.name, s.day, p.id`, today)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Portion, error) {
 		var p Portion
-		err := row.Scan(&p.ID, &p.Recipe, &p.Location)
+		var day *time.Time
+		var kind *domain.SlotKind
+		err := row.Scan(&p.ID, &p.Recipe, &p.Location, &day, &kind)
+		if day != nil {
+			p.Slot = &domain.Slot{On: *day, Kind: *kind}
+		}
 		return p, err
 	})
 }

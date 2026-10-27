@@ -26,10 +26,13 @@ func single(on string, kind domain.SlotKind) domain.PrepSession {
 // Against Targets of 2000 kcal and 100 g protein a day, with an Untracked
 // Allowance of 200 kcal and 10 g, the week eats 21×500 + 7×200 = 11900 kcal
 // and 21×25 + 7×10 = 595 g protein before the snack: a snack of 2100 kcal
-// and 105 g lands it on Target.
+// and 105 g lands it on Target. The Plan Proposal replaces the whole Plan,
+// from the delivery on, and is checked the day before.
 func week(snack domain.Nutrition) domain.PlanCheck {
 	c := domain.PlanCheck{
 		Cycle: domain.Cycle{DeliveryOn: day("2026-11-02"), EndsOn: day("2026-11-08")},
+		From:  *at("2026-11-02", domain.Breakfast),
+		Today: day("2026-11-01"),
 		Since: day("2026-11-02"),
 		Profile: domain.Profile{
 			Targets:            domain.Nutrition{Kcal: 2000, ProteinG: 100},
@@ -107,7 +110,7 @@ func TestPlanYieldAndSlots(t *testing.T) {
 		{
 			"a Portion eaten before the Cycle",
 			func(p *domain.Plan) { p.PrepSessions[0].Portions[0].EatAt = at("2026-11-01", domain.Dinner) },
-			[]domain.Rule{domain.RuleEatenOutsideCycle, domain.RuleEatenBeforePrepared, domain.RuleProtein},
+			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEatenBeforePrepared, domain.RuleProtein},
 		},
 		{
 			"a Prep Session outside the Cycle",
@@ -347,5 +350,76 @@ func TestPlanRespectsExclusionsAndAllergies(t *testing.T) {
 			}
 			checkPlan(t, c, tt.want...)
 		})
+	}
+}
+
+// midWeek is week's Plan Proposal replacing the Plan from Thursday's
+// breakfast, checked on Wednesday. Monday to Wednesday stay as the Plan
+// has them: each day eats 1500 kcal and 75 g protein in its Slots.
+func midWeek() domain.PlanCheck {
+	c := week(onTarget)
+	c.From, c.Today = *at("2026-11-05", domain.Breakfast), day("2026-11-04")
+	c.Plan.PrepSessions = slices.DeleteFunc(c.Plan.PrepSessions, func(ps domain.PrepSession) bool {
+		return ps.At.On.Before(c.From.On)
+	})
+	for _, d := range []string{"2026-11-02", "2026-11-03", "2026-11-04"} {
+		c.Earlier = append(c.Earlier, domain.DayNutrition{On: day(d), Nutrition: domain.Nutrition{Kcal: 1500, ProteinG: 75}})
+	}
+	return c
+}
+
+func TestPlanProposalChangesThePlanOnlyFromItsStart(t *testing.T) {
+	tests := []struct {
+		name   string
+		change func(c *domain.PlanCheck)
+		want   []domain.Rule
+	}{
+		{"what stays before the start counts toward the Targets", func(*domain.PlanCheck) {}, nil},
+		{
+			"a Prep Session before the start",
+			func(c *domain.PlanCheck) {
+				s := single("2026-11-04", domain.Dinner)
+				s.Portions[0].EatAt = at("2026-11-07", domain.Snack)
+				c.Plan.PrepSessions = append(c.Plan.PrepSessions, s)
+			},
+			[]domain.Rule{domain.RuleBeforeStart},
+		},
+		{
+			"a Portion eaten before the start",
+			func(c *domain.PlanCheck) {
+				s := single("2026-11-05", domain.Snack)
+				s.Portions[0].EatAt = at("2026-11-04", domain.Snack)
+				c.Plan.PrepSessions = append(c.Plan.PrepSessions, s)
+			},
+			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEatenBeforePrepared},
+		},
+		{
+			// It would no longer be eaten: the week misses the snack's 2100 kcal.
+			"a kept Portion put in a Slot before the start",
+			func(c *domain.PlanCheck) { c.Plan.Kept[0].Slot = *at("2026-11-04", domain.Snack) },
+			[]domain.Rule{domain.RuleBeforeStart, domain.RuleCalories, domain.RuleProtein},
+		},
+		{
+			"a start already past",
+			func(c *domain.PlanCheck) { c.Today = day("2026-11-06") },
+			[]domain.Rule{domain.RuleStartsInPast},
+		},
+		{"a start today", func(c *domain.PlanCheck) { c.Today = day("2026-11-05") }, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := midWeek()
+			tt.change(&c)
+			checkPlan(t, c, tt.want...)
+		})
+	}
+}
+
+func TestDaysBeforeTheStartShowWhatStays(t *testing.T) {
+	days := midWeek().Days()
+	// Monday keeps its 1500 kcal, Thursday has three new meals of 500; each
+	// adds the 200 kcal Untracked Allowance.
+	if len(days) != 7 || days[0].Eaten.Kcal != 1700 || days[3].Eaten.Kcal != 1700 {
+		t.Errorf("Days() = %+v, want 1700 kcal on Monday and on Thursday", days)
 	}
 }

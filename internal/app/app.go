@@ -49,6 +49,10 @@ type Config struct {
 
 	// Demo offers demo Runs on the Runs page, for trying the agent by hand.
 	Demo bool
+
+	// Now is the clock: the Plan is taken to happen as dated, so today
+	// decides what is cooked and what is eaten. time.Now when nil.
+	Now func() time.Time
 }
 
 // DefaultModel is the latest Claude model.
@@ -69,6 +73,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxTurns == 0 {
 		c.MaxTurns = 50
+	}
+	if c.Now == nil {
+		c.Now = time.Now
 	}
 	return c
 }
@@ -117,8 +124,9 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	}, log)
 	a.recipes = recipes.New(pool, a.runs, a.cfg.ContentLanguage)
 	a.profile = profile.New(pool)
-	a.stock = stock.New(pool)
-	a.plan = planning.New(pool, a.profile)
+	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
+	a.stock = stock.New(pool, today)
+	a.plan = planning.New(pool, a.profile, today)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}

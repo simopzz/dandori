@@ -16,6 +16,13 @@ type Cycle struct {
 	ClosedOn *time.Time
 }
 
+// DayOf is the day t falls on, in t's own time zone, as a date of the
+// Cycles: midnight UTC.
+func DayOf(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
 // defaultCycleDays is how long a Cycle lasts unless the user says otherwise.
 const defaultCycleDays = 10
 

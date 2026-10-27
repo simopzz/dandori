@@ -6,23 +6,40 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
 )
+
+// clock is the app's clock in a test; set it to the day it is.
+type clock struct{ now time.Time }
+
+func (c *clock) set(t *testing.T, day string) {
+	t.Helper()
+	d, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.now = d.Add(12 * time.Hour)
+}
 
 // startPlanning starts the app with the Lemon chicken with rice Recipe in
 // the Recipe Library and a Profile of 2200 kcal and 150 g protein a day,
 // with an Untracked Allowance of 150 kcal and 5 g, and an allergy to
-// citrus.
-func startPlanning(t *testing.T) *apptest.Harness {
+// citrus. It is 2026-11-01 until the test sets the clock.
+func startPlanning(t *testing.T) (*apptest.Harness, *clock) {
 	t.Helper()
 	h := startStock(t)
+	today := &clock{}
+	today.set(t, "2026-11-01")
+	h.Restart(t, apptest.WithConfig(func(c *app.Config) { c.Now = func() time.Time { return today.now } }))
 	profile := validProfile()
 	profile.Set("allergies", "citrus")
 	if res := h.PostForm(t, "/profile", profile); res.StatusCode != http.StatusOK {
 		t.Fatalf("save Profile = %d:\n%s", res.StatusCode, text(res.Body))
 	}
-	return h
+	return h, today
 }
 
 // openCycle opens a Cycle through the Plan page's form.
@@ -82,7 +99,7 @@ func proposalPaths(t *testing.T, h *apptest.Harness) []string {
 }
 
 func TestCycleIsOpenedWithADeliveryAndEndDate(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Cycle yet.") {
 		t.Errorf("Plan page does not say there is no Cycle:\n%s", plan)
 	}
@@ -97,7 +114,7 @@ func TestCycleIsOpenedWithADeliveryAndEndDate(t *testing.T) {
 }
 
 func TestCycleEndsTenDaysAfterDeliveryByDefault(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	if plan := text(openCycle(t, h, "2026-11-02", "").Body); !strings.Contains(plan, "Delivered Mon 2 Nov 2026 Ends Thu 12 Nov 2026") {
 		t.Errorf("Plan page does not show the Cycle ending ten days after delivery:\n%s", plan)
 	}
@@ -114,7 +131,7 @@ func TestInvalidCycleIsRejected(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := startPlanning(t)
+			h, _ := startPlanning(t)
 			res := openCycle(t, h, tt.delivery, tt.ends)
 			if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), tt.message) {
 				t.Fatalf("open Cycle = %d, want 422 saying %q:\n%s", res.StatusCode, tt.message, text(res.Body))
@@ -130,7 +147,7 @@ func TestInvalidCycleIsRejected(t *testing.T) {
 }
 
 func TestCycleDeliveredOnOrBeforeTheCurrentOneIsRejected(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 
 	res := openCycle(t, h, "2026-11-02", "")
@@ -140,7 +157,7 @@ func TestCycleDeliveredOnOrBeforeTheCurrentOneIsRejected(t *testing.T) {
 }
 
 func TestPlanProposalShowsSlotsPrepSessionsNutritionAndBrokenRules(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 	// The user confirmed a lemon is citrus, which they are allergic to.
 	h.Exec(t, `INSERT INTO ingredient_falls_under (ingredient_id, term) SELECT id, 'citrus' FROM ingredient WHERE name = 'lemon'`)
@@ -186,7 +203,7 @@ func TestPlanProposalShowsSlotsPrepSessionsNutritionAndBrokenRules(t *testing.T)
 }
 
 func TestApprovedPlanProposalBecomesTheCyclesPlan(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 	proposal := proposePlan(t, h, lemonPlan(t, h))
 	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Plan yet") {
@@ -213,7 +230,7 @@ func TestApprovedPlanProposalBecomesTheCyclesPlan(t *testing.T) {
 }
 
 func TestApprovalReplacesThePlanAtomically(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 	first := proposePlan(t, h, lemonPlan(t, h))
 	approve := apptest.Form(t, h.Get(t, first).Body, "approve")
@@ -247,7 +264,7 @@ func TestApprovalReplacesThePlanAtomically(t *testing.T) {
 }
 
 func TestRejectedPlanProposalKeepsTheNote(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 	proposal := proposePlan(t, h, lemonPlan(t, h))
 
@@ -270,19 +287,12 @@ func TestRejectedPlanProposalKeepsTheNote(t *testing.T) {
 	}
 }
 
-func TestDeliveryBeforeTheCycleEndsClosesItAndCarriesOverLeftovers(t *testing.T) {
-	h := startPlanning(t)
+func TestDeliveryBeforeTheCycleEndsClosesItAndCarriesOverWhatIsLeft(t *testing.T) {
+	h, today := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
-	plan := strings.Replace(lemonPlan(t, h), `]}
-	]}`, `]},
-		{"on": "2026-11-06", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 2}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "snack"},
-			{"location": "fridge", "eat_on": "2026-11-14", "eat_kind": "snack"}]}
-	]}`, 1)
-	proposal := proposePlan(t, h, plan)
-	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
-	h.PostForm(t, approve.Action, approve.Values)
+	approvePlan(t, h, lemonsPlan(t, h))
 
+	today.set(t, "2026-11-05")
 	res := openCycle(t, h, "2026-11-05", "")
 	if res.StatusCode != http.StatusOK || res.Path != "/plan" {
 		t.Fatalf("open Cycle = %d at %s, want the Plan page:\n%s", res.StatusCode, res.Path, text(res.Body))
@@ -299,13 +309,14 @@ func TestDeliveryBeforeTheCycleEndsClosesItAndCarriesOverLeftovers(t *testing.T)
 }
 
 func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
-	h := startPlanning(t)
+	h, today := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
 	first := proposePlan(t, h, lemonPlan(t, h))
 	approve := apptest.Form(t, h.Get(t, first).Body, "approve")
 	h.PostForm(t, approve.Action, approve.Values)
 	stale := proposePlan(t, h, lemonPlan(t, h))
 	staleApprove := apptest.Form(t, h.Get(t, stale).Body, "approve")
+	today.set(t, "2026-11-05")
 	openCycle(t, h, "2026-11-05", "")
 
 	res := h.PostForm(t, staleApprove.Action, staleApprove.Values)
@@ -317,6 +328,141 @@ func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
 	}
 }
 
+// lemonsPlan is lemonPlan with two lemons set out for a snack on the 6th:
+// one eaten then, the other on the 14th, after the Cycle.
+func lemonsPlan(t *testing.T, h *apptest.Harness) string {
+	t.Helper()
+	return strings.Replace(lemonPlan(t, h), `]}
+	]}`, `]},
+		{"on": "2026-11-06", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 2}], "portions": [
+			{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "snack"},
+			{"location": "fridge", "eat_on": "2026-11-14", "eat_kind": "snack"}]}
+	]}`, 1)
+}
+
+// approvePlan proposes plan for the latest Cycle and approves it.
+func approvePlan(t *testing.T, h *apptest.Harness, plan string) {
+	t.Helper()
+	approve := apptest.Form(t, h.Get(t, proposePlan(t, h, plan)).Body, "approve")
+	if res := h.PostForm(t, approve.Action, approve.Values); res.StatusCode != http.StatusOK {
+		t.Fatalf("approve = %d:\n%s", res.StatusCode, text(res.Body))
+	}
+}
+
+// portionFor is the id of the Portion the Stock page shows as waiting for
+// slot, e.g. "dinner on Sat 7 Nov".
+func portionFor(t *testing.T, h *apptest.Harness, slot string) string {
+	t.Helper()
+	page := h.Get(t, "/stock").Body
+	i := strings.Index(page, "for "+slot)
+	if i < 0 {
+		t.Fatalf("the Stock page shows no Portion for %s:\n%s", slot, text(page))
+	}
+	rest := page[i:]
+	rest = rest[strings.Index(rest, `id="portion-`)+len(`id="portion-`):]
+	return rest[:strings.Index(rest, `"`)]
+}
+
+func TestStockShowsPortionsOnceCookedUntilEaten(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonsPlan(t, h))
+
+	// Nothing is cooked before the delivery.
+	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "No Portions waiting for their Slot.") || !strings.Contains(stock, "No Portions without a Slot.") {
+		t.Errorf("Stock page shows Portions not yet cooked:\n%s", stock)
+	}
+
+	today.set(t, "2026-11-03")
+	stock := text(h.Get(t, "/stock").Body)
+	for _, want := range []string{
+		"Lemon chicken with rice fridge for lunch on Wed 4 Nov",
+		"Lemon chicken with rice freezer for dinner on Sat 7 Nov",
+		"Ingredients as they are fridge for snack on Tue 3 Nov",
+		"No Portions without a Slot.",
+	} {
+		if !strings.Contains(stock, want) {
+			t.Errorf("Stock page on 3 Nov does not show %q:\n%s", want, stock)
+		}
+	}
+	if strings.Contains(stock, "Mon 2 Nov") {
+		t.Errorf("Stock page on 3 Nov shows the Portion eaten on 2 Nov:\n%s", stock)
+	}
+
+	// The Portion for Saturday will keep in the fridge after all.
+	move := apptest.Form(t, h.Get(t, "/stock").Body, "portion-"+portionFor(t, h, "dinner on Sat 7 Nov"))
+	move.Values.Set("location", "fridge")
+	if stock := text(h.PostForm(t, move.Action, move.Values).Body); !strings.Contains(stock, "Lemon chicken with rice fridge for dinner on Sat 7 Nov") {
+		t.Errorf("a Portion waiting for its Slot was not moved:\n%s", stock)
+	}
+
+	today.set(t, "2026-11-06")
+	stock = text(h.Get(t, "/stock").Body)
+	if strings.Contains(stock, "Wed 4 Nov") || strings.Contains(stock, "Tue 3 Nov") {
+		t.Errorf("Stock page on 6 Nov shows Portions already eaten:\n%s", stock)
+	}
+	// The lemons are set out today: one for today's snack, one eaten after
+	// the Cycle, without a Slot.
+	if !strings.Contains(stock, "Ingredients as they are fridge for snack on Fri 6 Nov") || strings.Count(stock, "Ingredients as they are fridge") != 2 {
+		t.Errorf("Stock page on 6 Nov does not show both lemons set out:\n%s", stock)
+	}
+}
+
+func TestApprovalMidCycleKeepsWhatWasPrepared(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-04")
+	saturday := portionFor(t, h, "dinner on Sat 7 Nov")
+
+	// From Thursday on: a lemon for a snack, and the Lemon chicken with rice
+	// already in the freezer moved from Saturday to Sunday.
+	proposal := proposePlan(t, h, fmt.Sprintf(`{"from": {"on": "2026-11-05", "kind": "breakfast"},
+		"prep_sessions": [
+			{"on": "2026-11-05", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+				{"location": "fridge", "eat_on": "2026-11-05", "eat_kind": "snack"}]}],
+		"kept": [{"portion_id": %s, "on": "2026-11-08", "kind": "dinner"}]}`, saturday))
+	if page := text(h.Get(t, proposal).Body); strings.Contains(page, "left without a Slot") || strings.Contains(page, "before the Plan Proposal starts") || strings.Contains(page, "is not a Portion without a Slot") {
+		t.Errorf("Plan Proposal page does not offer the cooked Portion to the Plan Proposal:\n%s", page)
+	}
+	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
+	res := h.PostForm(t, approve.Action, approve.Values)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("approve = %d:\n%s", res.StatusCode, text(res.Body))
+	}
+	plan := text(res.Body)
+	for _, want := range []string{
+		// What was prepared and eaten before Thursday stays.
+		"Mon 2 Nov 739 kcal", "Tue 3 Nov 170 kcal", "Wed 4 Nov 739 kcal",
+		"Thu 5 Nov 170 kcal", "Sat 7 Nov 150 kcal", "Sun 8 Nov 739 kcal",
+	} {
+		if !strings.Contains(plan, want) {
+			t.Errorf("Plan page does not show %q:\n%s", want, plan)
+		}
+	}
+	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "Lemon chicken with rice freezer for dinner on Sun 8 Nov") {
+		t.Errorf("the cooked Portion was not kept for its new Slot:\n%s", stock)
+	}
+}
+
+func TestPlanProposalStartingInThePastIsNotApproved(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	proposal := proposePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-03")
+
+	if page := text(h.Get(t, proposal).Body); !strings.Contains(page, "The Plan Proposal changes the Plan from breakfast on Mon 2 Nov, which is past") {
+		t.Errorf("Plan Proposal page does not say it starts in the past:\n%s", page)
+	}
+	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
+	if res := h.PostForm(t, approve.Action, approve.Values); res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "starts in the past") {
+		t.Fatalf("approve a Plan Proposal starting in the past = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Plan yet") {
+		t.Errorf("a Plan Proposal starting in the past became the Plan:\n%s", plan)
+	}
+}
+
 func TestPlanIsLinkedFromTheAppShell(t *testing.T) {
 	h := apptest.Start(t)
 	if page := h.Get(t, "/").Body; !strings.Contains(page, `href="/plan"`) {
@@ -325,7 +471,7 @@ func TestPlanIsLinkedFromTheAppShell(t *testing.T) {
 }
 
 func TestUnknownPlanProposalIsNotFound(t *testing.T) {
-	h := startPlanning(t)
+	h, _ := startPlanning(t)
 	if res := h.Get(t, "/plan-proposals/999999"); res.StatusCode != http.StatusNotFound {
 		t.Errorf("GET an unknown Plan Proposal = %d, want 404", res.StatusCode)
 	}

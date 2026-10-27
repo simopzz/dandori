@@ -15,8 +15,27 @@ import (
 // planner submits: Recipes by id, Ingredients by name, dates as
 // YYYY-MM-DD.
 type proposedPlan struct {
+	// From is the first Slot the Plan Proposal replaces; the Cycle's first
+	// when it is absent, as for the initial Plan.
+	From *struct {
+		On   string          `json:"on"`
+		Kind domain.SlotKind `json:"kind"`
+	} `json:"from"`
 	PrepSessions []proposedPrepSession `json:"prep_sessions"`
 	Kept         []proposedKept        `json:"kept"`
+
+	from *domain.Slot
+}
+
+// start is the first Slot of c the Plan replaces.
+func (p proposedPlan) start(c Cycle) (domain.Slot, error) {
+	if p.from == nil {
+		return c.firstSlot(), nil
+	}
+	if !c.inCycle(p.from.On) {
+		return domain.Slot{}, unreadable("it starts at %s, outside its Cycle", *p.from)
+	}
+	return *p.from, nil
 }
 
 type proposedPrepSession struct {
@@ -77,6 +96,13 @@ func readPlan(raw []byte) (proposedPlan, error) {
 	var p proposedPlan
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return p, unreadable("%v", err)
+	}
+	if p.From != nil {
+		from, err := readSlot(p.From.On, p.From.Kind)
+		if err != nil {
+			return p, err
+		}
+		p.from = &from
 	}
 	var err error
 	for i := range p.PrepSessions {
