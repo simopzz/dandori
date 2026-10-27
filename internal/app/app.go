@@ -21,6 +21,7 @@ import (
 	"github.com/simopzz/dandori/internal/demo"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
@@ -92,6 +93,7 @@ type App struct {
 	recipes *recipes.Service
 	profile *profile.Service
 	stock   *stock.Service
+	plan    *planning.Service
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -116,6 +118,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	a.recipes = recipes.New(pool, a.runs, a.cfg.ContentLanguage)
 	a.profile = profile.New(pool)
 	a.stock = stock.New(pool)
+	a.plan = planning.New(pool, a.profile)
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -201,11 +204,17 @@ func (a *App) Handler() http.Handler {
 	recipes := recipes.Handlers{Service: a.recipes, Log: a.log}
 	profile := profile.Handlers{Service: a.profile, Log: a.log}
 	stock := stock.Handlers{Service: a.stock, Log: a.log}
+	plan := planning.Handlers{Service: a.plan, Log: a.log}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
 	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
-	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(profile.Show)))
+	mux.Handle("GET /plan", a.needsDatabase(http.HandlerFunc(plan.Show)))
+	mux.Handle("POST /cycles", a.needsDatabase(http.HandlerFunc(plan.OpenCycle)))
+	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(http.HandlerFunc(plan.ShowProposal)))
+	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(http.HandlerFunc(plan.Approve)))
+	mux.Handle("POST /plan-proposals/{id}/reject", a.needsDatabase(http.HandlerFunc(plan.Reject)))
+	mux.Handle("GET /profile",a.needsDatabase(http.HandlerFunc(profile.Show)))
 	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(profile.Save)))
 	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(recipes.Library)))
 	mux.Handle("POST /recipes/parse", a.needsDatabase(http.HandlerFunc(recipes.Parse)))

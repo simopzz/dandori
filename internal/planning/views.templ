@@ -1,0 +1,258 @@
+package planning
+
+import (
+	"fmt"
+
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// PlanPage is the Plan page: the current Cycle, its Plan, its Plan
+// Proposals, and the form to open the next Cycle.
+type PlanPage struct {
+	// Cycle is the current Cycle, or nil before the first one.
+	Cycle *CycleView
+	// HasPlan is whether a Plan Proposal of the Cycle was approved; Calendar
+	// is its Plan.
+	HasPlan   bool
+	Calendar  []CalendarDay
+	Proposals []ProposalRow
+	Open      CycleForm
+}
+
+// CycleView is a Cycle's dates, as shown.
+type CycleView struct {
+	Delivered string
+	Ends      string
+}
+
+// CycleForm is the open-a-Cycle form's raw values, so a rejected
+// submission is shown back as typed, and an error per field.
+type CycleForm struct {
+	Values map[string]string
+	Errors map[string]string
+}
+
+// CalendarDay is one day of a Cycle under a Plan.
+type CalendarDay struct {
+	Date  string // e.g. "Mon 2 Nov"
+	Eaten string // the day's nutrition, Untracked Allowance included
+	// Trailing is the trailing seven days' calories and protein, or empty
+	// when they aren't checked.
+	Trailing string
+	Slots    []SlotRow
+}
+
+// SlotRow is a filled Slot: the eating occasion and what fills it.
+type SlotRow struct {
+	Kind string
+	What string
+}
+
+// PrepSessionRow is one Prep Session of a Plan.
+type PrepSessionRow struct {
+	What      string
+	At        string // e.g. "dinner on Mon 2 Nov"
+	Portions  string // e.g. "3 Portions"
+	Locations string // where each Portion is kept
+}
+
+// ProposalRow is a Plan Proposal in the Plan page's list.
+type ProposalRow struct {
+	ID     int64
+	Title  string // e.g. "Initial Plan Proposal"
+	Status string
+}
+
+// ProposalPage is a Plan Proposal: its Plan as a calendar of Slots and a
+// list of Prep Sessions, the rules it breaks, and the approve and reject
+// actions while it is pending.
+type ProposalPage struct {
+	ID         int64
+	Title      string
+	Status     string
+	Note       string
+	Violations []string
+	Calendar   []CalendarDay
+	Sessions   []PrepSessionRow
+}
+
+templ Page(p PlanPage) {
+	@web.Layout("Dandori — Plan", web.TabPlan) {
+		@web.PageHeader("献立", "Plan")
+		@web.Section(1, "Cycle") {
+			if p.Cycle == nil {
+				@web.Empty() {
+					No Cycle yet.
+				}
+				@web.Hint() {
+					Open a Cycle with its delivery date to start planning.
+				}
+			} else {
+				<dl>
+					<dt>Delivered</dt>
+					<dd>{ p.Cycle.Delivered }</dd>
+					<dt>Ends</dt>
+					<dd>{ p.Cycle.Ends }</dd>
+				</dl>
+			}
+		}
+		if p.Cycle != nil {
+			@web.Section(2, "Plan") {
+				if !p.HasPlan {
+					@web.Empty() {
+						No Plan yet: approve a Plan Proposal.
+					}
+				} else {
+					@calendar(p.Calendar)
+				}
+			}
+			@web.Section(3, "Plan Proposals") {
+				if len(p.Proposals) == 0 {
+					@web.Empty() {
+						No Plan Proposals yet.
+					}
+				} else {
+					@web.Rows() {
+						for _, pr := range p.Proposals {
+							@web.Row() {
+								<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d", pr.ID)) }>{ pr.Title }</a>
+								@web.Tag(pr.Status == "pending", "") {
+									{ pr.Status }
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		@openSheet(p.Open)
+	}
+}
+
+templ openSheet(f CycleForm) {
+	@web.AddSheet("open-cycle-sheet", "Open a Cycle", len(f.Errors) > 0) {
+		<form id="open-cycle" class="stack" method="post" action="/cycles">
+			if len(f.Errors) > 0 {
+				@web.Alert() {
+					The Cycle was not opened; fix the fields marked below.
+				}
+			}
+			@web.Field("Delivery date", "", f.Errors["delivery_on"]) {
+				<input type="date" required name="delivery_on" value={ f.Values["delivery_on"] }
+					if f.Errors["delivery_on"] != "" {
+						aria-invalid="true"
+					}
+				/>
+			}
+			@web.Field("End date", "optional, ten days later", f.Errors["ends_on"]) {
+				<input type="date" name="ends_on" value={ f.Values["ends_on"] }
+					if f.Errors["ends_on"] != "" {
+						aria-invalid="true"
+					}
+				/>
+			}
+			@web.Hint() {
+				A delivery before the current Cycle ends closes it: its leftovers become Portions without a Slot.
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					Open
+				}
+			}
+		</form>
+	}
+}
+
+// calendar is a Plan's days, each with its nutrition and filled Slots.
+templ calendar(days []CalendarDay) {
+	for _, d := range days {
+		<h3>{ d.Date }</h3>
+		@web.Hint() {
+			{ d.Eaten }
+			if d.Trailing != "" {
+				<br/>
+				Seven days: { d.Trailing }
+			}
+		}
+		if len(d.Slots) > 0 {
+			<dl>
+				for _, s := range d.Slots {
+					<dt>{ s.Kind }</dt>
+					<dd>{ s.What }</dd>
+				}
+			</dl>
+		}
+	}
+}
+
+templ ProposalView(p ProposalPage) {
+	@web.Layout("Dandori — Plan Proposal", web.TabPlan) {
+		@web.PageHeader("献立案", "Plan Proposal") {
+			<p class="lede">{ p.Title }</p>
+		}
+		<p>
+			@web.Tag(p.Status == "pending", "") {
+				{ p.Status }
+			}
+		</p>
+		if p.Note != "" {
+			@web.Notice() {
+				Note: { p.Note }
+			}
+		}
+		if len(p.Violations) > 0 {
+			@web.Alert() {
+				<p>This Plan Proposal breaks the rules of the Plan:</p>
+				<ul>
+					for _, v := range p.Violations {
+						<li>{ v }</li>
+					}
+				</ul>
+			}
+		}
+		@web.Section(1, "Slots") {
+			@calendar(p.Calendar)
+		}
+		@web.Section(2, "Prep Sessions") {
+			if len(p.Sessions) == 0 {
+				@web.Empty() {
+					No Prep Sessions.
+				}
+			} else {
+				@web.Rows() {
+					for _, s := range p.Sessions {
+						@web.Row() {
+							<span class="row-title">{ s.What }</span>
+							<span class="row-meta">
+								<span>{ s.At }</span>
+								<span>{ s.Portions }</span>
+								<span>{ s.Locations }</span>
+							</span>
+						}
+					}
+				}
+			}
+		}
+		if p.Status == "pending" {
+			@web.Section(3, "Decide") {
+				<form id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/approve", p.ID)) }>
+					@web.Actions() {
+						@web.Button(templ.Attributes{"type": "submit"}) {
+							Approve
+						}
+					}
+				</form>
+				<form id="reject" class="stack section" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/reject", p.ID)) }>
+					@web.Field("Note", "optional, for the next Plan Proposal", "") {
+						<textarea name="note" rows="3"></textarea>
+					}
+					@web.Actions() {
+						@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
+							Reject
+						}
+					}
+				</form>
+			}
+		}
+	}
+}

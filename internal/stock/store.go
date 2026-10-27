@@ -64,14 +64,14 @@ func deleteItem(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// loadPortions loads every Portion; none has a Slot yet, since Slots come
-// with planning.
+// loadPortions loads every Portion without a Slot.
 func loadPortions(ctx context.Context, q db.Querier) ([]Portion, error) {
 	rows, _ := q.Query(ctx, `
 		SELECT p.id, coalesce(r.name, ''), p.location
 		FROM portion p
 		JOIN prep_session ps ON ps.id = p.prep_session_id
 		LEFT JOIN recipe r ON r.id = ps.recipe_id
+		WHERE NOT EXISTS (SELECT FROM slot s WHERE s.portion_id = p.id)
 		ORDER BY r.name, p.id`)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Portion, error) {
 		var p Portion

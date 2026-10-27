@@ -36,6 +36,10 @@ type Ingredient struct {
 	Unit Unit
 	// Nutrition is per 100 g, per 100 ml or per piece, as Unit says.
 	Nutrition IngredientNutrition
+	// FallsUnder are the Profile's exclusions and allergies the user
+	// confirmed this Ingredient is, as food terms: prawns fall under
+	// "shellfish". Plan validation matches on these, never on names.
+	FallsUnder []string
 }
 
 // IngredientNutrition is the calories and macros in 100 g, 100 ml or one
