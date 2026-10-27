@@ -40,8 +40,10 @@ func loadCycle(ctx context.Context, q db.Querier, id int64) (Cycle, error) {
 	return c, err
 }
 
-func lockCycle(ctx context.Context, q db.Querier, id int64) error {
-	_, err := q.Exec(ctx, `SELECT FROM cycle WHERE id = $1 FOR UPDATE`, id)
+// lockCycleOf locks the Cycle of the Plan Proposal with id, if there is one.
+func lockCycleOf(ctx context.Context, q db.Querier, id int64) error {
+	_, err := q.Exec(ctx, `
+		SELECT FROM cycle WHERE id = (SELECT cycle_id FROM plan_proposal WHERE id = $1) FOR UPDATE`, id)
 	return err
 }
 
@@ -60,15 +62,14 @@ func insertCycle(ctx context.Context, q db.Querier, c domain.Cycle) error {
 // closeCycle closes the Cycle with id early on the delivery date on,
 // dropping the Prep Sessions never prepared, taking the Portions carried
 // over out of their Slots, and rejecting the Plan Proposals still pending,
-// which can no longer apply.
-func closeCycle(ctx context.Context, q db.Querier, id int64, on time.Time, o domain.Opening) error {
+// which can no longer apply, with note.
+func closeCycle(ctx context.Context, q db.Querier, id int64, on time.Time, o domain.Opening, note string) error {
 	if _, err := q.Exec(ctx, `UPDATE cycle SET closed_on = $2 WHERE id = $1`, id, on); err != nil {
 		return err
 	}
 	if _, err := q.Exec(ctx, `
 		UPDATE plan_proposal SET status = 'rejected', note = $2, decided_at = now()
-		WHERE cycle_id = $1 AND status = 'pending'`,
-		id, "Its Cycle closed early: the next delivery arrived on "+on.Format(shortDate)+"."); err != nil {
+		WHERE cycle_id = $1 AND status = 'pending'`, id, note); err != nil {
 		return err
 	}
 	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, o.DroppedPrepSessions); err != nil {

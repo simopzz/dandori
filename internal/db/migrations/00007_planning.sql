@@ -54,7 +54,8 @@ CREATE TABLE plan_proposal (
     origin     text   NOT NULL CHECK (origin IN ('initial', 'substitution')),
     plan       jsonb  NOT NULL,
     status     text   NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    -- The user's note when rejecting it, if any.
+    -- Why it was rejected, if said: the user's note, or that its Cycle
+    -- closed early.
     note       text   NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now(),
     decided_at timestamptz

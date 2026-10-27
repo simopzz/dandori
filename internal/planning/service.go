@@ -184,7 +184,8 @@ func (s *Service) OpenCycle(ctx context.Context, c domain.Cycle) error {
 			return err
 		}
 		if opening.ClosesCurrent {
-			if err := closeCycle(ctx, tx, current.ID, c.DeliveryOn, opening); err != nil {
+			note := "Its Cycle closed early: the next delivery arrived on " + c.DeliveryOn.Format(shortDate) + "."
+			if err := closeCycle(ctx, tx, current.ID, c.DeliveryOn, opening, note); err != nil {
 				return err
 			}
 		}
@@ -259,13 +260,14 @@ func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 // stays: Prep Sessions taken as prepared, and Portions taken as eaten.
 func (s *Service) Approve(ctx context.Context, id int64) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		stored, err := pending(ctx, tx, id)
-		if err != nil {
+		// Serialises approvals of one Cycle with each other and with the
+		// delivery that closes it. The Cycle is locked before the Plan
+		// Proposal, in the order OpenCycle locks them, or the two deadlock.
+		if err := lockCycleOf(ctx, tx, id); err != nil {
 			return err
 		}
-		// Serialises approvals of one Cycle with each other and with the
-		// delivery that closes it.
-		if err := lockCycle(ctx, tx, stored.CycleID); err != nil {
+		stored, err := pending(ctx, tx, id)
+		if err != nil {
 			return err
 		}
 		ch, err := s.checkProposal(ctx, tx, stored)
