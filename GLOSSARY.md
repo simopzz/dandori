@@ -64,6 +64,10 @@ _Avoid_: Inventory, pantry item
 Where a Portion or Stock Item is kept: pantry, fridge or freezer.
 _Avoid_: Stash, shelf
 
+**Content Language**:
+The one language an installation of Dandori writes every food term in: Ingredient and Recipe names, steps, appliances, the Profile's exclusions and allergies, and what the agent says about food. Chosen once per installation and never changed.
+_Avoid_: Locale, language preference, app language
+
 ### Goals
 
 **Profile**:
@@ -128,6 +132,7 @@ _Avoid_: Log entry, step
 - A Prep Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Prep Sessions.
 - A Prep Session of a Recipe scales its Ingredients to the Portions the Prep Session yields: a Recipe that makes four Portions, cooked for three, uses three quarters of each Ingredient. Nutritional values per Portion are the same either way.
 - Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values.
+- Every food term is in the Content Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor.
 - A Cycle's end date moves only through an approved Plan Proposal, typically extending it when Exceptions leave enough Portions and stock to last longer.

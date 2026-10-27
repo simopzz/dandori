@@ -41,7 +41,12 @@ func (l Loop) Run(ctx context.Context, job Job, tr Trace) error {
 		if turn > l.MaxTurns {
 			return fmt.Errorf("the model did not finish within %d turns", l.MaxTurns)
 		}
-		tr.Emit(Event{Kind: EventStep, Summary: fmt.Sprintf("Asking the model (turn %d)", turn)})
+		step := Event{Kind: EventStep, Summary: fmt.Sprintf("Asking the model (turn %d)", turn)}
+		if turn == 1 {
+			// What the Run was asked, such as the pasted recipe text.
+			step.Detail = job.Prompt
+		}
+		tr.Emit(step)
 		resp, err := l.send(ctx, req, tr)
 		if err != nil {
 			return err

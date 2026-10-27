@@ -45,13 +45,15 @@ type Stored struct {
 
 // Service is the Recipe Library's use cases.
 type Service struct {
-	pool *pgxpool.Pool
-	runs *runs.Engine
+	pool     *pgxpool.Pool
+	runs     *runs.Engine
+	language domain.ContentLanguage
 }
 
-// New creates the Service; parse Runs go through engine.
-func New(pool *pgxpool.Pool, engine *runs.Engine) *Service {
-	return &Service{pool: pool, runs: engine}
+// New creates the Service; parse Runs go through engine and write food
+// terms in language.
+func New(pool *pgxpool.Pool, engine *runs.Engine, language domain.ContentLanguage) *Service {
+	return &Service{pool: pool, runs: engine, language: language}
 }
 
 // snapshot reads several queries as of one moment, so a Recipe saved or

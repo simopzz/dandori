@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/demo"
+	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
@@ -30,6 +32,10 @@ import (
 // defaults below.
 type Config struct {
 	DatabaseURL string
+
+	// ContentLanguage is the language every food term is written in,
+	// recorded in the database on first start; English when empty.
+	ContentLanguage domain.ContentLanguage
 
 	// Model is the Claude model agent Runs use.
 	Model string
@@ -48,6 +54,9 @@ type Config struct {
 const DefaultModel = "claude-opus-5-5"
 
 func (c Config) withDefaults() Config {
+	if c.ContentLanguage == "" {
+		c.ContentLanguage = domain.English
+	}
 	if c.Model == "" {
 		c.Model = DefaultModel
 	}
@@ -88,11 +97,15 @@ type App struct {
 // New creates the app. It does not connect to the database: a paused or
 // unreachable database is reported by the app rather than stopping it.
 func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, error) {
+	cfg = cfg.withDefaults()
+	if !slices.Contains(domain.ContentLanguages, cfg.ContentLanguage) {
+		return nil, fmt.Errorf("DANDORI_CONTENT_LANGUAGE is %q; it must be it or en", cfg.ContentLanguage)
+	}
 	pool, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, cfg: cfg.withDefaults(), log: log}
+	a := &App{pool: pool, cfg: cfg, log: log}
 	a.runs = runs.New(pool, runs.Config{
 		LLM:      ports.LLM,
 		Model:    a.cfg.Model,
@@ -100,7 +113,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Backoff:  a.cfg.LLMRetryBackoff,
 		MaxTurns: a.cfg.MaxTurns,
 	}, log)
-	a.recipes = recipes.New(pool, a.runs)
+	a.recipes = recipes.New(pool, a.runs, a.cfg.ContentLanguage)
 	a.profile = profile.New(pool)
 	a.stock = stock.New(pool)
 	if cfg.Demo {
@@ -140,10 +153,36 @@ func (a *App) EnsureDatabase(ctx context.Context) error {
 		}
 		return err
 	}
+	if err := a.checkContentLanguage(ctx); err != nil {
+		return err
+	}
 	if err := a.runs.AbandonInterrupted(ctx); err != nil {
 		return err
 	}
 	a.migrated = true
+	return nil
+}
+
+// ContentLanguageChangedError means the configured Content Language is not
+// the one the database was started with.
+type ContentLanguageChangedError struct {
+	Recorded, Configured domain.ContentLanguage
+}
+
+func (e *ContentLanguageChangedError) Error() string {
+	return fmt.Sprintf("the database's Content Language is %s, but DANDORI_CONTENT_LANGUAGE is %s: switching language means a new database", e.Recorded, e.Configured)
+}
+
+// checkContentLanguage records the configured Content Language on first
+// start, and refuses a later start with a different one.
+func (a *App) checkContentLanguage(ctx context.Context) error {
+	recorded, err := db.RecordContentLanguage(ctx, a.pool, a.cfg.ContentLanguage)
+	if err != nil {
+		return err
+	}
+	if recorded != a.cfg.ContentLanguage {
+		return &ContentLanguageChangedError{Recorded: recorded, Configured: a.cfg.ContentLanguage}
+	}
 	return nil
 }
 
@@ -203,6 +242,11 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 				w.Header().Set("HX-Refresh", "true")
 			}
 			templ.Handler(web.DatabaseUnavailable(), templ.WithStatus(http.StatusServiceUnavailable)).ServeHTTP(w, r)
+			return
+		case errors.As(err, new(*ContentLanguageChangedError)):
+			// A setting to fix, not a bug: say which.
+			a.log.Error("database not ready", "err", err)
+			http.Error(w, "Dandori can't use its database: "+err.Error()+".", http.StatusInternalServerError)
 			return
 		case err != nil:
 			// Reachable but not usable, e.g. a failing migration: a bug, not a pause.

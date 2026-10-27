@@ -1,5 +1,5 @@
-// Package db connects to the Dandori Postgres database and applies its
-// versioned migrations.
+// Package db connects to the Dandori Postgres database, applies its
+// versioned migrations and records the installation's Content Language.
 package db
 
 import (
@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 //go:embed migrations/*.sql
@@ -41,6 +43,22 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 		cfg.ConnConfig.ConnectTimeout = 5 * time.Second
 	}
 	return pgxpool.NewWithConfig(ctx, cfg)
+}
+
+// RecordContentLanguage records language as the installation's Content
+// Language unless one is recorded already, and returns the recorded one.
+func RecordContentLanguage(ctx context.Context, q Querier, language domain.ContentLanguage) (domain.ContentLanguage, error) {
+	var recorded domain.ContentLanguage
+	// The no-op update returns the recorded row, even when another start
+	// inserted it meanwhile.
+	err := q.QueryRow(ctx, `
+		INSERT INTO installation (content_language) VALUES ($1)
+		ON CONFLICT (id) DO UPDATE SET content_language = installation.content_language
+		RETURNING content_language`, language).Scan(&recorded)
+	if err != nil {
+		return "", fmt.Errorf("record the content language: %w", err)
+	}
+	return recorded, nil
 }
 
 // Migrate applies every pending migration.

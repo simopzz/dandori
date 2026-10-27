@@ -104,10 +104,13 @@ func (p parsedRecipe) problems(known map[string]domain.Ingredient) []string {
 	return problems
 }
 
+// recipeParseSystem is the parse Run's instructions; %[1]s is the name of the
+// Content Language.
 const recipeParseSystem = `You turn recipe text the user pasted into a structured Recipe for their Recipe Library.
 
 Call submit_recipe with the whole Recipe. Then end your turn with one short sentence.
 
+- Write the Recipe name, Ingredient names, steps and appliances in %[1]s. If the recipe text is in another language, translate it into %[1]s; for an Ingredient with no word-for-word %[1]s name, use the food a %[1]s-speaking cook would buy for it.
 - Name each Ingredient as a generic food: lowercase, singular, no amounts or brands ("chicken breast", not "2 organic chicken breasts").
 - When an Ingredient is one of the known Ingredients, use exactly its name and unit.
 - Give every quantity in the Ingredient's unit: g for solids, ml for liquids, piece for things that are counted (eggs, lemons). Convert cups and spoons to g or ml.
@@ -167,7 +170,7 @@ func (s *Service) parseJob(text string, known map[string]domain.Ingredient) agen
 	fmt.Fprintf(&prompt, "\nRecipe text:\n<recipe>\n%s\n</recipe>", text)
 
 	return agent.Job{
-		System: recipeParseSystem,
+		System: fmt.Sprintf(recipeParseSystem, s.language.Name()),
 		Prompt: prompt.String(),
 		Tools: []agent.Tool{{
 			Name:        "submit_recipe",
