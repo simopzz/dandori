@@ -87,6 +87,7 @@ elements themselves.
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
+| `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window). |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. |

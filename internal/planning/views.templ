@@ -212,7 +212,7 @@ templ deliveryForm(c CycleView) {
 						Ordered. Moving it leaves the Plan needing a new Plan Proposal, which makes do with what is ordered.
 					}
 				} else {
-					@web.Segmented("Delivery", "ordered", []web.Choice{{Value: "", Label: "Tentative"}, {Value: "yes", Label: "Ordered"}}, c.Change.Values["ordered"], "")
+					@web.Segmented("Ordered or tentative", "ordered", []web.Choice{{Value: "", Label: "Tentative"}, {Value: "yes", Label: "Ordered"}}, c.Change.Values["ordered"], "")
 					@web.Hint() {
 						Mark it ordered once you have checked out on the supermarket's site.
 					}
@@ -253,18 +253,8 @@ templ deliveryFields(f CycleForm) {
 		/>
 	}
 	@web.FieldRow() {
-		@timeField(f, "window_from", "Window from")
-		@timeField(f, "window_to", "Window to")
-	}
-}
-
-templ timeField(f CycleForm, name, label string) {
-	@web.Field(label, "", f.Errors[name]) {
-		<input type="time" required name={ name } value={ f.Values[name] }
-			if f.Errors[name] != "" {
-				aria-invalid="true"
-			}
-		/>
+		@web.TimeField("Window from", "window_from", f.Values["window_from"], f.Errors["window_from"])
+		@web.TimeField("Window to", "window_to", f.Values["window_to"], f.Errors["window_to"])
 	}
 }
 

@@ -25,10 +25,11 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	f := ProfileForm{Values: map[string]string{}, Saved: r.URL.Query().Has("saved")}
 	if found {
 		f.Values = profileValues(p)
-	}
-	// A new Profile offers the default Slot times.
-	for _, k := range domain.SlotKinds {
-		f.Values[slotTimeField(k)] = p.SlotTimes[k].String()
+	} else {
+		// A new Profile offers the default Slot times.
+		for _, k := range domain.SlotKinds {
+			f.Values[slotTimeField(k)] = p.SlotTimes[k].String()
+		}
 	}
 	templ.Handler(ProfilePage(f)).ServeHTTP(w, r)
 }

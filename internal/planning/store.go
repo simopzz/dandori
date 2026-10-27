@@ -395,8 +395,8 @@ func loadKept(ctx context.Context, q db.Querier, id int64, from, prepared domain
 	return keptPortions(ctx, q, refs)
 }
 
-// loadEarlier loads what the Slots before from eat, on the days from six
-// before c's first on: all a trailing seven days of c can reach. They
+// loadEarlier loads what the Slots before from eat, from six days before
+// c's first day on: all a trailing seven days of c can reach. They
 // are earlier Cycles' Slots, and c's own that a Plan from from on keeps.
 func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) ([]domain.DayNutrition, error) {
 	refs, err := loadPortionRefs(ctx, q, `

@@ -71,7 +71,7 @@ func cycleView(cp CyclePlan, number int) *CycleView {
 	v := &CycleView{
 		ID:        c.ID,
 		Number:    number,
-		Delivery:  c.Delivery.On.Format(longDate) + ", " + c.Delivery.From.String() + "–" + c.Delivery.To.String(),
+		Delivery:  describeDelivery(c.Delivery, longDate),
 		Ordered:   c.Delivery.Ordered,
 		Starts:    c.Start.String(),
 		Ends:      c.EndsOn.Format(longDate),
@@ -86,10 +86,10 @@ func cycleView(cp CyclePlan, number int) *CycleView {
 	return v
 }
 
-// describeDelivery is d's date and window, as a Plan Proposal's note says
-// it, e.g. "Thu 12 Nov, 18:00–20:00".
-func describeDelivery(d domain.Delivery) string {
-	return d.On.Format(shortDate) + ", " + d.From.String() + "–" + d.To.String()
+// describeDelivery is d's date, in layout, and window, e.g. "Thu 12 Nov,
+// 18:00–20:00".
+func describeDelivery(d domain.Delivery, layout string) string {
+	return d.On.Format(layout) + ", " + d.From.String() + "–" + d.To.String()
 }
 
 // deliveryValues are d as the change-the-Delivery form shows it.

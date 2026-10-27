@@ -65,13 +65,13 @@ templ ProfileFormFragment(f ProfileForm) {
 		}
 		@web.FieldGroup(5, "Slot times") {
 			@web.Hint() {
-				When each meal is eaten. A Cycle starts at the first meal after its Delivery arrives.
+				The time of day of each kind of Slot. A Cycle starts at the first Slot after its Delivery arrives.
 			}
 			@web.FieldRow() {
-				@timeInput(f, "breakfast_at", "Breakfast")
-				@timeInput(f, "lunch_at", "Lunch")
-				@timeInput(f, "snack_at", "Snack")
-				@timeInput(f, "dinner_at", "Dinner")
+				@web.TimeField("Breakfast", "breakfast_at", f.Values["breakfast_at"], f.Errors["breakfast_at"])
+				@web.TimeField("Lunch", "lunch_at", f.Values["lunch_at"], f.Errors["lunch_at"])
+				@web.TimeField("Snack", "snack_at", f.Values["snack_at"], f.Errors["snack_at"])
+				@web.TimeField("Dinner", "dinner_at", f.Values["dinner_at"], f.Errors["dinner_at"])
 			}
 		}
 		@web.Actions() {
@@ -107,12 +107,3 @@ templ foodField(f ProfileForm, name, label string) {
 	}
 }
 
-templ timeInput(f ProfileForm, name, label string) {
-	@web.Field(label, "", f.Errors[name]) {
-		<input type="time" required name={ name } value={ f.Values[name] }
-			if f.Errors[name] != "" {
-				aria-invalid="true"
-			}
-		/>
-	}
-}

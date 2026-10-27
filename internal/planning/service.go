@@ -322,7 +322,7 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 		if err := updateDelivery(ctx, tx, id, moved); err != nil {
 			return err
 		}
-		if err := moveCycle(ctx, tx, id, moved, "Its Delivery moved to "+describeDelivery(d)+"."); err != nil {
+		if err := moveCycle(ctx, tx, id, moved, "Its Delivery moved to "+describeDelivery(d, shortDate)+"."); err != nil {
 			return err
 		}
 		if flagCurrent {

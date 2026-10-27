@@ -104,6 +104,17 @@ templ Field(label, hint, err string) {
 	</label>
 }
 
+// TimeField is a Field for a time of day, HH:MM, holding value.
+templ TimeField(label, name, value, err string) {
+	@Field(label, "", err) {
+		<input type="time" required name={ name } value={ value }
+			if err != "" {
+				aria-invalid="true"
+			}
+		/>
+	}
+}
+
 // CellField is a Field in a grid whose column heads name it, so its label
 // is shown only on a phone, where the heads are hidden.
 templ CellField(label, err string) {
