@@ -258,7 +258,8 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 		case errors.Is(err, ErrDatabaseUnreachable):
 			a.log.Warn("database unavailable", "err", err)
 			if httpx.IsHTMX(r) {
-				// Reload into the error page rather than swap it into a fragment.
+				// Reload into the error page rather than swap it in, which would
+				// push the request's URL: for a form, not a page to reload.
 				w.Header().Set("HX-Refresh", "true")
 			}
 			templ.Handler(web.DatabaseUnavailable(), templ.WithStatus(http.StatusServiceUnavailable)).ServeHTTP(w, r)

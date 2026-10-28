@@ -14,7 +14,9 @@ const (
 
 // Layout is the page shell every page renders inside: the head, the
 // navigation (bottom tabs on a phone, a rail on desktop) with the page's
-// tab marked, and the page's content.
+// tab marked, and the page's content. Every link and form is boosted, with
+// a form's buttons disabled while its request is in flight; ADR 0009 says
+// why a rejection keeps its address and why settling is off.
 templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -27,12 +29,13 @@ templ Layout(title string, current Tab) {
 			<link rel="icon" href="/static/icon-192.png"/>
 			<link rel="apple-touch-icon" href="/static/icon-192.png"/>
 			<link rel="stylesheet" href="/static/app.css"/>
+			<meta name="htmx-config" content="defaultSettleDelay:0"/>
 			<script src="/static/htmx.min.js" defer></script>
 			<script>
 				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
 			</script>
 		</head>
-		<body>
+		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
 			<nav class="shell" aria-label="Main">
 				@wordmark("")
 				@tab(TabPlan, current, "calendar", "Plan", false)
