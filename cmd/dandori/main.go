@@ -17,7 +17,7 @@
 // DANDORI_SEED_ORDERS (how many orders a Known Catalog seed reads,
 // default 10), VOYAGE_API_KEY (to search the Recipe Library by meaning;
 // unset, searches only filter) and DANDORI_EMBEDDING_MODEL (the Voyage
-// model, default voyage-3.5).
+// model, default voyage-4-large).
 package main
 
 import (

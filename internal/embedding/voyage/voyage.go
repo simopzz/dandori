@@ -15,7 +15,7 @@ import (
 )
 
 // DefaultModel is the Voyage model Recipes are embedded with by default.
-const DefaultModel = "voyage-3.5"
+const DefaultModel = "voyage-4-large"
 
 const endpoint = "https://api.voyageai.com/v1/embeddings"
 
