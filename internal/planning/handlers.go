@@ -153,8 +153,10 @@ func (h Handlers) OpenCycle(w http.ResponseWriter, r *http.Request) {
 			endsOn = t
 		}
 	}
+	var id int64
 	if len(problems) == 0 {
-		switch err := h.Service.OpenCycle(r.Context(), d, endsOn); {
+		var err error
+		switch id, err = h.Service.OpenCycle(r.Context(), d, endsOn); {
 		case errors.Is(err, ErrCycleUpcoming):
 			h.render(w, r, PlanPage{Problem: "A Cycle is already upcoming: change its Delivery instead."}, http.StatusConflict)
 			return
@@ -168,7 +170,8 @@ func (h Handlers) OpenCycle(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, PlanPage{Open: CycleForm{Values: values, Errors: problems}}, http.StatusUnprocessableEntity)
 		return
 	}
-	http.Redirect(w, r, "/plan", http.StatusSeeOther)
+	// Logging the Exceptions already known is the first step of planning.
+	http.Redirect(w, r, exceptionsURL(id), http.StatusSeeOther)
 }
 
 // ChangeDelivery moves the upcoming Cycle's Delivery or marks it ordered.
@@ -358,6 +361,11 @@ func calendarOf(c domain.PlanCheck) []CalendarDay {
 			if p.EatAt != nil {
 				add(*p.EatAt, ps.Name())
 			}
+		}
+	}
+	for _, e := range c.Exceptions {
+		if c.Cycle.Contains(e.Slot) {
+			add(e.Slot, e.Kind.Describe())
 		}
 	}
 	kept := map[int64]string{}

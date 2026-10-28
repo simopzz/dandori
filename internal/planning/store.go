@@ -25,7 +25,7 @@ func ingredientFields(ing *domain.Ingredient) []any {
 
 // cycleColumns are a Cycle's columns, as scanCycle reads them.
 var cycleColumns = `id, delivery_on, ` + db.Minutes("window_from") + `, ` + db.Minutes("window_to") + `, ordered,
-	starts_on, starts_with, ends_on, closed_on, closed_with, status, needs_proposal`
+	starts_on, starts_with, ends_on, closed_on, closed_with, status, needs_proposal_because`
 
 func scanCycle(row pgx.Row) (*Cycle, error) {
 	var c Cycle
@@ -84,14 +84,15 @@ func loadSince(ctx context.Context, q db.Querier) (time.Time, error) {
 	return since, err
 }
 
-// insertCycle stores c as the upcoming Cycle.
-func insertCycle(ctx context.Context, q db.Querier, c domain.Cycle) error {
+// insertCycle stores c as the upcoming Cycle, returning its id.
+func insertCycle(ctx context.Context, q db.Querier, c domain.Cycle) (int64, error) {
 	d := c.Delivery
-	_, err := q.Exec(ctx, `
+	var id int64
+	err := q.QueryRow(ctx, `
 		INSERT INTO cycle (delivery_on, window_from, window_to, ordered, starts_on, starts_with, ends_on)
-		VALUES ($1, `+db.Time("$2")+`, `+db.Time("$3")+`, $4, $5, $6, $7)`,
-		d.On, d.From, d.To, d.Ordered, c.Start.On, c.Start.Kind, c.EndsOn)
-	return err
+		VALUES ($1, `+db.Time("$2")+`, `+db.Time("$3")+`, $4, $5, $6, $7) RETURNING id`,
+		d.On, d.From, d.To, d.Ordered, c.Start.On, c.Start.Kind, c.EndsOn).Scan(&id)
+	return id, err
 }
 
 // updateDelivery stores c's Delivery, first Slot and end date as those of
@@ -110,7 +111,7 @@ func updateDelivery(ctx context.Context, q db.Querier, id int64, c domain.Cycle)
 // Prep Sessions and Slots now outside the Cycle. Its Delivery hasn't
 // arrived, so none of its Prep Sessions was prepared.
 func moveCycle(ctx context.Context, q db.Querier, id int64, c domain.Cycle, note string) error {
-	if err := setNeedsProposal(ctx, q, id, true); err != nil {
+	if err := setNeedsProposal(ctx, q, id, deliveryMoved); err != nil {
 		return err
 	}
 	if err := rejectPending(ctx, q, id, note); err != nil {
@@ -128,8 +129,15 @@ func moveCycle(ctx context.Context, q db.Querier, id int64, c domain.Cycle, note
 	return err
 }
 
-func setNeedsProposal(ctx context.Context, q db.Querier, id int64, needs bool) error {
-	_, err := q.Exec(ctx, `UPDATE cycle SET needs_proposal = $2 WHERE id = $1`, id, needs)
+// deliveryMoved is why a Plan a Delivery moved under needs a new Plan
+// Proposal.
+const deliveryMoved = "A Delivery moved"
+
+// setNeedsProposal marks the Plan of the Cycle with id as needing a new
+// Plan Proposal, because of what because says, or, when it is empty, as
+// not needing one.
+func setNeedsProposal(ctx context.Context, q db.Querier, id int64, because string) error {
+	_, err := q.Exec(ctx, `UPDATE cycle SET needs_proposal_because = $2 WHERE id = $1`, id, because)
 	return err
 }
 
@@ -524,4 +532,35 @@ func hasPlan(ctx context.Context, q db.Querier, id int64) (bool, error) {
 	var approved bool
 	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT FROM plan_proposal WHERE cycle_id = $1 AND status = 'approved')`, id).Scan(&approved)
 	return approved, err
+}
+
+// loadExceptions loads the Exceptions logged for the Slots from day first
+// to day last, in order.
+func loadExceptions(ctx context.Context, q db.Querier, first, last time.Time) ([]domain.Exception, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT day, kind, exception, kcal, protein_g, carbs_g, fat_g FROM slot_exception
+		WHERE day BETWEEN $1 AND $2 ORDER BY day, `+order("kind"), first, last)
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Exception, error) {
+		var e domain.Exception
+		est := &e.Estimate
+		err := row.Scan(&e.Slot.On, &e.Slot.Kind, &e.Kind, &est.Kcal, &est.ProteinG, &est.CarbsG, &est.FatG)
+		return e, err
+	})
+}
+
+// saveException logs e for slot, replacing what it had, or removes the
+// Exception slot has when e is nil.
+func saveException(ctx context.Context, q db.Querier, slot domain.Slot, e *domain.Exception) error {
+	if e == nil {
+		_, err := q.Exec(ctx, `DELETE FROM slot_exception WHERE day = $1 AND kind = $2`, slot.On, slot.Kind)
+		return err
+	}
+	est := e.Estimate
+	_, err := q.Exec(ctx, `
+		INSERT INTO slot_exception (day, kind, exception, kcal, protein_g, carbs_g, fat_g)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (day, kind) DO UPDATE SET exception = EXCLUDED.exception,
+			kcal = EXCLUDED.kcal, protein_g = EXCLUDED.protein_g, carbs_g = EXCLUDED.carbs_g, fat_g = EXCLUDED.fat_g`,
+		slot.On, slot.Kind, e.Kind, est.Kcal, est.ProteinG, est.CarbsG, est.FatG)
+	return err
 }

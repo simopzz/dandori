@@ -68,9 +68,9 @@ type Cycle struct {
 	domain.Cycle
 	// Status is upcoming, current or closed.
 	Status string
-	// NeedsProposal is whether a Delivery moved under its Plan, which needs
-	// a new Plan Proposal.
-	NeedsProposal bool
+	// NeedsProposal is why its Plan needs a new Plan Proposal, e.g. "A
+	// Delivery moved"; empty when it doesn't.
+	NeedsProposal string
 }
 
 // ProposalSummary is a Plan Proposal in a list.
@@ -226,6 +226,9 @@ func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, from domain.
 	if check.Earlier, err = loadEarlier(ctx, q, c, from); err != nil {
 		return check, err
 	}
+	if check.Exceptions, err = loadExceptions(ctx, q, c.Start.On.AddDate(0, 0, -6), c.LastDay()); err != nil {
+		return check, err
+	}
 	check.Since, err = loadSince(ctx, q)
 	return check, err
 }
@@ -242,17 +245,18 @@ func (s *Service) newCycle(ctx context.Context, build func(domain.SlotTimes) dom
 }
 
 // OpenCycle opens the Cycle delivered by d and planned to end on endsOn as
-// the upcoming Cycle. The current Cycle is left as it is until the
-// Delivery arrives.
-func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.Time) error {
+// the upcoming Cycle, returning its id. The current Cycle is left as it is
+// until the Delivery arrives.
+func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.Time) (int64, error) {
 	if err := s.Arrive(ctx); err != nil {
-		return err
+		return 0, err
 	}
 	c, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return domain.NewCycle(d, endsOn, times) })
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	var id int64
+	return id, pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
 		}
@@ -272,7 +276,8 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 		case err != nil:
 			return err
 		}
-		return insertCycle(ctx, tx, c)
+		id, err = insertCycle(ctx, tx, c)
+		return err
 	})
 }
 
@@ -327,7 +332,7 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 			return err
 		}
 		if flagCurrent {
-			return setNeedsProposal(ctx, tx, current.ID, true)
+			return setNeedsProposal(ctx, tx, current.ID, deliveryMoved)
 		}
 		return nil
 	})
@@ -462,7 +467,7 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if err != nil {
 			return err
 		}
-		if err := setNeedsProposal(ctx, tx, ch.cycle.ID, false); err != nil {
+		if err := setNeedsProposal(ctx, tx, ch.cycle.ID, ""); err != nil {
 			return err
 		}
 		return decideProposal(ctx, tx, id, "approved", "")

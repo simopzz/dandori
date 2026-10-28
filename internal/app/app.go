@@ -261,6 +261,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /cycles", a.needsDatabase(http.HandlerFunc(plan.OpenCycle)))
 	mux.Handle("POST /cycles/{id}/delivery", a.needsDatabase(http.HandlerFunc(plan.ChangeDelivery)))
 	mux.Handle("POST /cycles/{id}/drop", a.needsDatabase(http.HandlerFunc(plan.Drop)))
+	mux.Handle("GET /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.ShowExceptions)))
+	mux.Handle("POST /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.LogException)))
 	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(http.HandlerFunc(plan.ShowProposal)))
 	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(http.HandlerFunc(plan.Approve)))
 	mux.Handle("POST /plan-proposals/{id}/reject", a.needsDatabase(http.HandlerFunc(plan.Reject)))
@@ -327,6 +329,10 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 // RecipeSearchTool is the Recipe Library search as an agent tool, for the
 // planner agent.
 func (a *App) RecipeSearchTool() agent.Tool { return a.recipes.SearchTool() }
+
+// ExceptionsTool lists the Slots logged as a Meal Out or skipped as an
+// agent tool, for the planner agent.
+func (a *App) ExceptionsTool() agent.Tool { return a.plan.ExceptionsTool() }
 
 // RegisterJob makes Runs of kind startable with POST /runs.
 func (a *App) RegisterJob(kind string, newJob runs.NewJob) { a.runs.Register(kind, newJob) }

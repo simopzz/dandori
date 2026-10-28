@@ -30,7 +30,9 @@ type CycleView struct {
 	Ordered   bool
 	Starts    string // its first Slot, e.g. "dinner on Mon 2 Nov"
 	Ends      string
-	NeedsPlan bool // whether its Plan needs a new Plan Proposal
+	// NeedsPlan is why its Plan needs a new Plan Proposal, e.g. "A Delivery
+	// moved"; empty when it doesn't.
+	NeedsPlan string
 	// HasPlan is whether a Plan Proposal of the Cycle was approved; Calendar
 	// is its Plan.
 	HasPlan   bool
@@ -157,11 +159,12 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 			<dt>Ends</dt>
 			<dd>{ c.Ends }</dd>
 		</dl>
-		if c.NeedsPlan {
+		if c.NeedsPlan != "" {
 			@web.Alert() {
-				A Delivery moved: this Plan needs a new Plan Proposal.
+				{ c.NeedsPlan }: this Plan needs a new Plan Proposal.
 			}
 		}
+		<p><a href={ templ.SafeURL(exceptionsURL(c.ID)) }>Exceptions</a></p>
 		if c.Change.Values != nil {
 			@deliveryForm(c)
 		}
