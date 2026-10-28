@@ -29,3 +29,39 @@ Rules code review checks against. Each says what it protects.
 - **The accessibility baseline in `docs/design.md` holds**: AA contrast,
   44px touch targets, visible focus, reduced motion, and meaning never carried
   by colour alone.
+
+## htmx
+
+- **htmx 4, not htmx 2.** The vendored `htmx.min.js` is 4.0.0: inheritance
+  is explicit (`hx-target:inherited`), `hx-disable` disables elements during
+  a request (htmx 2's `hx-disabled-elt`), events are colon-named
+  (`htmx:after:swap`), and every status but 204/304 swaps. The
+  `htmx-guidance` skill is the reference; `internal/web/htmx_test.go`
+  rejects htmx 2's names in CI. *Protects: markup that silently does
+  nothing under the version we ship.*
+- **Pages are boosted; a targeted fragment only keeps your place.** Links
+  and forms ride the `hx-boost` on `<body>`, and handlers answer the same
+  way for htmx and a plain browser: redirect after a write, re-render the
+  page with 422 on a rejection. A form swaps a fragment of its own
+  (`httpx.IsHTMX`) only when the boosted jump to the top would lose the
+  user's place, such as a row deep in a list. See
+  [ADR 0009](../adr/0009-boosted-pages-with-fragments-only-to-keep-your-place.md).
+  *Protects: one way to answer a request, and fragment code only where it
+  pays.*
+- **Every htmx request has a no-JS path.** A form keeps `method` and
+  `action`, which `internal/web/htmx_test.go` checks. *Protects: the app
+  works before htmx loads and when it fails.*
+- **Validation errors come back with 422 and what was typed**, as the page
+  or as the form's fragment. *Protects: input is never lost, and tests can
+  tell failure from success.*
+- **A write can't be submitted twice.** `hx-disable` on `<body>` disables a
+  form's buttons while its request is in flight; a form that opts out of
+  the boost keeps the same. A request slow in itself shows an
+  `hx-indicator`; work that calls the model runs as a Run and shows its
+  Trace instead. *Protects: no duplicate writes, and the user knows
+  something is happening.*
+- **Use a shipped extension before writing JS.** Streaming, preloading and
+  similar behaviour come from htmx's own extensions (`hx-sse.js` for SSE),
+  vendored next to `htmx.min.js`; a JS island is for what htmx can't do
+  (Cooking Mode's Wake Lock and timers). *Protects: one way to talk to the
+  server, and less hand-rolled code to maintain.*
