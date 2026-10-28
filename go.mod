@@ -9,6 +9,7 @@ require (
 	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/peterldowns/pgtestdb/migrators/goosemigrator v0.1.1
 	github.com/pressly/goose/v3 v3.29.0
+	github.com/yuin/goldmark v1.7.13
 	golang.org/x/net v0.61.0
 )
 

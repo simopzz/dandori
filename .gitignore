@@ -6,3 +6,6 @@ skills-lock.json
 
 bin/
 .env
+
+# Snapshots and network captures the Playwright MCP server writes.
+.playwright-mcp/

@@ -41,6 +41,15 @@ func loadRun(ctx context.Context, q db.Querier, id int64) (Run, bool, error) {
 	return run, true, nil
 }
 
+// latestRun is the id of the newest Run of any of kinds.
+func latestRun(ctx context.Context, q db.Querier, kinds []string) (id int64, found bool, err error) {
+	err = q.QueryRow(ctx, `SELECT id FROM run WHERE kind = ANY($1) ORDER BY id DESC LIMIT 1`, kinds).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	return id, err == nil, err
+}
+
 func loadEvents(ctx context.Context, q db.Querier, id int64, after int) ([]TraceEvent, error) {
 	rows, _ := q.Query(ctx, `
 		SELECT seq, at, kind, summary, detail FROM trace_event

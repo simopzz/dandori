@@ -1,0 +1,270 @@
+package catalog
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// Page is the Known Catalog page: the seed, every Catalog Product, and
+// every Ingredient's Product Mapping.
+type Page struct {
+	// Orders is how many of the latest Esselunga orders a seed reads.
+	Orders   int
+	Products []ProductRow
+	Mappings []MappingRow
+	// CanPropose is true when an Ingredient has no Product Mapping and the
+	// Known Catalog has products to propose.
+	CanPropose bool
+	// LastRun is the newest seed or proposal, if HasLastRun.
+	LastRun    runs.Run
+	HasLastRun bool
+}
+
+// ProductRow is one Catalog Product as shown.
+type ProductRow struct {
+	Name      string
+	Pack      string // e.g. "400 g"
+	Nutrition string // e.g. "89 kcal · 5 g protein per 100 g"
+	Aisle     string
+	Price     string // e.g. "€0.73"
+	Available bool
+	Seen      string // when availability was last seen, e.g. "28 Oct 10:14"
+}
+
+// MappingRow is one Ingredient with its Product Mapping and the form that
+// changes it.
+type MappingRow struct {
+	IngredientID int64
+	Ingredient   string
+	Unit         string
+	// ProductID is 0 when the Ingredient has no Product Mapping.
+	ProductID int64
+	Product   string
+	Proposed  bool
+	// Options are the Catalog Products sold in the Ingredient's unit.
+	Options []Option
+	// Selected is the product the form shows chosen, and Error why a
+	// change to it was rejected.
+	Selected int64
+	Error    string
+}
+
+// Option is a Catalog Product a mapping can choose.
+type Option struct {
+	ID   int64
+	Name string
+}
+
+templ CatalogPage(p Page) {
+	@web.Layout("Dandori — Known Catalog", web.TabCatalog) {
+		@web.PageHeader("品揃え", "Known Catalog") {
+			<p class="lede">What Esselunga sells that the planner plans with.</p>
+		}
+		@web.Section(1, "Seed from Esselunga") {
+			@web.Hint() {
+				{ fmt.Sprintf("Reads what your last %d Esselunga deliveries brought, looks each one up and saves it as a Catalog Product with its pack size, nutrition, aisle, price and availability. Then proposes a Product Mapping for each Ingredient without one.", p.Orders) }
+			}
+			<form id="seed" method="post" action="/catalog/seed">
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						Seed the Known Catalog
+					}
+				}
+			</form>
+			if p.HasLastRun {
+				<h3>Notes from the last Run</h3>
+				<p class="hint">
+					<a href={ runURL(p.LastRun.ID) }>{ fmt.Sprintf("Run #%d", p.LastRun.ID) }</a>,
+					{ p.LastRun.Kind }, started { p.LastRun.StartedAt.Local().Format("2 Jan 15:04") }
+					{ " " }
+					@web.Tag(p.LastRun.Status == "failed", "") {
+						{ p.LastRun.StatusLabel() }
+					}
+				</p>
+				@runNotes(p.LastRun)
+			}
+		}
+		@web.Section(2, "Catalog Products") {
+			if len(p.Products) == 0 {
+				@web.Empty() {
+					No Catalog Products yet.
+				}
+			} else {
+				@web.Rows() {
+					for _, prod := range p.Products {
+						@productRow(prod)
+					}
+				}
+			}
+		}
+		@web.Section(3, "Product Mappings") {
+			if len(p.Mappings) == 0 {
+				@web.Empty() {
+					No Ingredients yet: accept a Recipe first.
+				}
+			} else {
+				@web.Rows() {
+					for _, m := range p.Mappings {
+						@mappingRow(m)
+					}
+				}
+			}
+			<div id="proposal">
+				@proposal(p.CanPropose)
+			</div>
+		}
+	}
+}
+
+func runURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/catalog/runs/%d", id)) }
+
+// runTitles name each of the Known Catalog's kinds of Run.
+var runTitles = map[string]string{
+	seedKind:     "Seeding the Known Catalog",
+	proposalKind: "Proposing Product Mappings",
+}
+
+// RunPage follows one of the Known Catalog's Runs and, once it ends, shows
+// the agent's notes on what it did and couldn't do.
+templ RunPage(r runs.Run) {
+	@web.Layout("Dandori — "+runTitles[r.Kind], web.TabCatalog) {
+		@web.PageHeader("品揃え", runTitles[r.Kind])
+		if r.Running() {
+			@web.Notice() {
+				The agent is at work: its notes appear here when it is done.
+			}
+		} else {
+			@runNotes(r)
+			<p><a href="/catalog">Back to the Known Catalog</a></p>
+		}
+		@runs.TracePanel(r, string(runURL(r.ID)))
+	}
+}
+
+// runNotes is what the agent said it did and couldn't do in Run r, or why
+// r failed.
+templ runNotes(r runs.Run) {
+	if r.Failure() != "" {
+		@web.Alert() {
+			The Run failed: { r.Failure() }
+		}
+	}
+	if r.Notes() != "" {
+		@web.Markdown(r.Notes())
+	} else if r.Running() {
+		@web.Hint() {
+			Still running.
+		}
+	} else if r.Status == "cancelled" {
+		@web.Hint() {
+			The Run was cancelled.
+		}
+	} else if r.Failure() == "" {
+		@web.Hint() {
+			The agent left no notes.
+		}
+	}
+}
+
+templ productRow(p ProductRow) {
+	@web.Row() {
+		<span class="row-title">{ p.Name }</span>
+		<span class="row-figure">{ p.Pack }</span>
+		<span class="row-meta">
+			<span>{ p.Nutrition }</span>
+			if p.Aisle != "" {
+				<span>{ p.Aisle }</span>
+			}
+			<span>{ p.Price }</span>
+			if p.Available {
+				<span>Available, seen { p.Seen }</span>
+			} else {
+				<span>
+					@web.Tag(true, "Out of stock when last seen") {
+						Out of stock
+					}
+					seen { p.Seen }
+				</span>
+			}
+		</span>
+	}
+}
+
+// proposal offers to propose Product Mappings, when there are some to
+// propose.
+templ proposal(canPropose bool) {
+	if canPropose {
+		<form id="propose" method="post" action="/catalog/propose-mappings">
+			@web.Actions() {
+				@web.TextButton(templ.Attributes{"type": "submit"}) {
+					Propose Product Mappings
+				}
+			}
+		</form>
+	}
+}
+
+// mappingSwap is an Ingredient's row as htmx swaps it in, with the offer to
+// propose mappings brought up to date, since it hangs on every row.
+templ mappingSwap(m MappingRow, canPropose bool) {
+	@mappingRow(m)
+	<hx-partial hx-target="#proposal" hx-swap="innerHTML">
+		@proposal(canPropose)
+	</hx-partial>
+}
+
+// mappingRow is an Ingredient's row. Its form swaps only the row under
+// htmx, not the boosted page, so the page keeps its place (ADR 0009).
+templ mappingRow(m MappingRow) {
+	@web.EditRow(m.Error != "", mappingSummary(m)) {
+		if len(m.Options) == 0 {
+			@web.Hint() {
+				{ fmt.Sprintf("No Catalog Product is sold in %s.", m.Unit) }
+			}
+		} else {
+			<form id={ fmt.Sprintf("mapping-%d", m.IngredientID) } class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/product-mappings/%d", m.IngredientID)) } hx-post={ fmt.Sprintf("/product-mappings/%d", m.IngredientID) } hx-target="closest li" hx-swap="outerHTML">
+				if m.Proposed {
+					@web.Hint() {
+						The agent proposed this Product Mapping: save it to confirm it.
+					}
+				}
+				@web.Field("Catalog Product", "", m.Error) {
+					<select name="catalog_product"
+						if m.Error != "" {
+							aria-invalid="true"
+						}
+					>
+						<option value="" selected?={ m.Selected == 0 }>None</option>
+						for _, o := range m.Options {
+							<option value={ strconv.FormatInt(o.ID, 10) } selected?={ m.Selected == o.ID }>{ o.Name }</option>
+						}
+					</select>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						Save
+					}
+				}
+			</form>
+		}
+	}
+}
+
+templ mappingSummary(m MappingRow) {
+	<span class="row-title">{ m.Ingredient }</span>
+	<span class="row-meta">
+		if m.ProductID == 0 {
+			<span>No Product Mapping</span>
+		} else {
+			<span>{ m.Product }</span>
+			if m.Proposed {
+				@web.Tag(false, "Proposed by the agent, not yet confirmed") {
+					Proposed
+				}
+			}
+		}
+	</span>
+}

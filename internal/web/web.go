@@ -14,7 +14,8 @@ import (
 // and on the HX-Refresh header. Next to it, hx-sse.min.js is its SSE
 // extension, of the same version and licence, from
 // https://unpkg.com/htmx.org@4.0.0/dist/ext/hx-sse.min.js: the trace panel
-// follows a running Run through it.
+// follows a running Run through it, and trace.js keeps its newest events
+// in view.
 // The htmx-guidance and htmx-debugging skills in .agents/skills and
 // .claude/skills come from the same package's dist/skills: upgrade them
 // with htmx.

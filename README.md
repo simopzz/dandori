@@ -14,7 +14,7 @@ The original pitch is in [vision.md](vision.md); the current terminology is in [
 
 ## Status
 
-Early development. So far: the profile (targets, exclusions, meal-out estimate), the agent loop and the live trace panel. Planning, the recipe library and cart fill are still to come.
+Early development. So far: the profile, the recipe library, stock, Cycles and Plan Proposals, the agent loop with its live trace panel, and the Known Catalog seeded from Esselunga order history. The grocery list and cart fill are still to come.
 
 ## Stack
 

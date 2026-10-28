@@ -142,6 +142,8 @@ func (h *Harness) boot(t testing.TB) {
 		DatabaseURL: h.databaseURL,
 		// Retries are part of what tests check; waiting for them is not.
 		LLMRetryBackoff: time.Millisecond,
+		// Nor is waiting between store actions, unless a test says so.
+		StoreThrottle: time.Millisecond,
 	}
 	if h.settings.config != nil {
 		h.settings.config(&cfg)

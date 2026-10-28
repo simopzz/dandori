@@ -17,9 +17,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/catalog"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/demo"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/esselunga"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/profile"
@@ -47,6 +49,13 @@ type Config struct {
 	// MaxTurns bounds the requests to the model in one Run.
 	MaxTurns int
 
+	// StoreThrottle is the least time between two actions on Esselunga;
+	// each wait adds up to half again at random.
+	StoreThrottle time.Duration
+	// SeedOrders is how many of the latest Esselunga orders a Known
+	// Catalog seed reads.
+	SeedOrders int
+
 	// Demo offers demo Runs on the Runs page, for trying the agent by hand.
 	Demo bool
 
@@ -55,6 +64,10 @@ type Config struct {
 	// the end of its window. time.Now when nil.
 	Now func() time.Time
 }
+
+// DefaultStoreThrottle is the least time between two actions on Esselunga,
+// so Dandori behaves politely and the user's account isn't flagged.
+const DefaultStoreThrottle = 3 * time.Second
 
 // DefaultModel is the latest Claude model.
 const DefaultModel = "claude-opus-5-5"
@@ -75,6 +88,12 @@ func (c Config) withDefaults() Config {
 	if c.MaxTurns == 0 {
 		c.MaxTurns = 50
 	}
+	if c.StoreThrottle == 0 {
+		c.StoreThrottle = DefaultStoreThrottle
+	}
+	if c.SeedOrders == 0 {
+		c.SeedOrders = 10
+	}
 	if c.Now == nil {
 		c.Now = time.Now
 	}
@@ -82,10 +101,13 @@ func (c Config) withDefaults() Config {
 }
 
 // Ports are the outbound dependencies that talk to the outside world. Tests
-// replace them with fakes. The store and embeddings ports are added by the
-// slices that need them.
+// replace them with fakes. The embeddings port is added by the slice that
+// needs it.
 type Ports struct {
 	LLM agent.LLM
+	// Store is the user's Esselunga session; without one, Runs that need
+	// it fail saying so.
+	Store esselunga.Store
 }
 
 // App is a running Dandori instance.
@@ -102,6 +124,7 @@ type App struct {
 	profile *profile.Service
 	stock   *stock.Service
 	plan    *planning.Service
+	catalog *catalog.Service
 }
 
 // New creates the app. It does not connect to the database: a paused or
@@ -128,6 +151,12 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
 	a.plan = planning.New(pool, a.profile, a.cfg.Now)
 	a.stock = stock.New(pool, today, a.plan.Arrive)
+	a.catalog = catalog.New(pool, a.runs, catalog.Config{
+		Store:    esselunga.Throttle(ports.Store, a.cfg.StoreThrottle),
+		Orders:   a.cfg.SeedOrders,
+		Language: a.cfg.ContentLanguage,
+		Now:      a.cfg.Now,
+	})
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
 	}
@@ -214,6 +243,7 @@ func (a *App) Handler() http.Handler {
 	profile := profile.Handlers{Service: a.profile, Log: a.log}
 	stock := stock.Handlers{Service: a.stock, Log: a.log}
 	plan := planning.Handlers{Service: a.plan, Log: a.log}
+	catalog := catalog.Handlers{Service: a.catalog, Log: a.log}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
@@ -241,6 +271,11 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /stock-items/{id}", a.needsDatabase(http.HandlerFunc(stock.Update)))
 	mux.Handle("POST /stock-items/{id}/delete", a.needsDatabase(http.HandlerFunc(stock.Remove)))
 	mux.Handle("POST /portions/{id}/move", a.needsDatabase(http.HandlerFunc(stock.MovePortion)))
+	mux.Handle("GET /catalog", a.needsDatabase(http.HandlerFunc(catalog.Show)))
+	mux.Handle("GET /catalog/runs/{id}", a.needsDatabase(http.HandlerFunc(catalog.ShowRun)))
+	mux.Handle("POST /catalog/seed", a.needsDatabase(http.HandlerFunc(catalog.Seed)))
+	mux.Handle("POST /catalog/propose-mappings", a.needsDatabase(http.HandlerFunc(catalog.Propose)))
+	mux.Handle("POST /product-mappings/{id}", a.needsDatabase(http.HandlerFunc(catalog.SetMapping)))
 	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(runs.List)))
 	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(runs.Start)))
 	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(runs.Show)))
