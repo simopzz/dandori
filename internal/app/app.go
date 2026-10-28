@@ -21,6 +21,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/demo"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/embedding"
 	"github.com/simopzz/dandori/internal/esselunga"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/planning"
@@ -101,10 +102,12 @@ func (c Config) withDefaults() Config {
 }
 
 // Ports are the outbound dependencies that talk to the outside world. Tests
-// replace them with fakes. The embeddings port is added by the slice that
-// needs it.
+// replace them with fakes.
 type Ports struct {
 	LLM agent.LLM
+	// Embedder embeds Recipes for searching the Recipe Library by meaning;
+	// without one, searches only filter.
+	Embedder embedding.Embedder
 	// Store is the user's Esselunga session; without one, Runs that need
 	// it fail saying so.
 	Store esselunga.Store
@@ -146,11 +149,17 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Backoff:  a.cfg.LLMRetryBackoff,
 		MaxTurns: a.cfg.MaxTurns,
 	}, log)
-	a.recipes = recipes.New(pool, a.runs, a.cfg.ContentLanguage)
 	a.profile = profile.New(pool)
 	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
 	a.plan = planning.New(pool, a.profile, a.cfg.Now)
 	a.stock = stock.New(pool, today, a.plan.Arrive)
+	a.recipes = recipes.New(pool, recipes.Config{
+		Runs:     a.runs,
+		Language: a.cfg.ContentLanguage,
+		Embedder: ports.Embedder,
+		Stock:    a.stock,
+		Today:    today,
+	})
 	a.catalog = catalog.New(pool, a.runs, catalog.Config{
 		Store:    esselunga.Throttle(ports.Store, a.cfg.StoreThrottle),
 		Orders:   a.cfg.SeedOrders,
@@ -313,6 +322,10 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// RecipeSearchTool is the Recipe Library search as an agent tool, for the
+// planner agent.
+func (a *App) RecipeSearchTool() agent.Tool { return a.recipes.SearchTool() }
 
 // RegisterJob makes Runs of kind startable with POST /runs.
 func (a *App) RegisterJob(kind string, newJob runs.NewJob) { a.runs.Register(kind, newJob) }

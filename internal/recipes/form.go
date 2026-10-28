@@ -180,3 +180,24 @@ func nonBlank(lines []string) []string {
 	}
 	return out
 }
+
+// readSearch reads the Recipe Library's search form as submitted, and the
+// Search it asks for; a rejected prep time leaves it out.
+func readSearch(query url.Values) (SearchForm, Search) {
+	f := SearchForm{
+		Text:       query.Get("q"),
+		Appliance:  query.Get("appliance"),
+		MaxMinutes: query.Get("max_minutes"),
+		Stock:      query.Get("stock"),
+	}
+	search := Search{Text: f.Text, Appliance: f.Appliance, InStock: f.Stock == stockCovered}
+	if raw := strings.TrimSpace(f.MaxMinutes); raw != "" {
+		n, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || n < 1 {
+			f.Error = "Must be a whole number of minutes, at least 1"
+		} else {
+			search.MaxMinutes = int(n)
+		}
+	}
+	return f, search
+}

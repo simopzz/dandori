@@ -55,6 +55,10 @@ func (n Nutrition) amounts() map[string]int {
 	return map[string]int{"Kcal": n.Kcal, "ProteinG": n.ProteinG, "CarbsG": n.CarbsG, "FatG": n.FatG}
 }
 
+// FoodTerm normalises one food term as typed, such as an appliance, so it
+// is compared case-insensitively.
+func FoodTerm(s string) string { return normaliseFood(s) }
+
 // FoodTerms normalises a list of foods as the user typed them: one per line
 // or comma-separated, compared case-insensitively, without blanks or
 // duplicates. The order of first appearance is kept.

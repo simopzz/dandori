@@ -6,12 +6,15 @@ package recipes
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/embedding"
 	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/stock"
 )
 
 // ErrNotFound means there is no Recipe with that id.
@@ -41,6 +44,9 @@ func validate(rec domain.Recipe) error {
 type Stored struct {
 	ID int64
 	domain.Recipe
+	// version is when the Recipe last changed, so an embedding computed
+	// from an older version isn't stored.
+	version time.Time
 }
 
 // Service is the Recipe Library's use cases.
@@ -48,12 +54,29 @@ type Service struct {
 	pool     *pgxpool.Pool
 	runs     *runs.Engine
 	language domain.ContentLanguage
+	embedder embedding.Embedder
+	stock    *stock.Service
+	today    func() time.Time
 }
 
-// New creates the Service; parse Runs go through engine and write food
-// terms in language.
-func New(pool *pgxpool.Pool, engine *runs.Engine, language domain.ContentLanguage) *Service {
-	return &Service{pool: pool, runs: engine, language: language}
+// Config is what the Recipe Library needs besides its database.
+type Config struct {
+	// Runs is where parse Runs go through.
+	Runs *runs.Engine
+	// Language is the Content Language food terms are written in.
+	Language domain.ContentLanguage
+	// Embedder embeds Recipes and searches; without one, searches only
+	// filter.
+	Embedder embedding.Embedder
+	// Stock is the Stock Items that decide whether stock covers a Recipe.
+	Stock *stock.Service
+	// Today is the day it is, before which a Stock Item has expired.
+	Today func() time.Time
+}
+
+// New creates the Service.
+func New(pool *pgxpool.Pool, cfg Config) *Service {
+	return &Service{pool: pool, runs: cfg.Runs, language: cfg.Language, embedder: cfg.Embedder, stock: cfg.Stock, today: cfg.Today}
 }
 
 // snapshot reads several queries as of one moment, so a Recipe saved or
@@ -98,10 +121,26 @@ func (s *Service) Update(ctx context.Context, id int64, rec domain.Recipe) error
 	if err := validate(rec); err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		_, err := saveRecipe(ctx, tx, id, rec)
 		return err
 	})
+	if err == nil {
+		s.embedSaved(ctx)
+	}
+	return err
+}
+
+// embedSaveWait bounds how long saving a Recipe waits to embed it.
+const embedSaveWait = 5 * time.Second
+
+// embedSaved embeds a Recipe just saved. A failure leaves it without an
+// embedding, which the next search computes: saving never fails, nor waits
+// long, because the embedding provider does.
+func (s *Service) embedSaved(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, embedSaveWait)
+	defer cancel()
+	_ = s.embedRecipes(ctx)
 }
 
 // Delete deletes the Recipe with id, if there is one. It returns
@@ -175,6 +214,9 @@ func (s *Service) AcceptDraft(ctx context.Context, runID int64, rec domain.Recip
 		id, err = saveRecipe(ctx, tx, 0, rec)
 		return err
 	})
+	if err == nil {
+		s.embedSaved(ctx)
+	}
 	return id, err
 }
 

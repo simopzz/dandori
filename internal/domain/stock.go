@@ -52,3 +52,29 @@ func (s StockItem) Validate() map[string]string {
 	}
 	return problems
 }
+
+// Expired reports whether the Stock Item is past its expiry date on today.
+// An expired Stock Item stays in the kitchen, but no Plan uses it.
+func (s StockItem) Expired(today time.Time) bool {
+	return s.ExpiresOn != nil && s.ExpiresOn.Before(today)
+}
+
+// MissingFrom names the Recipe's Ingredients, in its order, that stock
+// doesn't cover on today: those whose unexpired Stock Items, across every
+// Storage Location, add up to less than the Recipe's quantity as written.
+// A Recipe with none missing is covered by stock.
+func (r Recipe) MissingFrom(stock []StockItem, today time.Time) []string {
+	held := map[string]float64{}
+	for _, s := range stock {
+		if !s.Expired(today) {
+			held[s.Ingredient.Name] += s.Quantity
+		}
+	}
+	var missing []string
+	for _, ri := range r.Ingredients {
+		if held[ri.Ingredient.Name] < ri.Quantity {
+			missing = append(missing, ri.Ingredient.Name)
+		}
+	}
+	return missing
+}

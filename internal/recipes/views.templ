@@ -2,6 +2,7 @@ package recipes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
@@ -22,11 +23,37 @@ type RecipeSummary struct {
 	Portions    int
 	PrepMinutes int
 	PerPortion  PortionNutrition
+	// Missing names the Ingredients stock doesn't cover; shown only on a
+	// search.
+	Missing []string
 }
 
-// RecipeLibrary is the Recipe Library page: the paste form and every Recipe.
+// stockCovered is the stock filter's value for Recipes stock covers.
+const stockCovered = "covered"
+
+// SearchForm is the Recipe Library's search form as submitted.
+type SearchForm struct {
+	Text       string
+	Appliance  string
+	MaxMinutes string
+	Stock      string
+	// Appliances are those the Recipes need, to choose from.
+	Appliances []string
+	// Error is why MaxMinutes was rejected.
+	Error string
+}
+
+// RecipeLibrary is the Recipe Library page: the search form, the paste
+// form and every Recipe, or those a search found.
 type RecipeLibrary struct {
-	Recipes []RecipeSummary
+	Search SearchForm
+	// Searching is whether Recipes were searched for, rather than listed.
+	Searching bool
+	// Unranked is why the search couldn't go by meaning; UnrankedFailed
+	// whether that is a failure.
+	Unranked       string
+	UnrankedFailed bool
+	Recipes  []RecipeSummary
 	// Error is why a paste was rejected.
 	Error string
 }
@@ -90,6 +117,14 @@ type DraftPending struct {
 
 func ingField(name string, i int) string { return fmt.Sprintf("ing_%s_%d", name, i) }
 
+// coverage says whether stock covers a Recipe, and if not, what it lacks.
+func coverage(missing []string) string {
+	if len(missing) == 0 {
+		return "Every Ingredient in stock"
+	}
+	return "Not in stock: " + strings.Join(missing, ", ")
+}
+
 func formatMinutes(m int) string {
 	if m == 0 {
 		return "not given"
@@ -101,9 +136,23 @@ func formatMinutes(m int) string {
 templ RecipeLibraryPage(l RecipeLibrary) {
 	@web.Layout("Dandori — Recipes", web.TabRecipes) {
 		@web.PageHeader("レシピ", "Recipe Library")
+		@searchForm(l.Search)
+		if l.UnrankedFailed {
+			@web.Alert() {
+				{ l.Unranked }; showing every Recipe that matches the other filters.
+			}
+		} else if l.Unranked != "" {
+			@web.Notice() {
+				{ l.Unranked }; showing every Recipe that matches the other filters.
+			}
+		}
 		if len(l.Recipes) == 0 {
 			@web.Empty() {
-				No Recipes yet.
+				if l.Searching {
+					No Recipes match.
+				} else {
+					No Recipes yet.
+				}
 			}
 		} else {
 			@web.Rows() {
@@ -113,6 +162,9 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 						<span class="row-meta">
 							{ fmt.Sprintf("%d Portions · %s · %d kcal, %d g protein per Portion", r.Portions, formatMinutes(r.PrepMinutes), r.PerPortion.Kcal, r.PerPortion.ProteinG) }
 						</span>
+						if l.Searching {
+							<span class="row-meta">{ coverage(r.Missing) }</span>
+						}
 					}
 				}
 			}
@@ -140,6 +192,44 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 			</form>
 		}
 	}
+}
+
+// searchForm searches the Recipe Library in natural language, filtered by
+// appliance, prep time and stock.
+templ searchForm(f SearchForm) {
+	<form id="search" class="stack" method="get" action="/recipes" role="search">
+		@web.Field("Search", "", "") {
+			<input type="search" name="q" value={ f.Text } placeholder="something warm with chickpeas in the air fryer"/>
+		}
+		@web.FieldRow() {
+			@web.Field("Appliance", "", "") {
+				<select name="appliance">
+					<option value="">Any</option>
+					for _, a := range f.Appliances {
+						<option value={ a } selected?={ a == f.Appliance }>{ a }</option>
+					}
+				</select>
+			}
+			@web.Field("Prep time at most", "min", f.Error) {
+				<input
+					type="number"
+					name="max_minutes"
+					min="1"
+					inputmode="numeric"
+					value={ f.MaxMinutes }
+					if f.Error != "" {
+						aria-invalid="true"
+					}
+				/>
+			}
+		}
+		@web.Segmented("Stock", "stock", []web.Choice{{Value: "", Label: "Any Recipe"}, {Value: stockCovered, Label: "Ingredients in stock"}}, f.Stock, "")
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				Search
+			}
+		}
+	</form>
 }
 
 // RecipePage shows one Recipe with its nutritional values per Portion.
