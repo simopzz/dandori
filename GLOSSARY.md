@@ -108,6 +108,10 @@ _Avoid_: Product database, store cache
 One purchasable supermarket item in the Known Catalog, under the supermarket's own name, with a pack size, nutritional values, its aisle (the supermarket's category for it), a cached price and last-seen availability.
 _Avoid_: SKU, item
 
+**Unlisted**:
+Of a Catalog Product or a product in the user's order history: the supermarket currently sells nothing under its code, so it can be neither bought nor looked up. It may be listed again. Unlike an unavailable Catalog Product, which is listed but out of stock, an Unlisted one isn't on sale at all.
+_Avoid_: Delisted, discontinued, gone
+
 **Product Mapping**:
 The user-editable link from an Ingredient to the Catalog Product preferred for buying it, which must be sold in the Ingredient's unit. One the agent proposes stays proposed until the user saves it, and the agent never replaces one that exists.
 _Avoid_: Product match, SKU mapping
