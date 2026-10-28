@@ -9,10 +9,16 @@
 // DANDORI_MODEL (default the latest Claude model), DANDORI_LLM_RETRIES
 // (default 3) and DANDORI_MAX_TURNS (default 50), where 0 keeps the default,
 // the Claude credentials (ANTHROPIC_API_KEY, or a profile from
-// `ant auth login`), and DANDORI_DEMO=1 to offer demo Runs on the Runs page.
+// `ant auth login`), DANDORI_DEMO=1 to offer demo Runs on the Runs page,
+// DANDORI_PLAYWRIGHT_MCP (the command that runs the Playwright MCP server
+// on the browser logged in to Esselunga; unset, store Runs fail saying so),
+// DANDORI_STORE_THROTTLE (the least time between store actions, default 3s)
+// and DANDORI_SEED_ORDERS (how many orders a Known Catalog seed reads,
+// default 10).
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -29,6 +35,7 @@ import (
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/esselunga/playwright"
 )
 
 func main() {
@@ -59,6 +66,14 @@ func run(log *slog.Logger, args []string) error {
 	if cfg.MaxTurns, err = envInt("DANDORI_MAX_TURNS"); err != nil {
 		return err
 	}
+	if cfg.SeedOrders, err = envInt("DANDORI_SEED_ORDERS"); err != nil {
+		return err
+	}
+	if v := os.Getenv("DANDORI_STORE_THROTTLE"); v != "" {
+		if cfg.StoreThrottle, err = time.ParseDuration(v); err != nil || cfg.StoreThrottle <= 0 {
+			return fmt.Errorf("DANDORI_STORE_THROTTLE must be a duration such as 3s, got %q", v)
+		}
+	}
 
 	cmd := "serve"
 	if len(args) > 0 {
@@ -84,7 +99,13 @@ func run(log *slog.Logger, args []string) error {
 }
 
 func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) error {
-	a, err := app.New(ctx, cfg, app.Ports{LLM: anthropic.New()}, log)
+	ports := app.Ports{LLM: anthropic.New()}
+	if command := os.Getenv("DANDORI_PLAYWRIGHT_MCP"); command != "" {
+		store := playwright.New(command, cmp.Or(cfg.StoreThrottle, app.DefaultStoreThrottle))
+		defer store.Close()
+		ports.Store = store
+	}
+	a, err := app.New(ctx, cfg, ports, log)
 	if err != nil {
 		return err
 	}

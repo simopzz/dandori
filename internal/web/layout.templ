@@ -8,6 +8,7 @@ const (
 	TabPlan    Tab = "/plan"
 	TabRecipes Tab = "/recipes"
 	TabStock   Tab = "/stock"
+	TabCatalog Tab = "/catalog"
 	TabProfile Tab = "/profile"
 	TabRuns    Tab = "/runs"
 )
@@ -42,6 +43,7 @@ templ Layout(title string, current Tab) {
 				@tab(TabPlan, current, "calendar", "Plan", false)
 				@tab(TabRecipes, current, "book-open", "Recipes", false)
 				@tab(TabStock, current, "package", "Stock", false)
+				@tab(TabCatalog, current, "shopping-basket", "Catalog", false)
 				@tab(TabProfile, current, "user", "Profile", false)
 				@tab(TabRuns, current, "activity", "Runs", true)
 			</nav>

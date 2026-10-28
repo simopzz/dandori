@@ -64,7 +64,7 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 func TestAppShellMarksTheCurrentTab(t *testing.T) {
 	h := apptest.Start(t)
 
-	for _, path := range []string{"/recipes", "/stock", "/profile", "/runs"} {
+	for _, path := range []string{"/recipes", "/stock", "/catalog", "/profile", "/runs"} {
 		page := h.Get(t, path).Body
 		if n := strings.Count(page, `aria-current="page"`); n != 1 {
 			t.Errorf("%s marks %d tabs as current, want 1", path, n)

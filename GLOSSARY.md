@@ -27,7 +27,7 @@ A set of changes to a Cycle's Plan, produced by the agent, that takes effect onl
 _Avoid_: Recalculation, auto-update
 
 **Exception**:
-A logged deviation from what Dandori takes to happen: for a Slot, a Meal Out, skipped, or swapped (something else was eaten instead: another Portion or Stock Items); for a Prep Session, not prepared; for a Portion or Stock Item, discarded (expired, spoiled, lost). It records what actually happened; when the Plan relied on it, the Plan Proposal that follows repairs the rest of the Plan.
+A logged deviation from what Dandori takes to happen: for a Slot, a Meal Out, skipped, or swapped (something else was eaten instead: another Portion or Stock Items); for a Prep Session, not prepared; for a Portion or Stock Item, discarded (expired, spoiled, lost). It records what happened, or, for a future Slot, what the user knows will happen (only a Meal Out or a skipped Slot can be logged ahead); when the Plan relied on it, the Plan Proposal that follows repairs the rest of the Plan.
 _Avoid_: Event, interruption
 
 **Meal Out**:
@@ -105,11 +105,11 @@ The locally stored subset of the supermarket's products the planner knows about:
 _Avoid_: Product database, store cache
 
 **Catalog Product**:
-One purchasable supermarket item in the Known Catalog, with a pack size, nutritional values and last-seen availability.
+One purchasable supermarket item in the Known Catalog, under the supermarket's own name, with a pack size, nutritional values, its aisle (the supermarket's category for it), a cached price and last-seen availability.
 _Avoid_: SKU, item
 
 **Product Mapping**:
-The user-editable link from an Ingredient to the Catalog Product preferred for buying it.
+The user-editable link from an Ingredient to the Catalog Product preferred for buying it, which must be sold in the Ingredient's unit. One the agent proposes stays proposed until the user saves it, and the agent never replaces one that exists.
 _Avoid_: Product match, SKU mapping
 
 **Grocery List**:
@@ -143,6 +143,7 @@ _Avoid_: Log entry, step
 - Every food term is in the Content Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.
+- An Exception logged ahead is input to the planning Run when the Plan doesn't rely on it yet, and leads to a Plan Proposal like any other when it does. Its Slot gets no Portion and no Prep Session; when cooking is impossible on a day without one, the user says so in a note. A Meal Out counts toward the Targets with the Profile's default estimate unless the Exception gives its own; a skipped Slot counts as nothing. Changing or removing it works the same way. It belongs to its day and Slot kind, not to a Cycle: it outlives a moved Delivery or a dropped Cycle, and counts toward the Targets even if its day ends up between Cycles. Once its day is past it stands as what happened, unless the user changes it.
 - A Stock Item past its expiry date stays in the kitchen until the user logs it discarded, but no Plan uses it.
 - The Plan is taken to happen as dated until an Exception says otherwise: a Prep Session is prepared from its day on, using up the Stock Items of its Ingredients, and a Portion is eaten once the day of its Slot is past. Prepared Portions not yet eaten, and Stock Items, are what the kitchen holds.
 - At most one Plan Proposal is pending at a time, across all Cycles. Whatever would lead to a new one (an Exception, a Delivery report, a Cart Fill substitution) rejects the pending one with a note saying why, and the next planning Run takes both into account.

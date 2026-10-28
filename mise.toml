@@ -43,6 +43,10 @@ description = "Run the app locally against DANDORI_DATABASE_URL"
 depends = ["generate"]
 run = "go run ./cmd/dandori serve"
 
+[tasks.smoke]
+description = "Check the Playwright store against real Esselunga, read-only (needs DANDORI_PLAYWRIGHT_MCP and a logged-in browser)"
+run = "go run ./cmd/esselunga-smoke"
+
 [tasks.lint]
 description = "Run golangci-lint (config in .golangci.yml)"
 run = "golangci-lint run ./..."

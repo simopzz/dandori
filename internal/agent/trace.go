@@ -10,9 +10,12 @@ const (
 	EventToolCall   EventKind = "tool_call"
 	EventToolResult EventKind = "tool_result"
 	EventRetry      EventKind = "retry"
-	EventWait       EventKind = "wait"
-	EventError      EventKind = "error"
-	EventFinished   EventKind = "finished"
+	// EventStoreAction is one action on the supermarket, such as looking
+	// up a product.
+	EventStoreAction EventKind = "store_action"
+	EventWait        EventKind = "wait"
+	EventError       EventKind = "error"
+	EventFinished    EventKind = "finished"
 )
 
 // Event is one Trace Event of a Run.

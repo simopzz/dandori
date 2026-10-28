@@ -11,6 +11,9 @@ type Job struct {
 	System string
 	Prompt string
 	Tools  []Tool
+	// Start, when set, runs before the model is first asked, such as a
+	// check that the store session is logged in. An error fails the Run.
+	Start func(ctx context.Context, tr Trace) error
 	// LLM, when set, answers this Job instead of the app's model, as in the
 	// demo's scripted Runs.
 	LLM LLM
@@ -25,3 +28,14 @@ type Tool struct {
 	InputSchema json.RawMessage
 	Run         func(ctx context.Context, tr Trace, input json.RawMessage) (string, error)
 }
+
+// StopError is a tool failure the model can't recover from, such as a
+// logged-out store session: it ends the Run instead of going back to the
+// model.
+type StopError struct{ Err error }
+
+func (e *StopError) Error() string { return e.Err.Error() }
+func (e *StopError) Unwrap() error { return e.Err }
+
+// Stop makes err end the Run when a tool returns it.
+func Stop(err error) error { return &StopError{Err: err} }

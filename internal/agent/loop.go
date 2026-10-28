@@ -24,6 +24,11 @@ type Loop struct {
 // Run carries out job, emitting every step to tr, until the model ends its
 // turn without calling a tool. It returns ctx's error once ctx is cancelled.
 func (l Loop) Run(ctx context.Context, job Job, tr Trace) error {
+	if job.Start != nil {
+		if err := job.Start(ctx, tr); err != nil {
+			return err
+		}
+	}
 	tools := map[string]Tool{}
 	specs := make([]ToolSpec, 0, len(job.Tools))
 	for _, t := range job.Tools {
@@ -108,7 +113,8 @@ func (l Loop) send(ctx context.Context, req Request, tr Trace) (Response, error)
 }
 
 // runTools runs the tool calls of the model's turn, in order, and returns
-// their results. A failing tool is reported to the model, not fatal.
+// their results. A failing tool is reported to the model, not fatal,
+// unless it fails with a StopError.
 func runTools(ctx context.Context, tools map[string]Tool, calls []Block, tr Trace) ([]Block, error) {
 	var results []Block
 	for _, call := range calls {
@@ -128,6 +134,9 @@ func runTools(ctx context.Context, tools map[string]Tool, calls []Block, tr Trac
 		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if stop := (*StopError)(nil); errors.As(err, &stop) {
+			return nil, stop.Err
 		}
 		if err != nil {
 			tr.Emit(Event{Kind: EventError, Summary: "Tool " + call.ToolName + " failed", Detail: err.Error()})
