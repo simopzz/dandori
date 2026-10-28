@@ -60,9 +60,7 @@ templ Page(p StockPage) {
 		@web.PageHeader("在庫", "Stock")
 		@web.Section(1, "Stock Items") {
 			if len(p.Items) == 0 {
-				@web.Empty() {
-					No Stock Items yet.
-				}
+				@noItems()
 			} else {
 				@web.Rows() {
 					for _, it := range p.Items {
@@ -108,6 +106,12 @@ templ Page(p StockPage) {
 	}
 }
 
+templ noItems() {
+	@web.Empty() {
+		No Stock Items yet.
+	}
+}
+
 templ addSheet(p StockPage) {
 	@web.AddSheet("record-stock-item", "Record a Stock Item", len(p.Add.Errors) > 0) {
 		<form id="add-stock-item" class="stack" method="post" action="/stock-items">
@@ -137,9 +141,11 @@ templ addSheet(p StockPage) {
 	}
 }
 
+// itemRow is a Stock Item's row. Its forms swap only the row under htmx,
+// not the boosted page, so the Stock page keeps its place (ADR 0009).
 templ itemRow(it ItemRow) {
 	@web.EditRow(len(it.Form.Errors) > 0, itemSummary(it)) {
-		<form id={ fmt.Sprintf("stock-item-%d", it.ID) } class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d", it.ID)) }>
+		<form id={ fmt.Sprintf("stock-item-%d", it.ID) } class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d", it.ID)) } hx-post={ fmt.Sprintf("/stock-items/%d", it.ID) } hx-target="closest li" hx-swap="outerHTML">
 			if len(it.Form.Errors) > 0 {
 				@web.Alert() {
 					The Stock Item was not changed; fix the fields marked below.
@@ -155,7 +161,7 @@ templ itemRow(it ItemRow) {
 				}
 			}
 		</form>
-		<form id={ fmt.Sprintf("remove-stock-item-%d", it.ID) } method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d/delete", it.ID)) }></form>
+		<form id={ fmt.Sprintf("remove-stock-item-%d", it.ID) } method="post" action={ templ.SafeURL(fmt.Sprintf("/stock-items/%d/delete", it.ID)) } hx-post={ fmt.Sprintf("/stock-items/%d/delete", it.ID) } hx-target="closest li" hx-swap="outerHTML"></form>
 	}
 }
 
@@ -170,6 +176,7 @@ templ itemSummary(it ItemRow) {
 	</span>
 }
 
+// portionRow is a Portion's row; like itemRow, its move swaps only the row.
 templ portionRow(p PortionRow) {
 	@web.Row() {
 		<span class="row-title">{ p.Recipe }</span>
@@ -179,7 +186,7 @@ templ portionRow(p PortionRow) {
 				<span>{ "for " + p.For }</span>
 			}
 		</span>
-		<form id={ fmt.Sprintf("portion-%d", p.ID) } class="row-action" method="post" action={ templ.SafeURL(fmt.Sprintf("/portions/%d/move", p.ID)) }>
+		<form id={ fmt.Sprintf("portion-%d", p.ID) } class="row-action" method="post" action={ templ.SafeURL(fmt.Sprintf("/portions/%d/move", p.ID)) } hx-post={ fmt.Sprintf("/portions/%d/move", p.ID) } hx-target="closest li" hx-swap="outerHTML">
 			if p.Error != "" {
 				@web.Segmented("Move to", "location", locationChoices(), p.MoveTo, p.Error)
 			} else {
