@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -18,11 +20,11 @@ import (
 // so both queries see the same Recipes.
 func loadRecipes(ctx context.Context, q db.Querier, id *int64) ([]Stored, error) {
 	rows, _ := q.Query(ctx, `
-		SELECT id, name, portions, prep_minutes, appliances, steps FROM recipe
+		SELECT id, name, portions, prep_minutes, appliances, steps, updated_at FROM recipe
 		WHERE $1::bigint IS NULL OR id = $1 ORDER BY id DESC`, id)
 	recipes, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Stored, error) {
 		var r Stored
-		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.PrepMinutes, &r.Appliances, &r.Steps)
+		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.PrepMinutes, &r.Appliances, &r.Steps, &r.version)
 		return r, err
 	})
 	if err != nil || len(recipes) == 0 {
@@ -99,6 +101,71 @@ func saveRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe) 
 		}
 	}
 	return id, nil
+}
+
+// loadEmbedded loads the ids of the Recipes embedded by model as they now
+// are.
+func loadEmbedded(ctx context.Context, q db.Querier, model string) ([]int64, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT e.recipe_id FROM recipe_embedding e
+		JOIN recipe r ON r.id = e.recipe_id AND r.updated_at = e.recipe_updated_at
+		WHERE e.model = $1`, model)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// saveEmbedding stores v, by model, as the embedding of rec as it was
+// loaded, unless rec has gone. If rec changed meanwhile, the embedding is
+// stale from the start, so it is computed again rather than taken for the
+// edited Recipe's.
+func saveEmbedding(ctx context.Context, q db.Querier, rec Stored, model string, v []float32) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO recipe_embedding (recipe_id, recipe_updated_at, model, embedding)
+		SELECT id, $2, $3, $4::vector FROM recipe WHERE id = $1
+		ON CONFLICT (recipe_id) DO UPDATE
+		SET recipe_updated_at = EXCLUDED.recipe_updated_at, model = EXCLUDED.model, embedding = EXCLUDED.embedding`,
+		rec.ID, rec.version, model, vectorText(v))
+	return err
+}
+
+// vectorText is v as pgvector reads it: [1,2.5,3].
+func vectorText(v []float32) string {
+	parts := make([]string, len(v))
+	for i, x := range v {
+		parts[i] = strconv.FormatFloat(float64(x), 'g', -1, 32)
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// rankRecipes returns the ids of the Recipes that pass f's appliance and
+// prep time filters: closest to query first when it is set, among those
+// embedded by model, else newest first.
+func rankRecipes(ctx context.Context, q db.Querier, f Search, model string, query []float32) ([]int64, error) {
+	var vector *string
+	if query != nil {
+		v := vectorText(query)
+		vector = &v
+	}
+	var maxMinutes *int
+	if f.MaxMinutes > 0 {
+		maxMinutes = &f.MaxMinutes
+	}
+	rows, _ := q.Query(ctx, `
+		SELECT r.id FROM recipe r
+		LEFT JOIN recipe_embedding e
+		  ON e.recipe_id = r.id AND e.model = $1 AND e.recipe_updated_at = r.updated_at
+		WHERE ($2::text = '' OR $2 = ANY (r.appliances))
+		  -- A Recipe whose prep time isn't given can't promise to be quick.
+		  AND ($3::integer IS NULL OR r.prep_minutes BETWEEN 1 AND $3)
+		  AND ($4::vector IS NULL OR e.embedding IS NOT NULL)
+		ORDER BY e.embedding <=> $4::vector, r.id DESC`,
+		model, f.Appliance, maxMinutes, vector)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// loadAppliances loads every appliance a Recipe needs, alphabetically.
+func loadAppliances(ctx context.Context, q db.Querier) ([]string, error) {
+	rows, _ := q.Query(ctx, `SELECT DISTINCT unnest(appliances) AS a FROM recipe ORDER BY a`)
+	return pgx.CollectRows(rows, pgx.RowTo[string])
 }
 
 func deleteRecipe(ctx context.Context, q db.Querier, id int64) error {

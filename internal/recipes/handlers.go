@@ -20,23 +20,40 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
+// Library lists the Recipe Library, or the Recipes a search found.
 func (h Handlers) Library(w http.ResponseWriter, r *http.Request) {
 	h.renderLibrary(w, r, RecipeLibrary{}, http.StatusOK)
 }
 
 func (h Handlers) renderLibrary(w http.ResponseWriter, r *http.Request, l RecipeLibrary, status int) {
-	recipes, err := h.Service.List(r.Context())
-	if err != nil {
-		httpx.ServerError(w, h.Log, "load recipes", err)
+	ctx := r.Context()
+	var search Search
+	l.Search, search = readSearch(r.URL.Query())
+	if l.Search.Error != "" {
+		status = http.StatusUnprocessableEntity
+	}
+	l.Searching = search.Any()
+	var err error
+	if l.Search.Appliances, err = h.Service.Appliances(ctx); err != nil {
+		httpx.ServerError(w, h.Log, "load appliances", err)
 		return
 	}
-	for _, rec := range recipes {
+	var found Results
+	if l.Search.Error == "" {
+		if found, err = h.Service.Search(ctx, search); err != nil {
+			httpx.ServerError(w, h.Log, "search recipes", err)
+			return
+		}
+	}
+	l.Unranked, l.UnrankedFailed = found.Unranked, found.Failed
+	for _, rec := range found.Recipes {
 		l.Recipes = append(l.Recipes, RecipeSummary{
 			ID:          rec.ID,
 			Name:        rec.Name,
 			Portions:    rec.Portions,
 			PrepMinutes: rec.PrepMinutes,
 			PerPortion:  PortionNutrition(rec.NutritionPerPortion()),
+			Missing:     rec.Missing,
 		})
 	}
 	templ.Handler(RecipeLibraryPage(l), templ.WithStatus(status)).ServeHTTP(w, r)

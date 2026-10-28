@@ -48,6 +48,7 @@ type settings struct {
 	config      func(*app.Config)
 	ports       app.Ports
 	jobs        map[string]agent.Job
+	appJobs     map[string]func(*app.App) agent.Job
 	databaseCut bool
 }
 
@@ -78,6 +79,17 @@ func WithJob(kind string, job agent.Job) Option {
 			s.jobs = map[string]agent.Job{}
 		}
 		s.jobs[kind] = job
+	}
+}
+
+// WithAppJob registers a Run kind that always runs the job made from the
+// app, so a test can try a tool of the app's own in a Run.
+func WithAppJob(kind string, job func(*app.App) agent.Job) Option {
+	return func(s *settings) {
+		if s.appJobs == nil {
+			s.appJobs = map[string]func(*app.App) agent.Job{}
+		}
+		s.appJobs[kind] = job
 	}
 }
 
@@ -154,6 +166,9 @@ func (h *Harness) boot(t testing.TB) {
 	}
 	for kind, job := range h.settings.jobs {
 		a.RegisterJob(kind, func(url.Values) (agent.Job, error) { return job, nil })
+	}
+	for kind, job := range h.settings.appJobs {
+		a.RegisterJob(kind, func(url.Values) (agent.Job, error) { return job(a), nil })
 	}
 	srv := httptest.NewServer(a.Handler())
 	t.Cleanup(func() {

@@ -3,6 +3,7 @@
 .claude/skills/*
 !.claude/skills/htmx-*/
 skills-lock.json
+.claude/settings.local.json
 
 bin/
 .env

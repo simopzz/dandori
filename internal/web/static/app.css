@@ -422,7 +422,7 @@ a.row-title:hover { text-decoration: underline; }
 
 /* segmented choice: square toggles for one of a few options */
 
-.seg { display: flex; border: 1px solid var(--color-rule-strong); }
+.seg { display: flex; justify-self: start; border: 1px solid var(--color-rule-strong); }
 
 .seg label { position: relative; }
 

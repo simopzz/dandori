@@ -13,9 +13,11 @@
 // DANDORI_PLAYWRIGHT_MCP (the command that runs the Playwright MCP server
 // on the browser logged in to Esselunga; unset, store Runs fail saying so),
 // DANDORI_STORE_THROTTLE (the least time between store actions, default 3s,
-// to which each wait adds up to half again at random)
-// and DANDORI_SEED_ORDERS (how many orders a Known Catalog seed reads,
-// default 10).
+// to which each wait adds up to half again at random),
+// DANDORI_SEED_ORDERS (how many orders a Known Catalog seed reads,
+// default 10), VOYAGE_API_KEY (to search the Recipe Library by meaning;
+// unset, searches only filter) and DANDORI_EMBEDDING_MODEL (the Voyage
+// model, default voyage-4-large).
 package main
 
 import (
@@ -35,6 +37,7 @@ import (
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/embedding/voyage"
 	"github.com/simopzz/dandori/internal/esselunga/playwright"
 )
 
@@ -100,6 +103,9 @@ func run(log *slog.Logger, args []string) error {
 
 func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) error {
 	ports := app.Ports{LLM: anthropic.New()}
+	if key := os.Getenv("VOYAGE_API_KEY"); key != "" {
+		ports.Embedder = voyage.New(key, os.Getenv("DANDORI_EMBEDDING_MODEL"))
+	}
 	if command := os.Getenv("DANDORI_PLAYWRIGHT_MCP"); command != "" {
 		store := playwright.New(command)
 		defer store.Close()
