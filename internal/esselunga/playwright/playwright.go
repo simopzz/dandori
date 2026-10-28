@@ -109,6 +109,40 @@ func (s *Store) OrderLines(ctx context.Context, orderID string) ([]esselunga.Ord
 	return lines, err
 }
 
+// WaitForLogin opens the site in the browser and waits, checking every
+// poll, until the user has logged in there or ctx ends. It never reloads
+// the page, so the user can log in undisturbed. Log in in this browser, not
+// by opening its profile by hand: Playwright reads the profile's cookies
+// with its own key, not the desktop keyring's.
+func (s *Store) WaitForLogin(ctx context.Context, poll time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	js, err := requestJS("GET", "/commerce/resources/auth/profile/customer", nil, "(d) => true")
+	if err != nil {
+		return err
+	}
+	// Already on the site after a failed session check: loading it again
+	// would only interrupt the user.
+	if err := s.reach(ctx, false); err != nil {
+		return err
+	}
+	for {
+		var res struct {
+			Status int `json:"status"`
+		}
+		// While the page is on the login site, there is no token and
+		// nothing is sent.
+		if err := s.evaluate(ctx, js, &res); err == nil && res.Status == 200 {
+			return nil
+		}
+		select {
+		case <-time.After(poll):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 // productJS turns a product's detail into a Product: the pack quantity and
 // nutrition label come as HTML, which the page's DOMParser reads.
 const productJS = `(d) => {

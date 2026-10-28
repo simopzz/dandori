@@ -3,10 +3,14 @@
 // reads (the session, the latest order and its first products) and never
 // touches the cart.
 //
-//	DANDORI_PLAYWRIGHT_MCP="npx @playwright/mcp@0.0.83 --user-data-dir ~/.dandori/browser" \
+//	DANDORI_PLAYWRIGHT_MCP="npx @playwright/mcp@0.0.83 --executable-path /usr/bin/brave --user-data-dir ~/.dandori/browser" \
 //	  go run ./cmd/esselunga-smoke
 //
-// Log in to Esselunga in that browser first. Store actions are throttled
+// Without --executable-path it launches Google Chrome. When the session is
+// logged out, as the first time, it waits for you to log in to Esselunga in
+// the browser window it opened. Log in there, not by opening the profile by
+// hand: Playwright can't read cookies the browser saved with the desktop
+// keyring. Store actions are throttled
 // DANDORI_STORE_THROTTLE apart (default 3s), as in Dandori; the trace is
 // printed as it goes.
 package main
@@ -27,6 +31,9 @@ import (
 
 // products is how many products of the latest order are looked up.
 const products = 3
+
+// loginWait is how long a logged-out session is given to log in.
+const loginWait = 10 * time.Minute
 
 func main() {
 	if err := run(); err != nil {
@@ -64,7 +71,15 @@ func run() error {
 	store := esselunga.Throttle(pw, throttle)
 	tr := printed{}
 
-	if err := store.CheckSession(ctx, tr); err != nil {
+	if err := store.CheckSession(ctx, tr); errors.Is(err, esselunga.ErrLoggedOut) {
+		fmt.Printf("The session is logged out. Log in to Esselunga in the browser window that opened; waiting up to %s.\n", loginWait)
+		loginCtx, cancel := context.WithTimeout(ctx, loginWait)
+		defer cancel()
+		if err := pw.WaitForLogin(loginCtx, 5*time.Second); err != nil {
+			return fmt.Errorf("no login: %w", err)
+		}
+		fmt.Println("Logged in.")
+	} else if err != nil {
 		return err
 	}
 	orders, err := store.OrderHistory(ctx, tr, 1)
