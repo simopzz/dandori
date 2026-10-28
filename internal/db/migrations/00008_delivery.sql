@@ -18,8 +18,7 @@ ALTER TABLE cycle
     ADD COLUMN status         text    NOT NULL DEFAULT 'closed' CHECK (status IN ('upcoming', 'current', 'closed')),
     -- Its Plan needs a new Plan Proposal: a Delivery moved under it.
     ADD COLUMN needs_proposal boolean NOT NULL DEFAULT false,
-    ADD CHECK (window_to > window_from),
-    ADD CHECK ((closed_on IS NULL) = (closed_with IS NULL));
+    ADD CHECK (window_to > window_from);
 UPDATE cycle SET starts_on = delivery_on, starts_with = 'breakfast';
 UPDATE cycle SET closed_with = 'breakfast' WHERE closed_on IS NOT NULL;
 UPDATE cycle SET status = 'current' WHERE delivery_on = (SELECT max(delivery_on) FROM cycle);
@@ -29,7 +28,9 @@ ALTER TABLE cycle
     ALTER COLUMN ordered SET DEFAULT false,
     ALTER COLUMN starts_on SET NOT NULL,
     ALTER COLUMN starts_with SET NOT NULL,
-    ALTER COLUMN status SET DEFAULT 'upcoming';
+    ALTER COLUMN status SET DEFAULT 'upcoming',
+    -- Only once closed_with is filled in: Cycles closed early would break it.
+    ADD CHECK ((closed_on IS NULL) = (closed_with IS NULL));
 -- At most one Cycle is upcoming, and one current.
 CREATE UNIQUE INDEX cycle_one_upcoming ON cycle (status) WHERE status IN ('upcoming', 'current');
 
