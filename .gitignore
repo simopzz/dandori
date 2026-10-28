@@ -1,5 +1,7 @@
-.agents/skills
-.claude/skills
+.agents/skills/*
+!.agents/skills/htmx-*/
+.claude/skills/*
+!.claude/skills/htmx-*/
 skills-lock.json
 
 bin/

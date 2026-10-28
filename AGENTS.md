@@ -30,4 +30,4 @@ Tests sit at the two seams issues name, Seam-1 (the app over HTTP) and Seam-2 (t
 
 ### UI
 
-Any UI work follows the design system in `docs/design.md`: build pages from the shared templ components in `internal/web` and style with the tokens in `app.css`. The rules code review checks are in `docs/agents/coding-standards.md`.
+Any UI work follows the design system in `docs/design.md`: build pages from the shared templ components in `internal/web` and style with the tokens in `app.css`. The rules code review checks are in `docs/agents/coding-standards.md`. Load the `htmx-guidance` skill before writing htmx markup: the vendored htmx is version 4.
