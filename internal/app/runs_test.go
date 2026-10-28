@@ -108,6 +108,9 @@ func TestRunIsStreamedLiveToTheTracePanel(t *testing.T) {
 	if !strings.Contains(text(page.Body), "Running") {
 		t.Errorf("trace panel of a Run in progress does not say it is running:\n%s", page.Body)
 	}
+	if !followsLive(page.Body, run, run) {
+		t.Errorf("trace panel of a Run in progress does not follow it and fetch its page again at the end:\n%s", page.Body)
+	}
 
 	stream := h.Stream(t, run+"/events", "")
 	// The model hasn't answered yet, but the Run's start is already shown.
@@ -130,6 +133,30 @@ func TestRunIsStreamedLiveToTheTracePanel(t *testing.T) {
 	if len(rest) == 0 || rest[len(rest)-1].Name != "end" || rest[len(rest)-1].Data != "succeeded" {
 		t.Errorf("stream did not end by saying the Run succeeded:\n%s", shown(rest))
 	}
+	// htmx swaps only unnamed messages in: every Trace Event is one.
+	for _, ev := range append(events, rest[:len(rest)-1]...) {
+		if ev.Name != "" {
+			t.Errorf("Trace Event sent as a named %q event, which htmx would not append: %s", ev.Name, text(ev.Data))
+		}
+	}
+}
+
+// followsLive reports whether a page's trace panel follows run live: it
+// streams the Run's Trace Events, closes the stream on its end, and then
+// fetches page again into the body, as a boosted link would.
+func followsLive(body, run, page string) bool {
+	for _, want := range []string{
+		`hx-sse:connect="` + run + `/events?after=`,
+		`hx-sse:close="end"`,
+		`hx-get="` + page + `"`,
+		`hx-trigger="end"`,
+		`hx-target="body"`,
+	} {
+		if !strings.Contains(body, want) {
+			return false
+		}
+	}
+	return true
 }
 
 // finish starts a Run of kind and reads its live trace until it ends,
@@ -162,7 +189,7 @@ func TestFinishedRunCanBeReviewedFromItsStoredTrace(t *testing.T) {
 			t.Errorf("stored trace does not show %q:\n%s", want, panel)
 		}
 	}
-	if strings.Contains(panel, "Cancel run") || strings.Contains(page.Body, "data-trace-stream") {
+	if strings.Contains(panel, "Cancel run") || strings.Contains(page.Body, "hx-sse:connect") {
 		t.Errorf("a finished Run is still offered for cancelling or followed live:\n%s", page.Body)
 	}
 
@@ -353,7 +380,7 @@ func TestRunInterruptedByACrashIsFailedOnRestart(t *testing.T) {
 			t.Errorf("after a restart the interrupted Run does not show %q:\n%s", want, panel)
 		}
 	}
-	if strings.Contains(page.Body, "data-trace-stream") {
+	if strings.Contains(page.Body, "hx-sse:connect") {
 		t.Errorf("the interrupted Run is still followed live:\n%s", page.Body)
 	}
 	if end := h.Stream(t, run+"/events", "").Rest(t); end[len(end)-1].Data != "failed" {

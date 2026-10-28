@@ -120,14 +120,15 @@ templ RunPage(r Run) {
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
 			</p>
 		}
-		@TracePanel(r)
+		@TracePanel(r, string(runURL(r.ID)))
 	}
 }
 
-// TracePanel is a Run's Trace. While the Run is going, it follows its
-// Trace Events live, reloads the page once the Run ends, and offers to
-// cancel it.
-templ TracePanel(r Run) {
+// TracePanel is a Run's Trace, shown on page. While the Run is going, it
+// appends its Trace Events as they stream in, offers to cancel it, and
+// once it ends fetches page again into the body, as a boosted link does,
+// to show what the Run left behind.
+templ TracePanel(r Run, page string) {
 	if r.Running() {
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/runs/%d/cancel", r.ID)) }>
 			@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
@@ -135,19 +136,26 @@ templ TracePanel(r Run) {
 			}
 		</form>
 	}
-	<ol
-		class="trace"
+	<div
 		if r.Running() {
-			data-trace-stream={ r.streamURL() }
+			hx-get={ page }
+			hx-trigger="end"
+			hx-target="body"
 		}
 	>
-		for _, e := range r.Events {
-			@TraceEventItem(e)
-		}
-	</ol>
-	if r.Running() {
-		<script src="/static/trace.js" defer></script>
-	}
+		<ol
+			class="trace"
+			if r.Running() {
+				hx-sse:connect={ r.streamURL() }
+				hx-swap="beforeend"
+				hx-sse:close="end"
+			}
+		>
+			for _, e := range r.Events {
+				@TraceEventItem(e)
+			}
+		</ol>
+	</div>
 }
 
 // TraceEventItem is one Trace Event in the panel; the live stream sends
