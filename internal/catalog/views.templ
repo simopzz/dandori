@@ -18,7 +18,7 @@ type Page struct {
 	// CanPropose is true when an Ingredient has no Product Mapping and the
 	// Known Catalog has products to propose.
 	CanPropose bool
-	// LastRun is the newest seed or proposal, if HasLastRun.
+	// LastRun is the newest seed, refresh or proposal, if HasLastRun.
 	LastRun    runs.Run
 	HasLastRun bool
 }
@@ -63,7 +63,7 @@ templ CatalogPage(p Page) {
 		@web.PageHeader("品揃え", "Known Catalog") {
 			<p class="lede">What Esselunga sells that the planner plans with.</p>
 		}
-		@web.Section(1, "Seed from Esselunga") {
+		@web.Section(1, "Seed and refresh") {
 			@web.Hint() {
 				{ fmt.Sprintf("Reads what your last %d Esselunga deliveries brought, looks each one up and saves it as a Catalog Product with its pack size, nutrition, aisle, price and availability. Then proposes a Product Mapping for each Ingredient without one.", p.Orders) }
 			}
@@ -74,6 +74,18 @@ templ CatalogPage(p Page) {
 					}
 				}
 			</form>
+			if len(p.Products) > 0 {
+				@web.Hint() {
+					Looks each Catalog Product up again and brings its pack size, nutrition, price and availability up to date, keeping its Product Mappings.
+				}
+				<form id="refresh" method="post" action="/catalog/refresh">
+					@web.Actions() {
+						@web.Button(templ.Attributes{"type": "submit"}) {
+							Refresh the Known Catalog
+						}
+					}
+				</form>
+			}
 			if p.HasLastRun {
 				<h3>Notes from the last Run</h3>
 				<p class="hint">
@@ -124,6 +136,7 @@ func runURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/catalog
 // runTitles name each of the Known Catalog's kinds of Run.
 var runTitles = map[string]string{
 	seedKind:     "Seeding the Known Catalog",
+	refreshKind:  "Refreshing the Known Catalog",
 	proposalKind: "Proposing Product Mappings",
 }
 

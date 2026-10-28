@@ -283,6 +283,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /catalog", a.needsDatabase(http.HandlerFunc(catalog.Show)))
 	mux.Handle("GET /catalog/runs/{id}", a.needsDatabase(http.HandlerFunc(catalog.ShowRun)))
 	mux.Handle("POST /catalog/seed", a.needsDatabase(http.HandlerFunc(catalog.Seed)))
+	mux.Handle("POST /catalog/refresh", a.needsDatabase(http.HandlerFunc(catalog.Refresh)))
 	mux.Handle("POST /catalog/propose-mappings", a.needsDatabase(http.HandlerFunc(catalog.Propose)))
 	mux.Handle("POST /product-mappings/{id}", a.needsDatabase(http.HandlerFunc(catalog.SetMapping)))
 	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(runs.List)))

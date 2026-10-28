@@ -20,6 +20,9 @@ const (
 	// seedKind is the kind of Run that seeds the Known Catalog from the
 	// user's Esselunga order history.
 	seedKind = "catalog seed"
+	// refreshKind is the kind of Run that brings the Known Catalog's
+	// Catalog Products up to date with what Esselunga shows now.
+	refreshKind = "catalog refresh"
 	// proposalKind is the kind of Run that proposes Product Mappings for
 	// Ingredients without one.
 	proposalKind = "product mapping proposal"
@@ -53,19 +56,26 @@ func (s *Service) brief(ctx context.Context) (brief, error) {
 // String is the brief as the model is told it.
 func (b brief) String() string {
 	var w strings.Builder
-	w.WriteString("Known Catalog:\n")
-	if len(b.products) == 0 {
-		w.WriteString("(empty)\n")
-	}
-	for _, p := range b.products {
-		fmt.Fprintf(&w, "- %s: %s (%s %s)\n", p.Code, p.Name, formatAmount(p.PackQuantity), p.Unit)
-	}
+	w.WriteString(b.catalog())
 	w.WriteString("\nIngredients without a Product Mapping:\n")
 	if len(b.unmapped) == 0 {
 		w.WriteString("(none)\n")
 	}
 	for _, ing := range b.unmapped {
 		fmt.Fprintf(&w, "- %s (%s)\n", ing.Name, ing.Unit)
+	}
+	return w.String()
+}
+
+// catalog is the Known Catalog as the model is told it.
+func (b brief) catalog() string {
+	var w strings.Builder
+	w.WriteString("Known Catalog:\n")
+	if len(b.products) == 0 {
+		w.WriteString("(empty)\n")
+	}
+	for _, p := range b.products {
+		fmt.Fprintf(&w, "- %s: %s (%s %s)\n", p.Code, p.Name, formatAmount(p.PackQuantity), p.Unit)
 	}
 	return w.String()
 }
@@ -90,6 +100,18 @@ const seedSystem = `You seed the Known Catalog: the Esselunga products the user 
 
 End your turn with one short sentence saying what you saved.`
 
+// refreshSystem is the refresh Run's instructions.
+const refreshSystem = `You refresh the Known Catalog: you bring each Catalog Product up to date with what Esselunga shows for it now, so the meal planner plans with its current pack size, nutrition and availability.
+
+1. Call look_up_product for each Catalog Product. Look up several in one turn.
+2. Call save_catalog_product for each product you looked up, giving its pack and nutrition in one unit, read again from what Esselunga shows now:
+- Keep the unit it is saved in unless Esselunga now sells it differently.
+- pack_quantity is how much one pack holds in that unit: "6 x 125 g" is 750 g, "1,5 L" is 1500 ml. For canned food use the net weight, not the drained weight. For a product sold by weight, keep the pack quantity it is saved with.
+- nutrition is per 100 g or per 100 ml, or per piece for unit piece, read from the nutrition label: kcal, protein, carbohydrate and fat. Leave it out when the product has no label. Never estimate it.
+3. A product Esselunga no longer has stays in the Known Catalog as it is: don't save it.
+
+End your turn with a short summary: what changed (pack sizes, nutrition, availability), and each product Esselunga no longer has.`
+
 // proposalSystem is the proposal Run's instructions; %[1]s is the proposal
 // rules.
 const proposalSystem = `You propose Product Mappings: the Catalog Product to buy for each of the user's Ingredients, from their Known Catalog.
@@ -111,6 +133,21 @@ func (s *Service) seedJob(b brief) agent.Job {
 			s.lookUpProduct(looked),
 			s.saveCatalogProduct(looked),
 			s.proposeProductMapping(),
+		},
+	}
+}
+
+func (s *Service) refreshJob(b brief) agent.Job {
+	looked := map[string]lookedUp{}
+	return agent.Job{
+		System: refreshSystem,
+		Prompt: b.catalog(),
+		Start: func(ctx context.Context, tr agent.Trace) error {
+			return s.cfg.Store.CheckSession(ctx, tr)
+		},
+		Tools: []agent.Tool{
+			s.lookUpProduct(looked),
+			s.saveCatalogProduct(looked),
 		},
 	}
 }
