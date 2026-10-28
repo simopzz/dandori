@@ -22,7 +22,12 @@ const (
 
 // Layout is the page shell every page renders inside: the head, the
 // navigation (bottom tabs on a phone, a rail on desktop) with the page's
-// tab marked, and the page's content.
+// tab marked, and the page's content. Every link and form is boosted, and
+// a form's buttons are disabled while its request is in flight (ADR 0009).
+// A rejection (422) keeps the address of the page the form was on, as its
+// action may answer only a POST. Settling is off: it would briefly give a
+// swapped-in element the attributes of the one it replaces, so a page's
+// script, such as AddSheet's, would see the old page.
 func Layout(title string, current Tab) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -51,7 +56,7 @@ func Layout(title string, current Tab) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(themeColour)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 24, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 29, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -64,13 +69,13 @@ func Layout(title string, current Tab) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 25, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 30, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</title><link rel=\"manifest\" href=\"/manifest.webmanifest\"><link rel=\"icon\" href=\"/static/icon-192.png\"><link rel=\"apple-touch-icon\" href=\"/static/icon-192.png\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\" defer></script><script>\n\t\t\t\tif (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");\n\t\t\t</script></head><body><nav class=\"shell\" aria-label=\"Main\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</title><link rel=\"manifest\" href=\"/manifest.webmanifest\"><link rel=\"icon\" href=\"/static/icon-192.png\"><link rel=\"apple-touch-icon\" href=\"/static/icon-192.png\"><link rel=\"stylesheet\" href=\"/static/app.css\"><meta name=\"htmx-config\" content=\"defaultSettleDelay:0\"><script src=\"/static/htmx.min.js\" defer></script><script>\n\t\t\t\tif (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");\n\t\t\t</script></head><body hx-boost:inherited=\"true\" hx-disable:inherited=\"findAll button\" hx-status:422:inherited=\"push:false\"><nav class=\"shell\" aria-label=\"Main\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -214,7 +219,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var10 templ.SafeURL
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 62, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 68, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -245,7 +250,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 68, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 74, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {

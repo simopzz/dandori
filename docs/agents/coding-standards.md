@@ -44,7 +44,10 @@ Rules code review checks against. Each says what it protects.
   way for htmx and a plain browser: redirect after a write, re-render the
   page with 422 on a rejection. A form swaps a fragment of its own
   (`httpx.IsHTMX`) only when the boosted jump to the top would lose the
-  user's place, such as a row deep in a list. See
+  user's place, such as a row deep in a list. A boosted rejection keeps
+  the address of the page the form was on, and settling is off
+  (`defaultSettleDelay:0`), so a swapped-in page's script sees its own
+  attributes, not the old page's. See
   [ADR 0009](../adr/0009-boosted-pages-with-fragments-only-to-keep-your-place.md).
   *Protects: one way to answer a request, and fragment code only where it
   pays.*

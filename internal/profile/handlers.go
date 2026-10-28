@@ -54,20 +54,11 @@ func (h Handlers) Save(w http.ResponseWriter, r *http.Request) {
 		h.renderForm(w, r, ProfileForm{Values: typed, Failed: true}, http.StatusInternalServerError)
 		return
 	}
-	if !httpx.IsHTMX(r) {
-		// Redirect, so reloading the page doesn't resubmit the form.
-		http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
-		return
-	}
-	h.renderForm(w, r, ProfileForm{Values: profileValues(p), Saved: true}, http.StatusOK)
+	// Redirect, so reloading the page doesn't resubmit the form.
+	http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
 }
 
-// renderForm answers a submission: HTMX swaps the form in place,
-// a plain browser gets the whole page.
+// renderForm answers a submission that wasn't saved with the whole page.
 func (h Handlers) renderForm(w http.ResponseWriter, r *http.Request, f ProfileForm, status int) {
-	c := ProfilePage(f)
-	if httpx.IsHTMX(r) {
-		c = ProfileFormFragment(f)
-	}
-	templ.Handler(c, templ.WithStatus(status)).ServeHTTP(w, r)
+	templ.Handler(ProfilePage(f), templ.WithStatus(status)).ServeHTTP(w, r)
 }

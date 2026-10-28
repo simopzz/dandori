@@ -133,15 +133,35 @@ func TestEditingProfileReplacesItsTargetsAndExclusions(t *testing.T) {
 	}
 }
 
-func TestHTMXSubmissionSwapsOnlyTheProfileForm(t *testing.T) {
+// The boost answers htmx as it answers a plain browser: a redirect to the
+// whole page, which htmx follows and swaps in. See ADR 0009.
+func TestBoostedProfileSaveLandsOnTheWholePage(t *testing.T) {
 	h := apptest.Start(t)
 
 	res := h.HTMXPostForm(t, "/profile", validProfile())
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("HTMX POST /profile status = %d, want 200", res.StatusCode)
+	if res.StatusCode != http.StatusOK || !strings.Contains(text(res.Body), "Profile saved.") {
+		t.Fatalf("HTMX POST /profile = %d, want 200 and a confirmation:\n%s", res.StatusCode, text(res.Body))
 	}
-	if strings.Contains(res.Body, "<html") || !strings.Contains(res.Body, "Profile saved.") {
-		t.Errorf("HTMX submission should get the saved form alone:\n%s", res.Body)
+	if res.Method != http.MethodGet || !strings.Contains(res.Body, "<html") {
+		t.Errorf("a boosted save is not redirected to the whole Profile page:\n%s", res.Body)
+	}
+}
+
+func TestBoostedProfileRejectionShowsTheWholePageAsTyped(t *testing.T) {
+	h := apptest.Start(t)
+
+	invalid := validProfile()
+	invalid.Set("target_kcal", "0")
+	invalid.Set("exclusions", "anchovies")
+	res := h.HTMXPostForm(t, "/profile", invalid)
+	if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), "Must be more than 0") {
+		t.Fatalf("HTMX POST /profile = %d, want 422 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if !strings.Contains(res.Body, "<html") {
+		t.Errorf("a boosted rejection is not answered with the whole Profile page:\n%s", res.Body)
+	}
+	if !hasField(res.Body, "target_kcal", "0") || !hasField(res.Body, "exclusions", "anchovies") {
+		t.Errorf("rejected form does not keep what was typed:\n%s", res.Body)
 	}
 }
 
@@ -149,8 +169,8 @@ func TestHTMXSubmissionWhileDatabaseIsUnreachableReloadsThePage(t *testing.T) {
 	h := apptest.Start(t)
 	h.CutDatabase(t)
 
-	// Swapping the database-unavailable page into the form would nest it;
-	// a full reload shows it properly.
+	// Swapping in the database-unavailable page would push the form's URL;
+	// a full reload shows it at the page the user was on.
 	res := h.HTMXPostForm(t, "/profile", validProfile())
 	if res.StatusCode != http.StatusServiceUnavailable || res.Header.Get("HX-Refresh") != "true" {
 		t.Errorf("HTMX POST /profile while unreachable = %d, HX-Refresh %q; want 503 and a refresh", res.StatusCode, res.Header.Get("HX-Refresh"))

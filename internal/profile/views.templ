@@ -16,14 +16,12 @@ type ProfileForm struct {
 templ ProfilePage(f ProfileForm) {
 	@web.Layout("Dandori — Profile", web.TabProfile) {
 		@web.PageHeader("設定", "Profile")
-		@ProfileFormFragment(f)
+		@profileForm(f)
 	}
 }
 
-// ProfileFormFragment is the Profile form alone, which HTMX swaps in place
-// after a submission.
-templ ProfileFormFragment(f ProfileForm) {
-	<form method="post" action="/profile" hx-post="/profile" hx-target="this" hx-swap="outerHTML">
+templ profileForm(f ProfileForm) {
+	<form method="post" action="/profile">
 		if f.Saved {
 			@web.Notice() {
 				Profile saved.

@@ -58,7 +58,7 @@ func ProfilePage(f ProfileForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ProfileFormFragment(f).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = profileForm(f).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -72,9 +72,7 @@ func ProfilePage(f ProfileForm) templ.Component {
 	})
 }
 
-// ProfileFormFragment is the Profile form alone, which HTMX swaps in place
-// after a submission.
-func ProfileFormFragment(f ProfileForm) templ.Component {
+func profileForm(f ProfileForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -95,7 +93,7 @@ func ProfileFormFragment(f ProfileForm) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"post\" action=\"/profile\" hx-post=\"/profile\" hx-target=\"this\" hx-swap=\"outerHTML\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"post\" action=\"/profile\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -558,7 +556,7 @@ func numberInput(f ProfileForm, name, label, unit string) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 96, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 94, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
@@ -571,7 +569,7 @@ func numberInput(f ProfileForm, name, label, unit string) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Values[name])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 96, Col: 105}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 94, Col: 105}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -641,7 +639,7 @@ func foodField(f ProfileForm, name, label string) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 106, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 104, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 			if templ_7745c5c3_Err != nil {
@@ -654,7 +652,7 @@ func foodField(f ProfileForm, name, label string) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(f.Values[name])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 106, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/views.templ`, Line: 104, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
