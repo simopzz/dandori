@@ -61,34 +61,21 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 		p.Ingredients = append(p.Ingredients, IngredientOption{Name: ing.Name, Unit: string(ing.Unit)})
 	}
 	for _, it := range items {
-		row := ItemRow{
-			ID:         it.ID,
-			Ingredient: it.Ingredient.Name,
-			Quantity:   formatAmount(it.Quantity) + " " + string(it.Ingredient.Unit),
-			Location:   string(it.Location),
-			Form:       ItemForm{Values: itemValues(it)},
-		}
-		if it.ExpiresOn != nil {
-			row.ExpiresOn = it.ExpiresOn.Format(dateLayout)
-		}
+		row := newItemRow(it)
 		if it.ID == rej.changedItem {
 			row.Form, found = rej.change, true
 		}
 		p.Items = append(p.Items, row)
 	}
 	for _, portion := range portions {
-		row := PortionRow{ID: portion.ID, Recipe: portion.Recipe, Location: string(portion.Location)}
-		if row.Recipe == "" {
-			row.Recipe = "Ingredients as they are"
-		}
+		row := newPortionRow(portion)
 		if portion.ID == rej.movedPortion {
 			row.MoveTo, row.Error, found = rej.moveTo, rej.moveError, true
 		}
-		if portion.Slot == nil {
+		if row.For == "" {
 			p.Portions = append(p.Portions, row)
 			continue
 		}
-		row.For = portion.Slot.String()
 		p.Waiting = append(p.Waiting, row)
 	}
 	if !found {
@@ -96,6 +83,84 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 		return
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
+}
+
+func newItemRow(it Item) ItemRow {
+	row := ItemRow{
+		ID:         it.ID,
+		Ingredient: it.Ingredient.Name,
+		Quantity:   formatAmount(it.Quantity) + " " + string(it.Ingredient.Unit),
+		Location:   string(it.Location),
+		Form:       ItemForm{Values: itemValues(it)},
+	}
+	if it.ExpiresOn != nil {
+		row.ExpiresOn = it.ExpiresOn.Format(dateLayout)
+	}
+	return row
+}
+
+func newPortionRow(portion Portion) PortionRow {
+	row := PortionRow{ID: portion.ID, Recipe: portion.Recipe, Location: string(portion.Location)}
+	if row.Recipe == "" {
+		row.Recipe = "Ingredients as they are"
+	}
+	if portion.Slot != nil {
+		row.For = portion.Slot.String()
+	}
+	return row
+}
+
+// renderItem answers htmx with the row of the Stock Item with id alone, so
+// the page keeps its place (ADR 0009); form, when set, is its change form
+// as typed. A Stock Item that is gone answers 404 with nothing, which
+// takes its row away.
+func (h Handlers) renderItem(w http.ResponseWriter, r *http.Request, id int64, form *ItemForm, status int) {
+	items, err := h.Service.Items(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load stock items", err)
+		return
+	}
+	for _, it := range items {
+		if it.ID == id {
+			row := newItemRow(it)
+			if form != nil {
+				row.Form = *form
+			}
+			templ.Handler(itemRow(row), templ.WithStatus(status)).ServeHTTP(w, r)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
+}
+
+// renderPortion answers htmx with the row of the Portion with id alone;
+// moveTo and moveError, when set, are a rejected move. A Portion that is
+// gone answers 404 with nothing, which takes its row away.
+func (h Handlers) renderPortion(w http.ResponseWriter, r *http.Request, id int64, moveTo, moveError string, status int) {
+	portions, err := h.Service.Portions(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load portions", err)
+		return
+	}
+	for _, portion := range portions {
+		if portion.ID == id {
+			row := newPortionRow(portion)
+			row.MoveTo, row.Error = moveTo, moveError
+			templ.Handler(portionRow(row), templ.WithStatus(status)).ServeHTTP(w, r)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
+}
+
+// notFound answers a write to a row that is gone: under htmx, 404 with
+// nothing, which takes the row away.
+func notFound(w http.ResponseWriter, r *http.Request) {
+	if httpx.IsHTMX(r) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	http.NotFound(w, r)
 }
 
 // Add records a Stock Item.
@@ -134,15 +199,24 @@ func (h Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	item, problems := readStockItem(r.PostForm)
 	if len(problems) > 0 {
-		h.render(w, r, rejection{changedItem: id, change: ItemForm{Values: typed(r.PostForm), Errors: problems}}, http.StatusUnprocessableEntity)
+		change := ItemForm{Values: typed(r.PostForm), Errors: problems}
+		if httpx.IsHTMX(r) {
+			h.renderItem(w, r, id, &change, http.StatusUnprocessableEntity)
+			return
+		}
+		h.render(w, r, rejection{changedItem: id, change: change}, http.StatusUnprocessableEntity)
 		return
 	}
 	switch err := h.Service.Update(r.Context(), id, item); {
 	case errors.Is(err, ErrNotFound):
-		http.NotFound(w, r)
+		notFound(w, r)
 		return
 	case err != nil:
 		httpx.ServerError(w, h.Log, "update stock item", err)
+		return
+	}
+	if httpx.IsHTMX(r) {
+		h.renderItem(w, r, id, nil, http.StatusOK)
 		return
 	}
 	http.Redirect(w, r, "/stock", http.StatusSeeOther)
@@ -158,7 +232,26 @@ func (h Handlers) Remove(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, h.Log, "remove stock item", err)
 		return
 	}
+	if httpx.IsHTMX(r) {
+		h.renderRemoved(w, r)
+		return
+	}
 	http.Redirect(w, r, "/stock", http.StatusSeeOther)
+}
+
+// renderRemoved answers htmx with nothing, which takes the removed Stock
+// Item's row away; once none is left, the list's place says so instead.
+func (h Handlers) renderRemoved(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Service.Items(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load stock items", err)
+		return
+	}
+	if len(items) > 0 {
+		return
+	}
+	w.Header().Set("HX-Retarget", "closest ul")
+	templ.Handler(noItems()).ServeHTTP(w, r)
 }
 
 // MovePortion moves a Portion without a Slot to another Storage Location.
@@ -175,13 +268,21 @@ func (h Handlers) MovePortion(w http.ResponseWriter, r *http.Request) {
 	var invalid *InvalidError
 	switch err := h.Service.MovePortion(r.Context(), id, location); {
 	case errors.As(err, &invalid):
+		if httpx.IsHTMX(r) {
+			h.renderPortion(w, r, id, string(location), invalid.Fields["Location"], http.StatusUnprocessableEntity)
+			return
+		}
 		h.render(w, r, rejection{movedPortion: id, moveTo: string(location), moveError: invalid.Fields["Location"]}, http.StatusUnprocessableEntity)
 		return
 	case errors.Is(err, ErrPortionNotFound):
-		http.NotFound(w, r)
+		notFound(w, r)
 		return
 	case err != nil:
 		httpx.ServerError(w, h.Log, "move portion", err)
+		return
+	}
+	if httpx.IsHTMX(r) {
+		h.renderPortion(w, r, id, "", "", http.StatusOK)
 		return
 	}
 	http.Redirect(w, r, "/stock", http.StatusSeeOther)
