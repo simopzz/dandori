@@ -475,7 +475,7 @@ func TestDraftPageFollowsTheParseWhileItRuns(t *testing.T) {
 	res := h.PostForm(t, "/recipes/parse", url.Values{"text": {pastedRecipe}})
 	defer close(thinking)
 
-	if !strings.Contains(text(res.Body), "being parsed") || !strings.Contains(res.Body, "data-trace-stream") {
+	if !strings.Contains(text(res.Body), "being parsed") || !followsLive(res.Body, "/runs/"+strings.TrimPrefix(res.Path, "/recipe-drafts/"), res.Path) {
 		t.Errorf("draft page of a running parse does not follow its trace:\n%s", res.Body)
 	}
 	if strings.Contains(res.Body, `id="recipe"`) {

@@ -97,7 +97,7 @@ func (h Handlers) showDraftPending(w http.ResponseWriter, r *http.Request, id in
 		http.NotFound(w, r)
 		return
 	}
-	templ.Handler(DraftPendingPage(DraftPending{Run: run})).ServeHTTP(w, r)
+	templ.Handler(DraftPendingPage(DraftPending{Run: run, Page: fmt.Sprintf("/recipe-drafts/%d", id)})).ServeHTTP(w, r)
 }
 
 func draftForm(id int64, f RecipeForm) RecipeForm {

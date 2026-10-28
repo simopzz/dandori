@@ -99,7 +99,8 @@ func (h Handlers) Cancel(w http.ResponseWriter, r *http.Request) {
 
 // Stream sends a Run's Trace Events as server-sent events: the stored ones
 // after the last the client has (Last-Event-ID, else ?after=), then live
-// ones until the Run ends, then an "end" event with its status.
+// ones until the Run ends, then an "end" event with its status. Trace
+// Events are unnamed messages, the only ones htmx's hx-sse swaps in.
 func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -142,7 +143,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 		if err := TraceEventItem(ev).Render(r.Context(), &html); err != nil {
 			return err
 		}
-		writeEvent(w, strconv.Itoa(ev.Seq), "trace", html.String())
+		writeEvent(w, strconv.Itoa(ev.Seq), "", html.String())
 		after = ev.Seq
 		return nil
 	}
@@ -210,12 +211,15 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 }
 
-// writeEvent writes one server-sent event.
+// writeEvent writes one server-sent event; one without a name is a
+// message.
 func writeEvent(w io.Writer, id, name, data string) {
 	if id != "" {
 		fmt.Fprintf(w, "id: %s\n", id)
 	}
-	fmt.Fprintf(w, "event: %s\n", name)
+	if name != "" {
+		fmt.Fprintf(w, "event: %s\n", name)
+	}
 	data = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(data)
 	for line := range strings.SplitSeq(data, "\n") {
 		fmt.Fprintf(w, "data: %s\n", line)

@@ -84,7 +84,8 @@ type IngredientRow struct {
 // DraftPending is a draft whose parse Run has not produced a Recipe: still
 // running, or ended without one.
 type DraftPending struct {
-	Run runs.Run
+	Run  runs.Run
+	Page string // the draft's own page, fetched again once the Run ends
 }
 
 func ingField(name string, i int) string { return fmt.Sprintf("ing_%s_%d", name, i) }
@@ -220,7 +221,7 @@ templ DraftPendingPage(d DraftPending) {
 				<a href="/recipes">Back to the Recipe Library</a>
 			}
 		}
-		@runs.TracePanel(d.Run)
+		@runs.TracePanel(d.Run, d.Page)
 	}
 }
 
