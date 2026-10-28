@@ -48,6 +48,22 @@ func (s *Store) LogOut() {
 	s.loggedOut = true
 }
 
+// Sell makes the store sell p under its code, as Esselunga shows it now:
+// a new product, or a changed pack, label or availability.
+func (s *Store) Sell(p esselunga.Product) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.products[p.Code] = p
+}
+
+// Unlist stops the store selling anything under code, so looking it up
+// finds no such product.
+func (s *Store) Unlist(code string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.products, code)
+}
+
 // SetAvailable makes the product with code available or out of stock.
 func (s *Store) SetAvailable(code string, available bool) {
 	s.mu.Lock()

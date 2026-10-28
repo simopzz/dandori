@@ -332,6 +332,9 @@ func TestSeedProposesAProductMappingTheUserConfirms(t *testing.T) {
 		script[last])...)
 
 	startRun(t, h, "seed")
+	if system := requestOf(t, llm, "You seed the Known Catalog").System; !strings.Contains(system, "call propose_product_mapping") || strings.Count(system, "Never estimate it.") != 1 {
+		t.Errorf("seed instructions do not carry the proposal and label rules once each:\n%s", system)
+	}
 	prompt := requestOf(t, llm, "You seed the Known Catalog").Messages[0].Content[0].Text
 	for _, want := range []string{"Ingredients without a Product Mapping:", "- chicken breast (g)", "- lemon (piece)"} {
 		if !strings.Contains(prompt, want) {
@@ -366,12 +369,24 @@ var latte = esselunga.Product{
 // breast and milk, without Product Mappings.
 func seededWithIngredients(t *testing.T) (*apptest.Harness, *fakellm.LLM) {
 	t.Helper()
+	return seededFrom(t, catalogStore())
+}
+
+// catalogStore is a fake Esselunga selling lentils, chicken breast and
+// milk, with one order of them.
+func catalogStore() *fakestore.Store {
 	store := fakestore.New(lenticchie, pettoDiPollo, latte)
 	store.Ordered(esselunga.Order{ID: "1"},
 		esselunga.OrderLine{Code: lenticchie.Code, Name: lenticchie.Name, Quantity: 1},
 		esselunga.OrderLine{Code: pettoDiPollo.Code, Name: pettoDiPollo.Name, Quantity: 1},
 		esselunga.OrderLine{Code: latte.Code, Name: latte.Name, Quantity: 1},
 	)
+	return store
+}
+
+// seededFrom is seededWithIngredients, against store.
+func seededFrom(t *testing.T, store *fakestore.Store) (*apptest.Harness, *fakellm.LLM) {
+	t.Helper()
 	h, llm := startCatalog(t, store, time.Millisecond)
 	acceptFirstRecipe(t, h, llm)
 	llm.Script(
@@ -659,5 +674,142 @@ func TestProductMappingFormsSwapOnlyTheirRow(t *testing.T) {
 		if !strings.Contains(tag, want) {
 			t.Errorf("mapping form lacks %s: %s", want, tag)
 		}
+	}
+}
+
+// refreshScript is the model looking up the products of
+// seededWithIngredients again and saving chicken breast as Esselunga now
+// shows it, then milk, at last seen.
+func refreshScript() []fakellm.Step {
+	return []fakellm.Step{
+		fakellm.CallTools("Looking up each Catalog Product.",
+			fakellm.Call{Tool: "look_up_product", Input: map[string]any{"code": lenticchie.Code}},
+			fakellm.Call{Tool: "look_up_product", Input: map[string]any{"code": pettoDiPollo.Code}},
+			fakellm.Call{Tool: "look_up_product", Input: map[string]any{"code": latte.Code}},
+		),
+		fakellm.CallTools("",
+			fakellm.Call{Tool: "save_catalog_product", Input: map[string]any{"code": lenticchie.Code, "pack_quantity": 400, "unit": "g"}},
+			fakellm.Call{Tool: "save_catalog_product", Input: map[string]any{
+				"code": pettoDiPollo.Code, "pack_quantity": 400, "unit": "g",
+				"nutrition": map[string]any{"kcal": 105, "protein_g": 24, "carbs_g": 0, "fat_g": 1}}},
+			fakellm.Call{Tool: "save_catalog_product", Input: map[string]any{"code": latte.Code, "pack_quantity": 1000, "unit": "ml"}},
+		),
+		fakellm.Reply("Refreshed three Catalog Products: the chicken breast now comes in 400 g packs."),
+	}
+}
+
+func TestRefreshUpdatesTheKnownCatalogInItsOwnRun(t *testing.T) {
+	store := catalogStore()
+	h, llm := seededFrom(t, store)
+	form := mappingForm(t, h, "chicken breast")
+	form.Values.Set("catalog_product", productID(t, h, pettoDiPollo.Name))
+	h.PostForm(t, form.Action, form.Values)
+
+	// Esselunga now sells the chicken breast in a bigger pack, with a new
+	// label, and has it in stock.
+	bigger := pettoDiPollo
+	bigger.Name, bigger.Quantity, bigger.Available = "Fileni Petto di Pollo a Fette 400 g", "400 g", true
+	bigger.Nutrition = []esselunga.NutritionRow{{Label: "Energia", Value: "105 kcal"}, {Label: "Proteine", Value: "24 g"}}
+	store.Sell(bigger)
+	llm.Script(refreshScript()...)
+
+	res := startRun(t, h, "refresh")
+	run := text(res.Body)
+	for _, want := range []string{
+		"Refreshing the Known Catalog",
+		"Run succeeded",
+		"Store Esselunga: checking the session",
+		"Store Esselunga: looking up product 708114",
+		"Refreshed three Catalog Products: the chicken breast now comes in 400 g packs.",
+	} {
+		if !strings.Contains(run, want) {
+			t.Errorf("refresh Run's page does not show %q:\n%s", want, run)
+		}
+	}
+	if strings.Contains(run, "reading the last") {
+		t.Errorf("refresh Run read the order history:\n%s", run)
+	}
+	req := requestOf(t, llm, "You refresh the Known Catalog")
+	if want := "Write your summary in English"; !strings.Contains(req.System, want) {
+		t.Errorf("the refresh instructions do not say %q:\n%s", want, req.System)
+	}
+	if prompt := req.Messages[0].Content[0].Text; !strings.Contains(prompt, "- 708114: Fileni Petto di Pollo a Fette 320 g (320 g)") {
+		t.Errorf("refresh Run was not told the Known Catalog:\n%s", prompt)
+	}
+	for _, tool := range req.Tools {
+		if tool.Name == "propose_product_mapping" || tool.Name == "read_order_history" {
+			t.Errorf("refresh Run offers the agent %s", tool.Name)
+		}
+	}
+
+	catalog := text(h.Get(t, "/catalog").Body)
+	for _, want := range []string{"Fileni Petto di Pollo a Fette 400 g 400 g", "105 kcal · 24 g protein per 100 g", "catalog refresh"} {
+		if !strings.Contains(catalog, want) {
+			t.Errorf("Known Catalog does not show %q after the refresh:\n%s", want, catalog)
+		}
+	}
+	if strings.Contains(catalog, "Out of stock") || strings.Contains(catalog, "320 g") {
+		t.Errorf("Known Catalog still shows the chicken breast as it was:\n%s", catalog)
+	}
+	if got := mappingShown(t, h, "chicken breast"); !strings.HasPrefix(got, bigger.Name+" Change") {
+		t.Errorf("chicken breast shows %q after the refresh, want its mapping kept", got)
+	}
+}
+
+// Marking a product Esselunga no longer lists as Unlisted, and finding a
+// replacement, come with #65; until then a refresh leaves it as it was.
+func TestRefreshKeepsAProductEsselungaNoLongerListsWithItsMapping(t *testing.T) {
+	store := catalogStore()
+	h, llm := seededFrom(t, store)
+	if page := h.Get(t, "/catalog").Body; !strings.Contains(page, `id="refresh"`) {
+		t.Fatalf("no refresh is offered with a Known Catalog:\n%s", text(page))
+	}
+	form := mappingForm(t, h, "chicken breast")
+	form.Values.Set("catalog_product", productID(t, h, pettoDiPollo.Name))
+	h.PostForm(t, form.Action, form.Values)
+
+	store.Unlist(pettoDiPollo.Code)
+	llm.Script(
+		fakellm.CallTools("",
+			fakellm.Call{Tool: "look_up_product", Input: map[string]any{"code": lenticchie.Code}},
+			fakellm.Call{Tool: "look_up_product", Input: map[string]any{"code": pettoDiPollo.Code}},
+		),
+		fakellm.CallTool("save_catalog_product", map[string]any{"code": lenticchie.Code, "pack_quantity": 400, "unit": "g"}),
+		fakellm.Reply("Refreshed the lentils. Esselunga no longer has the chicken breast."),
+	)
+
+	run := text(startRun(t, h, "refresh").Body)
+	for _, want := range []string{"Run succeeded", "Esselunga has no such product", "Esselunga no longer has the chicken breast."} {
+		if !strings.Contains(run, want) {
+			t.Errorf("refresh Run's page does not show %q:\n%s", want, run)
+		}
+	}
+	if catalog := text(h.Get(t, "/catalog").Body); !strings.Contains(catalog, pettoDiPollo.Name+" 320 g") {
+		t.Errorf("Known Catalog lost the product Esselunga no longer lists:\n%s", catalog)
+	}
+	if got := mappingShown(t, h, "chicken breast"); !strings.HasPrefix(got, pettoDiPollo.Name+" Change") {
+		t.Errorf("chicken breast shows %q after the refresh, want its mapping kept", got)
+	}
+}
+
+func TestRefreshIsOfferedOnlyWithCatalogProducts(t *testing.T) {
+	h, _ := startCatalog(t, orderedStore(), time.Millisecond)
+	if page := h.Get(t, "/catalog").Body; strings.Contains(page, `id="refresh"`) {
+		t.Errorf("a refresh is offered with an empty Known Catalog:\n%s", text(page))
+	}
+}
+
+func TestLoggedOutSessionStopsTheRefreshBeforeAskingTheModel(t *testing.T) {
+	store := catalogStore()
+	h, llm := seededFrom(t, store)
+	asked := len(llm.Requests())
+	store.LogOut()
+
+	run := text(startRun(t, h, "refresh").Body)
+	if !strings.Contains(run, "Run failed") || !strings.Contains(run, "the Esselunga session is logged out") {
+		t.Errorf("refresh Run did not stop on the logged-out session:\n%s", run)
+	}
+	if n := len(llm.Requests()) - asked; n != 0 {
+		t.Errorf("the model was asked %d times, want none while logged out", n)
 	}
 }

@@ -1,4 +1,6 @@
-# Dandori
+<h1 align="center">
+  <img src="assets/banner.png" alt="Dandori 段取り" width="100%">
+</h1>
 
 *Dandori* (段取り) is the Japanese art of arranging a task so it runs smoothly. This is a personal meal-planning co-pilot for one person cooking for themselves: it plans batch-cooked meals, tracks what is in the kitchen, adapts when the schedule changes, and fills an online supermarket cart.
 

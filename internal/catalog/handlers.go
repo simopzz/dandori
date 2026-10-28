@@ -133,6 +133,16 @@ func (h Handlers) Seed(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, string(runURL(id)), http.StatusSeeOther)
 }
 
+// Refresh starts a Run refreshing the Known Catalog, and shows it.
+func (h Handlers) Refresh(w http.ResponseWriter, r *http.Request) {
+	id, err := h.Service.StartRefresh(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "start catalog refresh", err)
+		return
+	}
+	http.Redirect(w, r, string(runURL(id)), http.StatusSeeOther)
+}
+
 // Propose starts a Run proposing Product Mappings, and shows it.
 func (h Handlers) Propose(w http.ResponseWriter, r *http.Request) {
 	id, err := h.Service.StartProposal(r.Context())

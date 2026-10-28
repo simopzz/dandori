@@ -1,5 +1,6 @@
 // Package catalog is the Known Catalog: the Catalog Products the planner
-// knows about, seeded by a Run from the user's Esselunga order history, and
+// knows about, seeded by a Run from the user's Esselunga order history and
+// brought up to date by a refresh Run the user starts, and
 // the Product Mappings from Ingredients to them, which the user sets and
 // the agent proposes.
 package catalog
@@ -113,6 +114,16 @@ func (s *Service) StartSeed(ctx context.Context) (int64, error) {
 	return s.runs.Start(ctx, seedKind, s.seedJob(brief))
 }
 
+// StartRefresh starts a Run bringing every Catalog Product up to date with
+// what Esselunga shows for it now: pack size, nutrition and availability.
+func (s *Service) StartRefresh(ctx context.Context) (int64, error) {
+	brief, err := s.brief(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.runs.Start(ctx, refreshKind, s.refreshJob(brief))
+}
+
 // StartProposal starts a Run proposing a Product Mapping for each
 // Ingredient without one, from the Known Catalog as it is.
 func (s *Service) StartProposal(ctx context.Context) (int64, error) {
@@ -123,19 +134,20 @@ func (s *Service) StartProposal(ctx context.Context) (int64, error) {
 	return s.runs.Start(ctx, proposalKind, s.proposalJob(brief))
 }
 
-// Run loads the Known Catalog's Run with id, a seed or a proposal, with its
-// Trace. found is false when there is no such Run of the Known Catalog.
+// Run loads the Known Catalog's Run with id, a seed, refresh or proposal,
+// with its Trace. found is false when there is no such Run of the Known
+// Catalog.
 func (s *Service) Run(ctx context.Context, id int64) (run runs.Run, found bool, err error) {
 	run, found, err = s.runs.Get(ctx, id)
-	if err != nil || !found || (run.Kind != seedKind && run.Kind != proposalKind) {
+	if err != nil || !found || (run.Kind != seedKind && run.Kind != refreshKind && run.Kind != proposalKind) {
 		return runs.Run{}, false, err
 	}
 	run.Events, err = s.runs.Trace(ctx, id, 0)
 	return run, err == nil, err
 }
 
-// LastRun loads the Known Catalog's newest Run, a seed or a proposal, with
-// its Trace. found is false before the first.
+// LastRun loads the Known Catalog's newest Run, a seed, refresh or
+// proposal, with its Trace. found is false before the first.
 func (s *Service) LastRun(ctx context.Context) (runs.Run, bool, error) {
-	return s.runs.Latest(ctx, seedKind, proposalKind)
+	return s.runs.Latest(ctx, seedKind, refreshKind, proposalKind)
 }
