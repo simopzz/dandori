@@ -14,12 +14,9 @@ const (
 
 // Layout is the page shell every page renders inside: the head, the
 // navigation (bottom tabs on a phone, a rail on desktop) with the page's
-// tab marked, and the page's content. Every link and form is boosted, and
-// a form's buttons are disabled while its request is in flight (ADR 0009).
-// A rejection (422) keeps the address of the page the form was on, as its
-// action may answer only a POST. Settling is off: it would briefly give a
-// swapped-in element the attributes of the one it replaces, so a page's
-// script, such as AddSheet's, would see the old page.
+// tab marked, and the page's content. Every link and form is boosted, with
+// a form's buttons disabled while its request is in flight; ADR 0009 says
+// why a rejection keeps its address and why settling is off.
 templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
 	<html lang="en">

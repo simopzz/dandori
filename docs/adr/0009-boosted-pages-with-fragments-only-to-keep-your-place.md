@@ -9,4 +9,6 @@ Every link and form rides an `hx-boost` on `<body>`: htmx fetches the page and s
 
 ## Consequences
 
+- A rejection (422) keeps the address of the page the form was on (`hx-status:422="push:false"`), since a form's action may answer only a POST: pushing it would make reload and Back fail.
+- htmx's settling is off (`defaultSettleDelay:0`). Settling briefly gives a swapped-in element the attributes of the old one with the same id, so a script in the new page, such as the one reopening a rejected add form's sheet, would see the old page.
 - Scripts in a page are re-run by each boosted swap and nothing is unloaded, so anything long-lived, such as the live Trace's stream, comes from an htmx extension that cleans up when its element is removed, not from a hand-written script.

@@ -16,68 +16,64 @@ type ProfileForm struct {
 templ ProfilePage(f ProfileForm) {
 	@web.Layout("Dandori — Profile", web.TabProfile) {
 		@web.PageHeader("設定", "Profile")
-		@profileForm(f)
+		<form method="post" action="/profile">
+			if f.Saved {
+				@web.Notice() {
+					Profile saved.
+				}
+			}
+			if f.Failed {
+				@web.Alert() {
+					The Profile could not be saved; try again. Details are in the server log.
+				}
+			}
+			if len(f.Errors) > 0 {
+				@web.Alert() {
+					The Profile was not saved; fix the fields marked below.
+				}
+			}
+			@web.FieldGroup(1, "Daily Targets") {
+				@nutritionFields(f, "target")
+			}
+			@web.FieldGroup(2, "Exclusions and allergies") {
+				@web.Hint() {
+					One food per line, or separated by commas. Recipes containing them are never planned.
+				}
+				<div class="stack">
+					@foodField(f, "exclusions", "Never eat")
+					@foodField(f, "allergies", "Allergies")
+				</div>
+			}
+			@web.FieldGroup(3, "Meal Out estimate") {
+				@web.Hint() {
+					What one Meal Out is assumed to contain unless you say otherwise.
+				}
+				@nutritionFields(f, "meal_out")
+			}
+			@web.FieldGroup(4, "Untracked Allowance") {
+				@web.Hint() {
+					Eaten each day outside the Plan (coffee, snacks); reserved before Slots are filled.
+				}
+				@nutritionFields(f, "untracked")
+			}
+			@web.FieldGroup(5, "Slot times") {
+				@web.Hint() {
+					The time of day of each kind of Slot. A Cycle starts at the first Slot after its Delivery arrives.
+				}
+				@web.FieldRow() {
+					@web.TimeField("Breakfast", "breakfast_at", f.Values["breakfast_at"], f.Errors["breakfast_at"])
+					@web.TimeField("Lunch", "lunch_at", f.Values["lunch_at"], f.Errors["lunch_at"])
+					@web.TimeField("Snack", "snack_at", f.Values["snack_at"], f.Errors["snack_at"])
+					@web.TimeField("Dinner", "dinner_at", f.Values["dinner_at"], f.Errors["dinner_at"])
+				}
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					Save Profile
+				}
+			}
+		</form>
 	}
-}
-
-templ profileForm(f ProfileForm) {
-	<form method="post" action="/profile">
-		if f.Saved {
-			@web.Notice() {
-				Profile saved.
-			}
-		}
-		if f.Failed {
-			@web.Alert() {
-				The Profile could not be saved; try again. Details are in the server log.
-			}
-		}
-		if len(f.Errors) > 0 {
-			@web.Alert() {
-				The Profile was not saved; fix the fields marked below.
-			}
-		}
-		@web.FieldGroup(1, "Daily Targets") {
-			@nutritionFields(f, "target")
-		}
-		@web.FieldGroup(2, "Exclusions and allergies") {
-			@web.Hint() {
-				One food per line, or separated by commas. Recipes containing them are never planned.
-			}
-			<div class="stack">
-				@foodField(f, "exclusions", "Never eat")
-				@foodField(f, "allergies", "Allergies")
-			</div>
-		}
-		@web.FieldGroup(3, "Meal Out estimate") {
-			@web.Hint() {
-				What one Meal Out is assumed to contain unless you say otherwise.
-			}
-			@nutritionFields(f, "meal_out")
-		}
-		@web.FieldGroup(4, "Untracked Allowance") {
-			@web.Hint() {
-				Eaten each day outside the Plan (coffee, snacks); reserved before Slots are filled.
-			}
-			@nutritionFields(f, "untracked")
-		}
-		@web.FieldGroup(5, "Slot times") {
-			@web.Hint() {
-				The time of day of each kind of Slot. A Cycle starts at the first Slot after its Delivery arrives.
-			}
-			@web.FieldRow() {
-				@web.TimeField("Breakfast", "breakfast_at", f.Values["breakfast_at"], f.Errors["breakfast_at"])
-				@web.TimeField("Lunch", "lunch_at", f.Values["lunch_at"], f.Errors["lunch_at"])
-				@web.TimeField("Snack", "snack_at", f.Values["snack_at"], f.Errors["snack_at"])
-				@web.TimeField("Dinner", "dinner_at", f.Values["dinner_at"], f.Errors["dinner_at"])
-			}
-		}
-		@web.Actions() {
-			@web.Button(templ.Attributes{"type": "submit"}) {
-				Save Profile
-			}
-		}
-	</form>
 }
 
 templ nutritionFields(f ProfileForm, prefix string) {
@@ -91,7 +87,14 @@ templ nutritionFields(f ProfileForm, prefix string) {
 
 templ numberInput(f ProfileForm, name, label, unit string) {
 	@web.Field(label, unit, f.Errors[name]) {
-		<input type="number" inputmode="numeric" min="0" step="1" required name={ name } value={ f.Values[name] }
+		<input
+			type="number"
+			inputmode="numeric"
+			min="0"
+			step="1"
+			required
+			name={ name }
+			value={ f.Values[name] }
 			if f.Errors[name] != "" {
 				aria-invalid="true"
 			}
@@ -104,4 +107,3 @@ templ foodField(f ProfileForm, name, label string) {
 		<textarea name={ name } rows="3">{ f.Values[name] }</textarea>
 	}
 }
-
