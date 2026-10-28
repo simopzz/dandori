@@ -21,9 +21,10 @@ const endpoint = "https://api.voyageai.com/v1/embeddings"
 
 // Embedder embeds texts with a Voyage model.
 type Embedder struct {
-	key    string
-	model  string
-	client *http.Client
+	key      string
+	model    string
+	endpoint string
+	client   *http.Client
 }
 
 // New returns an Embedder using model, DefaultModel when empty, with the
@@ -32,19 +33,51 @@ func New(key, model string) *Embedder {
 	if model == "" {
 		model = DefaultModel
 	}
-	return &Embedder{key: key, model: model, client: &http.Client{Timeout: 30 * time.Second}}
+	return &Embedder{key: key, model: model, endpoint: endpoint, client: &http.Client{Timeout: 30 * time.Second}}
 }
 
 // Model implements embedding.Embedder.
 func (e *Embedder) Model() string { return e.model }
 
-// Embed implements embedding.Embedder.
+// A request holds at most maxTexts texts and, as estimated, maxTokens
+// tokens: under Voyage's limits for every model, the tightest being 120K
+// tokens.
+const (
+	maxTexts  = 1000
+	maxTokens = 100_000
+)
+
+// estimateTokens overestimates the tokens Voyage counts in text, at a token
+// per 2 bytes where its tokenizer averages about 4.
+func estimateTokens(text string) int { return len(text)/2 + 1 }
+
+// Embed implements embedding.Embedder, in as many requests as Voyage's
+// limits take.
 func (e *Embedder) Embed(ctx context.Context, purpose embedding.Purpose, texts []string) ([][]float32, error) {
+	var vectors [][]float32
+	for start := 0; start < len(texts); {
+		end, tokens := start, 0
+		for end < len(texts) && end-start < maxTexts && (end == start || tokens+estimateTokens(texts[end]) <= maxTokens) {
+			tokens += estimateTokens(texts[end])
+			end++
+		}
+		batch, err := e.embed(ctx, purpose, texts[start:end])
+		if err != nil {
+			return nil, err
+		}
+		vectors = append(vectors, batch...)
+		start = end
+	}
+	return vectors, nil
+}
+
+// embed embeds texts in one request.
+func (e *Embedder) embed(ctx context.Context, purpose embedding.Purpose, texts []string) ([][]float32, error) {
 	body, err := json.Marshal(map[string]any{"input": texts, "model": e.model, "input_type": string(purpose)})
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

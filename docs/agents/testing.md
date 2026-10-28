@@ -1,6 +1,6 @@
 # Testing
 
-Tests sit at two seams. Issues name them in their acceptance criteria.
+Tests sit at two seams. Issues name them in their acceptance criteria. An adapter whose behaviour the fakes stand in for, and so no Seam-1 test reaches, is tested on its own against a fake of the service it calls.
 
 ## Seam 1: the app over HTTP
 
@@ -9,6 +9,10 @@ Tests sit at two seams. Issues name them in their acceptance criteria.
 ## Seam 2: the domain core
 
 `internal/domain/*_test.go`. Pure functions called directly, usually table-driven: Plan validation, Cycle lifecycle, nutrition. No database, no clock: the time a rule needs is passed in.
+
+## Adapters
+
+`internal/embedding/voyage/voyage_test.go`. The Voyage adapter against a local fake of Voyage's embeddings endpoint (`httptest`), which enforces Voyage's request limits: it checks the adapter splits what it embeds into requests within them and puts the vectors back in order.
 
 ## Not in the suite
 
