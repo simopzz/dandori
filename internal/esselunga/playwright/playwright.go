@@ -37,9 +37,6 @@ const (
 // server drives. It starts the server on first use.
 type Store struct {
 	command []string
-	// pace spaces the several requests one operation makes, as the
-	// throttle spaces operations.
-	pace time.Duration
 
 	mu     sync.Mutex
 	client *mcp.Client
@@ -48,9 +45,10 @@ type Store struct {
 
 // New returns a Store that runs command, such as
 // "npx @playwright/mcp@0.0.83 --user-data-dir ~/.dandori/browser", as the
-// Playwright MCP server, and spaces its requests pace apart.
-func New(command string, pace time.Duration) *Store {
-	return &Store{command: strings.Fields(command), pace: pace}
+// Playwright MCP server. Each operation is one request, or two the site
+// itself makes together, so the throttle spaces them all.
+func New(command string) *Store {
+	return &Store{command: strings.Fields(command)}
 }
 
 // Close stops the Playwright MCP server, if it was started.
@@ -90,22 +88,25 @@ func (s *Store) OrderHistory(ctx context.Context, orders int) ([]esselunga.Order
 		if strings.Contains(o.Status, "ANNULLAT") {
 			continue // cancelled: nothing was bought
 		}
-		if err := s.wait(ctx); err != nil {
-			return nil, err
-		}
-		order := esselunga.Order{ID: o.ID, DeliveredOn: o.Slot}
-		err := s.api(ctx, "GET", "/commerce/resources/auth/order/"+o.ID, nil,
-			`(d) => (d.orderItems || []).map(i => ({
-				Code: i.productCode, Name: (i.productName || '').replace(/\s+/g, ' ').trim(), Quantity: i.quantity, Price: i.price,
-				Weight: i.productIntervalValue ? i.productIntervalValue + ' ' + (i.productIntervalUnitScale || '') : '',
-			}))`,
-			&order.Lines)
-		if err != nil {
-			return nil, err
-		}
-		history = append(history, order)
+		history = append(history, esselunga.Order{ID: o.ID, DeliveredOn: o.Slot})
 	}
 	return history, nil
+}
+
+func (s *Store) OrderLines(ctx context.Context, orderID string) ([]esselunga.OrderLine, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var lines []esselunga.OrderLine
+	err := s.api(ctx, "GET", "/commerce/resources/auth/order/"+orderID, nil,
+		`(d) => (d.orderItems || []).map(i => ({
+			Code: i.productCode, Name: (i.productName || '').replace(/\s+/g, ' ').trim(), Quantity: i.quantity, Price: i.price,
+			Weight: i.productIntervalValue ? i.productIntervalValue + ' ' + (i.productIntervalUnitScale || '') : '',
+		}))`,
+		&lines)
+	if errors.Is(err, esselunga.ErrNoSuchProduct) {
+		err = esselunga.ErrNoSuchOrder
+	}
+	return lines, err
 }
 
 // productJS turns a product's detail into a Product: the pack quantity and
@@ -147,10 +148,7 @@ func (s *Store) LookUpProduct(ctx context.Context, code string) (esselunga.Produ
 	if err := s.api(ctx, "GET", path, nil, productJS, &p); err != nil {
 		return esselunga.Product{}, err
 	}
-	if err := s.wait(ctx); err != nil {
-		return esselunga.Product{}, err
-	}
-	// The aisle is a nicety: a product without one is still a product.
+	// The site asks for both together on a product page. The aisle is a nicety: a product without one is still a product.
 	if err := s.api(ctx, "GET", path+"/breadcrumbs", nil,
 		`(d) => (d.breadcrumbs || []).filter(b => b.level > 1).map(b => b.label).join(' › ')`, &p.Aisle); errors.Is(err, esselunga.ErrLoggedOut) {
 		return esselunga.Product{}, err
@@ -292,14 +290,4 @@ func (s *Store) tool(ctx context.Context, name string, args any) (string, error)
 		return "", fmt.Errorf("Playwright %s failed: %s", name, res.Text) //nolint:staticcheck // product name
 	}
 	return res.Text, nil
-}
-
-// wait spaces two requests of one operation.
-func (s *Store) wait(ctx context.Context) error {
-	select {
-	case <-time.After(s.pace):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }

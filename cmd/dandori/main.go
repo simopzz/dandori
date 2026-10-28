@@ -18,7 +18,6 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -101,7 +100,7 @@ func run(log *slog.Logger, args []string) error {
 func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) error {
 	ports := app.Ports{LLM: anthropic.New()}
 	if command := os.Getenv("DANDORI_PLAYWRIGHT_MCP"); command != "" {
-		store := playwright.New(command, cmp.Or(cfg.StoreThrottle, app.DefaultStoreThrottle))
+		store := playwright.New(command)
 		defer store.Close()
 		ports.Store = store
 	}

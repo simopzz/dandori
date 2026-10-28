@@ -58,8 +58,8 @@ func (t *Throttled) CheckSession(ctx context.Context, tr agent.Trace) error {
 	return t.do(ctx, tr, "checking the session", func() error { return t.store.CheckSession(ctx) })
 }
 
-// OrderHistory returns the latest orders, newest first, at most orders of
-// them.
+// OrderHistory returns the latest orders, newest first, without their
+// lines.
 func (t *Throttled) OrderHistory(ctx context.Context, tr agent.Trace, orders int) ([]Order, error) {
 	var history []Order
 	err := t.do(ctx, tr, fmt.Sprintf("reading the last %d orders", orders), func() error {
@@ -68,6 +68,17 @@ func (t *Throttled) OrderHistory(ctx context.Context, tr agent.Trace, orders int
 		return err
 	})
 	return history, err
+}
+
+// OrderLines returns what the order with id brought.
+func (t *Throttled) OrderLines(ctx context.Context, tr agent.Trace, id string) ([]OrderLine, error) {
+	var lines []OrderLine
+	err := t.do(ctx, tr, "reading order "+id, func() error {
+		var err error
+		lines, err = t.store.OrderLines(ctx, id)
+		return err
+	})
+	return lines, err
 }
 
 // LookUpProduct returns what the store shows for the product with code.

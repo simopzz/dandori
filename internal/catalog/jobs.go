@@ -9,6 +9,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/domain"
@@ -98,7 +99,7 @@ const proposalSystem = `You propose Product Mappings: the Catalog Product to buy
 End your turn with one short sentence saying what you proposed.`
 
 func (s *Service) seedJob(b brief) agent.Job {
-	looked := map[string]esselunga.Product{}
+	looked := map[string]lookedUp{}
 	return agent.Job{
 		System: fmt.Sprintf(seedSystem, s.cfg.Orders, fmt.Sprintf(proposeRules, s.cfg.Language.Name())),
 		Prompt: b.String(),
@@ -151,14 +152,18 @@ func (s *Service) readOrderHistory() agent.Tool {
 				return "", storeFailure(err)
 			}
 			var products []orderedProduct
-			seen := map[string]int{}
+			index := map[string]int{} // of each product in products, by code
 			for _, o := range orders {
-				for _, l := range o.Lines {
-					if i, ok := seen[l.Code]; ok {
+				lines, err := s.cfg.Store.OrderLines(ctx, tr, o.ID)
+				if err != nil {
+					return "", storeFailure(err)
+				}
+				for _, l := range lines {
+					if i, ok := index[l.Code]; ok {
 						products[i].TimesBought++
 						continue
 					}
-					seen[l.Code] = len(products)
+					index[l.Code] = len(products)
 					products = append(products, orderedProduct{Code: l.Code, Name: l.Name, TimesBought: 1, LastPrice: l.Price, Weight: l.Weight})
 				}
 			}
@@ -168,7 +173,13 @@ func (s *Service) readOrderHistory() agent.Tool {
 	}
 }
 
-func (s *Service) lookUpProduct(looked map[string]esselunga.Product) agent.Tool {
+// lookedUp is a product as the store showed it, and when.
+type lookedUp struct {
+	esselunga.Product
+	at time.Time
+}
+
+func (s *Service) lookUpProduct(looked map[string]lookedUp) agent.Tool {
 	return agent.Tool{
 		Name:        "look_up_product",
 		Description: "What Esselunga shows for a product: its name, pack quantity, aisle, price (per kg when sold_by_weight), availability and nutrition label.",
@@ -184,7 +195,7 @@ func (s *Service) lookUpProduct(looked map[string]esselunga.Product) agent.Tool 
 			if err != nil {
 				return "", storeFailure(err)
 			}
-			looked[p.Code] = p
+			looked[p.Code] = lookedUp{Product: p, at: s.cfg.Now()}
 			out, err := json.Marshal(map[string]any{
 				"code": p.Code, "name": p.Name, "brand": p.Brand, "quantity": p.Quantity, "sold_by_weight": p.SoldByWeight,
 				"aisle": p.Aisle, "price": p.Price, "available": p.Available,
@@ -239,7 +250,7 @@ func (n *nutrition) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (s *Service) saveCatalogProduct(looked map[string]esselunga.Product) agent.Tool {
+func (s *Service) saveCatalogProduct(looked map[string]lookedUp) agent.Tool {
 	return agent.Tool{
 		Name:        "save_catalog_product",
 		Description: "Save a product you looked up to the Known Catalog, with its pack and nutrition in one unit. Its name, aisle, price and availability are what Esselunga showed; the price of a product sold by weight is worked out for the pack. Replaces the product if it is already there.",
@@ -262,12 +273,15 @@ func (s *Service) saveCatalogProduct(looked map[string]esselunga.Product) agent.
 				Code: seen.Code, Name: seen.Name,
 				PackQuantity: in.PackQuantity, Unit: in.Unit,
 				Aisle: seen.Aisle, Price: seen.Price,
-				Available: seen.Available, AvailabilitySeen: s.cfg.Now(),
+				Available: seen.Available, AvailabilitySeen: seen.at,
 			}
 			if in.Nutrition != nil {
 				p.Nutrition = &domain.IngredientNutrition{Kcal: *in.Nutrition.Kcal, ProteinG: *in.Nutrition.ProteinG, CarbsG: *in.Nutrition.CarbsG, FatG: *in.Nutrition.FatG}
 			}
-			if seen.SoldByWeight && p.Unit == domain.Grams {
+			if seen.SoldByWeight {
+				if p.Unit != domain.Grams {
+					return "", fmt.Errorf("%s is sold by weight: save it in g, at the weight the order history gives", seen.Name)
+				}
 				// Its price is per kilogram; a pack is the weight of one.
 				p.Price = math.Round(seen.Price*p.PackQuantity/10) / 100
 			}

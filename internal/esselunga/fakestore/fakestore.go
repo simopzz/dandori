@@ -16,6 +16,7 @@ import (
 type Store struct {
 	mu        sync.Mutex
 	orders    []esselunga.Order // newest first
+	lines     map[string][]esselunga.OrderLine
 	products  map[string]esselunga.Product
 	cart      map[string]int
 	loggedOut bool
@@ -24,18 +25,20 @@ type Store struct {
 
 // New returns a logged-in fake store selling products, with no orders.
 func New(products ...esselunga.Product) *Store {
-	s := &Store{products: map[string]esselunga.Product{}, cart: map[string]int{}}
+	s := &Store{products: map[string]esselunga.Product{}, lines: map[string][]esselunga.OrderLine{}, cart: map[string]int{}}
 	for _, p := range products {
 		s.products[p.Code] = p
 	}
 	return s
 }
 
-// Ordered adds order to the order history as the newest one.
-func (s *Store) Ordered(order esselunga.Order) {
+// Ordered adds order, which brought lines, to the order history as the
+// newest one.
+func (s *Store) Ordered(order esselunga.Order, lines ...esselunga.OrderLine) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.orders = slices.Insert(s.orders, 0, order)
+	s.lines[order.ID] = lines
 }
 
 // LogOut logs the session out, as when Esselunga's session expires.
@@ -84,6 +87,19 @@ func (s *Store) OrderHistory(_ context.Context, orders int) ([]esselunga.Order, 
 		return nil, err
 	}
 	return slices.Clone(s.orders[:min(orders, len(s.orders))]), nil
+}
+
+func (s *Store) OrderLines(_ context.Context, id string) ([]esselunga.OrderLine, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.act("OrderLines " + id); err != nil {
+		return nil, err
+	}
+	lines, ok := s.lines[id]
+	if !ok {
+		return nil, esselunga.ErrNoSuchOrder
+	}
+	return slices.Clone(lines), nil
 }
 
 func (s *Store) LookUpProduct(_ context.Context, code string) (esselunga.Product, error) {

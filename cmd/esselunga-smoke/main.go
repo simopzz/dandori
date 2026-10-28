@@ -6,8 +6,9 @@
 //	DANDORI_PLAYWRIGHT_MCP="npx @playwright/mcp@0.0.83 --user-data-dir ~/.dandori/browser" \
 //	  go run ./cmd/esselunga-smoke
 //
-// Log in to Esselunga in that browser first. Each store action is
-// throttled 3s apart, as in Dandori; the trace is printed as it goes.
+// Log in to Esselunga in that browser first. Store actions are throttled
+// DANDORI_STORE_THROTTLE apart (default 3s), as in Dandori; the trace is
+// printed as it goes.
 package main
 
 import (
@@ -50,8 +51,15 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	const throttle = 3 * time.Second
-	pw := playwright.New(command, throttle)
+	throttle := 3 * time.Second
+	if v := os.Getenv("DANDORI_STORE_THROTTLE"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			return fmt.Errorf("DANDORI_STORE_THROTTLE must be a duration such as 3s, got %q", v)
+		}
+		throttle = d
+	}
+	pw := playwright.New(command)
 	defer pw.Close()
 	store := esselunga.Throttle(pw, throttle)
 	tr := printed{}
@@ -63,11 +71,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if len(orders) == 0 || len(orders[0].Lines) == 0 {
+	if len(orders) == 0 {
 		return errors.New("the order history is empty: nothing to look up")
 	}
-	show("latest order", orders[0])
-	for _, line := range orders[0].Lines[:min(products, len(orders[0].Lines))] {
+	lines, err := store.OrderLines(ctx, tr, orders[0].ID)
+	if err != nil {
+		return err
+	}
+	show("latest order", map[string]any{"order": orders[0], "lines": lines})
+	for _, line := range lines[:min(products, len(lines))] {
 		p, err := store.LookUpProduct(ctx, tr, line.Code)
 		if err != nil {
 			return fmt.Errorf("look up %s (%s): %w", line.Name, line.Code, err)

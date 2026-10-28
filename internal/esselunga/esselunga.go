@@ -17,9 +17,11 @@ import (
 type Store interface {
 	// CheckSession returns ErrLoggedOut unless the session is logged in.
 	CheckSession(ctx context.Context) error
-	// OrderHistory returns the user's latest orders, newest first, at most
-	// orders of them.
+	// OrderHistory returns the user's latest orders, newest first, without
+	// their lines: of the latest orders of them, those not cancelled.
 	OrderHistory(ctx context.Context, orders int) ([]Order, error)
+	// OrderLines returns what the order with id brought, or ErrNoSuchOrder.
+	OrderLines(ctx context.Context, id string) ([]OrderLine, error)
 	// LookUpProduct returns what the store shows for the product with
 	// code, or ErrNoSuchProduct.
 	LookUpProduct(ctx context.Context, code string) (Product, error)
@@ -38,11 +40,13 @@ var ErrLoggedOut = errors.New("the Esselunga session is logged out: log in to Es
 // ErrNoSuchProduct means the store has no product with that code.
 var ErrNoSuchProduct = errors.New("Esselunga has no such product") //nolint:staticcheck // product name shown to the user
 
+// ErrNoSuchOrder means the order history has no order with that id.
+var ErrNoSuchOrder = errors.New("Esselunga has no such order") //nolint:staticcheck // product name shown to the user
+
 // Order is one past Esselunga order.
 type Order struct {
 	ID          string
 	DeliveredOn time.Time
-	Lines       []OrderLine
 }
 
 // OrderLine is one product of an order.

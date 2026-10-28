@@ -44,14 +44,14 @@ var (
 // orders of those products.
 func orderedStore() *fakestore.Store {
 	store := fakestore.New(lenticchie, banane, pettoDiPollo)
-	store.Ordered(esselunga.Order{ID: "127737508", DeliveredOn: time.Date(2026, 10, 2, 8, 0, 0, 0, time.UTC), Lines: []esselunga.OrderLine{
-		{Code: "412106", Name: "Esselunga Lenticchie 400 g", Quantity: 2, Price: 0.73},
-		{Code: "708114", Name: "Fileni Petto di Pollo a Fette", Quantity: 2, Price: 4.67},
-	}})
-	store.Ordered(esselunga.Order{ID: "128019105", DeliveredOn: time.Date(2026, 10, 16, 8, 0, 0, 0, time.UTC), Lines: []esselunga.OrderLine{
-		{Code: "751030", Name: "Esselunga Bio banane", Quantity: 1, Price: 1.95, Weight: "850 g"},
-		{Code: "412106", Name: "Esselunga Lenticchie 400 g", Quantity: 2, Price: 0.73},
-	}})
+	store.Ordered(esselunga.Order{ID: "127737508", DeliveredOn: time.Date(2026, 10, 2, 8, 0, 0, 0, time.UTC)},
+		esselunga.OrderLine{Code: "412106", Name: "Esselunga Lenticchie 400 g", Quantity: 2, Price: 0.73},
+		esselunga.OrderLine{Code: "708114", Name: "Fileni Petto di Pollo a Fette", Quantity: 2, Price: 4.67},
+	)
+	store.Ordered(esselunga.Order{ID: "128019105", DeliveredOn: time.Date(2026, 10, 16, 8, 0, 0, 0, time.UTC)},
+		esselunga.OrderLine{Code: "751030", Name: "Esselunga Bio banane", Quantity: 1, Price: 1.95, Weight: "850 g"},
+		esselunga.OrderLine{Code: "412106", Name: "Esselunga Lenticchie 400 g", Quantity: 2, Price: 0.73},
+	)
 	return store
 }
 
@@ -146,13 +146,15 @@ func TestStoreActionsAreThrottledAndEveryWaitIsTraced(t *testing.T) {
 
 	start := time.Now()
 	run := text(startRun(t, h, "seed").Body)
-	// Five store actions: the session, the order history and three
-	// products, each at least 300ms after the one before.
-	if took := time.Since(start); took < 4*300*time.Millisecond {
-		t.Errorf("five store actions took %s, want at least 1.2s at 300ms apart", took)
+	// Seven store actions: the session, the order history, its two orders
+	// and three products, each at least 300ms after the one before.
+	if took := time.Since(start); took < 6*300*time.Millisecond {
+		t.Errorf("seven store actions took %s, want at least 1.8s at 300ms apart", took)
 	}
 	for _, want := range []string{
 		"before reading the last 10 orders",
+		"before reading order 128019105",
+		"before reading order 127737508",
 		"before looking up product 412106",
 		"before looking up product 751030",
 		"before looking up product 708114",
@@ -161,8 +163,8 @@ func TestStoreActionsAreThrottledAndEveryWaitIsTraced(t *testing.T) {
 			t.Errorf("seed Run's trace does not show a throttle wait %q:\n%s", want, run)
 		}
 	}
-	if n := strings.Count(run, "Wait Waiting"); n != 4 {
-		t.Errorf("seed Run's trace shows %d throttle waits, want one before each action after the first, 4:\n%s", n, run)
+	if n := strings.Count(run, "Wait Waiting"); n != 6 {
+		t.Errorf("seed Run's trace shows %d throttle waits, want one before each action after the first, 6:\n%s", n, run)
 	}
 }
 
@@ -196,8 +198,9 @@ func TestSessionLoggingOutMidRunStopsTheSeed(t *testing.T) {
 		fakellm.Reply("Seeded."),
 	)
 	go func() {
-		// Once the order history is read, the session expires.
-		for !slices.Contains(store.Actions(), "OrderHistory") {
+		// Once the order history is read, down to its oldest order's
+		// lines, the session expires.
+		for !slices.Contains(store.Actions(), "OrderLines 127737508") {
 			time.Sleep(time.Millisecond)
 		}
 		store.LogOut()
@@ -300,11 +303,11 @@ var latte = esselunga.Product{
 func seededWithIngredients(t *testing.T) (*apptest.Harness, *fakellm.LLM) {
 	t.Helper()
 	store := fakestore.New(lenticchie, pettoDiPollo, latte)
-	store.Ordered(esselunga.Order{ID: "1", Lines: []esselunga.OrderLine{
-		{Code: lenticchie.Code, Name: lenticchie.Name, Quantity: 1},
-		{Code: pettoDiPollo.Code, Name: pettoDiPollo.Name, Quantity: 1},
-		{Code: latte.Code, Name: latte.Name, Quantity: 1},
-	}})
+	store.Ordered(esselunga.Order{ID: "1"},
+		esselunga.OrderLine{Code: lenticchie.Code, Name: lenticchie.Name, Quantity: 1},
+		esselunga.OrderLine{Code: pettoDiPollo.Code, Name: pettoDiPollo.Name, Quantity: 1},
+		esselunga.OrderLine{Code: latte.Code, Name: latte.Name, Quantity: 1},
+	)
 	h, llm := startCatalog(t, store, time.Millisecond)
 	acceptFirstRecipe(t, h, llm)
 	llm.Script(
@@ -454,7 +457,7 @@ func TestStorePortHasNoCheckoutOrPayment(t *testing.T) {
 
 func TestSeedingAgainRefreshesProductsAndKeepsTheirMappings(t *testing.T) {
 	store := fakestore.New(lenticchie, pettoDiPollo, latte)
-	store.Ordered(esselunga.Order{ID: "1", Lines: []esselunga.OrderLine{{Code: pettoDiPollo.Code, Name: pettoDiPollo.Name, Quantity: 1}}})
+	store.Ordered(esselunga.Order{ID: "1"}, esselunga.OrderLine{Code: pettoDiPollo.Code, Name: pettoDiPollo.Name, Quantity: 1})
 	h, llm := startCatalog(t, store, time.Millisecond)
 	acceptFirstRecipe(t, h, llm)
 	seedChicken := func() {
@@ -482,5 +485,21 @@ func TestSeedingAgainRefreshesProductsAndKeepsTheirMappings(t *testing.T) {
 	}
 	if got := mappingShown(t, h, "chicken breast"); !strings.HasPrefix(got, pettoDiPollo.Name+" Change") {
 		t.Errorf("chicken breast shows %q after seeding again, want its mapping kept", got)
+	}
+}
+
+func TestProductSoldByWeightIsSavedByWeight(t *testing.T) {
+	h, llm := startCatalog(t, orderedStore(), time.Millisecond)
+	llm.Script(
+		fakellm.CallTool("look_up_product", map[string]any{"code": banane.Code}),
+		fakellm.CallTool("save_catalog_product", map[string]any{"code": banane.Code, "pack_quantity": 1, "unit": "piece"}),
+		fakellm.Reply("Could not save the bananas."),
+	)
+	run := text(startRun(t, h, "seed").Body)
+	if !strings.Contains(run, "Esselunga Bio banane is sold by weight: save it in g") {
+		t.Errorf("a product sold by weight was not refused in pieces:\n%s", run)
+	}
+	if catalog := text(h.Get(t, "/catalog").Body); !strings.Contains(catalog, "No Catalog Products yet.") {
+		t.Errorf("bananas were saved by the piece, at their price per kg:\n%s", catalog)
 	}
 }

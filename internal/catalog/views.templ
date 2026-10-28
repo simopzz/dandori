@@ -61,7 +61,7 @@ templ CatalogPage(p Page) {
 		}
 		@web.Section(1, "Seed from Esselunga") {
 			@web.Hint() {
-				{ fmt.Sprintf("Reads what you bought in your last %d Esselunga purchases, looks each one up and saves it as a Catalog Product with its pack size, nutrition, aisle, price and availability. Then proposes a Product Mapping for each Ingredient without one.", p.Orders) }
+				{ fmt.Sprintf("Reads what your last %d Esselunga deliveries brought, looks each one up and saves it as a Catalog Product with its pack size, nutrition, aisle, price and availability. Then proposes a Product Mapping for each Ingredient without one.", p.Orders) }
 			}
 			<form id="seed" method="post" action="/catalog/seed">
 				@web.Actions() {

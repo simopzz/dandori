@@ -142,9 +142,9 @@ func CatalogPage(p Page) templ.Component {
 					}
 					ctx = templ.InitializeContext(ctx)
 					var templ_7745c5c3_Var6 string
-					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Reads what you bought in your last %d Esselunga purchases, looks each one up and saves it as a Catalog Product with its pack size, nutrition, aisle, price and availability. Then proposes a Product Mapping for each Ingredient without one.", p.Orders))
+					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Reads what your last %d Esselunga deliveries brought, looks each one up and saves it as a Catalog Product with its pack size, nutrition, aisle, price and availability. Then proposes a Product Mapping for each Ingredient without one.", p.Orders))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/catalog/views.templ`, Line: 64, Col: 268}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/catalog/views.templ`, Line: 64, Col: 263}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {

@@ -19,6 +19,8 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
+// Show shows the Known Catalog page: the seed, every Catalog Product and
+// every Ingredient's Product Mapping.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, nil, http.StatusOK)
 }

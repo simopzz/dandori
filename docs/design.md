@@ -60,7 +60,7 @@ width; `--rail-width` and `--tabs-height` size the shell.
   with a vermilion bar over the current one, and a small horizontal 段取り
   DANDORI masthead above the page linking Home. From 900px, a left rail with the
   vertical 段取り wordmark over DANDORI, the tabs, and Runs at the rail's foot.
-  Tabs are Plan, Recipes, Stock and Profile; Runs is secondary. A page passes its
+  Tabs are Plan, Recipes, Stock, Catalog and Profile; Runs is secondary. A page passes its
   `Tab` to `Layout`, which marks it `aria-current="page"`.
 - **Every page opens with a `PageHeader`**: a letter-spaced eyebrow with the
   page's Japanese name and today's date (`在庫 · Sunday 25 October`) and a large
