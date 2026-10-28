@@ -29,10 +29,14 @@ type TraceEvent struct {
 // Running reports whether the Run is still going.
 func (r Run) Running() bool { return r.Status == "running" }
 
-// Notes is what the agent said last: at the end of a Run, its summary of
-// what it did and couldn't do, in Markdown. It is empty when the agent
-// said nothing.
+// Notes is what the agent said last in a Run that succeeded: its summary
+// of what it did and couldn't do, in Markdown. It is empty when the agent
+// said nothing, and for a Run that didn't succeed, where what the agent
+// said last was said on the way.
 func (r Run) Notes() string {
+	if r.Status != "succeeded" {
+		return ""
+	}
 	for i := len(r.Events) - 1; i >= 0; i-- {
 		if r.Events[i].Kind == "message" {
 			return r.Events[i].Summary

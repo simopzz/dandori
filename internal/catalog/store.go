@@ -89,6 +89,21 @@ func loadIngredient(ctx context.Context, q db.Querier, id int64, name string) (i
 	return id, ing, err == nil, err
 }
 
+// mappedIngredients loads the Ingredients whose Product Mapping, proposed
+// or not, is the Catalog Product with code.
+func mappedIngredients(ctx context.Context, q db.Querier, code string) ([]domain.Ingredient, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT i.name, i.unit FROM ingredient i
+		JOIN product_mapping m ON m.ingredient_id = i.id
+		JOIN catalog_product cp ON cp.id = m.catalog_product_id
+		WHERE cp.code = $1 ORDER BY i.name`, code)
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) {
+		var ing domain.Ingredient
+		err := row.Scan(&ing.Name, &ing.Unit)
+		return ing, err
+	})
+}
+
 // setMapping makes productID the user's Product Mapping for the Ingredient,
 // or removes its mapping when productID is 0.
 func setMapping(ctx context.Context, q db.Querier, ingredientID, productID int64) error {

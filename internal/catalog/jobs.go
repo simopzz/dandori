@@ -72,7 +72,7 @@ func (b brief) String() string {
 
 // proposeRules is how the agent proposes Product Mappings; %[1]s is the
 // name of the Content Language.
-const proposeRules = `For each Ingredient without a Product Mapping, if a Catalog Product is clearly that food and is sold in the Ingredient's unit, call propose_product_mapping. Prefer the product the user buys most. Propose nothing for an Ingredient no product fits: the user maps it by hand.
+const proposeRules = `For each Ingredient without a Product Mapping, if a Catalog Product is clearly that food and is sold in the Ingredient's unit, call propose_product_mapping. Propose nothing for an Ingredient no product fits: the user maps it by hand.
 
 Ingredient names are in %[1]s; Catalog Product names are Esselunga's own, in Italian.`
 
@@ -86,7 +86,7 @@ const seedSystem = `You seed the Known Catalog: the Esselunga products the user 
 - unit is g for solids, ml for liquids, piece for what is sold by count (eggs).
 - pack_quantity is how much one pack holds in that unit: "6 x 125 g" is 750 g, "1,5 L" is 1500 ml, "6 x 150 cL" is 9000 ml. For canned food use the net weight, not the drained weight. For a product sold by weight, use the approximate weight the order history gives.
 - nutrition is per 100 g or per 100 ml, or per piece for unit piece, read from the nutrition label: kcal, protein, carbohydrate and fat. Leave it out when the product has no label, or for unit piece when the label doesn't give a piece's weight. Never estimate it.
-4. %[2]s
+4. Where several Catalog Products fit an Ingredient, propose the one the order history shows the user buys most. %[2]s
 
 End your turn with one short sentence saying what you saved.`
 
@@ -291,6 +291,17 @@ func (s *Service) saveCatalogProduct(looked map[string]lookedUp) agent.Tool {
 					problems = append(problems, k+": "+invalid[k])
 				}
 				return "", errors.New("fix these and save again:\n" + strings.Join(problems, "\n"))
+			}
+			// Saved in another unit, it would no longer be sold in its
+			// Ingredients' units.
+			mapped, err := mappedIngredients(ctx, s.pool, p.Code)
+			if err != nil {
+				return "", fmt.Errorf("load its Product Mappings: %w", err)
+			}
+			for _, ing := range mapped {
+				if domain.MappingProblem(ing, p) != "" {
+					return "", fmt.Errorf("%s is the Product Mapping of %s, measured in %s: save it in %s", p.Name, ing.Name, ing.Unit, ing.Unit)
+				}
 			}
 			if err := saveProduct(ctx, s.pool, p); err != nil {
 				return "", fmt.Errorf("store the product: %w", err)

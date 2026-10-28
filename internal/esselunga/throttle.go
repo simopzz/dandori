@@ -40,6 +40,10 @@ func (t *Throttled) do(ctx context.Context, tr agent.Trace, action string, run f
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	// Cancelled while another Run's action went on: it mustn't act now.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !t.last.IsZero() {
 		gap := t.delay + rand.N(t.delay/2+1)
 		if wait := gap - time.Since(t.last); wait > 0 {

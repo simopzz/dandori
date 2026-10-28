@@ -249,14 +249,18 @@ func TestSessionLoggingOutMidRunStopsTheSeed(t *testing.T) {
 	loggedOut := make(chan struct{})
 	llm.Script(
 		fakellm.CallTool("read_order_history", map[string]any{}),
-		fakellm.CallTool("look_up_product", map[string]any{"code": "412106"}).After(loggedOut),
+		fakellm.CallTools("Looking up the lentils.",
+			fakellm.Call{Tool: "look_up_product", Input: map[string]any{"code": "412106"}}).After(loggedOut),
 		// Never asked: the Run stops at the failed lookup.
 		fakellm.Reply("Seeded."),
 	)
 	go func() {
 		// Once the order history is read, down to its oldest order's
 		// lines, the session expires.
-		for !slices.Contains(store.Actions(), "OrderLines 127737508") {
+		for deadline := time.Now().Add(10 * time.Second); !slices.Contains(store.Actions(), "OrderLines 127737508"); {
+			if time.Now().After(deadline) {
+				return // the Run never got there; the test reports why
+			}
 			time.Sleep(time.Millisecond)
 		}
 		store.LogOut()
@@ -269,6 +273,10 @@ func TestSessionLoggingOutMidRunStopsTheSeed(t *testing.T) {
 	}
 	if n := len(llm.Requests()); n != 2 {
 		t.Errorf("the model was asked %d times, want 2: the Run stops instead of telling it", n)
+	}
+	// What the model said on the way is not what the Run did.
+	if catalog := text(h.Get(t, "/catalog").Body); strings.Contains(catalog, "Looking up the lentils.") || !strings.Contains(catalog, "The Run failed") {
+		t.Errorf("Known Catalog shows a stopped Run's interim message as its notes, or not why it failed:\n%s", catalog)
 	}
 }
 
@@ -544,6 +552,51 @@ func TestSeedingAgainRefreshesProductsAndKeepsTheirMappings(t *testing.T) {
 	}
 }
 
+// A seed can't move a mapped Catalog Product to another unit: its Product
+// Mappings would no longer be sold in their Ingredient's unit.
+func TestSeedingAgainKeepsAMappedProductInItsUnit(t *testing.T) {
+	store := fakestore.New(lenticchie, pettoDiPollo, latte)
+	store.Ordered(esselunga.Order{ID: "1"}, esselunga.OrderLine{Code: pettoDiPollo.Code, Name: pettoDiPollo.Name, Quantity: 1})
+	h, llm := startCatalog(t, store, time.Millisecond)
+	acceptFirstRecipe(t, h, llm)
+	seedChicken := func(pack int, unit string) string {
+		llm.Script(
+			fakellm.CallTool("look_up_product", map[string]any{"code": pettoDiPollo.Code}),
+			fakellm.CallTool("save_catalog_product", map[string]any{"code": pettoDiPollo.Code, "pack_quantity": pack, "unit": unit}),
+			fakellm.Reply("Seeded."),
+		)
+		return text(startRun(t, h, "seed").Body)
+	}
+	seedChicken(320, "g")
+	form := mappingForm(t, h, "chicken breast")
+	form.Values.Set("catalog_product", productID(t, h, pettoDiPollo.Name))
+	h.PostForm(t, form.Action, form.Values)
+
+	run := seedChicken(2, "piece")
+	if want := pettoDiPollo.Name + " is the Product Mapping of chicken breast, measured in g: save it in g"; !strings.Contains(run, want) {
+		t.Errorf("seed Run did not refuse to move a mapped product to pieces, %q:\n%s", want, run)
+	}
+	if catalog := text(h.Get(t, "/catalog").Body); !strings.Contains(catalog, pettoDiPollo.Name+" 320 g") {
+		t.Errorf("the mapped product's pack changed:\n%s", catalog)
+	}
+	if got := mappingShown(t, h, "chicken breast"); !strings.HasPrefix(got, pettoDiPollo.Name+" Change") {
+		t.Errorf("chicken breast shows %q, want its mapping kept", got)
+	}
+}
+
+// Changing a mapping in place brings the offer to propose mappings up to
+// date with it, since that depends on every Ingredient's mapping.
+func TestProposalOfferFollowsMappingsChangedInPlace(t *testing.T) {
+	h, _ := seededWithIngredients(t)
+	form := mappingForm(t, h, "chicken breast")
+	form.Values.Set("catalog_product", productID(t, h, pettoDiPollo.Name))
+	res := h.HTMXPostForm(t, form.Action, form.Values)
+	_, partial, ok := strings.Cut(res.Body, `<hx-partial hx-target="#proposal" hx-swap="innerHTML">`)
+	if !ok || !strings.Contains(partial, `id="propose"`) {
+		t.Errorf("mapping in place did not bring the proposal offer up to date, with basmati rice still unmapped:\n%s", res.Body)
+	}
+}
+
 func TestProductSoldByWeightIsSavedByWeight(t *testing.T) {
 	h, llm := startCatalog(t, orderedStore(), time.Millisecond)
 	llm.Script(
@@ -568,21 +621,31 @@ func TestProductMappingChangesInPlaceUnderHTMX(t *testing.T) {
 
 	form.Values.Set("catalog_product", productID(t, h, lenticchie.Name))
 	res := h.HTMXPostForm(t, form.Action, form.Values)
-	if res.StatusCode != http.StatusOK || res.Method != http.MethodPost || !isRow(res.Body) {
+	row, ok := mappingSwapped(res.Body)
+	if res.StatusCode != http.StatusOK || res.Method != http.MethodPost || !ok {
 		t.Fatalf("HTMX set mapping = %d %s, want 200 and its row alone:\n%s", res.StatusCode, res.Method, res.Body)
 	}
-	if row := text(res.Body); !strings.HasPrefix(row, "basmati rice "+lenticchie.Name+" Change") {
+	if row := text(row); !strings.HasPrefix(row, "basmati rice "+lenticchie.Name+" Change") {
 		t.Errorf("row does not show the new mapping: %s", row)
 	}
 
 	form.Values.Set("catalog_product", productID(t, h, latte.Name))
 	res = h.HTMXPostForm(t, form.Action, form.Values)
-	if res.StatusCode != http.StatusUnprocessableEntity || !isRow(res.Body) {
+	row, ok = mappingSwapped(res.Body)
+	if res.StatusCode != http.StatusUnprocessableEntity || !ok {
 		t.Fatalf("HTMX mapping to a product in ml = %d, want 422 and its row alone:\n%s", res.StatusCode, res.Body)
 	}
-	if row := text(res.Body); !strings.HasPrefix(row, "basmati rice "+lenticchie.Name) || !strings.Contains(row, "is sold in ml") {
+	if row := text(row); !strings.HasPrefix(row, "basmati rice "+lenticchie.Name) || !strings.Contains(row, "is sold in ml") {
 		t.Errorf("rejected row does not show the mapping kept and why: %s", row)
 	}
+}
+
+// mappingSwapped splits what a Product Mapping form swaps in under htmx: ok
+// when it is the Ingredient's row alone, followed by the partial bringing
+// the offer to propose mappings up to date.
+func mappingSwapped(body string) (row string, ok bool) {
+	row, partial, found := strings.Cut(body, `<hx-partial hx-target="#proposal"`)
+	return row, found && isRow(row) && strings.HasSuffix(strings.TrimSpace(partial), "</hx-partial>")
 }
 
 func TestProductMappingFormsSwapOnlyTheirRow(t *testing.T) {

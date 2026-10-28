@@ -112,15 +112,9 @@ templ CatalogPage(p Page) {
 					}
 				}
 			}
-			if p.CanPropose {
-				<form id="propose" method="post" action="/catalog/propose-mappings">
-					@web.Actions() {
-						@web.TextButton(templ.Attributes{"type": "submit"}) {
-							Propose Product Mappings
-						}
-					}
-				</form>
-			}
+			<div id="proposal">
+				@proposal(p.CanPropose)
+			</div>
 		}
 	}
 }
@@ -164,6 +158,10 @@ templ runNotes(r runs.Run) {
 		@web.Hint() {
 			Still running.
 		}
+	} else if r.Status == "cancelled" {
+		@web.Hint() {
+			The Run was cancelled.
+		}
 	} else if r.Failure() == "" {
 		@web.Hint() {
 			The agent left no notes.
@@ -193,6 +191,29 @@ templ productRow(p ProductRow) {
 			}
 		</span>
 	}
+}
+
+// proposal offers to propose Product Mappings, when there are some to
+// propose.
+templ proposal(canPropose bool) {
+	if canPropose {
+		<form id="propose" method="post" action="/catalog/propose-mappings">
+			@web.Actions() {
+				@web.TextButton(templ.Attributes{"type": "submit"}) {
+					Propose Product Mappings
+				}
+			}
+		</form>
+	}
+}
+
+// mappingSwap is an Ingredient's row as htmx swaps it in, with the offer to
+// propose mappings brought up to date, since it hangs on every row.
+templ mappingSwap(m MappingRow, canPropose bool) {
+	@mappingRow(m)
+	<hx-partial hx-target="#proposal" hx-swap="innerHTML">
+		@proposal(canPropose)
+	</hx-partial>
 }
 
 // mappingRow is an Ingredient's row. Its form swaps only the row under

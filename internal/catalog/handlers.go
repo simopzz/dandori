@@ -37,8 +37,9 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rejected *Mappi
 	templ.Handler(CatalogPage(p), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
-// renderMapping answers htmx with the row of the Ingredient with id alone,
-// so the page keeps its place (ADR 0009); rejected marks a rejected change.
+// renderMapping answers htmx with the row of the Ingredient with id and the
+// offer to propose mappings, so the page keeps its place (ADR 0009);
+// rejected marks a rejected change.
 // A row that is gone is answered with nothing, which takes it away.
 func (h Handlers) renderMapping(w http.ResponseWriter, r *http.Request, id int64, rejected *MappingRow, status int) {
 	p, err := h.page(r.Context(), rejected)
@@ -48,7 +49,7 @@ func (h Handlers) renderMapping(w http.ResponseWriter, r *http.Request, id int64
 	}
 	for _, row := range p.Mappings {
 		if row.IngredientID == id {
-			templ.Handler(mappingRow(row), templ.WithStatus(status)).ServeHTTP(w, r)
+			templ.Handler(mappingSwap(row, p.CanPropose), templ.WithStatus(status)).ServeHTTP(w, r)
 			return
 		}
 	}

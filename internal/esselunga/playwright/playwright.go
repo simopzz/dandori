@@ -134,8 +134,12 @@ func (s *Store) WaitForLogin(ctx context.Context, poll time.Duration) error {
 			Status int `json:"status"`
 		}
 		// While the page is on the login site, there is no token and
-		// nothing is sent.
-		if err := s.evaluate(ctx, js, &res); err == nil && res.Status == 200 {
+		// nothing is sent. Only a browser that is gone ends the wait.
+		err := s.evaluate(ctx, js, &res)
+		if s.client == nil {
+			return err
+		}
+		if err == nil && res.Status == 200 {
 			return nil
 		}
 		select {
@@ -185,9 +189,13 @@ func (s *Store) LookUpProduct(ctx context.Context, code string) (esselunga.Produ
 	if err := s.api(ctx, "GET", path, nil, productJS, &p); err != nil {
 		return esselunga.Product{}, err
 	}
-	// The site asks for both together on a product page. The aisle is a nicety: a product without one is still a product.
+	// The site asks for both together on a product page. The aisle is a
+	// nicety: a product the site gives none is still a product. A session
+	// or browser that is gone is not.
+	var noAisle *errAPI
 	if err := s.api(ctx, "GET", path+"/breadcrumbs", nil,
-		`(d) => (d.breadcrumbs || []).filter(b => b.level > 1).map(b => b.label).join(' › ')`, &p.Aisle); errors.Is(err, esselunga.ErrLoggedOut) {
+		`(d) => (d.breadcrumbs || []).filter(b => b.level > 1).map(b => b.label).join(' › ')`, &p.Aisle); err != nil &&
+		!errors.As(err, &noAisle) && !errors.Is(err, esselunga.ErrNoSuchProduct) {
 		return esselunga.Product{}, err
 	}
 	return p, nil
