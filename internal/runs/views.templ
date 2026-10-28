@@ -120,7 +120,7 @@ templ RunPage(r Run) {
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
 			</p>
 		}
-		@TracePanel(r, fmt.Sprintf("/runs/%d", r.ID))
+		@TracePanel(r, string(runURL(r.ID)))
 	}
 }
 

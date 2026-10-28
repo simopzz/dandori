@@ -12,8 +12,9 @@ import (
 // from https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js. It boosts every
 // page (ADR 0009), and the database-unavailable page relies on its polling
 // and on the HX-Refresh header. Next to it, hx-sse.min.js is its SSE
-// extension, from the same package's dist/ext/hx-sse.min.js: the trace
-// panel follows a running Run through it.
+// extension, of the same version and licence, from
+// https://unpkg.com/htmx.org@4.0.0/dist/ext/hx-sse.min.js: the trace panel
+// follows a running Run through it.
 // The htmx-guidance and htmx-debugging skills in .agents/skills and
 // .claude/skills come from the same package's dist/skills: upgrade them
 // with htmx.

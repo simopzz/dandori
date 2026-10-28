@@ -389,7 +389,7 @@ func RunPage(r Run) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = TracePanel(r, fmt.Sprintf("/runs/%d", r.ID)).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = TracePanel(r, string(runURL(r.ID))).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
