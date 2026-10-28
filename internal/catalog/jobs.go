@@ -86,31 +86,37 @@ const proposeRules = `For each Ingredient without a Product Mapping, if a Catalo
 
 Ingredient names are in %[1]s; Catalog Product names are Esselunga's own, in Italian.`
 
+// labelRules is how the agent reads a pack and its nutrition label into a
+// Catalog Product's pack quantity and nutrition, whichever Run saves it.
+const labelRules = `- pack_quantity is how much one pack holds in that unit: "6 x 125 g" is 750 g, "1,5 L" is 1500 ml, "6 x 150 cL" is 9000 ml. For canned food use the net weight, not the drained weight.
+- nutrition is per 100 g or per 100 ml, or per piece for unit piece, read from the nutrition label: kcal, protein, carbohydrate and fat. Leave it out when the product has no label, or for unit piece when the label doesn't give a piece's weight. Never estimate it.`
+
 // seedSystem is the seed Run's instructions; %[1]d is how many orders it
-// reads and %[2]s the proposal rules.
+// reads, %[2]s the label rules and %[3]s the proposal rules.
 const seedSystem = `You seed the Known Catalog: the Esselunga products the user buys, with pack sizes and nutrition the meal planner plans with.
 
 1. Call read_order_history to see the products of the user's last %[1]d orders.
 2. Call look_up_product for each food product; skip what isn't food (cleaning products, toiletries). Look up several in one turn.
 3. Call save_catalog_product for each food product you looked up, giving its pack and nutrition in one unit:
 - unit is g for solids, ml for liquids, piece for what is sold by count (eggs).
-- pack_quantity is how much one pack holds in that unit: "6 x 125 g" is 750 g, "1,5 L" is 1500 ml, "6 x 150 cL" is 9000 ml. For canned food use the net weight, not the drained weight. For a product sold by weight, use the approximate weight the order history gives.
-- nutrition is per 100 g or per 100 ml, or per piece for unit piece, read from the nutrition label: kcal, protein, carbohydrate and fat. Leave it out when the product has no label, or for unit piece when the label doesn't give a piece's weight. Never estimate it.
-4. Where several Catalog Products fit an Ingredient, propose the one the order history shows the user buys most. %[2]s
+%[2]s
+- For a product sold by weight, pack_quantity is the approximate weight the order history gives.
+4. Where several Catalog Products fit an Ingredient, propose the one the order history shows the user buys most. %[3]s
 
 End your turn with one short sentence saying what you saved.`
 
-// refreshSystem is the refresh Run's instructions.
-const refreshSystem = `You refresh the Known Catalog: you bring each Catalog Product up to date with what Esselunga shows for it now, so the meal planner plans with its current pack size, nutrition and availability.
+// refreshSystem is the refresh Run's instructions; %[1]s is the label
+// rules and %[2]s the name of the Content Language.
+const refreshSystem = `You refresh the Known Catalog: you bring each Catalog Product up to date with what Esselunga shows for it now, so the meal planner plans with its current pack size, nutrition, price and availability.
 
 1. Call look_up_product for each Catalog Product. Look up several in one turn.
 2. Call save_catalog_product for each product you looked up, giving its pack and nutrition in one unit, read again from what Esselunga shows now:
 - Keep the unit it is saved in unless Esselunga now sells it differently.
-- pack_quantity is how much one pack holds in that unit: "6 x 125 g" is 750 g, "1,5 L" is 1500 ml. For canned food use the net weight, not the drained weight. For a product sold by weight, keep the pack quantity it is saved with.
-- nutrition is per 100 g or per 100 ml, or per piece for unit piece, read from the nutrition label: kcal, protein, carbohydrate and fat. Leave it out when the product has no label. Never estimate it.
+%[1]s
+- For a product sold by weight, keep the pack_quantity it is saved with.
 3. A product Esselunga no longer has stays in the Known Catalog as it is: don't save it.
 
-End your turn with a short summary: what changed (pack sizes, nutrition, availability), and each product Esselunga no longer has.`
+End your turn with a short summary: what changed (pack sizes, nutrition, price, availability), and each product Esselunga no longer has. Write your summary in %[2]s; Catalog Product names are Esselunga's own, in Italian: keep them as they are.`
 
 // proposalSystem is the proposal Run's instructions; %[1]s is the proposal
 // rules.
@@ -123,7 +129,7 @@ End your turn with one short sentence saying what you proposed.`
 func (s *Service) seedJob(b brief) agent.Job {
 	looked := map[string]lookedUp{}
 	return agent.Job{
-		System: fmt.Sprintf(seedSystem, s.cfg.Orders, fmt.Sprintf(proposeRules, s.cfg.Language.Name())),
+		System: fmt.Sprintf(seedSystem, s.cfg.Orders, labelRules, fmt.Sprintf(proposeRules, s.cfg.Language.Name())),
 		Prompt: b.String(),
 		Start: func(ctx context.Context, tr agent.Trace) error {
 			return s.cfg.Store.CheckSession(ctx, tr)
@@ -140,7 +146,7 @@ func (s *Service) seedJob(b brief) agent.Job {
 func (s *Service) refreshJob(b brief) agent.Job {
 	looked := map[string]lookedUp{}
 	return agent.Job{
-		System: refreshSystem,
+		System: fmt.Sprintf(refreshSystem, labelRules, s.cfg.Language.Name()),
 		Prompt: b.catalog(),
 		Start: func(ctx context.Context, tr agent.Trace) error {
 			return s.cfg.Store.CheckSession(ctx, tr)
@@ -317,7 +323,7 @@ func (s *Service) saveCatalogProduct(looked map[string]lookedUp) agent.Tool {
 			}
 			if seen.SoldByWeight {
 				if p.Unit != domain.Grams {
-					return "", fmt.Errorf("%s is sold by weight: save it in g, at the weight the order history gives", seen.Name)
+					return "", fmt.Errorf("%s is sold by weight: save it in g, at the weight of one", seen.Name)
 				}
 				// Its price is per kilogram; a pack is the weight of one.
 				p.Price = math.Round(seen.Price*p.PackQuantity/10) / 100

@@ -332,6 +332,9 @@ func TestSeedProposesAProductMappingTheUserConfirms(t *testing.T) {
 		script[last])...)
 
 	startRun(t, h, "seed")
+	if system := requestOf(t, llm, "You seed the Known Catalog").System; !strings.Contains(system, "call propose_product_mapping") || strings.Count(system, "Never estimate it.") != 1 {
+		t.Errorf("seed instructions do not carry the proposal and label rules once each:\n%s", system)
+	}
 	prompt := requestOf(t, llm, "You seed the Known Catalog").Messages[0].Content[0].Text
 	for _, want := range []string{"Ingredients without a Product Mapping:", "- chicken breast (g)", "- lemon (piece)"} {
 		if !strings.Contains(prompt, want) {
@@ -727,6 +730,9 @@ func TestRefreshUpdatesTheKnownCatalogInItsOwnRun(t *testing.T) {
 		t.Errorf("refresh Run read the order history:\n%s", run)
 	}
 	req := requestOf(t, llm, "You refresh the Known Catalog")
+	if want := "Write your summary in English"; !strings.Contains(req.System, want) {
+		t.Errorf("the refresh instructions do not say %q:\n%s", want, req.System)
+	}
 	if prompt := req.Messages[0].Content[0].Text; !strings.Contains(prompt, "- 708114: Fileni Petto di Pollo a Fette 320 g (320 g)") {
 		t.Errorf("refresh Run was not told the Known Catalog:\n%s", prompt)
 	}
