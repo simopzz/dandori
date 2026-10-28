@@ -503,3 +503,42 @@ func TestProductSoldByWeightIsSavedByWeight(t *testing.T) {
 		t.Errorf("bananas were saved by the piece, at their price per kg:\n%s", catalog)
 	}
 }
+
+// A Product Mapping is changed in place, so the user keeps their place in
+// a long list of Ingredients. See ADR 0009.
+func TestProductMappingChangesInPlaceUnderHTMX(t *testing.T) {
+	h, _ := seededWithIngredients(t)
+	form := mappingForm(t, h, "basmati rice")
+
+	form.Values.Set("catalog_product", productID(t, h, lenticchie.Name))
+	res := h.HTMXPostForm(t, form.Action, form.Values)
+	if res.StatusCode != http.StatusOK || res.Method != http.MethodPost || !isRow(res.Body) {
+		t.Fatalf("HTMX set mapping = %d %s, want 200 and its row alone:\n%s", res.StatusCode, res.Method, res.Body)
+	}
+	if row := text(res.Body); !strings.HasPrefix(row, "basmati rice "+lenticchie.Name+" Change") {
+		t.Errorf("row does not show the new mapping: %s", row)
+	}
+
+	form.Values.Set("catalog_product", productID(t, h, latte.Name))
+	res = h.HTMXPostForm(t, form.Action, form.Values)
+	if res.StatusCode != http.StatusUnprocessableEntity || !isRow(res.Body) {
+		t.Fatalf("HTMX mapping to a product in ml = %d, want 422 and its row alone:\n%s", res.StatusCode, res.Body)
+	}
+	if row := text(res.Body); !strings.HasPrefix(row, "basmati rice "+lenticchie.Name) || !strings.Contains(row, "is sold in ml") {
+		t.Errorf("rejected row does not show the mapping kept and why: %s", row)
+	}
+}
+
+func TestProductMappingFormsSwapOnlyTheirRow(t *testing.T) {
+	h, _ := seededWithIngredients(t)
+	page := h.Get(t, "/catalog").Body
+	form := mappingForm(t, h, "chicken breast")
+	id := strings.TrimPrefix(form.Action, "/product-mappings/")
+	i := strings.Index(page, `id="mapping-`+id+`"`)
+	tag := page[i : i+strings.Index(page[i:], ">")]
+	for _, want := range []string{`method="post"`, `hx-post="` + form.Action + `"`, `hx-target="closest li"`, `hx-swap="outerHTML"`} {
+		if !strings.Contains(tag, want) {
+			t.Errorf("mapping form lacks %s: %s", want, tag)
+		}
+	}
+}

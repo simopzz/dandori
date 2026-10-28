@@ -133,6 +133,8 @@ templ productRow(p ProductRow) {
 	}
 }
 
+// mappingRow is an Ingredient's row. Its form swaps only the row under
+// htmx, not the boosted page, so the page keeps its place (ADR 0009).
 templ mappingRow(m MappingRow) {
 	@web.EditRow(m.Error != "", mappingSummary(m)) {
 		if len(m.Options) == 0 {
@@ -140,7 +142,7 @@ templ mappingRow(m MappingRow) {
 				{ fmt.Sprintf("No Catalog Product is sold in %s.", m.Unit) }
 			}
 		} else {
-			<form id={ fmt.Sprintf("mapping-%d", m.IngredientID) } class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/product-mappings/%d", m.IngredientID)) }>
+			<form id={ fmt.Sprintf("mapping-%d", m.IngredientID) } class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/product-mappings/%d", m.IngredientID)) } hx-post={ fmt.Sprintf("/product-mappings/%d", m.IngredientID) } hx-target="closest li" hx-swap="outerHTML">
 				if m.Proposed {
 					@web.Hint() {
 						The agent proposed this Product Mapping: save it to confirm it.

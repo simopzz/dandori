@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -28,15 +29,42 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 // render shows the Known Catalog page, with rejected marking the mapping
 // whose change was rejected.
 func (h Handlers) render(w http.ResponseWriter, r *http.Request, rejected *MappingRow, status int) {
-	products, err := h.Service.Products(r.Context())
+	p, err := h.page(r.Context(), rejected)
 	if err != nil {
-		httpx.ServerError(w, h.Log, "load catalog products", err)
+		httpx.ServerError(w, h.Log, "load known catalog", err)
 		return
 	}
-	mappings, err := h.Service.Mappings(r.Context())
+	templ.Handler(CatalogPage(p), templ.WithStatus(status)).ServeHTTP(w, r)
+}
+
+// renderMapping answers htmx with the row of the Ingredient with id alone,
+// so the page keeps its place (ADR 0009); rejected marks a rejected change.
+// A row that is gone is answered with nothing, which takes it away.
+func (h Handlers) renderMapping(w http.ResponseWriter, r *http.Request, id int64, rejected *MappingRow, status int) {
+	p, err := h.page(r.Context(), rejected)
 	if err != nil {
-		httpx.ServerError(w, h.Log, "load product mappings", err)
+		httpx.ServerError(w, h.Log, "load known catalog", err)
 		return
+	}
+	for _, row := range p.Mappings {
+		if row.IngredientID == id {
+			templ.Handler(mappingRow(row), templ.WithStatus(status)).ServeHTTP(w, r)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
+}
+
+// page is the Known Catalog page's content, with rejected marking the
+// mapping whose change was rejected.
+func (h Handlers) page(ctx context.Context, rejected *MappingRow) (Page, error) {
+	products, err := h.Service.Products(ctx)
+	if err != nil {
+		return Page{}, err
+	}
+	mappings, err := h.Service.Mappings(ctx)
+	if err != nil {
+		return Page{}, err
 	}
 	p := Page{Orders: h.Service.Orders()}
 	for _, prod := range products {
@@ -66,7 +94,7 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rejected *Mappi
 		}
 		p.Mappings = append(p.Mappings, row)
 	}
-	templ.Handler(CatalogPage(p), templ.WithStatus(status)).ServeHTTP(w, r)
+	return p, nil
 }
 
 func newProductRow(p domain.CatalogProduct) ProductRow {
@@ -112,6 +140,7 @@ func (h Handlers) Propose(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetMapping sets, confirms or removes an Ingredient's Product Mapping.
+// Under htmx it answers with the Ingredient's row alone.
 func (h Handlers) SetMapping(w http.ResponseWriter, r *http.Request) {
 	ingredientID, ok := httpx.PathID(w, r)
 	if !ok {
@@ -121,24 +150,39 @@ func (h Handlers) SetMapping(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
+	reject := func(rejected MappingRow) {
+		if httpx.IsHTMX(r) {
+			h.renderMapping(w, r, ingredientID, &rejected, http.StatusUnprocessableEntity)
+			return
+		}
+		h.render(w, r, &rejected, http.StatusUnprocessableEntity)
+	}
 	var productID int64
 	if v := r.PostForm.Get("catalog_product"); v != "" {
 		var err error
 		if productID, err = strconv.ParseInt(v, 10, 64); err != nil {
-			h.render(w, r, &MappingRow{IngredientID: ingredientID, Error: "Choose a Catalog Product"}, http.StatusUnprocessableEntity)
+			reject(MappingRow{IngredientID: ingredientID, Error: "Choose a Catalog Product"})
 			return
 		}
 	}
 	var invalid *MappingError
 	switch err := h.Service.SetMapping(r.Context(), ingredientID, productID); {
 	case errors.As(err, &invalid):
-		h.render(w, r, &MappingRow{IngredientID: ingredientID, Selected: productID, Error: invalid.Problem}, http.StatusUnprocessableEntity)
+		reject(MappingRow{IngredientID: ingredientID, Selected: productID, Error: invalid.Problem})
+		return
+	case errors.Is(err, ErrNotFound) && httpx.IsHTMX(r):
+		// Its Ingredient or product is gone: take the stale row away.
+		w.WriteHeader(http.StatusNotFound)
 		return
 	case errors.Is(err, ErrNotFound):
 		http.NotFound(w, r)
 		return
 	case err != nil:
 		httpx.ServerError(w, h.Log, "set product mapping", err)
+		return
+	}
+	if httpx.IsHTMX(r) {
+		h.renderMapping(w, r, ingredientID, nil, http.StatusOK)
 		return
 	}
 	http.Redirect(w, r, "/catalog", http.StatusSeeOther)
