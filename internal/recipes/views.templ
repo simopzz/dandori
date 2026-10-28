@@ -160,11 +160,11 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 					@web.Row() {
 						<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/recipes/%d", r.ID)) }>{ r.Name }</a>
 						<span class="row-meta">
-							{ fmt.Sprintf("%d Portions · %s · %d kcal, %d g protein per Portion", r.Portions, formatMinutes(r.PrepMinutes), r.PerPortion.Kcal, r.PerPortion.ProteinG) }
+							<span>{ fmt.Sprintf("%d Portions · %s · %d kcal, %d g protein per Portion", r.Portions, formatMinutes(r.PrepMinutes), r.PerPortion.Kcal, r.PerPortion.ProteinG) }</span>
+							if l.Searching {
+								<span>{ coverage(r.Missing) }</span>
+							}
 						</span>
-						if l.Searching {
-							<span class="row-meta">{ coverage(r.Missing) }</span>
-						}
 					}
 				}
 			}
@@ -197,7 +197,7 @@ templ RecipeLibraryPage(l RecipeLibrary) {
 // searchForm searches the Recipe Library in natural language, filtered by
 // appliance, prep time and stock.
 templ searchForm(f SearchForm) {
-	<form id="search" class="stack" method="get" action="/recipes" role="search">
+	<form id="search" class="stack section" method="get" action="/recipes" role="search">
 		@web.Field("Search", "", "") {
 			<input type="search" name="q" value={ f.Text } placeholder="something warm with chickpeas in the air fryer"/>
 		}
