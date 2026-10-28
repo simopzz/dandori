@@ -29,8 +29,11 @@ const (
 	// home is the page loaded to reach the site and renew the session: it
 	// needs the user logged in, so it triggers the single sign-on.
 	home = site + "/commerce/nav/supermercato/ordini/precedenti"
-	// settle is how long the page is given to load and renew the session.
-	settle = 5 * time.Second
+	// signOn is how long the site is given to log the user back in through
+	// the single sign-on, which bounces through account.esselunga.it, and
+	// signOnPoll how often the page is checked meanwhile.
+	signOn     = 20 * time.Second
+	signOnPoll = 500 * time.Millisecond
 )
 
 // Store is the user's Esselunga session in the browser the Playwright MCP
@@ -190,7 +193,7 @@ func (s *Store) LookUpProduct(ctx context.Context, code string) (esselunga.Produ
 	return p, nil
 }
 
-// errNoCart is why the cart operations fail: Cart Fill (#12) will add them
+// errNoCart is why the cart operations fail: Cart Fill (#14) will add them
 // once it is known how the site's cart API sets a quantity.
 var errNoCart = errors.New("the Playwright store can't use the cart yet")
 
@@ -283,11 +286,40 @@ func (s *Store) reach(ctx context.Context, renew bool) error {
 	if _, err := s.tool(ctx, "browser_navigate", map[string]any{"url": home}); err != nil {
 		return err
 	}
-	if _, err := s.tool(ctx, "browser_wait_for", map[string]any{"time": settle.Seconds()}); err != nil {
+	if err := s.awaitSignOn(ctx); err != nil {
 		return err
 	}
 	s.onSite = true
 	return nil
+}
+
+// signedOnJS reports whether the page is back on the site with a session
+// token, which is when the single sign-on has logged the user in. It asks
+// Esselunga nothing.
+const signedOnJS = `() => location.hostname === 'spesaonline.esselunga.it' && /(?:^|; )XSRF-ECOM-TOKEN=/.test(document.cookie)`
+
+// awaitSignOn waits until the single sign-on has logged the user back in,
+// or signOn has passed: then the user is logged out, which the request that
+// follows finds.
+func (s *Store) awaitSignOn(ctx context.Context) error {
+	deadline := time.Now().Add(signOn)
+	for {
+		var in bool
+		// While the sign-on navigates, the page may be between documents and
+		// fail to answer; only a browser that is gone ends the wait.
+		err := s.evaluate(ctx, signedOnJS, &in)
+		if s.client == nil {
+			return err
+		}
+		if (err == nil && in) || time.Now().After(deadline) {
+			return nil
+		}
+		select {
+		case <-time.After(signOnPoll):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // evaluate runs the JavaScript function js in the page and decodes what it

@@ -128,6 +128,20 @@ func (e *Engine) Trace(ctx context.Context, id int64, after int) ([]TraceEvent, 
 	return loadEvents(ctx, e.pool, id, after)
 }
 
+// Latest loads the newest Run of any of kinds, with its Trace. found is
+// false when there is none.
+func (e *Engine) Latest(ctx context.Context, kinds ...string) (run Run, found bool, err error) {
+	id, found, err := latestRun(ctx, e.pool, kinds)
+	if err != nil || !found {
+		return Run{}, false, err
+	}
+	if run, found, err = e.Get(ctx, id); err != nil || !found {
+		return Run{}, false, err
+	}
+	run.Events, err = e.Trace(ctx, id, 0)
+	return run, err == nil, err
+}
+
 // List loads the latest Runs, newest first.
 func (e *Engine) List(ctx context.Context) ([]Run, error) {
 	return listRuns(ctx, e.pool)

@@ -49,7 +49,8 @@ type Config struct {
 	// MaxTurns bounds the requests to the model in one Run.
 	MaxTurns int
 
-	// StoreThrottle is the least time between two actions on Esselunga.
+	// StoreThrottle is the least time between two actions on Esselunga;
+	// each wait adds up to half again at random.
 	StoreThrottle time.Duration
 	// SeedOrders is how many of the latest Esselunga orders a Known
 	// Catalog seed reads.
@@ -271,6 +272,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /stock-items/{id}/delete", a.needsDatabase(http.HandlerFunc(stock.Remove)))
 	mux.Handle("POST /portions/{id}/move", a.needsDatabase(http.HandlerFunc(stock.MovePortion)))
 	mux.Handle("GET /catalog", a.needsDatabase(http.HandlerFunc(catalog.Show)))
+	mux.Handle("GET /catalog/runs/{id}", a.needsDatabase(http.HandlerFunc(catalog.ShowRun)))
 	mux.Handle("POST /catalog/seed", a.needsDatabase(http.HandlerFunc(catalog.Seed)))
 	mux.Handle("POST /catalog/propose-mappings", a.needsDatabase(http.HandlerFunc(catalog.Propose)))
 	mux.Handle("POST /product-mappings/{id}", a.needsDatabase(http.HandlerFunc(catalog.SetMapping)))

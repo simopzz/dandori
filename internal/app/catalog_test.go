@@ -97,11 +97,41 @@ func startRun(t *testing.T, h *apptest.Harness, id string) apptest.Response {
 	t.Helper()
 	form := apptest.Form(t, h.Get(t, "/catalog").Body, id)
 	res := h.PostForm(t, form.Action, form.Values)
-	if res.StatusCode != http.StatusOK || !strings.HasPrefix(res.Path, "/runs/") {
-		t.Fatalf("%s = %d at %s, want the Run's trace panel:\n%s", id, res.StatusCode, res.Path, text(res.Body))
+	runID, ok := strings.CutPrefix(res.Path, "/catalog/runs/")
+	if res.StatusCode != http.StatusOK || !ok {
+		t.Fatalf("%s = %d at %s, want the Run's page:\n%s", id, res.StatusCode, res.Path, text(res.Body))
 	}
-	h.Stream(t, res.Path+"/events", "").Rest(t)
+	h.Stream(t, "/runs/"+runID+"/events", "").Rest(t)
 	return h.Get(t, res.Path)
+}
+
+func TestRunNotesShowOnTheKnownCatalogRendered(t *testing.T) {
+	h, llm := startCatalog(t, orderedStore(), time.Millisecond)
+	script := seedScript()
+	script[len(script)-1] = fakellm.Reply("Seeded three Catalog Products.\n\n- **Not saved:** cotton buds, not food.\n- <script>alert(1)</script>")
+	llm.Script(script...)
+
+	res := startRun(t, h, "seed")
+	if !strings.Contains(res.Body, "<strong>Not saved:</strong>") {
+		t.Errorf("seed Run's page does not show its notes rendered:\n%s", res.Body)
+	}
+	if strings.Contains(res.Body, "**Not saved:**") || strings.Contains(res.Body, "<script>alert") {
+		t.Errorf("seed Run's page shows its notes' Markdown raw, or the HTML in them:\n%s", res.Body)
+	}
+	back := apptest.Link(t, res.Body, "Back to the Known Catalog")
+
+	catalog := h.Get(t, back)
+	for _, want := range []string{"Notes from the last Run", "Not saved: cotton buds, not food."} {
+		if !strings.Contains(text(catalog.Body), want) {
+			t.Errorf("Known Catalog does not show %q:\n%s", want, text(catalog.Body))
+		}
+	}
+	if !strings.Contains(catalog.Body, "<strong>Not saved:</strong>") {
+		t.Errorf("Known Catalog does not show the last Run's notes rendered:\n%s", catalog.Body)
+	}
+	if run := h.Get(t, apptest.Link(t, catalog.Body, "Run #")); !strings.Contains(text(run.Body), "Seeded three Catalog Products.") {
+		t.Errorf("the last Run's link does not lead to its page:\n%s", text(run.Body))
+	}
 }
 
 func TestSeedRunFillsTheKnownCatalogFromOrderHistory(t *testing.T) {
@@ -165,6 +195,32 @@ func TestStoreActionsAreThrottledAndEveryWaitIsTraced(t *testing.T) {
 	}
 	if n := strings.Count(run, "Wait Waiting"); n != 6 {
 		t.Errorf("seed Run's trace shows %d throttle waits, want one before each action after the first, 6:\n%s", n, run)
+	}
+}
+
+// The gap between store actions varies, by up to half the throttle, so
+// Dandori doesn't tick like a clock.
+func TestStoreActionsAreSpacedWithJitter(t *testing.T) {
+	h, llm := startCatalog(t, orderedStore(), 300*time.Millisecond)
+	llm.Script(seedScript()...)
+
+	run := text(startRun(t, h, "seed").Body)
+	var waits []time.Duration
+	for _, m := range regexp.MustCompile(`Waiting (\S+) before`).FindAllStringSubmatch(run, -1) {
+		d, err := time.ParseDuration(m[1])
+		if err != nil {
+			t.Fatalf("throttle wait %q: %v", m[1], err)
+		}
+		if d > 450*time.Millisecond {
+			t.Errorf("throttle waited %s, want at most 450ms at 300ms with jitter", d)
+		}
+		waits = append(waits, d)
+	}
+	if len(waits) != 6 {
+		t.Fatalf("seed Run's trace shows %d throttle waits, want 6:\n%s", len(waits), run)
+	}
+	if spread := slices.Max(waits) - slices.Min(waits); spread < 20*time.Millisecond {
+		t.Errorf("throttle waits %v are all about the same, want them to vary", waits)
 	}
 }
 

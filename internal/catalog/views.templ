@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -17,6 +18,9 @@ type Page struct {
 	// CanPropose is true when an Ingredient has no Product Mapping and the
 	// Known Catalog has products to propose.
 	CanPropose bool
+	// LastRun is the newest seed or proposal, if HasLastRun.
+	LastRun    runs.Run
+	HasLastRun bool
 }
 
 // ProductRow is one Catalog Product as shown.
@@ -70,6 +74,18 @@ templ CatalogPage(p Page) {
 					}
 				}
 			</form>
+			if p.HasLastRun {
+				<h3>Notes from the last Run</h3>
+				<p class="hint">
+					<a href={ runURL(p.LastRun.ID) }>{ fmt.Sprintf("Run #%d", p.LastRun.ID) }</a>,
+					{ p.LastRun.Kind }, started { p.LastRun.StartedAt.Local().Format("2 Jan 15:04") }
+					{ " " }
+					@web.Tag(p.LastRun.Status == "failed", "") {
+						{ p.LastRun.StatusLabel() }
+					}
+				</p>
+				@runNotes(p.LastRun)
+			}
 		}
 		@web.Section(2, "Catalog Products") {
 			if len(p.Products) == 0 {
@@ -105,6 +121,52 @@ templ CatalogPage(p Page) {
 					}
 				</form>
 			}
+		}
+	}
+}
+
+func runURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/catalog/runs/%d", id)) }
+
+// runTitles name each of the Known Catalog's kinds of Run.
+var runTitles = map[string]string{
+	seedKind:     "Seeding the Known Catalog",
+	proposalKind: "Proposing Product Mappings",
+}
+
+// RunPage follows one of the Known Catalog's Runs and, once it ends, shows
+// the agent's notes on what it did and couldn't do.
+templ RunPage(r runs.Run) {
+	@web.Layout("Dandori — "+runTitles[r.Kind], web.TabCatalog) {
+		@web.PageHeader("品揃え", runTitles[r.Kind])
+		if r.Running() {
+			@web.Notice() {
+				The agent is at work: its notes appear here when it is done.
+			}
+		} else {
+			@runNotes(r)
+			<p><a href="/catalog">Back to the Known Catalog</a></p>
+		}
+		@runs.TracePanel(r, string(runURL(r.ID)))
+	}
+}
+
+// runNotes is what the agent said it did and couldn't do in Run r, or why
+// r failed.
+templ runNotes(r runs.Run) {
+	if r.Failure() != "" {
+		@web.Alert() {
+			The Run failed: { r.Failure() }
+		}
+	}
+	if r.Notes() != "" {
+		@web.Markdown(r.Notes())
+	} else if r.Running() {
+		@web.Hint() {
+			Still running.
+		}
+	} else if r.Failure() == "" {
+		@web.Hint() {
+			The agent left no notes.
 		}
 	}
 }

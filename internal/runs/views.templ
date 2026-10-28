@@ -1,6 +1,7 @@
 package runs
 
 import (
+	"cmp"
 	"fmt"
 	"time"
 
@@ -27,6 +28,31 @@ type TraceEvent struct {
 
 // Running reports whether the Run is still going.
 func (r Run) Running() bool { return r.Status == "running" }
+
+// Notes is what the agent said last: at the end of a Run, its summary of
+// what it did and couldn't do, in Markdown. It is empty when the agent
+// said nothing.
+func (r Run) Notes() string {
+	for i := len(r.Events) - 1; i >= 0; i-- {
+		if r.Events[i].Kind == "message" {
+			return r.Events[i].Summary
+		}
+	}
+	return ""
+}
+
+// Failure is why the Run failed, or empty when it didn't.
+func (r Run) Failure() string {
+	if r.Status != "failed" {
+		return ""
+	}
+	for i := len(r.Events) - 1; i >= 0; i-- {
+		if e := r.Events[i]; e.Kind == "error" {
+			return cmp.Or(e.Detail, e.Summary)
+		}
+	}
+	return ""
+}
 
 // StatusLabel is the Run's status as the pages show it.
 func (r Run) StatusLabel() string { return statusLabels[r.Status] }
@@ -165,7 +191,13 @@ templ TraceEventItem(e TraceEvent) {
 	<li class={ "trace-event", "trace-" + e.Kind }>
 		@timestamp(e.At, "15:04:05")
 		<span class="trace-kind">{ eventLabels[e.Kind] }</span>
-		<span class="trace-summary">{ e.Summary }</span>
+		if e.Kind == "message" {
+			<div class="trace-summary">
+				@web.Markdown(e.Summary)
+			</div>
+		} else {
+			<span class="trace-summary">{ e.Summary }</span>
+		}
 		if e.Detail != "" {
 			<pre class="trace-detail">{ e.Detail }</pre>
 		}

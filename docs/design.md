@@ -21,7 +21,7 @@ dark mode can later be one `prefers-color-scheme` block that reassigns them
 | Token | Value | Use |
 | --- | --- | --- |
 | `--color-bg` | `#fdfcfa` paper | the page |
-| `--color-surface` | `#ffffff` | raised things: the add sheet, trace details |
+| `--color-surface` | `#ffffff` | raised things: the add sheet, trace details, an open `EditRow` |
 | `--color-text` | `#1a1a18` sumi ink | text |
 | `--color-text-soft` | `#5c5a54` | labels, hints, metadata |
 | `--color-rule` | `#e4e0d8` | hairlines between rows |
@@ -85,7 +85,7 @@ elements themselves.
 | `Empty()` | What a list says when it has nothing in it. |
 | `Rows()` | A list of `Row`s or `EditRow`s. |
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
-| `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
+| `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window). |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
@@ -101,6 +101,7 @@ elements themselves.
 | `Notice()` | Something happened as asked ("Profile saved."). |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status). `accent` when it needs attention. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
+| `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
 | `Icon(name)` | A Lucide icon, inline SVG in the text colour. Add icons to `icons.go`; an unknown name fails the render. |
 
 Two layout classes go on elements a component can't wrap, such as a

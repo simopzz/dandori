@@ -122,3 +122,20 @@ func (s *Service) StartProposal(ctx context.Context) (int64, error) {
 	}
 	return s.runs.Start(ctx, proposalKind, s.proposalJob(brief))
 }
+
+// Run loads the Known Catalog's Run with id, a seed or a proposal, with its
+// Trace. found is false when there is no such Run of the Known Catalog.
+func (s *Service) Run(ctx context.Context, id int64) (run runs.Run, found bool, err error) {
+	run, found, err = s.runs.Get(ctx, id)
+	if err != nil || !found || (run.Kind != seedKind && run.Kind != proposalKind) {
+		return runs.Run{}, false, err
+	}
+	run.Events, err = s.runs.Trace(ctx, id, 0)
+	return run, err == nil, err
+}
+
+// LastRun loads the Known Catalog's newest Run, a seed or a proposal, with
+// its Trace. found is false before the first.
+func (s *Service) LastRun(ctx context.Context) (runs.Run, bool, error) {
+	return s.runs.Latest(ctx, seedKind, proposalKind)
+}

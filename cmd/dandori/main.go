@@ -12,7 +12,8 @@
 // `ant auth login`), DANDORI_DEMO=1 to offer demo Runs on the Runs page,
 // DANDORI_PLAYWRIGHT_MCP (the command that runs the Playwright MCP server
 // on the browser logged in to Esselunga; unset, store Runs fail saying so),
-// DANDORI_STORE_THROTTLE (the least time between store actions, default 3s)
+// DANDORI_STORE_THROTTLE (the least time between store actions, default 3s,
+// to which each wait adds up to half again at random)
 // and DANDORI_SEED_ORDERS (how many orders a Known Catalog seed reads,
 // default 10).
 package main

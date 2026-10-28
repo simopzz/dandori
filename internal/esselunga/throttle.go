@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -14,7 +15,8 @@ import (
 var ErrNoStore = errors.New("no Esselunga store is configured: set DANDORI_PLAYWRIGHT_MCP")
 
 // Throttled is the store as Runs use it: one action at a time, across all
-// Runs, at least the delay apart, so Dandori behaves politely and the
+// Runs, at least the delay apart and up to half as much again, picked at
+// random, so Dandori behaves politely, doesn't tick like a clock, and the
 // user's account isn't flagged. Every action and every wait is a Trace
 // Event of the Run that asked for it.
 type Throttled struct {
@@ -39,7 +41,8 @@ func (t *Throttled) do(ctx context.Context, tr agent.Trace, action string, run f
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if !t.last.IsZero() {
-		if wait := t.delay - time.Since(t.last); wait > 0 {
+		gap := t.delay + rand.N(t.delay/2+1)
+		if wait := gap - time.Since(t.last); wait > 0 {
 			tr.Emit(agent.Event{Kind: agent.EventWait, Summary: fmt.Sprintf("Waiting %s before %s", wait.Round(time.Millisecond), action)})
 			select {
 			case <-time.After(wait):

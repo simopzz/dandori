@@ -67,6 +67,9 @@ func (h Handlers) page(ctx context.Context, rejected *MappingRow) (Page, error) 
 		return Page{}, err
 	}
 	p := Page{Orders: h.Service.Orders()}
+	if p.LastRun, p.HasLastRun, err = h.Service.LastRun(ctx); err != nil {
+		return Page{}, err
+	}
 	for _, prod := range products {
 		p.Products = append(p.Products, newProductRow(prod.CatalogProduct))
 	}
@@ -119,24 +122,43 @@ func newProductRow(p domain.CatalogProduct) ProductRow {
 
 func formatAmount(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
-// Seed starts a Run seeding the Known Catalog, and shows its Trace.
+// Seed starts a Run seeding the Known Catalog, and shows it.
 func (h Handlers) Seed(w http.ResponseWriter, r *http.Request) {
 	id, err := h.Service.StartSeed(r.Context())
 	if err != nil {
 		httpx.ServerError(w, h.Log, "start catalog seed", err)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/runs/%d", id), http.StatusSeeOther)
+	http.Redirect(w, r, string(runURL(id)), http.StatusSeeOther)
 }
 
-// Propose starts a Run proposing Product Mappings, and shows its Trace.
+// Propose starts a Run proposing Product Mappings, and shows it.
 func (h Handlers) Propose(w http.ResponseWriter, r *http.Request) {
 	id, err := h.Service.StartProposal(r.Context())
 	if err != nil {
 		httpx.ServerError(w, h.Log, "start product mapping proposal", err)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/runs/%d", id), http.StatusSeeOther)
+	http.Redirect(w, r, string(runURL(id)), http.StatusSeeOther)
+}
+
+// ShowRun shows one of the Known Catalog's Runs: its Trace, live while it
+// goes on, and the agent's notes once it ends.
+func (h Handlers) ShowRun(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	run, found, err := h.Service.Run(r.Context(), id)
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load catalog run", err)
+		return
+	}
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+	templ.Handler(RunPage(run)).ServeHTTP(w, r)
 }
 
 // SetMapping sets, confirms or removes an Ingredient's Product Mapping.

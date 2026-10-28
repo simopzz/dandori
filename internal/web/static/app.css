@@ -5,7 +5,7 @@
 :root {
   /* colour: near-white paper, sumi ink, one vermilion seal */
   --color-bg: #fdfcfa;            /* paper */
-  --color-surface: #ffffff;       /* raised: the add sheet, trace details */
+  --color-surface: #ffffff;       /* raised: the add sheet, trace details, an open row */
   --color-text: #1a1a18;          /* sumi ink, 17:1 on bg */
   --color-text-soft: #5c5a54;     /* soft ink, 6.7:1 on bg */
   --color-rule: #e4e0d8;          /* hairline between rows */
@@ -322,6 +322,14 @@ legend.section-heading + * { clear: both; }
 
 .row details[open] summary { border-bottom: 1px dashed var(--color-rule); }
 
+/* An open row is raised, so its form doesn't run into the next row. */
+.row:has(> details[open]) {
+  margin: var(--space-3) calc(-1 * var(--space-3));
+  padding: 0 calc(var(--space-3) - 1px); /* the text stays in line with the closed rows' */
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+}
+
 .row-title { flex: 1 1 12rem; }
 
 a.row-title { display: flex; align-items: center; min-height: var(--tap); text-decoration: none; }
@@ -575,6 +583,14 @@ a.row-title:hover { text-decoration: underline; }
 .trace-kind { font-weight: 700; }
 
 .trace-summary { overflow-wrap: anywhere; }
+
+/* Markdown an agent wrote */
+
+.trace .prose > :last-child { margin-bottom: 0; }
+
+.prose ul, .prose ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+
+.prose li + li { margin-top: var(--space-1); }
 
 .trace-detail {
   grid-column: 1 / -1;

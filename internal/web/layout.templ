@@ -33,6 +33,7 @@ templ Layout(title string, current Tab) {
 			<meta name="htmx-config" content="defaultSettleDelay:0"/>
 			<script src="/static/htmx.min.js" defer></script>
 			<script src="/static/hx-sse.min.js" defer></script>
+			<script src="/static/trace.js" defer></script>
 			<script>
 				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
 			</script>
