@@ -28,6 +28,7 @@ const (
 	RuleProtein                 Rule = "protein"
 	RuleExcluded                Rule = "excluded"
 	RuleAllergen                Rule = "allergen"
+	RuleExceptedSlot            Rule = "excepted-slot"
 )
 
 // Violation is a rule a Plan breaks, and where, said for the user.
@@ -68,8 +69,12 @@ type PlanCheck struct {
 	Kept []KeptPortion
 	// Earlier is what Slots before From eat: earlier Cycles', and this
 	// Cycle's that stay. A day missing from it, such as one between Cycles,
-	// counts only the Untracked Allowance.
+	// counts only the Untracked Allowance and its Meal Outs.
 	Earlier []DayNutrition
+	// Exceptions are the Slots logged as a Meal Out or skipped, from six
+	// days before the Cycle's first day to its last: all its trailing
+	// seven days can reach.
+	Exceptions []Exception
 	// Since is the first Cycle's delivery date: nothing was planned before
 	// it, so trailing seven days reaching before it aren't checked.
 	Since time.Time
@@ -132,13 +137,28 @@ func (c PlanCheck) inPlan(s Slot) bool {
 	return !s.Before(c.From) && s.Before(c.Cycle.Until())
 }
 
-// Days is every day of the Cycle under the Plan, in order.
+// excepted is the Exceptions by their Slot's key.
+func (c PlanCheck) excepted() map[string]Exception {
+	excepted := map[string]Exception{}
+	for _, e := range c.Exceptions {
+		excepted[e.Slot.key()] = e
+	}
+	return excepted
+}
+
+// Days is every day of the Cycle under the Plan, in order. An excepted
+// Slot's Portion isn't eaten: only its Exception counts.
 func (c PlanCheck) Days() []PlanDay {
+	excepted := c.excepted()
+	eats := func(s Slot) bool {
+		_, ok := excepted[s.key()]
+		return c.inPlan(s) && !ok
+	}
 	slots := map[string]Nutrition{}
 	for _, ps := range c.Plan.PrepSessions {
 		n := ps.NutritionPerPortion()
 		for _, p := range ps.Portions {
-			if p.EatAt != nil && c.inPlan(*p.EatAt) {
+			if p.EatAt != nil && eats(*p.EatAt) {
 				day := p.EatAt.On.Format(time.DateOnly)
 				slots[day] = slots[day].plus(n)
 			}
@@ -149,7 +169,7 @@ func (c PlanCheck) Days() []PlanDay {
 		kept[k.ID] = k.Nutrition
 	}
 	for _, k := range c.Plan.Kept {
-		if n, ok := kept[k.PortionID]; ok && c.inPlan(k.Slot) {
+		if n, ok := kept[k.PortionID]; ok && eats(k.Slot) {
 			day := k.Slot.On.Format(time.DateOnly)
 			slots[day] = slots[day].plus(n)
 		}
@@ -157,6 +177,10 @@ func (c PlanCheck) Days() []PlanDay {
 	for _, e := range c.Earlier {
 		day := e.On.Format(time.DateOnly)
 		slots[day] = slots[day].plus(e.Nutrition)
+	}
+	for _, e := range c.Exceptions {
+		day := e.Slot.On.Format(time.DateOnly)
+		slots[day] = slots[day].plus(e.Nutrition(c.Profile.MealOut))
 	}
 	eaten := func(d time.Time) Nutrition {
 		return slots[d.Format(time.DateOnly)].plus(c.Profile.UntrackedAllowance)
@@ -184,8 +208,12 @@ func ValidatePlan(c PlanCheck) []Violation {
 	add := func(r Rule, format string, args ...any) {
 		vs = append(vs, Violation{Rule: r, Message: fmt.Sprintf(format, args...)})
 	}
+	excepted := c.excepted()
 	filled := map[string]string{}
 	fill := func(s Slot, name string) {
+		if e, ok := excepted[s.key()]; ok {
+			add(RuleExceptedSlot, "%s is eaten at %s, which is %s", name, s, e.Kind.Describe())
+		}
 		if earlier, ok := filled[s.key()]; ok {
 			add(RuleSlotFilledTwice, "%s is filled twice: by %s and by %s", s, earlier, name)
 			return
@@ -206,6 +234,9 @@ func ValidatePlan(c PlanCheck) []Violation {
 			add(RuleAlreadyPrepared, "%s is prepared for %s, today: what is prepared today is taken as done, so new Prep Sessions start tomorrow", name, ps.At)
 		case !ps.At.Before(c.Cycle.Until()):
 			add(RulePrepSessionOutsideCycle, "%s is prepared for %s, after the Cycle ends", name, ps.At)
+		}
+		if e, ok := excepted[ps.At.key()]; ok {
+			add(RuleExceptedSlot, "%s is prepared for %s, which is %s", name, ps.At, e.Kind.Describe())
 		}
 		if len(ps.Portions) == 0 {
 			add(RuleNoPortions, "%s at %s yields no Portion", name, ps.At)

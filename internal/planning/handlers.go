@@ -50,6 +50,9 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 	n := 1
 	if o.Current != nil {
 		p.Current = cycleView(*o.Current, n)
+		if o.Previous != nil {
+			p.Current.PreviousID = o.Previous.ID
+		}
 		n += 3
 		if o.PlanNext {
 			p.PlanNext = o.Current.Cycle.EndsOn.Format(longDate)
@@ -62,6 +65,17 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 		if change.Values != nil {
 			p.Upcoming.Change = change
 		}
+		n += 3
+	}
+	p.BetweenNumber = max(n, 2)
+	for _, es := range o.Between {
+		p.Between = append(p.Between, BetweenRow{
+			ID:    slotID(es.Slot),
+			Slot:  es.Slot.String(),
+			State: describeException(*es.Exception, o.MealOut),
+			Day:   es.Slot.On.Format(dateLayout),
+			Kind:  string(es.Slot.Kind),
+		})
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
 }
@@ -69,13 +83,13 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 func cycleView(cp CyclePlan, number int) *CycleView {
 	c := cp.Cycle
 	v := &CycleView{
-		ID:        c.ID,
-		Number:    number,
-		Delivery:  describeDelivery(c.Delivery, longDate),
-		Ordered:   c.Delivery.Ordered,
-		Starts:    c.Start.String(),
-		Ends:      c.EndsOn.Format(longDate),
-		NeedsPlan: c.NeedsProposal,
+		ID:                   c.ID,
+		Number:               number,
+		Delivery:             describeDelivery(c.Delivery, longDate),
+		Ordered:              c.Delivery.Ordered,
+		Starts:               c.Start.String(),
+		Ends:                 c.EndsOn.Format(longDate),
+		NeedsProposalBecause: c.NeedsProposalBecause,
 	}
 	if cp.Plan != nil {
 		v.HasPlan, v.Calendar = true, calendarOf(*cp.Plan)
@@ -153,8 +167,10 @@ func (h Handlers) OpenCycle(w http.ResponseWriter, r *http.Request) {
 			endsOn = t
 		}
 	}
+	var id int64
 	if len(problems) == 0 {
-		switch err := h.Service.OpenCycle(r.Context(), d, endsOn); {
+		var err error
+		switch id, err = h.Service.OpenCycle(r.Context(), d, endsOn); {
 		case errors.Is(err, ErrCycleUpcoming):
 			h.render(w, r, PlanPage{Problem: "A Cycle is already upcoming: change its Delivery instead."}, http.StatusConflict)
 			return
@@ -168,7 +184,8 @@ func (h Handlers) OpenCycle(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, PlanPage{Open: CycleForm{Values: values, Errors: problems}}, http.StatusUnprocessableEntity)
 		return
 	}
-	http.Redirect(w, r, "/plan", http.StatusSeeOther)
+	// Logging the Exceptions already known is the first step of planning.
+	http.Redirect(w, r, exceptionsURL(id), http.StatusSeeOther)
 }
 
 // ChangeDelivery moves the upcoming Cycle's Delivery or marks it ordered.
@@ -214,6 +231,28 @@ func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, PlanPage{Problem: "The Delivery was ordered, so its Cycle can't be dropped."}, http.StatusConflict)
 	case err != nil:
 		httpx.ServerError(w, h.Log, "drop cycle", err)
+	default:
+		http.Redirect(w, r, "/plan", http.StatusSeeOther)
+	}
+}
+
+// RemoveExceptionBetweenCycles removes the Exception of a Slot still to
+// come that no Cycle holds.
+func (h Handlers) RemoveExceptionBetweenCycles(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	slot, ok := readSlotField(r.PostForm)
+	if !ok {
+		http.Error(w, "bad slot", http.StatusBadRequest)
+		return
+	}
+	switch err := h.Service.RemoveExceptionBetweenCycles(r.Context(), slot); {
+	case errors.Is(err, ErrSlotUnavailable):
+		h.render(w, r, PlanPage{Problem: "A Cycle holds that Slot now: change it on that Cycle's Exceptions page."}, http.StatusConflict)
+	case err != nil:
+		httpx.ServerError(w, h.Log, "remove exception", err)
 	default:
 		http.Redirect(w, r, "/plan", http.StatusSeeOther)
 	}
@@ -301,6 +340,8 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 		h.renderProposal(w, r, id, "This Plan Proposal's Cycle has closed: a later Delivery started the next one.", http.StatusConflict)
 	case errors.Is(err, ErrStartsInPast):
 		h.renderProposal(w, r, id, "This Plan Proposal starts in the past, so it was not approved: what was prepared and eaten since stays.", http.StatusConflict)
+	case errors.Is(err, ErrFillsExceptedSlot):
+		h.renderProposal(w, r, id, "This Plan Proposal fills a Slot logged as a Meal Out or skipped, so it was not approved: ask for a new one.", http.StatusConflict)
 	case errors.As(err, &unreadable):
 		h.renderProposal(w, r, id, "This Plan Proposal can't be read, so it was not approved: "+unreadable.Reason+".", http.StatusConflict)
 	case errors.Is(err, ErrInapplicable):
@@ -370,6 +411,20 @@ func calendarOf(c domain.PlanCheck) []CalendarDay {
 			name = fmt.Sprintf("Portion %d", k.PortionID)
 		}
 		add(k.Slot, name)
+	}
+	// An excepted Slot shows its Exception, and what the Plan puts there
+	// instead, uneaten.
+	for _, e := range c.Exceptions {
+		if !c.Cycle.Contains(e.Slot) {
+			continue
+		}
+		rows := slots[e.Slot.On.Format(dateLayout)]
+		i := slices.IndexFunc(rows, func(r SlotRow) bool { return r.Kind == string(e.Slot.Kind) })
+		if i < 0 {
+			add(e.Slot, e.Kind.Describe())
+			continue
+		}
+		rows[i].What = e.Kind.Describe() + ", not " + rows[i].What
 	}
 
 	var days []CalendarDay

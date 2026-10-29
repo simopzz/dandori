@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
 )
@@ -38,16 +39,25 @@ func (c *clock) setAt(t *testing.T, moment string) {
 // citrus. It is 2026-11-01 until the test sets the clock.
 func startPlanning(t *testing.T) (*apptest.Harness, *clock) {
 	t.Helper()
-	h := startStock(t)
+	h, today, _ := startPlanningWith(t)
+	return h, today
+}
+
+// startPlanningWith is startPlanning with opts, returning the fake LLM
+// too.
+func startPlanningWith(t *testing.T, opts ...apptest.Option) (*apptest.Harness, *clock, *fakellm.LLM) {
+	t.Helper()
+	h, llm := startRecipes(t)
+	acceptFirstRecipe(t, h, llm)
 	today := &clock{}
 	today.set(t, "2026-11-01")
-	h.Restart(t, apptest.WithConfig(func(c *app.Config) { c.Now = func() time.Time { return today.now } }))
+	h.Restart(t, append(opts, apptest.WithConfig(func(c *app.Config) { c.Now = func() time.Time { return today.now } }))...)
 	profile := validProfile()
 	profile.Set("allergies", "citrus")
 	if res := h.PostForm(t, "/profile", profile); res.StatusCode != http.StatusOK {
 		t.Fatalf("save Profile = %d:\n%s", res.StatusCode, text(res.Body))
 	}
-	return h, today
+	return h, today, llm
 }
 
 // openCycle opens a Cycle through the Plan page's form, its Delivery
@@ -136,17 +146,18 @@ func TestCycleIsOpenedWithADeliveryAndEndDate(t *testing.T) {
 	}
 
 	res := openCycle(t, h, "2026-11-02", "2026-11-09")
-	if res.StatusCode != http.StatusOK || res.Path != "/plan" || res.Method != http.MethodGet {
-		t.Fatalf("open Cycle = %d %s %s, want the Plan page after a redirect:\n%s", res.StatusCode, res.Method, res.Path, text(res.Body))
+	if res.StatusCode != http.StatusOK || !strings.HasSuffix(res.Path, "/exceptions") || res.Method != http.MethodGet {
+		t.Fatalf("open Cycle = %d %s %s, want its Exceptions page after a redirect:\n%s", res.StatusCode, res.Method, res.Path, text(res.Body))
 	}
-	if plan := text(res.Body); !strings.Contains(plan, "Upcoming Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Mon 9 Nov 2026") {
+	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "Upcoming Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Mon 9 Nov 2026") {
 		t.Errorf("Plan page does not show the Cycle:\n%s", plan)
 	}
 }
 
 func TestCycleEndsTenDaysAfterDeliveryByDefault(t *testing.T) {
 	h, _ := startPlanning(t)
-	if plan := text(openCycle(t, h, "2026-11-02", "").Body); !strings.Contains(plan, "Ends Thu 12 Nov 2026") {
+	openCycle(t, h, "2026-11-02", "")
+	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "Ends Thu 12 Nov 2026") {
 		t.Errorf("Plan page does not show the Cycle ending ten days after delivery:\n%s", plan)
 	}
 }
@@ -328,11 +339,10 @@ func TestOpeningACycleLeavesTheCurrentOneUntilItsDeliveryArrives(t *testing.T) {
 	approvePlan(t, h, lemonsPlan(t, h))
 
 	today.set(t, "2026-11-04")
-	res := openCycleIn(t, h, "2026-11-05", "10:00", "12:00", "")
-	if res.StatusCode != http.StatusOK || res.Path != "/plan" {
-		t.Fatalf("open Cycle = %d at %s, want the Plan page:\n%s", res.StatusCode, res.Path, text(res.Body))
+	if res := openCycleIn(t, h, "2026-11-05", "10:00", "12:00", ""); res.StatusCode != http.StatusOK {
+		t.Fatalf("open Cycle = %d:\n%s", res.StatusCode, text(res.Body))
 	}
-	page := text(res.Body)
+	page := text(h.Get(t, "/plan").Body)
 	for _, want := range []string{
 		"01 Cycle Delivery Mon 2 Nov 2026, 07:00–07:30 tentative Starts breakfast on Mon 2 Nov Ends Thu 12 Nov 2026",
 		"dinner Lemon chicken with rice",

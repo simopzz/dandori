@@ -1,0 +1,146 @@
+package planning
+
+import (
+	"strconv"
+
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// ExceptionsPage is a Cycle's Slots, day by day, each logged ahead as a
+// Meal Out or skipped, or left to the Plan.
+type ExceptionsPage struct {
+	Title   string // e.g. "For the Cycle delivered Mon 2 Nov 2026"
+	Problem string // why the user's change was refused, if it was
+	Days    []ExceptionDay
+}
+
+// ExceptionDay is one day of a Cycle and its Slots.
+type ExceptionDay struct {
+	Date  string // e.g. "Mon 2 Nov"
+	Slots []ExceptionRow
+}
+
+// ExceptionRow is one Slot and what fills it, with the form to log it.
+type ExceptionRow struct {
+	// ID is the Slot's day and kind, e.g. "2026-11-07-lunch".
+	ID     string
+	Action string
+	Day    string // YYYY-MM-DD
+	Kind   string
+	State  string // e.g. "from the Plan", "Meal Out · 900 kcal · 35 g protein"
+	// Editable is whether it can be logged: whether the Cycle holds it.
+	Editable bool
+	// Default is the Profile's default Meal Out estimate.
+	Default domain.Nutrition
+	Form    ExceptionForm
+	Problem string // why its change was refused, if it was
+}
+
+// ExceptionForm is a Slot's form as typed, and an error per field.
+type ExceptionForm struct {
+	Values map[string]string
+	Errors map[string]string
+}
+
+templ ExceptionsView(p ExceptionsPage) {
+	@web.Layout("Dandori — Exceptions", web.TabPlan) {
+		@web.PageHeader("例外", "Exceptions") {
+			<p class="lede">{ p.Title }</p>
+		}
+		if p.Problem != "" {
+			@web.Alert() {
+				{ p.Problem }
+			}
+		}
+		@web.Hint() {
+			Log the Slots you won't eat from the Plan: a Meal Out, with the Profile's default estimate unless you give your own, or a skipped Slot. The planning Run plans around them. Once a Slot is past, correct it if it went otherwise.
+		}
+		@web.Section(1, "Slots") {
+			for _, d := range p.Days {
+				<h3>{ d.Date }</h3>
+				@web.Rows() {
+					for _, s := range d.Slots {
+						@exceptionRowView(s)
+					}
+				}
+			}
+		}
+		<div id="exceptions-done" class="section">
+			@web.Hint() {
+				Nothing to log? Continue: no Exceptions are known.
+			}
+			@web.Actions() {
+				@web.ButtonLink(templ.SafeURL("/plan")) {
+					Continue
+				}
+			}
+		</div>
+	}
+}
+
+// exceptionRowView is a Slot's row. Its form swaps only the row under
+// htmx, not the boosted page, so the page keeps its place (ADR 0009).
+templ exceptionRowView(s ExceptionRow) {
+	if !s.Editable {
+		@web.Row() {
+			@exceptionSummary(s)
+			if s.Problem != "" {
+				@web.Alert() {
+					{ s.Problem }
+				}
+			}
+		}
+	} else {
+		@web.EditRow(len(s.Form.Errors) > 0 || s.Problem != "", exceptionSummary(s)) {
+			<form id={ "exception-" + s.ID } class="stack" method="post" action={ templ.SafeURL(s.Action) } hx-post={ s.Action } hx-target="closest li" hx-swap="outerHTML">
+				if s.Problem != "" {
+					@web.Alert() {
+						{ s.Problem }
+					}
+				}
+				if len(s.Form.Errors) > 0 {
+					@web.Alert() {
+						The Slot was not changed; fix the fields marked below.
+					}
+				}
+				<input type="hidden" name="day" value={ s.Day }/>
+				<input type="hidden" name="kind" value={ s.Kind }/>
+				@web.Segmented("What fills it", "exception", []web.Choice{{Value: "", Label: "From the Plan"}, {Value: string(domain.MealOut), Label: "Meal Out"}, {Value: string(domain.Skipped), Label: "Skipped"}}, s.Form.Values["exception"], s.Form.Errors["exception"])
+				@web.Hint() {
+					A Meal Out's estimate: leave a field blank for the Profile's default.
+				}
+				@web.FieldRow() {
+					@estimateField("kcal", "estimate_kcal", s.Default.Kcal, s.Form)
+					@estimateField("Protein (g)", "estimate_protein_g", s.Default.ProteinG, s.Form)
+					@estimateField("Carbs (g)", "estimate_carbs_g", s.Default.CarbsG, s.Form)
+					@estimateField("Fat (g)", "estimate_fat_g", s.Default.FatG, s.Form)
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						Save
+					}
+				}
+			</form>
+		}
+	}
+}
+
+templ exceptionSummary(s ExceptionRow) {
+	<span id={ "slot-" + s.ID } class="row-title">{ s.Kind }</span>
+	<span class="row-meta">
+		<span>{ s.State }</span>
+	</span>
+}
+
+// estimateField is one nutrient of a Meal Out's own estimate, showing
+// def, the default, while blank.
+templ estimateField(label, name string, def int, f ExceptionForm) {
+	@web.Field(label, "default "+strconv.Itoa(def), f.Errors[name]) {
+		<input type="text" inputmode="numeric" name={ name } value={ f.Values[name] } placeholder={ strconv.Itoa(def) }
+			if f.Errors[name] != "" {
+				aria-invalid="true"
+			}
+		/>
+	}
+}

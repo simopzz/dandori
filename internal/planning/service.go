@@ -38,6 +38,10 @@ var ErrStartsInPast = errors.New("plan proposal starts in the past")
 // in one.
 var ErrInapplicable = errors.New("plan proposal does not apply")
 
+// ErrFillsExceptedSlot means a Plan Proposal puts a Portion or a Prep
+// Session in a Slot logged as a Meal Out or skipped since it was made.
+var ErrFillsExceptedSlot = errors.New("plan proposal fills an excepted slot")
+
 // ErrCycleUpcoming means a Cycle is already upcoming, so no other can be
 // opened.
 var ErrCycleUpcoming = errors.New("a cycle is already upcoming")
@@ -68,9 +72,9 @@ type Cycle struct {
 	domain.Cycle
 	// Status is upcoming, current or closed.
 	Status string
-	// NeedsProposal is whether a Delivery moved under its Plan, which needs
-	// a new Plan Proposal.
-	NeedsProposal bool
+	// NeedsProposalBecause is why its Plan needs a new Plan Proposal,
+	// e.g. "A Delivery moved"; empty when it doesn't.
+	NeedsProposalBecause string
 }
 
 // ProposalSummary is a Plan Proposal in a list.
@@ -98,6 +102,13 @@ type Overview struct {
 	// PlanNext is whether it is time to plan the Cycle after the current
 	// one: none is upcoming, and the current one ends within days.
 	PlanNext bool
+	// Previous is the Cycle the current one closed, or nil when none did.
+	Previous *Cycle
+	// Between is the Exceptions on days between Cycles that a trailing
+	// seven days still reaches.
+	Between []ExceptionSlot
+	// MealOut is the Profile's default Meal Out estimate.
+	MealOut domain.Nutrition
 }
 
 // Proposal is a Plan Proposal with its Plan checked.
@@ -176,8 +187,12 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	if err := s.Arrive(ctx); err != nil {
 		return Overview{}, err
 	}
-	var o Overview
-	err := pgx.BeginTxFunc(ctx, s.pool, snapshot, func(tx pgx.Tx) error {
+	p, _, err := s.profile.Get(ctx)
+	if err != nil {
+		return Overview{}, err
+	}
+	o := Overview{MealOut: p.MealOut}
+	err = pgx.BeginTxFunc(ctx, s.pool, snapshot, func(tx pgx.Tx) error {
 		var err error
 		if o.Current, err = s.cyclePlan(ctx, tx, "current"); err != nil {
 			return err
@@ -186,7 +201,15 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 			return err
 		}
 		o.PlanNext = o.Upcoming == nil && o.Current != nil && o.Current.Cycle.PlanNextDue(s.today())
-		return nil
+		first := s.today().AddDate(0, 0, -6)
+		if o.Current != nil && o.Current.Cycle.Start.On.AddDate(0, 0, -6).Before(first) {
+			first = o.Current.Cycle.Start.On.AddDate(0, 0, -6)
+		}
+		if o.Between, err = s.between(ctx, tx, first); err != nil {
+			return err
+		}
+		o.Previous, err = loadPreviousCycle(ctx, tx)
+		return err
 	})
 	return o, err
 }
@@ -226,6 +249,9 @@ func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, from domain.
 	if check.Earlier, err = loadEarlier(ctx, q, c, from); err != nil {
 		return check, err
 	}
+	if check.Exceptions, err = loadExceptions(ctx, q, c.Start.On.AddDate(0, 0, -6), c.LastDay()); err != nil {
+		return check, err
+	}
 	check.Since, err = loadSince(ctx, q)
 	return check, err
 }
@@ -242,17 +268,18 @@ func (s *Service) newCycle(ctx context.Context, build func(domain.SlotTimes) dom
 }
 
 // OpenCycle opens the Cycle delivered by d and planned to end on endsOn as
-// the upcoming Cycle. The current Cycle is left as it is until the
-// Delivery arrives.
-func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.Time) error {
+// the upcoming Cycle, returning its id. The current Cycle is left as it is
+// until the Delivery arrives.
+func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.Time) (int64, error) {
 	if err := s.Arrive(ctx); err != nil {
-		return err
+		return 0, err
 	}
 	c, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return domain.NewCycle(d, endsOn, times) })
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	var id int64
+	return id, pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
 		}
@@ -272,7 +299,8 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 		case err != nil:
 			return err
 		}
-		return insertCycle(ctx, tx, c)
+		id, err = insertCycle(ctx, tx, c)
+		return err
 	})
 }
 
@@ -327,7 +355,7 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 			return err
 		}
 		if flagCurrent {
-			return setNeedsProposal(ctx, tx, current.ID, true)
+			return setNeedsProposal(ctx, tx, current.ID, deliveryMoved)
 		}
 		return nil
 	})
@@ -449,8 +477,16 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 			return ErrCycleClosed
 		}
 		// What was prepared and eaten since its start can't be replaced.
-		if slices.ContainsFunc(domain.ValidatePlan(ch.check), func(v domain.Violation) bool { return v.Rule == domain.RuleStartsInPast }) {
+		violations := domain.ValidatePlan(ch.check)
+		breaks := func(rule domain.Rule) bool {
+			return slices.ContainsFunc(violations, func(v domain.Violation) bool { return v.Rule == rule })
+		}
+		if breaks(domain.RuleStartsInPast) {
 			return ErrStartsInPast
+		}
+		// It would eat what the user won't, or cook for nobody.
+		if breaks(domain.RuleExceptedSlot) {
+			return ErrFillsExceptedSlot
 		}
 		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
 		// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
@@ -462,7 +498,7 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if err != nil {
 			return err
 		}
-		if err := setNeedsProposal(ctx, tx, ch.cycle.ID, false); err != nil {
+		if err := setNeedsProposal(ctx, tx, ch.cycle.ID, ""); err != nil {
 			return err
 		}
 		return decideProposal(ctx, tx, id, "approved", "")
