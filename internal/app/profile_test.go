@@ -259,3 +259,46 @@ func TestProfileHoldsATimeOfDayPerSlotKind(t *testing.T) {
 		t.Errorf("dinner at no time = %d, want 422 saying why:\n%s", res.StatusCode, text(res.Body))
 	}
 }
+
+// saveBrief saves brief through the Profile page's Planning Brief form,
+// returning the page it lands on.
+func saveBrief(t *testing.T, h *apptest.Harness, brief string) apptest.Response {
+	t.Helper()
+	form := apptest.Form(t, h.Get(t, "/profile").Body, "planning-brief")
+	form.Values.Set("brief", brief)
+	res := h.PostForm(t, form.Action, form.Values)
+	if res.StatusCode != http.StatusOK || res.Path != "/profile" || !strings.Contains(text(res.Body), "Planning Brief saved.") {
+		t.Fatalf("save the Planning Brief = %d at %s, want the Profile page confirming it:\n%s", res.StatusCode, res.Path, text(res.Body))
+	}
+	return res
+}
+
+func TestThePlanningBriefIsSavedOnItsOwnAndShownBack(t *testing.T) {
+	h := apptest.Start(t)
+	if page := text(h.Get(t, "/profile").Body); !strings.Contains(page, "Planning Brief") {
+		t.Fatalf("the Profile page has no Planning Brief section:\n%s", page)
+	}
+
+	// Before the Profile is ever saved: the Brief is saved on its own.
+	res := saveBrief(t, h, "More fish, and little effort on weekdays.\nI love spicy food.")
+	if res.Method != http.MethodGet {
+		t.Errorf("a saved Planning Brief is answered without a redirect, so reloading resubmits the form")
+	}
+	page := h.Get(t, "/profile").Body
+	if !hasField(page, "brief", "More fish, and little effort on weekdays.\nI love spicy food.") {
+		t.Errorf("the Profile page does not show the saved Planning Brief:\n%s", page)
+	}
+	if !hasField(page, "target_kcal", "") {
+		t.Errorf("saving the Planning Brief filled in the Profile:\n%s", page)
+	}
+
+	h.PostForm(t, "/profile", validProfile())
+	if page := h.Get(t, "/profile").Body; !hasField(page, "brief", "More fish") {
+		t.Errorf("saving the Profile lost the Planning Brief:\n%s", page)
+	}
+
+	saveBrief(t, h, "  ")
+	if page := h.Get(t, "/profile").Body; strings.Contains(page, "More fish") || !hasField(page, "target_kcal", "2200") {
+		t.Errorf("an emptied Planning Brief is not shown empty beside the Profile:\n%s", text(page))
+	}
+}

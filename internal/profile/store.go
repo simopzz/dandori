@@ -36,6 +36,23 @@ func loadProfile(ctx context.Context, q db.Querier) (domain.Profile, bool, error
 	return p, true, nil
 }
 
+// loadBrief loads the Planning Brief, empty until it is first saved.
+func loadBrief(ctx context.Context, q db.Querier) (string, error) {
+	var brief string
+	err := q.QueryRow(ctx, `SELECT brief FROM planning_brief`).Scan(&brief)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return brief, err
+}
+
+func saveBrief(ctx context.Context, q db.Querier, brief string) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO planning_brief (brief) VALUES ($1)
+		ON CONFLICT (id) DO UPDATE SET brief = EXCLUDED.brief, updated_at = now()`, brief)
+	return err
+}
+
 func saveProfile(ctx context.Context, q db.Querier, p domain.Profile) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO profile (

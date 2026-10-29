@@ -291,6 +291,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}/discard", a.needsDatabase(http.HandlerFunc(recipes.DiscardPlannedDraft)))
 	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(profile.Show)))
 	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(profile.Save)))
+	mux.Handle("POST /profile/brief", a.needsDatabase(http.HandlerFunc(profile.SaveBrief)))
 	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(recipes.Library)))
 	mux.Handle("POST /recipes/parse", a.needsDatabase(http.HandlerFunc(recipes.Parse)))
 	mux.Handle("GET /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.ShowDraft)))

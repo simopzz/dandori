@@ -1,9 +1,11 @@
 // Package profile is the user's Profile: their Targets, dietary exclusions
-// and allergies, Meal Out estimate, Untracked Allowance and Slot times.
+// and allergies, Meal Out estimate, Untracked Allowance and Slot times;
+// and their Planning Brief, shown beside it.
 package profile
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -35,4 +37,16 @@ func (s *Service) Save(ctx context.Context, p domain.Profile) error {
 		return &InvalidError{Fields: invalid}
 	}
 	return saveProfile(ctx, s.pool, p)
+}
+
+// Brief loads the Planning Brief: the user's lasting wishes for how their
+// meals are planned, empty until written.
+func (s *Service) Brief(ctx context.Context) (string, error) {
+	return loadBrief(ctx, s.pool)
+}
+
+// SaveBrief stores brief as the Planning Brief. It applies from the next
+// planning Run: no Run starts, and no Plan needs a new Plan Proposal.
+func (s *Service) SaveBrief(ctx context.Context, brief string) error {
+	return saveBrief(ctx, s.pool, strings.TrimSpace(brief))
 }

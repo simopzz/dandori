@@ -12,8 +12,17 @@ type ProfileForm struct {
 	Failed bool
 }
 
-// ProfilePage shows the Profile for viewing and editing.
-templ ProfilePage(f ProfileForm) {
+// BriefForm is the Planning Brief as its form shows it.
+type BriefForm struct {
+	Brief string
+	Saved bool
+	// Failed means the Planning Brief could not be stored: Brief is as typed.
+	Failed bool
+}
+
+// ProfilePage shows the Profile and the Planning Brief for viewing and
+// editing, each saved with its own form.
+templ ProfilePage(f ProfileForm, b BriefForm) {
 	@web.Layout("Dandori — Profile", web.TabProfile) {
 		@web.PageHeader("設定", "Profile")
 		<form method="post" action="/profile">
@@ -73,7 +82,36 @@ templ ProfilePage(f ProfileForm) {
 				}
 			}
 		</form>
+		@briefForm(b)
 	}
+}
+
+templ briefForm(b BriefForm) {
+	<form id="planning-brief" method="post" action="/profile/brief">
+		@web.FieldGroup(6, "Planning Brief") {
+			if b.Saved {
+				@web.Notice() {
+					Planning Brief saved.
+				}
+			}
+			if b.Failed {
+				@web.Alert() {
+					The Planning Brief could not be saved; try again. Details are in the server log.
+				}
+			}
+			@web.Hint() {
+				Your lasting wishes for every Plan: variety, effort, what you enjoy. Every planning Run reads it and follows it as far as the rules of the Plan allow; within a Cycle, its Planning Notes win. Saving it starts no planning Run: it applies from the next one.
+			}
+			@web.Field("Wishes", "", "") {
+				<textarea name="brief" rows="5">{ b.Brief }</textarea>
+			}
+		}
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				Save Planning Brief
+			}
+		}
+	</form>
 }
 
 templ nutritionFields(f ProfileForm, prefix string) {

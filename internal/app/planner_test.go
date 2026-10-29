@@ -378,6 +378,60 @@ func TestRejectingWithNotesStartsAPlanningRunWhereTheNewestWins(t *testing.T) {
 	}
 }
 
+func TestEveryPlanningRunIsToldThePlanningBriefWhereANoteWins(t *testing.T) {
+	h, _, llm := startPlanningWith(t)
+	exceptions := openCycle(t, h, "2026-11-02", "2026-11-04").Path
+	plan := shortCyclePlan(dinnerOf(map[string]any{"recipe_id": recipeID(t, h)}))
+	propose := func() {
+		llm.Script(fakellm.CallTool("submit_plan", plan), fakellm.Reply("Planned."))
+	}
+	propose()
+	planCycle(t, h, exceptions)
+	if prompt := plannerRequests(llm)[0].Messages[0].Content[0].Text; strings.Contains(prompt, "Planning Brief") {
+		t.Errorf("a planning Run is told an empty Planning Brief:\n%s", prompt)
+	}
+
+	saveBrief(t, h, "Lots of pasta.\nLittle effort on weekdays.")
+	propose()
+	replan := apptest.Link(t, rejectWith(t, h, proposalPaths(t, h)[0], "no pasta").Body, "follow it")
+	h.Stream(t, replan+"/events", "").Rest(t)
+
+	asked := plannerRequests(llm)
+	prompt := asked[len(asked)-2].Messages[0].Content[0].Text
+	for _, want := range []string{
+		"The user's Planning Brief, their lasting wishes for how their meals are planned. Follow it as far as the rules of the Plan allow; where one of this Cycle's notes disagrees with it, the note wins:\nLots of pasta.\nLittle effort on weekdays.",
+		"- no pasta",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("the planning Run is not told %q:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestChangingThePlanningBriefLeavesAPendingPlanProposalAndStartsNoRun(t *testing.T) {
+	h, _, llm := startPlanningWith(t)
+	exceptions := openCycle(t, h, "2026-11-02", "2026-11-04").Path
+	llm.Script(
+		fakellm.CallTool("submit_plan", shortCyclePlan(dinnerOf(map[string]any{"recipe_id": recipeID(t, h)}))),
+		fakellm.Reply("Planned."),
+	)
+	planCycle(t, h, exceptions)
+	planningRuns := func() int { return strings.Count(text(h.Get(t, "/runs").Body), "planning Succeeded") }
+	if planningRuns() != 1 {
+		t.Fatalf("the /runs page does not list the one planning Run:\n%s", text(h.Get(t, "/runs").Body))
+	}
+
+	saveBrief(t, h, "More fish.")
+
+	page := h.Get(t, proposalPaths(t, h)[0])
+	if p := text(page.Body); !strings.Contains(p, "pending") || !strings.Contains(page.Body, `id="approve"`) {
+		t.Errorf("the Plan Proposal is no longer pending once the Planning Brief changed:\n%s", p)
+	}
+	if len(plannerRequests(llm)) != 2 || strings.Contains(text(h.Get(t, "/runs").Body), "planning Running") || planningRuns() != 1 {
+		t.Errorf("changing the Planning Brief started a planning Run:\n%s", text(h.Get(t, "/runs").Body))
+	}
+}
+
 func TestACycleBeingPlannedIsNotPlannedTwice(t *testing.T) {
 	h, _, llm := startPlanningWith(t)
 	exceptions := openCycle(t, h, "2026-11-02", "2026-11-04").Path
