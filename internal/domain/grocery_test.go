@@ -98,6 +98,12 @@ func TestGroceryListRoundsWhatThePlanNeedsUpToWholePacks(t *testing.T) {
 			},
 		},
 		{
+			name:     "a sliver of a pack still buys a whole one",
+			plan:     domain.Plan{PrepSessions: []domain.PrepSession{session(nil, 1, domain.RecipeIngredient{Ingredient: oats, Quantity: 0.0004})}},
+			mappings: everyMapping,
+			want:     []line{{ingredient: "rolled oats", needed: 0.0004, packs: 1, bought: 500, surplus: 499.9996, product: "Fiocchi d'avena 500 g"}},
+		},
+		{
 			name:     "a Product Mapping to a product now sold in another unit counts as none",
 			plan:     domain.Plan{PrepSessions: []domain.PrepSession{session(nil, 1, domain.RecipeIngredient{Ingredient: milk, Quantity: 500})}},
 			mappings: map[string]domain.ProductMapping{"milk": {Product: product("Latte 1 kg", 1000, domain.Grams, "Latte")}},

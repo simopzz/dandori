@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -708,11 +709,15 @@ func storeGroceryList(ctx context.Context, q db.Querier, id int64, list domain.G
 		if m := l.Mapping; m != nil {
 			code, name, pack, aisle, proposed, packs = &m.Product.Code, &m.Product.Name, &m.Product.PackQuantity, &m.Product.Aisle, &m.Proposed, &l.Packs
 		}
-		if _, err := q.Exec(ctx, `
+		tag, err := q.Exec(ctx, `
 			INSERT INTO grocery_line (cycle_id, ingredient_id, needed, product_code, product_name, pack_quantity, aisle, proposed, packs)
 			SELECT $1, id, $3, $4, $5, $6, $7, $8, $9 FROM ingredient WHERE name = $2`,
-			id, l.Ingredient.Name, l.Needed, code, name, pack, aisle, proposed, packs); err != nil {
+			id, l.Ingredient.Name, l.Needed, code, name, pack, aisle, proposed, packs)
+		if err != nil {
 			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return fmt.Errorf("grocery list of cycle %d: no ingredient %q", id, l.Ingredient.Name)
 		}
 	}
 	_, err := q.Exec(ctx, `UPDATE cycle SET grocery_list_fixed = true WHERE id = $1`, id)

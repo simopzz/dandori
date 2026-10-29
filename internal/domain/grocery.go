@@ -53,40 +53,41 @@ func (l GroceryLine) Aisle() string {
 type GroceryList []GroceryLine
 
 // tolerance absorbs float error in quantities scaled from Recipes, so 300 g
-// computed as 299.9999 doesn't round up to another pack, nor 0.0001 g left
-// over make a line.
+// computed as 299.9999 doesn't round up to another pack, nor a millionth of
+// a gram left over make a line.
 const tolerance = 1e-6
 
 // NewGroceryList is what plan needs of each Ingredient, less the Stock
 // Items not expired on the Delivery day, rounded up to whole packs of its
-// Product Mapping in mappings, keyed by Ingredient name. A Prep Session of
-// a Recipe scales it to the Portions it yields. A Product Mapping to a
-// Catalog Product no longer sold in the Ingredient's unit counts as none.
+// Product Mapping in mappings, keyed by Ingredient name: at least one, if
+// anything is needed. A Prep Session of a Recipe scales it to the Portions
+// it yields. A Product Mapping to a Catalog Product no longer sold in the
+// Ingredient's unit counts as none.
 func NewGroceryList(plan Plan, stock []StockItem, mappings map[string]ProductMapping, delivery time.Time) GroceryList {
-	needed := map[string]float64{}
-	ingredients := map[string]Ingredient{}
+	needs := map[string]*GroceryLine{}
 	for _, ps := range plan.PrepSessions {
 		for _, ri := range ps.uses() {
-			needed[ri.Ingredient.Name] += ri.Quantity
-			ingredients[ri.Ingredient.Name] = ri.Ingredient
+			if needs[ri.Ingredient.Name] == nil {
+				needs[ri.Ingredient.Name] = &GroceryLine{Ingredient: ri.Ingredient}
+			}
+			needs[ri.Ingredient.Name].Needed += ri.Quantity
 		}
 	}
 	for _, s := range stock {
-		if !s.Expired(delivery) {
-			needed[s.Ingredient.Name] -= s.Quantity
+		if l := needs[s.Ingredient.Name]; l != nil && !s.Expired(delivery) {
+			l.Needed -= s.Quantity
 		}
 	}
 	var list GroceryList
-	for name, ing := range ingredients {
-		if needed[name] <= tolerance {
+	for name, line := range needs {
+		if line.Needed <= tolerance {
 			continue
 		}
-		line := GroceryLine{Ingredient: ing, Needed: needed[name]}
-		if m, ok := mappings[name]; ok && MappingProblem(ing, m.Product) == "" {
+		if m, ok := mappings[name]; ok && MappingProblem(line.Ingredient, m.Product) == "" {
 			line.Mapping = &m
-			line.Packs = int(math.Ceil(line.Needed/m.Product.PackQuantity - tolerance))
+			line.Packs = max(1, int(math.Ceil(line.Needed/m.Product.PackQuantity-tolerance)))
 		}
-		list = append(list, line)
+		list = append(list, *line)
 	}
 	slices.SortFunc(list, func(a, b GroceryLine) int { return strings.Compare(a.Ingredient.Name, b.Ingredient.Name) })
 	return list

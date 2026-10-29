@@ -10,6 +10,9 @@ type GroceriesPage struct {
 	FixedBecause string
 	// EmptyBecause says why there is nothing to buy, when there isn't.
 	EmptyBecause string
+	// AnyProposed is whether a line uses a Product Mapping the agent
+	// proposed and the user hasn't saved.
+	AnyProposed bool
 	Aisles []GroceryAisle
 }
 
@@ -38,6 +41,11 @@ templ GroceriesView(p GroceriesPage) {
 		if p.FixedBecause != "" {
 			@web.Notice() {
 				{ p.FixedBecause }
+			}
+		}
+		if p.AnyProposed {
+			@web.Hint() {
+				Lines marked proposed use a Product Mapping the agent proposed: check it and save it on the <a href="/catalog">Known Catalog</a>.
 			}
 		}
 		if p.EmptyBecause != "" {
@@ -71,7 +79,7 @@ templ GroceriesView(p GroceriesPage) {
 								<span class="row-meta">
 									{ l.Packs }
 									if l.Proposed {
-										@web.Tag(false, "Proposed by the agent: save it on the Known Catalog") {
+										@web.Tag(false, "") {
 											proposed
 										}
 									}

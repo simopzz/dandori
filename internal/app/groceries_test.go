@@ -70,7 +70,9 @@ func TestApprovedPlansGroceryListIsGroupedByAisleAndBecomesStockOnArrival(t *tes
 	changeDelivery(t, h, map[string]string{"ordered": "yes"})
 	form := mappingForm(t, h, "chicken breast")
 	form.Values.Set("catalog_product", "")
-	h.PostForm(t, form.Action, form.Values)
+	if res := h.PostForm(t, form.Action, form.Values); res.StatusCode != http.StatusOK {
+		t.Fatalf("remove chicken breast's mapping = %d:\n%s", res.StatusCode, text(res.Body))
+	}
 	if list := groceryList(t, h); !strings.Contains(list, "640 g bought 2 × "+pettoDiPollo.Name) {
 		t.Errorf("the ordered Grocery List changed with the Product Mapping:\n%s", list)
 	}
@@ -144,5 +146,15 @@ func TestDeliveryIsNotMarkedOrderedBeforeItsCycleHasAPlan(t *testing.T) {
 	approvePlan(t, h, lemonPlan(t, h))
 	if res := changeDelivery(t, h, map[string]string{"ordered": "yes"}); res.StatusCode != http.StatusOK {
 		t.Errorf("mark ordered with a Plan = %d:\n%s", res.StatusCode, text(res.Body))
+	}
+}
+
+func TestCycleArrivingWithoutAPlanSaysSoOnItsGroceryList(t *testing.T) {
+	h, today := startGroceries(t)
+	openCycle(t, h, "2026-11-02", "")
+
+	today.setAt(t, "2026-11-02 08:00")
+	if list := groceryList(t, h); !strings.Contains(list, "Its Delivery arrived before a Plan was approved.") {
+		t.Errorf("Grocery List of a Cycle that arrived without a Plan does not say so:\n%s", list)
 	}
 }
