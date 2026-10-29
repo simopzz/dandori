@@ -519,7 +519,10 @@ templ ProposalView(p ProposalPage) {
 
 templ rejectForm(id int64) {
 	<form id="reject" class="stack section" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/reject", id)) }>
-		@web.Field("Note", "optional, for the next Plan Proposal", "") {
+		@web.Hint() {
+			Anything you'd change, even just "more variety at breakfast": the next Plan Proposal follows it. Leave it empty to just reject.
+		}
+		@web.Field("Planning Note", "optional", "") {
 			<textarea name="note" rows="3"></textarea>
 		}
 		@web.Actions() {

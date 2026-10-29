@@ -23,8 +23,16 @@ A specific eating occasion within a Cycle (breakfast, lunch, dinner or snack on 
 _Avoid_: Meal, time block
 
 **Plan Proposal**:
-A set of changes to a Cycle's Plan, produced by the agent, that takes effect only when the user approves it. Opening a Cycle, Exceptions, Delivery reports and Cart Fill substitutions all lead to one.
+A set of changes to a Cycle's Plan, produced by the agent, that takes effect only when the user approves it. Opening a Cycle, Exceptions, Delivery reports, Cart Fill substitutions and the user asking for changes all lead to one.
 _Avoid_: Recalculation, auto-update
+
+**Planning Note**:
+What the user tells the planner about one Cycle, when rejecting a Plan Proposal or asking for changes to the Plan: any feedback, from a complaint to a request, several at once if they like. It belongs to its Cycle.
+_Avoid_: Rejection Note, revision, feedback item
+
+**Planning Brief**:
+The user's lasting wishes for how their meals are planned (variety, effort, what they enjoy), as free text every planning Run reads. Unlike the Profile, it is guidance the planner follows only as far as the rules of the Plan allow.
+_Avoid_: Preferences, settings
 
 **Exception**:
 A logged deviation from what Dandori takes to happen: for a Slot, a Meal Out, skipped, or swapped (something else was eaten instead: another Portion or Stock Items); for a Prep Session, not prepared; for a Portion or Stock Item, discarded (expired, spoiled, lost). It records what happened, or, for a future Slot, what the user knows will happen (only a Meal Out or a skipped Slot can be logged ahead); when the Plan relied on it, the Plan Proposal that follows repairs the rest of the Plan.
@@ -151,6 +159,9 @@ _Avoid_: Log entry, step
 - A Stock Item past its expiry date stays in the kitchen until the user logs it discarded, but no Plan uses it.
 - The Plan is taken to happen as dated until an Exception says otherwise: a Prep Session is prepared from its day on, using up the Stock Items of its Ingredients, and a Portion is eaten once the day of its Slot is past. Prepared Portions not yet eaten, and Stock Items, are what the kitchen holds.
 - At most one Plan Proposal is pending at a time, across all Cycles. Whatever would lead to a new one (an Exception, a Delivery report, a Cart Fill substitution) rejects the pending one with a note saying why, and the next planning Run takes both into account.
+- Rejecting a Plan Proposal with a Planning Note asks for another: a new planning Run starts from the rejected one's first Slot, or from the first Slot not yet prepared once that is past, whether or not the Cycle has a Plan. Without a note the rejection asks for nothing, and the user can start planning again whenever an Exception awaits a Plan Proposal and none is pending. Every planning Run of a Cycle is told all its Planning Notes, newest first, and a newer one wins where they disagree; they never reach another Cycle, where lasting wishes belong in the Planning Brief.
+- The user can ask for changes to an upcoming or current Cycle's Plan at any time, with a Planning Note, while no Plan Proposal is pending and no planning Run is going: a planning Run starts from the first Slot not yet prepared, and the Plan stays as it is until its Plan Proposal is approved.
+- The Planning Brief is written only by the user. Changing it never starts a planning Run nor leaves a Plan needing a new Plan Proposal: it applies from the next planning Run. Where a Planning Note disagrees with it, the note wins within its Cycle.
 - A Plan Proposal replaces the Plan only from a Slot on, never one already past: the Prep Sessions before it stay, and so do today's, already taken as prepared, and their Portions not yet eaten are the Plan Proposal's to put in Slots again.
 - A Cycle's end date moves through an approved Plan Proposal, typically extending it when Exceptions leave enough Portions and stock to last longer, and with its Delivery: a Delivery moved later moves the end date as many days later, since it is to last as long. One moved earlier leaves the end date where it was, for the next Plan Proposal to judge from what is left.
 - Cycles never overlap, and at most one is upcoming. A Slot belongs to the upcoming Cycle when it comes after the end of that Cycle's Delivery window, so Slots earlier on the delivery day stay with the current Cycle.

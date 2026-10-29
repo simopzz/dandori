@@ -159,7 +159,7 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, notes []string) agent.J
 	fmt.Fprintf(&prompt, "Its trailing seven days reach from %s to %s: list the Exceptions over those days.\n",
 		c.Start.On.AddDate(0, 0, -6).Format(dateLayout), c.LastDay().Format(dateLayout))
 	if len(notes) > 0 {
-		prompt.WriteString("\nThe user rejected earlier Plan Proposals for this Cycle with these notes, newest first. Take them into account:\n")
+		prompt.WriteString("\nThe user rejected earlier Plan Proposals for this Cycle with these notes, newest first. Take them into account; where two disagree, the newer one wins:\n")
 		for _, n := range notes {
 			fmt.Fprintf(&prompt, "- %s\n", n)
 		}
