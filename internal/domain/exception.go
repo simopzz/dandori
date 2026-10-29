@@ -1,9 +1,7 @@
 package domain
 
-import "time"
-
 // ExceptionKind is what an Exception on a Slot says happens instead of
-// the Plan. Only a Meal Out or a skipped Slot can be logged ahead.
+// the Plan: a Meal Out or a skipped Slot.
 type ExceptionKind string
 
 const (
@@ -30,13 +28,6 @@ func (e Estimate) Over(def Nutrition) Nutrition {
 		return d
 	}
 	return Nutrition{Kcal: pick(e.Kcal, def.Kcal), ProteinG: pick(e.ProteinG, def.ProteinG), CarbsG: pick(e.CarbsG, def.CarbsG), FatG: pick(e.FatG, def.FatG)}
-}
-
-// ToCome reports whether, at now, the Slot's time of day on its day, at
-// times, is still to come: only then can it be logged ahead. Once past,
-// its Exception stands as what happened.
-func (s Slot) ToCome(now time.Time, times SlotTimes) bool {
-	return WallClock(now).Before(s.On.Add(time.Duration(times[s.Kind]) * time.Minute))
 }
 
 // Exception is a Slot logged as a Meal Out or skipped. It belongs to its

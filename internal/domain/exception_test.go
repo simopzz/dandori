@@ -126,25 +126,3 @@ func TestMealOutCountsTowardTheTrailingSevenDays(t *testing.T) {
 		}
 	}
 }
-
-func TestOnlyASlotStillToComeIsLoggedAhead(t *testing.T) {
-	tests := []struct {
-		now  string
-		slot *domain.Slot
-		want bool
-	}{
-		{"2026-11-05 12:59", at("2026-11-05", domain.Lunch), true},
-		{"2026-11-05 13:00", at("2026-11-05", domain.Lunch), false},
-		{"2026-11-04 23:00", at("2026-11-05", domain.Breakfast), true},
-		{"2026-11-06 07:00", at("2026-11-05", domain.Dinner), false},
-	}
-	for _, tt := range tests {
-		now, err := time.Parse(time.DateOnly+" 15:04", tt.now)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := tt.slot.ToCome(now, domain.DefaultSlotTimes); got != tt.want {
-			t.Errorf("%s ToCome(%s) = %v, want %v", tt.slot, tt.now, got, tt.want)
-		}
-	}
-}

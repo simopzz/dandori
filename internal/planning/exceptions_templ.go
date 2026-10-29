@@ -37,9 +37,8 @@ type ExceptionRow struct {
 	Day    string // YYYY-MM-DD
 	Kind   string
 	State  string // e.g. "from the Plan", "Meal Out · 900 kcal · 35 g protein"
-	// ToCome is whether it can still be logged ahead; a past Slot's
-	// Exception stands as what happened.
-	ToCome bool
+	// Editable is whether it can be logged: whether the Cycle holds it.
+	Editable bool
 	// Default is the Profile's default Meal Out estimate.
 	Default domain.Nutrition
 	Form    ExceptionForm
@@ -104,7 +103,7 @@ func ExceptionsView(p ExceptionsPage) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(p.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 50, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 49, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -136,7 +135,7 @@ func ExceptionsView(p ExceptionsPage) templ.Component {
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(p.Problem)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 54, Col: 15}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 53, Col: 15}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -165,7 +164,7 @@ func ExceptionsView(p ExceptionsPage) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Log the Slots you already know you won't eat from the Plan: a Meal Out, with the Profile's default estimate unless you give your own, or a skipped Slot. The planning Run plans around them.")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Log the Slots you won't eat from the Plan: a Meal Out, with the Profile's default estimate unless you give your own, or a skipped Slot. The planning Run plans around them. Once a Slot is past, correct it if it went otherwise.")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -195,7 +194,7 @@ func ExceptionsView(p ExceptionsPage) templ.Component {
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(d.Date)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 62, Col: 16}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 61, Col: 16}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -339,7 +338,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if !s.ToCome {
+		if !s.Editable {
 			templ_7745c5c3_Var15 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -372,7 +371,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 						var templ_7745c5c3_Var17 string
 						templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(s.Problem)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 91, Col: 16}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 90, Col: 16}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 						if templ_7745c5c3_Err != nil {
@@ -411,7 +410,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue("exception-" + s.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 97, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 96, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 				if templ_7745c5c3_Err != nil {
@@ -424,7 +423,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 				var templ_7745c5c3_Var20 templ.SafeURL
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(s.Action))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 97, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 96, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -437,7 +436,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Action)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 97, Col: 117}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 96, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 				if templ_7745c5c3_Err != nil {
@@ -463,7 +462,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 						var templ_7745c5c3_Var23 string
 						templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(s.Problem)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 100, Col: 17}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 99, Col: 17}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 						if templ_7745c5c3_Err != nil {
@@ -507,7 +506,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Day)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 108, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 107, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
@@ -520,7 +519,7 @@ func exceptionRowView(s ExceptionRow) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Kind)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 109, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 108, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
@@ -673,7 +672,7 @@ func exceptionSummary(s ExceptionRow) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue("slot-" + s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 131, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 130, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 		if templ_7745c5c3_Err != nil {
@@ -686,7 +685,7 @@ func exceptionSummary(s ExceptionRow) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(s.Kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 131, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 130, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -699,7 +698,7 @@ func exceptionSummary(s ExceptionRow) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(s.State)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 133, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 132, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -755,7 +754,7 @@ func estimateField(label, name string, def int, f ExceptionForm) templ.Component
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 141, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 140, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 			if templ_7745c5c3_Err != nil {
@@ -768,7 +767,7 @@ func estimateField(label, name string, def int, f ExceptionForm) templ.Component
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Values[name])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 141, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 140, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 			if templ_7745c5c3_Err != nil {
@@ -781,7 +780,7 @@ func estimateField(label, name string, def int, f ExceptionForm) templ.Component
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(def))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 141, Col: 111}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/exceptions.templ`, Line: 140, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 			if templ_7745c5c3_Err != nil {

@@ -29,9 +29,8 @@ type ExceptionRow struct {
 	Day    string // YYYY-MM-DD
 	Kind   string
 	State  string // e.g. "from the Plan", "Meal Out · 900 kcal · 35 g protein"
-	// ToCome is whether it can still be logged ahead; a past Slot's
-	// Exception stands as what happened.
-	ToCome bool
+	// Editable is whether it can be logged: whether the Cycle holds it.
+	Editable bool
 	// Default is the Profile's default Meal Out estimate.
 	Default domain.Nutrition
 	Form    ExceptionForm
@@ -55,7 +54,7 @@ templ ExceptionsView(p ExceptionsPage) {
 			}
 		}
 		@web.Hint() {
-			Log the Slots you already know you won't eat from the Plan: a Meal Out, with the Profile's default estimate unless you give your own, or a skipped Slot. The planning Run plans around them.
+			Log the Slots you won't eat from the Plan: a Meal Out, with the Profile's default estimate unless you give your own, or a skipped Slot. The planning Run plans around them. Once a Slot is past, correct it if it went otherwise.
 		}
 		@web.Section(1, "Slots") {
 			for _, d := range p.Days {
@@ -83,7 +82,7 @@ templ ExceptionsView(p ExceptionsPage) {
 // exceptionRowView is a Slot's row. Its form swaps only the row under
 // htmx, not the boosted page, so the page keeps its place (ADR 0009).
 templ exceptionRowView(s ExceptionRow) {
-	if !s.ToCome {
+	if !s.Editable {
 		@web.Row() {
 			@exceptionSummary(s)
 			if s.Problem != "" {

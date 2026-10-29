@@ -85,21 +85,26 @@ func (h Handlers) renderExceptionRow(w http.ResponseWriter, r *http.Request, id 
 			return
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
+	// The Cycle no longer holds it: the row stays, saying why, with no form.
+	row := ExceptionRow{ID: slotID(slot), Kind: string(slot.Kind), State: "no longer one of this Cycle's Slots"}
+	if rejected != nil {
+		row.Problem = rejected.Problem
+	}
+	templ.Handler(exceptionRowView(row), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
 // exceptionRow is s, a Slot of the Cycle with id, as its row shows it,
 // with mealOut the default Meal Out estimate.
 func exceptionRow(id int64, s ExceptionSlot, mealOut domain.Nutrition) ExceptionRow {
 	row := ExceptionRow{
-		ID:      slotID(s.Slot),
-		Action:  exceptionsURL(id),
-		Day:     s.Slot.On.Format(dateLayout),
-		Kind:    string(s.Slot.Kind),
-		State:   "from the Plan",
-		ToCome:  s.ToCome,
-		Default: mealOut,
-		Form:    ExceptionForm{Values: map[string]string{"exception": ""}},
+		ID:       slotID(s.Slot),
+		Action:   exceptionsURL(id),
+		Day:      s.Slot.On.Format(dateLayout),
+		Kind:     string(s.Slot.Kind),
+		State:    "from the Plan",
+		Editable: true,
+		Default:  mealOut,
+		Form:     ExceptionForm{Values: map[string]string{"exception": ""}},
 	}
 	if e := s.Exception; e != nil {
 		row.State = describeException(*e, mealOut)
@@ -155,7 +160,7 @@ func (h Handlers) LogException(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	case errors.Is(err, ErrSlotUnavailable):
-		const problem = "That Slot is past, or no longer one of this Cycle's: it can't be logged ahead."
+		const problem = "That Slot is no longer one of this Cycle's: its Delivery moved, or the Cycle was dropped."
 		if httpx.IsHTMX(r) {
 			h.renderExceptionRow(w, r, id, slot, &ExceptionRow{Problem: problem, Form: ExceptionForm{Values: map[string]string{}}}, http.StatusConflict)
 			return

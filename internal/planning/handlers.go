@@ -50,6 +50,9 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 	n := 1
 	if o.Current != nil {
 		p.Current = cycleView(*o.Current, n)
+		if o.Previous != nil {
+			p.Current.PreviousID = o.Previous.ID
+		}
 		n += 3
 		if o.PlanNext {
 			p.PlanNext = o.Current.Cycle.EndsOn.Format(longDate)
@@ -67,12 +70,11 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 	p.BetweenNumber = max(n, 2)
 	for _, es := range o.Between {
 		p.Between = append(p.Between, BetweenRow{
-			ID:     slotID(es.Slot),
-			Slot:   es.Slot.String(),
-			State:  describeException(*es.Exception, o.MealOut),
-			Day:    es.Slot.On.Format(dateLayout),
-			Kind:   string(es.Slot.Kind),
-			ToCome: es.ToCome,
+			ID:    slotID(es.Slot),
+			Slot:  es.Slot.String(),
+			State: describeException(*es.Exception, o.MealOut),
+			Day:   es.Slot.On.Format(dateLayout),
+			Kind:  string(es.Slot.Kind),
 		})
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
@@ -248,7 +250,7 @@ func (h Handlers) RemoveExceptionBetweenCycles(w http.ResponseWriter, r *http.Re
 	}
 	switch err := h.Service.RemoveExceptionBetweenCycles(r.Context(), slot); {
 	case errors.Is(err, ErrSlotUnavailable):
-		h.render(w, r, PlanPage{Problem: "That Slot is past, or a Cycle holds it now: change it on that Cycle's Exceptions page."}, http.StatusConflict)
+		h.render(w, r, PlanPage{Problem: "A Cycle holds that Slot now: change it on that Cycle's Exceptions page."}, http.StatusConflict)
 	case err != nil:
 		httpx.ServerError(w, h.Log, "remove exception", err)
 	default:

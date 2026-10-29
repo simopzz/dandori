@@ -33,7 +33,6 @@ type BetweenRow struct {
 	State  string
 	Day    string // YYYY-MM-DD
 	Kind   string
-	ToCome bool // whether it can still be removed
 }
 
 // CycleView is a Cycle as shown, with its Plan and Plan Proposals.
@@ -53,6 +52,9 @@ type CycleView struct {
 	HasPlan   bool
 	Calendar  []CalendarDay
 	Proposals []ProposalRow
+	// PreviousID is the Cycle the current one closed, whose Slots can still
+	// be corrected; 0 when there is none, or for the upcoming Cycle.
+	PreviousID int64
 	// Change is the change-the-Delivery form of the upcoming Cycle.
 	Change CycleForm
 }
@@ -155,8 +157,7 @@ templ Page(p PlanPage) {
 }
 
 // betweenSection lists the Exceptions on days between Cycles, left by a
-// moved Delivery or a dropped Cycle; those still to come have a form to
-// remove them, and past ones stand as what happened.
+// moved Delivery or a dropped Cycle, each with a form to remove it.
 templ betweenSection(number int, rows []BetweenRow) {
 	@web.Section(number, "Exceptions between Cycles") {
 		@web.Hint() {
@@ -169,15 +170,13 @@ templ betweenSection(number int, rows []BetweenRow) {
 					<span class="row-meta">
 						<span>{ b.State }</span>
 					</span>
-					if b.ToCome {
-						<form id={ "remove-exception-" + b.ID } class="row-action" method="post" action="/exceptions/remove">
-							<input type="hidden" name="day" value={ b.Day }/>
-							<input type="hidden" name="kind" value={ b.Kind }/>
-							@web.TextButton(templ.Attributes{"type": "submit"}) {
-								Remove
-							}
-						</form>
-					}
+					<form id={ "remove-exception-" + b.ID } class="row-action" method="post" action="/exceptions/remove">
+						<input type="hidden" name="day" value={ b.Day }/>
+						<input type="hidden" name="kind" value={ b.Kind }/>
+						@web.TextButton(templ.Attributes{"type": "submit"}) {
+							Remove
+						}
+					</form>
 				}
 			}
 		}
@@ -212,7 +211,12 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 				{ c.NeedsProposalBecause }: this Plan needs a new Plan Proposal.
 			}
 		}
-		<p><a href={ templ.SafeURL(exceptionsURL(c.ID)) }>Exceptions</a></p>
+		<p>
+			<a href={ templ.SafeURL(exceptionsURL(c.ID)) }>Exceptions</a>
+			if c.PreviousID != 0 {
+				· <a href={ templ.SafeURL(exceptionsURL(c.PreviousID)) }>Exceptions of the previous Cycle</a>
+			}
+		</p>
 		if c.Change.Values != nil {
 			@deliveryForm(c)
 		}

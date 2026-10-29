@@ -102,6 +102,8 @@ type Overview struct {
 	// PlanNext is whether it is time to plan the Cycle after the current
 	// one: none is upcoming, and the current one ends within days.
 	PlanNext bool
+	// Previous is the Cycle the current one closed, or nil when none did.
+	Previous *Cycle
 	// Between is the Exceptions on days between Cycles that a trailing
 	// seven days still reaches.
 	Between []ExceptionSlot
@@ -203,7 +205,10 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 		if o.Current != nil && o.Current.Cycle.Start.On.AddDate(0, 0, -6).Before(first) {
 			first = o.Current.Cycle.Start.On.AddDate(0, 0, -6)
 		}
-		o.Between, err = s.between(ctx, tx, first, p.SlotTimes)
+		if o.Between, err = s.between(ctx, tx, first); err != nil {
+			return err
+		}
+		o.Previous, err = loadPreviousCycle(ctx, tx)
 		return err
 	})
 	return o, err

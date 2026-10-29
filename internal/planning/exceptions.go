@@ -19,9 +19,9 @@ import (
 // ErrNoCycle means there is no Cycle with that id.
 var ErrNoCycle = errors.New("no such cycle")
 
-// ErrSlotUnavailable means the Slot can't be logged ahead: it is past, it
-// isn't one of the Cycle's Slots, or the Cycle has closed.
-var ErrSlotUnavailable = errors.New("slot can't be logged ahead")
+// ErrSlotUnavailable means the Slot isn't one of the Cycle's, or, for
+// one between Cycles, a Cycle holds it now.
+var ErrSlotUnavailable = errors.New("slot is not the cycle's")
 
 // CycleExceptions is a Cycle's Slots, each with its Exception if it has
 // one.
@@ -37,8 +37,6 @@ type CycleExceptions struct {
 type ExceptionSlot struct {
 	Slot      domain.Slot
 	Exception *domain.Exception
-	// ToCome is whether the Slot can still be logged ahead.
-	ToCome bool
 }
 
 // Exceptions loads the Cycle with id and every one of its Slots, with
@@ -76,7 +74,7 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 				if !c.Contains(slot) {
 					continue
 				}
-				es := ExceptionSlot{Slot: slot, ToCome: c.Status != "closed" && slot.ToCome(s.now(), p.SlotTimes)}
+				es := ExceptionSlot{Slot: slot}
 				if e, ok := byKey[slotID(slot)]; ok {
 					es.Exception = &e
 				}
@@ -88,17 +86,15 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 	return ce, err
 }
 
-// LogException logs e for slot, one of the Slots still to come of the
-// current or upcoming Cycle with id, or, when e is nil, removes the one it
-// has. While no Plan relies on it, it is input to the next planning Run;
-// once the Cycle's Plan does, the Plan needs a new Plan Proposal, and the
-// one pending is rejected.
+// LogException logs e for slot, one of the Slots of the Cycle with id, or,
+// when e is nil, removes the one it has: ahead, or, once past, as a
+// correction of what happened. While no Plan relies on it, it is input to
+// the next planning Run. Once the Cycle's Plan does, or, when the Cycle
+// has closed, the current one's, which took over what was left of it,
+// that Plan needs a new Plan Proposal, and the one pending is rejected:
+// what was eaten instead may have been meant for a Slot still to come.
 func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, e *domain.Exception) error {
 	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
-	p, _, err := s.profile.Get(ctx)
-	if err != nil {
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -112,7 +108,7 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 			return err
 		case c == nil:
 			return ErrNoCycle
-		case c.Status == "closed" || !c.Contains(slot) || !slot.ToCome(s.now(), p.SlotTimes):
+		case !c.Contains(slot):
 			return ErrSlotUnavailable
 		}
 		logged, err := loadExceptions(ctx, tx, slot.On, slot.On)
@@ -131,6 +127,11 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 		if err := saveException(ctx, tx, slot, e); err != nil {
 			return err
 		}
+		if c.Status == "closed" {
+			if c, err = loadCycleWith(ctx, tx, "current"); err != nil || c == nil {
+				return err
+			}
+		}
 		relied, err := hasPlan(ctx, tx, c.ID)
 		if err != nil || !relied {
 			return err
@@ -143,8 +144,8 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 }
 
 // between loads the Exceptions from the day first on whose Slots no
-// Cycle holds, as Slots at times.
-func (s *Service) between(ctx context.Context, q db.Querier, first time.Time, times domain.SlotTimes) ([]ExceptionSlot, error) {
+// Cycle holds.
+func (s *Service) between(ctx context.Context, q db.Querier, first time.Time) ([]ExceptionSlot, error) {
 	exceptions, err := loadExceptionsFrom(ctx, q, first)
 	if err != nil {
 		return nil, err
@@ -156,21 +157,16 @@ func (s *Service) between(ctx context.Context, q db.Querier, first time.Time, ti
 	var between []ExceptionSlot
 	for _, e := range exceptions {
 		if !slices.ContainsFunc(cycles, func(c Cycle) bool { return c.Contains(e.Slot) }) {
-			between = append(between, ExceptionSlot{Slot: e.Slot, Exception: &e, ToCome: e.Slot.ToCome(s.now(), times)})
+			between = append(between, ExceptionSlot{Slot: e.Slot, Exception: &e})
 		}
 	}
 	return between, nil
 }
 
-// RemoveExceptionBetweenCycles removes the Exception of slot, a Slot still
-// to come that no Cycle holds; one a Cycle holds is changed on its
-// Exceptions page.
+// RemoveExceptionBetweenCycles removes the Exception of slot, a Slot no
+// Cycle holds; one a Cycle holds is changed on its Exceptions page.
 func (s *Service) RemoveExceptionBetweenCycles(ctx context.Context, slot domain.Slot) error {
 	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
-	p, _, err := s.profile.Get(ctx)
-	if err != nil {
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -182,7 +178,7 @@ func (s *Service) RemoveExceptionBetweenCycles(ctx context.Context, slot domain.
 		if err != nil {
 			return err
 		}
-		if !slot.ToCome(s.now(), p.SlotTimes) || slices.ContainsFunc(cycles, func(c Cycle) bool { return c.Contains(slot) }) {
+		if slices.ContainsFunc(cycles, func(c Cycle) bool { return c.Contains(slot) }) {
 			return ErrSlotUnavailable
 		}
 		return saveException(ctx, tx, slot, nil)

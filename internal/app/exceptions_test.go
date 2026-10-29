@@ -177,34 +177,66 @@ func TestExceptionAPlanReliesOnNeedsANewPlanProposal(t *testing.T) {
 	}
 }
 
-func TestAPastSlotIsNotLoggedAheadAndItsExceptionStands(t *testing.T) {
+func TestAPastSlotIsCorrectedAfterItHappenedAndThePlanReplanned(t *testing.T) {
 	h, today := startPlanning(t)
 	exceptions := openCycle(t, h, "2026-11-02", "").Path
-	// The Cycle is current, and Monday's lunch, at 13:00, is past.
-	today.setAt(t, "2026-11-02 13:30")
-	logException(t, h, exceptions, "2026-11-02", "snack", map[string]string{"exception": "meal-out"}, false)
-	page := h.Get(t, exceptions).Body
-	if strings.Contains(page, `id="exception-2026-11-02-lunch"`) || !strings.Contains(text(page), "lunch from the Plan") {
-		t.Errorf("a past Slot can be logged ahead, or isn't shown:\n%s", text(page))
-	}
+	approvePlan(t, h, lemonPlan(t, h))
+	logException(t, h, exceptions, "2026-11-06", "dinner", map[string]string{"exception": "meal-out"}, false)
+	// Replanned around the Meal Out.
+	approvePlan(t, h, lemonPlan(t, h))
+	pending := proposePlan(t, h, `{"prep_sessions": []}`)
 
-	snack := apptest.Form(t, page, "exception-2026-11-02-snack")
-	today.setAt(t, "2026-11-02 18:00")
-	if page := h.Get(t, exceptions).Body; strings.Contains(page, `id="exception-2026-11-02-snack"`) || !strings.Contains(text(page), "snack Meal Out · 900 kcal") {
-		t.Errorf("a past Meal Out does not stand as what happened:\n%s", text(page))
+	// The dinner out fell through: the morning after, it was eaten at home.
+	today.setAt(t, "2026-11-07 09:00")
+	res := logException(t, h, exceptions, "2026-11-06", "dinner", map[string]string{"exception": ""}, true)
+	if res.StatusCode != http.StatusOK || !isRow(res.Body) || !strings.Contains(text(res.Body), "dinner from the Plan") {
+		t.Fatalf("HTMX correct a past Slot = %d, want 200 and its row from the Plan:\n%s", res.StatusCode, res.Body)
 	}
-	snack.Values.Set("exception", "skipped")
-	res := h.PostForm(t, snack.Action, snack.Values)
-	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "That Slot is past") {
-		t.Fatalf("change a past Slot = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	// What was eaten may have been meant for a Slot still to come.
+	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "An Exception changed: this Plan needs a new Plan Proposal.") {
+		t.Errorf("Plan page does not say the Plan needs a new Plan Proposal:\n%s", page)
 	}
-	// Under htmx, the row alone: the Slot as it stands, saying why.
-	res = h.HTMXPostForm(t, snack.Action, snack.Values)
-	if res.StatusCode != http.StatusConflict || !isRow(res.Body) || !strings.Contains(text(res.Body), "snack Meal Out · 900 kcal") || !strings.Contains(text(res.Body), "That Slot is past") {
-		t.Fatalf("HTMX change a past Slot = %d, want 409 and its row saying why:\n%s", res.StatusCode, res.Body)
+	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "Note: An Exception changed: dinner on Fri 6 Nov is now from the Plan.") {
+		t.Errorf("the pending Plan Proposal was not rejected with a note:\n%s", page)
 	}
-	if page := text(h.Get(t, exceptions).Body); !strings.Contains(page, "snack Meal Out") {
-		t.Errorf("a past Exception was changed:\n%s", page)
+}
+
+func TestASlotNoLongerInTheCycleIsNotLogged(t *testing.T) {
+	h, _ := startPlanning(t)
+	exceptions := openCycle(t, h, "2026-11-02", "").Path
+	breakfast := apptest.Form(t, h.Get(t, exceptions).Body, "exception-2026-11-02-breakfast")
+	breakfast.Values.Set("exception", "skipped")
+	changeDelivery(t, h, map[string]string{"delivery_on": "2026-11-04"})
+
+	res := h.PostForm(t, breakfast.Action, breakfast.Values)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "That Slot is no longer one of this Cycle's") {
+		t.Fatalf("log a Slot the Cycle no longer holds = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	res = h.HTMXPostForm(t, breakfast.Action, breakfast.Values)
+	if res.StatusCode != http.StatusConflict || !isRow(res.Body) || strings.Contains(res.Body, "<form") || !strings.Contains(text(res.Body), "That Slot is no longer one of this Cycle's") {
+		t.Fatalf("HTMX log a Slot the Cycle no longer holds = %d, want 409 and its row, without a form, saying why:\n%s", res.StatusCode, res.Body)
+	}
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Exceptions between Cycles") {
+		t.Errorf("a refused Exception was logged:\n%s", page)
+	}
+}
+
+func TestAClosedCyclesSlotIsCorrectedAndTheCurrentPlanReplanned(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	today.set(t, "2026-11-04")
+	openCycle(t, h, "2026-11-07", "")
+	approvePlan(t, h, `{"prep_sessions": []}`)
+	// Saturday's Delivery arrived, closing the Cycle that holds Friday.
+	today.setAt(t, "2026-11-07 09:00")
+
+	previous := apptest.Link(t, h.Get(t, "/plan").Body, "Exceptions of the previous Cycle")
+	res := logException(t, h, previous, "2026-11-06", "dinner", map[string]string{"exception": "skipped"}, false)
+	if res.StatusCode != http.StatusOK || !strings.Contains(text(res.Body), "dinner skipped") {
+		t.Fatalf("correct a closed Cycle's Slot = %d, want its Exceptions page showing it:\n%s", res.StatusCode, text(res.Body))
+	}
+	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "An Exception changed: this Plan needs a new Plan Proposal.") {
+		t.Errorf("the current Plan does not need a new Plan Proposal:\n%s", page)
 	}
 }
 

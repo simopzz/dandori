@@ -49,6 +49,12 @@ func loadLatestCycle(ctx context.Context, q db.Querier) (*Cycle, error) {
 	return scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle ORDER BY delivery_on DESC LIMIT 1`))
 }
 
+// loadPreviousCycle loads the closed Cycle delivered last, or nil when
+// none has closed.
+func loadPreviousCycle(ctx context.Context, q db.Querier) (*Cycle, error) {
+	return scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE status = 'closed' ORDER BY delivery_on DESC LIMIT 1`))
+}
+
 // loadCycleWith loads the Cycle with status upcoming or current, or nil
 // when none has it.
 func loadCycleWith(ctx context.Context, q db.Querier, status string) (*Cycle, error) {
