@@ -40,6 +40,7 @@ func (l Loop) Run(ctx context.Context, job Job, tr Trace) error {
 		System:   job.System,
 		Messages: []Message{{Role: RoleUser, Content: []Block{{Type: BlockText, Text: job.Prompt}}}},
 		Tools:    specs,
+		Effort:   job.Effort,
 	}
 
 	for turn := 1; ; turn++ {
@@ -55,6 +56,10 @@ func (l Loop) Run(ctx context.Context, job Job, tr Trace) error {
 		resp, err := l.send(ctx, req, tr)
 		if err != nil {
 			return err
+		}
+		if resp.Usage != (Usage{}) {
+			// Fakes report none.
+			tr.Emit(Event{Kind: EventTokens, Summary: resp.Usage.describe()})
 		}
 		req.Messages = append(req.Messages, Message{Role: RoleAssistant, Content: resp.Content})
 		for _, b := range resp.Content {
@@ -76,7 +81,7 @@ func (l Loop) Run(ctx context.Context, job Job, tr Trace) error {
 			}
 			req.Messages = append(req.Messages, Message{Role: RoleUser, Content: results})
 		case StopMaxTokens:
-			return errors.New("the model's answer was cut off at its token limit")
+			return outOfTokens(resp.Content)
 		case StopRefusal:
 			return errors.New("the model declined to continue")
 		default:
@@ -151,4 +156,20 @@ func runTools(ctx context.Context, tools map[string]Tool, calls []Block, tr Trac
 		results = append(results, result)
 	}
 	return results, nil
+}
+
+// outOfTokens is why a Run fails when the model used its whole token
+// budget: it says so when the budget went on thinking, as nothing was
+// then cut off.
+func outOfTokens(content []Block) error {
+	for _, b := range content {
+		if b.Type != BlockOther {
+			return errors.New("the model ran out of its token budget before it finished")
+		}
+	}
+	return errors.New("the model ran out of its token budget while thinking")
+}
+
+func (u Usage) describe() string {
+	return fmt.Sprintf("%d in, %d out, %d of them thinking", u.InputTokens, u.OutputTokens, u.ThinkingTokens)
 }

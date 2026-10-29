@@ -169,6 +169,9 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, notes []string) agent.J
 	return agent.Job{
 		System: fmt.Sprintf(plannerSystem, s.language.Name(), s.attempts),
 		Prompt: strings.TrimSpace(prompt.String()),
+		// The Plan is long and thinking shares its token budget: at the
+		// default effort the model can think the whole budget away.
+		Effort: "medium",
 		Tools: []agent.Tool{
 			s.profile.Tool(),
 			s.ExceptionsTool(),

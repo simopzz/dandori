@@ -10,6 +10,8 @@ const (
 	EventToolCall   EventKind = "tool_call"
 	EventToolResult EventKind = "tool_result"
 	EventRetry      EventKind = "retry"
+	// EventTokens is the tokens one model turn used.
+	EventTokens EventKind = "tokens"
 	// EventStoreAction is one action on the supermarket, such as looking
 	// up a product.
 	EventStoreAction EventKind = "store_action"

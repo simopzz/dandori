@@ -135,7 +135,7 @@ The ordered Trace Events of one Run, kept with the Run after it ends.
 _Avoid_: Log, history
 
 **Trace Event**:
-One recorded step of a Run: a model message, a tool call or its result, a store action, a throttle wait, a retry or an error.
+One recorded step of a Run: a model message, a tool call or its result, a store action, a throttle wait, a retry, the tokens a model turn used or an error.
 _Avoid_: Log entry, step
 
 ## Rules of the model

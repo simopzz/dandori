@@ -11,6 +11,11 @@ type Job struct {
 	System string
 	Prompt string
 	Tools  []Tool
+	// Effort is how hard the model thinks for this Job (low, medium, high...).
+	// Thinking spends the same token budget as the answer, so a Job whose
+	// answer is long keeps it low enough to leave room. Empty leaves it to
+	// the model's default.
+	Effort string
 	// Start, when set, runs before the model is first asked, such as a
 	// check that the store session is logged in. An error fails the Run.
 	Start func(ctx context.Context, tr Trace) error

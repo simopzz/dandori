@@ -12,7 +12,7 @@ Tests sit at two seams. Issues name them in their acceptance criteria. An adapte
 
 ## Adapters
 
-`internal/embedding/voyage/voyage_test.go`. The Voyage adapter against a local fake of Voyage's embeddings endpoint (`httptest`), which enforces Voyage's request limits: it checks the adapter splits what it embeds into requests within them and puts the vectors back in order.
+`internal/embedding/voyage/voyage_test.go`. The Voyage adapter against a local fake of Voyage's embeddings endpoint (`httptest`), which enforces Voyage's request limits: it checks the adapter splits what it embeds into requests within them and puts the vectors back in order. `internal/agent/anthropic/anthropic_test.go`: the Claude adapter against a local fake of the Messages endpoint: it checks a Job's effort is sent only when set, and the tokens a turn used come back, thinking included.
 
 ## Not in the suite
 
