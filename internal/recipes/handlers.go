@@ -102,7 +102,7 @@ func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, f, _ := readRecipeForm(recipeFormValues(draft, known), known)
-	templ.Handler(RecipeFormPage(draftForm(id, f))).ServeHTTP(w, r)
+	templ.Handler(RecipeFormPage(draftForm(id, h.suggest(r.Context(), f)))).ServeHTTP(w, r)
 }
 
 func (h Handlers) showDraftPending(w http.ResponseWriter, r *http.Request, id int64) {
@@ -205,7 +205,7 @@ func (h Handlers) ShowPlannedDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, f, _ := readRecipeForm(recipeFormValues(draft, known), known)
-	templ.Handler(RecipeFormPage(plannedDraftForm(proposal, id, f))).ServeHTTP(w, r)
+	templ.Handler(RecipeFormPage(plannedDraftForm(proposal, id, h.suggest(r.Context(), f)))).ServeHTTP(w, r)
 }
 
 // AcceptPlannedDraft saves a Recipe Draft the planner drafted, as the user
@@ -274,7 +274,7 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, f, _ := readRecipeForm(recipeFormValues(rec.Recipe, known), known)
-	templ.Handler(RecipeFormPage(editForm(rec.ID, f))).ServeHTTP(w, r)
+	templ.Handler(RecipeFormPage(editForm(rec.ID, h.suggest(r.Context(), f)))).ServeHTTP(w, r)
 }
 
 func editForm(id int64, f RecipeForm) RecipeForm {
@@ -342,7 +342,7 @@ func (h Handlers) submitThen(w http.ResponseWriter, r *http.Request,
 	}
 	rec, f, ok := readRecipeForm(r.PostForm, known)
 	if !ok {
-		templ.Handler(RecipeFormPage(frame(f)), templ.WithStatus(http.StatusUnprocessableEntity)).ServeHTTP(w, r)
+		templ.Handler(RecipeFormPage(frame(h.suggest(r.Context(), f))), templ.WithStatus(http.StatusUnprocessableEntity)).ServeHTTP(w, r)
 		return
 	}
 	id, err := save(r.Context(), rec)
@@ -358,6 +358,26 @@ func (h Handlers) submitThen(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	http.Redirect(w, r, then(id), http.StatusSeeOther)
+}
+
+// suggest offers each new Ingredient of f the known one its name was most
+// likely meant to be. A Matcher that fails offers nothing, since the form
+// works without suggestions.
+func (h Handlers) suggest(ctx context.Context, f RecipeForm) RecipeForm {
+	for i, row := range f.Ingredients {
+		if !row.New || row.Name == "" {
+			continue
+		}
+		closest, ok, err := h.Service.ClosestIngredient(ctx, row.Name, f.Known)
+		if err != nil {
+			h.Log.Warn("match ingredient", "name", row.Name, "err", err)
+			continue
+		}
+		if ok {
+			f.Ingredients[i].Suggestion = closest
+		}
+	}
+	return f
 }
 
 // recipeFromPath loads the Recipe the path names, answering 404 if there

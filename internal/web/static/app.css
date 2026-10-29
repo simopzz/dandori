@@ -537,7 +537,10 @@ a.row-title:hover { text-decoration: underline; }
 
 .ingredient-row .known { grid-column: span 4; align-self: center; font-size: 0.85rem; color: var(--color-text-soft); }
 
-.ingredient-row .ingredient-error { grid-column: 2 / -1; }
+.ingredient-row .ingredient-error,
+.ingredient-row .ingredient-suggestion { grid-column: 2 / -1; }
+
+.ingredient-suggestion { margin-top: var(--space-2); }
 
 .cell-label {
   position: absolute;
@@ -560,7 +563,8 @@ a.row-title:hover { text-decoration: underline; }
   .ingredient-row > :nth-child(4),
   .ingredient-row > :nth-child(5) { grid-column: span 2; }
 
-  .ingredient-row .ingredient-error { grid-column: 1 / -1; }
+  .ingredient-row .ingredient-error,
+  .ingredient-row .ingredient-suggestion { grid-column: 1 / -1; }
 
   .cell-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 }

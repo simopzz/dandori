@@ -3,8 +3,11 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/html"
 
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/app"
@@ -274,6 +277,177 @@ func TestParsedIngredientsAreMatchedToKnownIngredients(t *testing.T) {
 	// (300×1.1 + 2.4×120) / 2 = (330 + 288) / 2 = 309 kcal: the known 110 kcal per 100 g.
 	if recipe := text(saved.Body); !strings.Contains(recipe, "Per Portion 309 kcal") {
 		t.Errorf("accepted Recipe does not use the known chicken breast:\n%s", recipe)
+	}
+}
+
+// offered is what the input named field offers as you type: the options of
+// the datalist it lists from.
+func offered(t *testing.T, page, field string) []string {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	attr := func(n *html.Node, key string) string {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return a.Val
+			}
+		}
+		return ""
+	}
+	var list string
+	for n := range doc.Descendants() {
+		if n.Type == html.ElementNode && n.Data == "input" && attr(n, "name") == field {
+			list = attr(n, "list")
+		}
+	}
+	var options []string
+	for n := range doc.Descendants() {
+		if n.Type != html.ElementNode || n.Data != "datalist" || list == "" || attr(n, "id") != list {
+			continue
+		}
+		for o := range n.Descendants() {
+			if o.Type == html.ElementNode && o.Data == "option" {
+				options = append(options, attr(o, "value"))
+			}
+		}
+	}
+	return options
+}
+
+func TestIngredientNameOffersTheKnownIngredients(t *testing.T) {
+	h, llm := startRecipes(t)
+	acceptFirstRecipe(t, h, llm)
+	llm.Script(fakellm.CallTool("submit_recipe", chickpeaCurryParsed()), fakellm.Reply("Parsed."))
+	draft := parse(t, h, chickpeaCurry)
+
+	got := offered(t, draft.Body, "ing_name_1")
+	slices.Sort(got)
+	if want := []string{"basmati rice", "chicken breast", "lemon", "olive oil"}; !slices.Equal(got, want) {
+		t.Errorf("Ingredient name offers %q, want the known Ingredients %q", got, want)
+	}
+}
+
+// editFirstRecipe accepts pastedRecipe and opens it to edit.
+func editFirstRecipe(t *testing.T, h *apptest.Harness, llm *fakellm.LLM) apptest.FormData {
+	t.Helper()
+	acceptFirstRecipe(t, h, llm)
+	return apptest.Form(t, h.Get(t, recipeNamed(t, h, "Lemon chicken with rice")+"/edit").Body, "recipe")
+}
+
+func TestMistypedIngredientIsOfferedTheKnownOneItMeant(t *testing.T) {
+	h, llm := startRecipes(t)
+	form := editFirstRecipe(t, h, llm)
+
+	form.Values.Set("ing_name_0", "chiken breast")
+	form.Values.Set("ing_name_1", "farro")
+	res := h.PostForm(t, form.Action, form.Values)
+	if res.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("save = %d, want 422 checking the new Ingredients:\n%s", res.StatusCode, text(res.Body))
+	}
+	shown := text(res.Body)
+	if !strings.Contains(shown, "Did you mean chicken breast?") {
+		t.Errorf("the mistyped chicken breast is not offered the known one:\n%s", shown)
+	}
+	if n := strings.Count(shown, "Did you mean"); n != 1 {
+		t.Errorf("%d Ingredients are offered a known one, want only the mistyped chicken breast:\n%s", n, shown)
+	}
+	// Enter in a field submits through the form's first submit button: it
+	// must save the Recipe, not take the suggestion.
+	if name := defaultSubmitName(t, res.Body, "recipe"); name != "" {
+		t.Errorf("Enter in the form submits %q, want the Recipe submitted as typed", name)
+	}
+}
+
+// defaultSubmitName is the name of the submit button that Enter in a field
+// of the form with id presses: its first one.
+func defaultSubmitName(t *testing.T, page, id string) string {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	attr := func(n *html.Node, key string) (string, bool) {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return a.Val, true
+			}
+		}
+		return "", false
+	}
+	for n := range doc.Descendants() {
+		if n.Type != html.ElementNode || n.Data != "form" {
+			continue
+		}
+		if formID, _ := attr(n, "id"); formID != id {
+			continue
+		}
+		for b := range n.Descendants() {
+			if b.Type != html.ElementNode || b.Data != "button" {
+				continue
+			}
+			if typ, set := attr(b, "type"); set && typ != "submit" {
+				continue
+			}
+			name, _ := attr(b, "name")
+			return name
+		}
+	}
+	t.Fatalf("form %q has no submit button", id)
+	return ""
+}
+
+// mistypeChicken saves the first Recipe's edit form with its chicken breast
+// mistyped, returning the form shown back offering the known one.
+func mistypeChicken(t *testing.T, h *apptest.Harness, llm *fakellm.LLM) apptest.Response {
+	t.Helper()
+	form := editFirstRecipe(t, h, llm)
+	form.Values.Set("ing_name_0", "chiken breast")
+	res := h.PostForm(t, form.Action, form.Values)
+	if !strings.Contains(text(res.Body), "Did you mean chicken breast?") {
+		t.Fatalf("save = %d, want the known chicken breast offered:\n%s", res.StatusCode, text(res.Body))
+	}
+	return res
+}
+
+func TestAcceptedSuggestionIsTheKnownIngredient(t *testing.T) {
+	h, llm := startRecipes(t)
+	offered := mistypeChicken(t, h, llm)
+
+	form := apptest.Form(t, offered.Body, "recipe")
+	form.Values.Set("ing_accept_0", "chicken breast")
+	res := h.PostForm(t, form.Action, form.Values)
+	shown := text(res.Body)
+	if res.StatusCode != http.StatusUnprocessableEntity || strings.Contains(shown, "changed between known and new") || strings.Contains(shown, "was not saved") {
+		t.Fatalf("accept suggestion = %d, want the form shown back with no problems:\n%s", res.StatusCode, shown)
+	}
+	accepted := apptest.Form(t, res.Body, "recipe")
+	if accepted.Get("ing_name_0") != "chicken breast" || accepted.Get("ing_new_0") != "false" || accepted.Values.Has("ing_kcal_0") {
+		t.Errorf("row is not the known chicken breast: name = %q, new = %q", accepted.Get("ing_name_0"), accepted.Get("ing_new_0"))
+	}
+
+	saved := h.PostForm(t, accepted.Action, accepted.Values)
+	if saved.StatusCode != http.StatusOK || !strings.Contains(text(saved.Body), "600 g chicken breast") || !strings.Contains(text(saved.Body), "Per Portion 589 kcal") {
+		t.Errorf("Recipe with the accepted Ingredient = %d, want it saved with the known chicken breast:\n%s", saved.StatusCode, text(saved.Body))
+	}
+}
+
+func TestIgnoredSuggestionKeepsTheNewIngredient(t *testing.T) {
+	h, llm := startRecipes(t)
+	offered := mistypeChicken(t, h, llm)
+
+	form := apptest.Form(t, offered.Body, "recipe")
+	for field, v := range map[string]string{"kcal": "100", "protein_g": "20", "carbs_g": "0", "fat_g": "2"} {
+		form.Values.Set("ing_"+field+"_0", v)
+	}
+	saved := h.PostForm(t, form.Action, form.Values)
+	if saved.StatusCode != http.StatusOK || !strings.Contains(text(saved.Body), "600 g chiken breast") {
+		t.Fatalf("Recipe keeping the new Ingredient = %d, want it saved as typed:\n%s", saved.StatusCode, text(saved.Body))
+	}
+	// (600×1.0 + 840 + 246 + 20) / 3 = 568.67: the new Ingredient's 100 kcal per 100 g.
+	if recipe := text(saved.Body); !strings.Contains(recipe, "Per Portion 569 kcal") {
+		t.Errorf("saved Recipe does not use the new Ingredient's values:\n%s", recipe)
 	}
 }
 

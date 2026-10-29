@@ -89,10 +89,16 @@ type RecipeForm struct {
 	// Rematched means an Ingredient turned from known to new or back since
 	// the form was shown, so it must be checked again.
 	Rematched bool
+	// Accepted means the user took a suggested known Ingredient in place of
+	// a new one, so the form is shown back with it rather than saved.
+	Accepted bool
 	// Failed means the Recipe was valid but could not be stored.
 	Failed bool
 	// PerPortion is shown when the Recipe as it stands is valid.
 	PerPortion *PortionNutrition
+	// Known is every known Ingredient's name, offered as an Ingredient's
+	// name is typed.
+	Known []string
 }
 
 // IngredientRow is one Ingredient line of a RecipeForm. A known Ingredient
@@ -106,6 +112,9 @@ type IngredientRow struct {
 	CarbsG   string
 	FatG     string
 	New      bool
+	// Suggestion is the known Ingredient a new one's name was most likely
+	// meant to be, offered in its place.
+	Suggestion string
 }
 
 // DraftPending is a draft whose parse Run has not produced a Recipe: still
@@ -113,6 +122,20 @@ type IngredientRow struct {
 type DraftPending struct {
 	Run  runs.Run
 	Page string // the draft's own page, fetched again once the Run ends
+}
+
+// knownIngredients is the id of the list an Ingredient name is offered
+// from.
+const knownIngredients = "known-ingredients"
+
+// Suggests reports whether any Ingredient of f is offered a known one.
+func (f RecipeForm) Suggests() bool {
+	for _, row := range f.Ingredients {
+		if row.Suggestion != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func ingField(name string, i int) string { return fmt.Sprintf("ing_%s_%d", name, i) }
@@ -320,6 +343,11 @@ templ RecipeFormPage(f RecipeForm) {
 	@web.Layout("Dandori — "+f.Title, web.TabRecipes) {
 		@web.PageHeader("レシピ", f.Title)
 		<form id="recipe" method="post" action={ templ.SafeURL(f.Action) }>
+			if f.Suggests() {
+				// Enter in a field presses the form's first submit button,
+				// which would otherwise be a suggestion's.
+				<button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">{ f.Submit }</button>
+			}
 			if f.Failed {
 				@web.Alert() {
 					The Recipe could not be saved; try again. Details are in the server log.
@@ -376,6 +404,11 @@ templ RecipeFormPage(f RecipeForm) {
 						}
 					</div>
 				</div>
+				<datalist id={ knownIngredients }>
+					for _, name := range f.Known {
+						<option value={ name }></option>
+					}
+				</datalist>
 				<template id="ingredients-template">
 					@ingredientRow(RecipeForm{}, 0, IngredientRow{Unit: "g", New: true})
 				</template>
@@ -432,7 +465,18 @@ templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
 				}
 			}
 		</span>
-		@rowInput(f, ingField("name", i), "Ingredient", row.Name, false)
+		@web.CellField("Ingredient", f.Errors[ingField("name", i)]) {
+			<input
+				type="text"
+				name={ ingField("name", i) }
+				value={ row.Name }
+				list={ knownIngredients }
+				autocomplete="off"
+				if f.Errors[ingField("name", i)] != "" {
+					aria-invalid="true"
+				}
+			/>
+		}
 		@rowInput(f, ingField("quantity", i), "Quantity", row.Quantity, true)
 		if row.New {
 			@web.CellField("Unit", f.Errors[ingField("unit", i)]) {
@@ -450,6 +494,17 @@ templ ingredientRow(f RecipeForm, i int, row IngredientRow) {
 				<span class="ingredient-error">
 					@web.FieldError(msg)
 				</span>
+			}
+			if row.Suggestion != "" {
+				<div class="ingredient-suggestion">
+					Did you mean { row.Suggestion }?
+					@web.TextButton(templ.Attributes{"type": "submit", "name": ingField("accept", i), "value": row.Suggestion, "formnovalidate": true}) {
+						Use { row.Suggestion }
+					}
+					@web.Hint() {
+						Or keep { row.Name } as a new Ingredient by checking its values.
+					}
+				</div>
 			}
 		} else {
 			<span class="unit">
