@@ -113,7 +113,11 @@ func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int6
 	if err != nil {
 		return 0, err
 	}
-	run, err := s.runs.Start(ctx, planningKind, s.planningJob(*c, from, notes))
+	brief, err := s.profile.Brief(ctx)
+	if err != nil {
+		return 0, err
+	}
+	run, err := s.runs.Start(ctx, planningKind, s.planningJob(*c, from, brief, notes))
 	if err != nil {
 		return 0, err
 	}
@@ -149,15 +153,19 @@ Write every food term in %[1]s.
 
 Read the Profile, the Exceptions, the kitchen, the Recipe Library and the Known Catalog with your tools, then call submit_plan once with the whole Plan. If it breaks rules, you are told which: fix them and submit again. After %[2]d Plans that break rules the Run fails. Once a Plan is stored, end your turn with a short summary of it for the user.`
 
-// planningJob is the planning Run of c from the Slot from on, told notes,
-// why the user rejected earlier Plan Proposals for it, newest first.
-func (s *Service) planningJob(c Cycle, from domain.Slot, notes []string) agent.Job {
+// planningJob is the planning Run of c from the Slot from on, told the
+// Planning Brief and notes, why the user rejected earlier Plan Proposals
+// for it, newest first.
+func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []string) agent.Job {
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt, "Plan the Cycle delivered on %s. Its Slots run from %s to %s.\n",
 		describeDelivery(c.Delivery, longDate), c.Start, lastSlot(c.Cycle))
 	fmt.Fprintf(&prompt, "Plan every Slot from %s on. Today is %s.\n", from, s.today().Format(longDate))
 	fmt.Fprintf(&prompt, "Its trailing seven days reach from %s to %s: list the Exceptions over those days.\n",
 		c.Start.On.AddDate(0, 0, -6).Format(dateLayout), c.LastDay().Format(dateLayout))
+	if brief != "" {
+		fmt.Fprintf(&prompt, "\nThe user's Planning Brief, their lasting wishes for how their meals are planned. Follow it as far as the rules of the Plan allow; where one of this Cycle's notes disagrees with it, the note wins:\n%s\n", brief)
+	}
 	if len(notes) > 0 {
 		prompt.WriteString("\nThe user rejected earlier Plan Proposals for this Cycle with these notes, newest first. Take them into account; where two disagree, the newer one wins:\n")
 		for _, n := range notes {
