@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -661,5 +662,64 @@ func loadNotes(ctx context.Context, q db.Querier, id int64) ([]string, error) {
 // with id, submitted by the planning Run with run.
 func insertProposal(ctx context.Context, q db.Querier, id, run int64, plan []byte) error {
 	_, err := q.Exec(ctx, `INSERT INTO plan_proposal (cycle_id, origin, plan, run_id) VALUES ($1, 'initial', $2, $3)`, id, plan, run)
+	return err
+}
+
+// groceryListFixed reports whether the Grocery List of the Cycle with id is
+// fixed, its lines stored.
+func groceryListFixed(ctx context.Context, q db.Querier, id int64) (bool, error) {
+	var fixed bool
+	err := q.QueryRow(ctx, `SELECT grocery_list_fixed FROM cycle WHERE id = $1`, id).Scan(&fixed)
+	return fixed, err
+}
+
+// loadGroceryList loads the Grocery List fixed for the Cycle with id, by
+// Ingredient name.
+func loadGroceryList(ctx context.Context, q db.Querier, id int64) (domain.GroceryList, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT g.needed, g.product_code, g.product_name, g.pack_quantity, g.aisle, g.proposed, g.packs, `+ingredientColumns+`
+		FROM grocery_line g JOIN ingredient i ON i.id = g.ingredient_id
+		WHERE g.cycle_id = $1 ORDER BY i.name`, id)
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.GroceryLine, error) {
+		var l domain.GroceryLine
+		var code, name, aisle *string
+		var pack *float64
+		var proposed *bool
+		var packs *int
+		err := row.Scan(append([]any{&l.Needed, &code, &name, &pack, &aisle, &proposed, &packs}, ingredientFields(&l.Ingredient)...)...)
+		if code != nil {
+			l.Mapping = &domain.ProductMapping{
+				Product:  domain.CatalogProduct{Code: *code, Name: *name, PackQuantity: *pack, Unit: l.Ingredient.Unit, Aisle: *aisle},
+				Proposed: *proposed,
+			}
+			l.Packs = *packs
+		}
+		return l, err
+	})
+}
+
+// storeGroceryList stores list as the fixed Grocery List of the Cycle with
+// id.
+func storeGroceryList(ctx context.Context, q db.Querier, id int64, list domain.GroceryList) error {
+	for _, l := range list {
+		var code, name, aisle *string
+		var pack *float64
+		var proposed *bool
+		var packs *int
+		if m := l.Mapping; m != nil {
+			code, name, pack, aisle, proposed, packs = &m.Product.Code, &m.Product.Name, &m.Product.PackQuantity, &m.Product.Aisle, &m.Proposed, &l.Packs
+		}
+		tag, err := q.Exec(ctx, `
+			INSERT INTO grocery_line (cycle_id, ingredient_id, needed, product_code, product_name, pack_quantity, aisle, proposed, packs)
+			SELECT $1, id, $3, $4, $5, $6, $7, $8, $9 FROM ingredient WHERE name = $2`,
+			id, l.Ingredient.Name, l.Needed, code, name, pack, aisle, proposed, packs)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return fmt.Errorf("grocery list of cycle %d: no ingredient %q", id, l.Ingredient.Name)
+		}
+	}
+	_, err := q.Exec(ctx, `UPDATE cycle SET grocery_list_fixed = true WHERE id = $1`, id)
 	return err
 }

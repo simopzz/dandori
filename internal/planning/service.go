@@ -58,6 +58,10 @@ var ErrNotUpcoming = errors.New("cycle is not upcoming")
 // longer be dropped.
 var ErrDeliveryOrdered = errors.New("delivery already ordered")
 
+// ErrNoPlanToOrder means the Cycle has no Plan yet, so its Delivery can't
+// be marked ordered: ordering fixes the Grocery List the Plan makes.
+var ErrNoPlanToOrder = errors.New("cycle has no plan to order for")
+
 // InvalidError means a Cycle breaks the domain rules. Fields is what is
 // wrong, keyed by field name as domain.Cycle.Validate gives it.
 type InvalidError struct{ Fields map[string]string }
@@ -186,9 +190,10 @@ func (s *Service) today() time.Time { return domain.DayOf(s.now()) }
 var snapshot = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
 
 // Arrive takes the upcoming Cycle's Delivery as arrived once its window has
-// ended: the Cycle becomes current, and the current one closes, early if
-// it hadn't ended, carrying what is left over as Portions without a Slot
-// and rejecting its pending Plan Proposals. Every use case calls it first,
+// ended: the Cycle becomes current, everything on its Grocery List becomes
+// Stock Items, and the current one closes, early if it hadn't ended,
+// carrying what is left over as Portions without a Slot and rejecting its
+// pending Plan Proposals. Every use case calls it first,
 // so what it shows and changes is as of now.
 func (s *Service) Arrive(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -217,6 +222,13 @@ func (s *Service) Arrive(ctx context.Context) error {
 			if err := closeCycle(ctx, tx, current.ID, arrival, note); err != nil {
 				return err
 			}
+		}
+		list, err := s.fixGroceryList(ctx, tx, *upcoming)
+		if err != nil {
+			return err
+		}
+		if err := s.stock.Receive(ctx, tx, list.StockItems()); err != nil {
+			return err
 		}
 		return setStatus(ctx, tx, upcoming.ID, "current")
 	})
@@ -349,7 +361,8 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 }
 
 // ChangeDelivery changes the Delivery of the upcoming Cycle with id to d,
-// keeping it ordered once it was. A move shifts the Cycle's first Slot,
+// keeping it ordered once it was; marking it ordered, once the Cycle has
+// a Plan, fixes its Grocery List. A move shifts the Cycle's first Slot,
 // and its end date when the Delivery is later; it drops what the Plan has
 // outside the moved Cycle, rejects its pending Plan Proposals and marks
 // its Plan as needing a new one; so too the current Cycle's Plan, if it no
@@ -369,13 +382,34 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 		if upcoming == nil || upcoming.ID != id {
 			return ErrNotUpcoming
 		}
+		ordering := d.Ordered && !upcoming.Delivery.Ordered
+		if ordering {
+			planned, err := hasPlan(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			if !planned {
+				return ErrNoPlanToOrder
+			}
+		}
 		d.Ordered = d.Ordered || upcoming.Delivery.Ordered
 		moved, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return upcoming.MovedTo(d, times) })
 		if err != nil {
 			return err
 		}
+		// Ordering fixes the Grocery List of the Cycle as it is moved.
+		fixGroceries := func() error {
+			if !ordering {
+				return nil
+			}
+			_, err := s.fixGroceryList(ctx, tx, Cycle{ID: id, Cycle: moved})
+			return err
+		}
 		if d.On.Equal(upcoming.Delivery.On) && d.From == upcoming.Delivery.From && d.To == upcoming.Delivery.To {
-			return updateDelivery(ctx, tx, id, moved)
+			if err := updateDelivery(ctx, tx, id, moved); err != nil {
+				return err
+			}
+			return fixGroceries()
 		}
 		current, err := loadCycleWith(ctx, tx, "current")
 		if err != nil {
@@ -396,6 +430,9 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 			return err
 		}
 		if err := moveCycle(ctx, tx, id, moved, "Its Delivery moved to "+describeDelivery(d, shortDate)+"."); err != nil {
+			return err
+		}
+		if err := fixGroceries(); err != nil {
 			return err
 		}
 		if flagCurrent {

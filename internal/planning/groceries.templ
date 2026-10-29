@@ -1,0 +1,98 @@
+package planning
+
+import "github.com/simopzz/dandori/internal/web"
+
+// GroceriesPage is a Cycle's Grocery List, its lines grouped by aisle.
+type GroceriesPage struct {
+	Title string // e.g. "For the Cycle delivered Mon 2 Nov 2026"
+	// FixedBecause says why the list no longer follows the Plan, e.g. "Fixed
+	// when its Delivery was marked ordered."; empty while it does.
+	FixedBecause string
+	// EmptyBecause says why there is nothing to buy, when there isn't.
+	EmptyBecause string
+	// AnyProposed is whether a line uses a Product Mapping the agent
+	// proposed and the user hasn't saved.
+	AnyProposed bool
+	Aisles []GroceryAisle
+}
+
+// GroceryAisle is the lines of one aisle, or of the Ingredients with no
+// Product Mapping.
+type GroceryAisle struct {
+	Title    string
+	Unmapped bool
+	Lines    []GroceryRow
+}
+
+// GroceryRow is one Ingredient on the Grocery List.
+type GroceryRow struct {
+	Ingredient string
+	Needed     string // e.g. "600 g needed"
+	Bought     string // e.g. "640 g bought"; empty with no Product Mapping
+	Packs      string // e.g. "2 × Fileni Petto di Pollo a Fette 320 g"
+	Proposed   bool
+}
+
+templ GroceriesView(p GroceriesPage) {
+	@web.Layout("Dandori — Grocery List", web.TabPlan) {
+		@web.PageHeader("買物", "Grocery List") {
+			<p class="lede">{ p.Title }</p>
+		}
+		if p.FixedBecause != "" {
+			@web.Notice() {
+				{ p.FixedBecause }
+			}
+		}
+		if p.AnyProposed {
+			@web.Hint() {
+				Lines marked proposed use a Product Mapping the agent proposed: check it and save it on the <a href="/catalog">Known Catalog</a>.
+			}
+		}
+		if p.EmptyBecause != "" {
+			@web.Section(1, "Grocery List") {
+				@web.Empty() {
+					Nothing to buy.
+				}
+				@web.Hint() {
+					{ p.EmptyBecause }
+				}
+			}
+		}
+		for i, a := range p.Aisles {
+			@web.Section(i+1, a.Title) {
+				if a.Unmapped {
+					@web.Hint() {
+						These Ingredients have no Product Mapping: map them on the <a href="/catalog">Known Catalog</a> before Cart Fill.
+					}
+				}
+				@web.Rows() {
+					for _, l := range a.Lines {
+						@web.Row() {
+							<span class="row-title">{ l.Ingredient }</span>
+							<span class="row-figure">
+								{ l.Needed }
+								if l.Bought != "" {
+									· { l.Bought }
+								}
+							</span>
+							if l.Packs != "" {
+								<span class="row-meta">
+									{ l.Packs }
+									if l.Proposed {
+										@web.Tag(false, "") {
+											proposed
+										}
+									}
+								</span>
+							} else {
+								@web.Tag(true, "") {
+									! no Product Mapping
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

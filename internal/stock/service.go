@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 )
 
@@ -54,9 +55,39 @@ func New(pool *pgxpool.Pool, today func() time.Time, arrive func(context.Context
 }
 
 // Items loads every Stock Item, by Ingredient name, with its Ingredient's
-// name and unit.
+// name and unit, once a Delivery whose window has ended has brought its
+// Grocery List in.
 func (s *Service) Items(ctx context.Context) ([]Item, error) {
+	if err := s.arrive(ctx); err != nil {
+		return nil, err
+	}
 	return loadItems(ctx, s.pool)
+}
+
+// ItemsIn loads every Stock Item through q, so a caller's transaction can
+// read them with what else it reads. Unlike Items, it takes no Delivery as
+// arrived first: Arrive itself reads them.
+func (s *Service) ItemsIn(ctx context.Context, q db.Querier) ([]domain.StockItem, error) {
+	items, err := loadItems(ctx, q)
+	stock := make([]domain.StockItem, len(items))
+	for i, it := range items {
+		stock[i] = it.StockItem
+	}
+	return stock, err
+}
+
+// Receive records items, what a Delivery brought, through q, in a caller's
+// transaction.
+func (s *Service) Receive(ctx context.Context, q db.Querier, items []domain.StockItem) error {
+	for _, item := range items {
+		if err := validate(item); err != nil {
+			return err
+		}
+		if err := insertItem(ctx, q, item); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Ingredients loads the name and unit of every known Ingredient, by name:
