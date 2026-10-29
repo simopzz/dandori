@@ -12,8 +12,8 @@ import (
 )
 
 // proposedPlan is a Plan as a Plan Proposal stores it, the shape the
-// planner submits: Recipes by id, Ingredients by name, dates as
-// YYYY-MM-DD.
+// planner submits: Recipes by id, Recipe Drafts by draft id, Ingredients
+// by name, dates as YYYY-MM-DD.
 type proposedPlan struct {
 	// From is the first Slot the Plan Proposal replaces; the Cycle's first
 	// when it is absent, as for the initial Plan.
@@ -42,6 +42,9 @@ type proposedPrepSession struct {
 	On       string          `json:"on"`
 	Kind     domain.SlotKind `json:"kind"`
 	RecipeID *int64          `json:"recipe_id"`
+	// DraftID is the planner's Recipe Draft it prepares, when it isn't yet
+	// in the Recipe Library.
+	DraftID *int64 `json:"draft_id"`
 	// Ingredients are set out as they are, when there is no Recipe.
 	Ingredients []struct {
 		Name     string  `json:"name"`
@@ -70,7 +73,7 @@ type proposedKept struct {
 }
 
 // UnreadableError means a Plan Proposal's Plan isn't one Dandori can read:
-// a bad date, an unknown Recipe or Ingredient.
+// a bad date, an unknown Recipe, Recipe Draft or Ingredient.
 type UnreadableError struct{ Reason string }
 
 func (e *UnreadableError) Error() string { return "unreadable plan proposal: " + e.Reason }
@@ -111,8 +114,14 @@ func readPlan(raw []byte) (proposedPlan, error) {
 		if ps.at, err = readSlot(ps.On, ps.Kind); err != nil {
 			return p, err
 		}
-		if ps.RecipeID != nil && len(ps.Ingredients) > 0 {
-			return p, unreadable("the Prep Session at %s has both a Recipe and Ingredients set out as they are", ps.at)
+		prepares := 0
+		for _, given := range []bool{ps.RecipeID != nil, ps.DraftID != nil, len(ps.Ingredients) > 0} {
+			if given {
+				prepares++
+			}
+		}
+		if prepares > 1 {
+			return p, unreadable("the Prep Session at %s has more than one of a Recipe, a Recipe Draft and Ingredients set out as they are", ps.at)
 		}
 		for j := range ps.Ingredients {
 			ing := &ps.Ingredients[j]
@@ -143,8 +152,21 @@ func readPlan(raw []byte) (proposedPlan, error) {
 	return p, nil
 }
 
-// resolve turns p into a domain.Plan, with its Recipes and Ingredients.
-func (p proposedPlan) resolve(ctx context.Context, q db.Querier) (domain.Plan, error) {
+// draftIDs are the Recipe Drafts p prepares, in order.
+func (p proposedPlan) draftIDs() []int64 {
+	var ids []int64
+	for _, ps := range p.PrepSessions {
+		if ps.DraftID != nil && !slices.Contains(ids, *ps.DraftID) {
+			ids = append(ids, *ps.DraftID)
+		}
+	}
+	return ids
+}
+
+// resolve turns p into a domain.Plan, with its Recipes and Ingredients. A
+// Recipe Draft prepares the Recipe it became once accepted, and itself
+// while it is pending.
+func (s *Service) resolve(ctx context.Context, q db.Querier, p proposedPlan) (domain.Plan, error) {
 	var recipeIDs []int64
 	var names []string
 	for _, ps := range p.PrepSessions {
@@ -153,6 +175,15 @@ func (p proposedPlan) resolve(ctx context.Context, q db.Querier) (domain.Plan, e
 		}
 		for _, ing := range ps.Ingredients {
 			names = append(names, ing.Name)
+		}
+	}
+	drafts, err := s.recipes.Drafted(ctx, q, p.draftIDs())
+	if err != nil {
+		return domain.Plan{}, err
+	}
+	for _, d := range drafts {
+		if d.RecipeID != 0 {
+			recipeIDs = append(recipeIDs, d.RecipeID)
 		}
 	}
 	recipes, err := loadRecipes(ctx, q, recipeIDs)
@@ -170,6 +201,19 @@ func (p proposedPlan) resolve(ctx context.Context, q db.Querier) (domain.Plan, e
 		if ps.RecipeID != nil {
 			if session.Recipe = recipes[*ps.RecipeID]; session.Recipe == nil {
 				return plan, unreadable("there is no Recipe %d", *ps.RecipeID)
+			}
+		}
+		if ps.DraftID != nil {
+			d, ok := drafts[*ps.DraftID]
+			switch {
+			case !ok:
+				return plan, unreadable("there is no Recipe Draft %d: it was discarded", *ps.DraftID)
+			case d.RecipeID != 0:
+				if session.Recipe = recipes[d.RecipeID]; session.Recipe == nil {
+					return plan, unreadable("there is no Recipe %d", d.RecipeID)
+				}
+			default:
+				session.Recipe = &d.Recipe
 			}
 		}
 		for _, ing := range ps.Ingredients {

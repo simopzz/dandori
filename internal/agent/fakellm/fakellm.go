@@ -42,6 +42,7 @@ func (f *LLM) Requests() []agent.Request {
 
 // Step is one scripted answer of the model.
 type Step struct {
+	then  func(req agent.Request) Step
 	turn  func(f *LLM) agent.Response
 	err   error
 	hang  bool
@@ -97,6 +98,10 @@ func Respond(resp agent.Response) Step {
 	return Step{turn: func(*LLM) agent.Response { return resp }}
 }
 
+// Then answers with the step next makes from the request, as a model
+// reads what its tools returned, such as the id of what one stored.
+func Then(next func(req agent.Request) Step) Step { return Step{then: next} }
+
 // Fail makes the request fail with err.
 func Fail(err error) Step { return Step{err: err} }
 
@@ -134,6 +139,9 @@ func (f *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 	step := f.steps[0]
 	f.steps = f.steps[1:]
 	f.mu.Unlock()
+	if step.then != nil {
+		step = step.then(req)
+	}
 
 	if step.hang {
 		<-ctx.Done()

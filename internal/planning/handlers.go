@@ -98,6 +98,17 @@ func cycleView(cp CyclePlan, number int) *CycleView {
 	if cp.Plan != nil {
 		v.HasPlan, v.Calendar = true, calendarOf(*cp.Plan)
 	}
+	if cp.Planning.CanPlan {
+		v.PlanAction = planURL(c.ID)
+	}
+	if run := cp.Planning.Run; run != nil {
+		switch {
+		case run.Running():
+			v.PlanningRun = runURL(run.ID)
+		case cp.Planning.CanPlan && run.Failure() != "":
+			v.PlanningRun, v.PlanningFailed = runURL(run.ID), run.Failure()
+		}
+	}
 	for _, pr := range cp.Proposals {
 		v.Proposals = append(v.Proposals, ProposalRow{ID: pr.ID, Title: proposalTitle(pr.Origin), Status: pr.Status})
 	}
@@ -322,6 +333,19 @@ func (h Handlers) renderProposal(w http.ResponseWriter, r *http.Request, id int6
 	if p.Unreadable == "" {
 		page.Calendar, page.Sessions = calendarOf(p.Check), prepSessionRows(p.Check.Plan)
 	}
+	if p.RunID != 0 {
+		page.Run = runURL(p.RunID)
+	}
+	if p.ReplanID != 0 {
+		page.Replan = runURL(p.ReplanID)
+	}
+	for _, d := range p.Drafts {
+		row := DraftRow{Name: d.Recipe.Name, Link: fmt.Sprintf("/plan-proposals/%d/recipe-drafts/%d", p.ID, d.ID)}
+		if d.RecipeID != 0 {
+			row.Accepted, row.Link = true, fmt.Sprintf("/recipes/%d", d.RecipeID)
+		}
+		page.Drafts = append(page.Drafts, row)
+	}
 	for _, v := range p.Violations {
 		page.Violations = append(page.Violations, v.Message)
 	}
@@ -357,6 +381,35 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Plan starts a planning Run for a Cycle, and sends the user to it.
+func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	run, err := h.Service.StartPlanning(r.Context(), id)
+	var cannot *CannotPlanError
+	switch {
+	case errors.Is(err, ErrNoCycle):
+		http.NotFound(w, r)
+	case errors.As(err, &cannot) && cannot.RunID != 0:
+		// Planned twice, as by a double tap: follow the Run already going.
+		http.Redirect(w, r, runURL(cannot.RunID), http.StatusSeeOther)
+	case errors.As(err, &cannot):
+		h.render(w, r, PlanPage{Problem: "That Cycle can't be planned: " + cannot.Reason + "."}, http.StatusConflict)
+	case err != nil:
+		httpx.ServerError(w, h.Log, "start planning", err)
+	default:
+		http.Redirect(w, r, runURL(run), http.StatusSeeOther)
+	}
+}
+
+// planURL is where a Cycle's planning Run is started.
+func planURL(id int64) string { return fmt.Sprintf("/cycles/%d/plan", id) }
+
+// runURL is a Run's page, with its Trace.
+func runURL(id int64) string { return fmt.Sprintf("/runs/%d", id) }
+
 // Reject rejects a Plan Proposal, keeping the user's note.
 func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
@@ -367,7 +420,7 @@ func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	switch err := h.Service.Reject(r.Context(), id, strings.TrimSpace(r.PostForm.Get("note"))); {
+	switch _, err := h.Service.Reject(r.Context(), id, strings.TrimSpace(r.PostForm.Get("note"))); {
 	case errors.Is(err, ErrNotFound):
 		http.NotFound(w, r)
 	case errors.Is(err, ErrDecided):

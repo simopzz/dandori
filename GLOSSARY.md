@@ -41,7 +41,7 @@ A reusable description of a dish: its Ingredients with their quantities, steps, 
 _Avoid_: Dish
 
 **Recipe Draft**:
-A Recipe parsed from text the user pasted, awaiting their check: accepting it adds it to the Recipe Library, discarding it drops it.
+A Recipe parsed from text the user pasted, or drafted by the planner for a Plan Proposal, awaiting their check: accepting it adds it to the Recipe Library, discarding it drops it. Approving a Plan Proposal accepts the Recipe Drafts it prepares, as drafted.
 _Avoid_: Pending recipe, import
 
 **Recipe Library**:

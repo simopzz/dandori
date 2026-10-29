@@ -29,6 +29,7 @@ const (
 	RuleExcluded                Rule = "excluded"
 	RuleAllergen                Rule = "allergen"
 	RuleExceptedSlot            Rule = "excepted-slot"
+	RuleEmptySlot               Rule = "empty-slot"
 )
 
 // Violation is a rule a Plan breaks, and where, said for the user.
@@ -313,6 +314,19 @@ func ValidatePlan(c PlanCheck) []Violation {
 		for _, k := range c.Kept {
 			if !used[k.ID] {
 				add(RuleUnusedPortion, "The kept Portion of %s is left without a Slot while new Prep Sessions are scheduled", k.Name)
+			}
+		}
+	}
+
+	// Every Slot the Plan fills gets a Portion, unless an Exception is
+	// logged for it.
+	for d := c.From.On; !d.After(c.Cycle.LastDay()); d = d.AddDate(0, 0, 1) {
+		for _, k := range SlotKinds {
+			s := Slot{On: d, Kind: k}
+			_, isFilled := filled[s.key()]
+			_, isExcepted := excepted[s.key()]
+			if c.inPlan(s) && !isFilled && !isExcepted {
+				add(RuleEmptySlot, "%s is empty: no Portion fills it and no Exception is logged for it", s)
 			}
 		}
 	}

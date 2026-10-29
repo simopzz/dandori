@@ -49,6 +49,9 @@ type Config struct {
 	LLMRetryBackoff time.Duration
 	// MaxTurns bounds the requests to the model in one Run.
 	MaxTurns int
+	// PlanAttempts is how many Plans breaking the rules a planning Run may
+	// submit; the last one fails it.
+	PlanAttempts int
 
 	// StoreThrottle is the least time between two actions on Esselunga;
 	// each wait adds up to half again at random.
@@ -88,6 +91,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxTurns == 0 {
 		c.MaxTurns = 50
+	}
+	if c.PlanAttempts == 0 {
+		c.PlanAttempts = 3
 	}
 	if c.StoreThrottle == 0 {
 		c.StoreThrottle = DefaultStoreThrottle
@@ -151,8 +157,9 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	}, log)
 	a.profile = profile.New(pool)
 	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
-	a.plan = planning.New(pool, a.profile, a.cfg.Now)
-	a.stock = stock.New(pool, today, a.plan.Arrive)
+	// Portions are what the Plan has cooked and not eaten as of the
+	// latest arrival, which planning takes in.
+	a.stock = stock.New(pool, today, func(ctx context.Context) error { return a.plan.Arrive(ctx) })
 	a.recipes = recipes.New(pool, recipes.Config{
 		Runs:     a.runs,
 		Language: a.cfg.ContentLanguage,
@@ -165,6 +172,16 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Orders:   a.cfg.SeedOrders,
 		Language: a.cfg.ContentLanguage,
 		Now:      a.cfg.Now,
+	})
+	a.plan = planning.New(pool, planning.Config{
+		Profile:      a.profile,
+		Recipes:      a.recipes,
+		Stock:        a.stock,
+		Catalog:      a.catalog,
+		Runs:         a.runs,
+		Language:     a.cfg.ContentLanguage,
+		PlanAttempts: a.cfg.PlanAttempts,
+		Now:          a.cfg.Now,
 	})
 	if cfg.Demo {
 		a.RegisterJob(demo.Kind, demo.NewJob)
@@ -261,12 +278,16 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /cycles", a.needsDatabase(http.HandlerFunc(plan.OpenCycle)))
 	mux.Handle("POST /cycles/{id}/delivery", a.needsDatabase(http.HandlerFunc(plan.ChangeDelivery)))
 	mux.Handle("POST /cycles/{id}/drop", a.needsDatabase(http.HandlerFunc(plan.Drop)))
+	mux.Handle("POST /cycles/{id}/plan", a.needsDatabase(http.HandlerFunc(plan.Plan)))
 	mux.Handle("GET /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.ShowExceptions)))
 	mux.Handle("POST /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.LogException)))
 	mux.Handle("POST /exceptions/remove", a.needsDatabase(http.HandlerFunc(plan.RemoveExceptionBetweenCycles)))
 	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(http.HandlerFunc(plan.ShowProposal)))
 	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(http.HandlerFunc(plan.Approve)))
 	mux.Handle("POST /plan-proposals/{id}/reject", a.needsDatabase(http.HandlerFunc(plan.Reject)))
+	mux.Handle("GET /plan-proposals/{proposal}/recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.ShowPlannedDraft)))
+	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.AcceptPlannedDraft)))
+	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}/discard", a.needsDatabase(http.HandlerFunc(recipes.DiscardPlannedDraft)))
 	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(profile.Show)))
 	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(profile.Save)))
 	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(recipes.Library)))

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -157,6 +158,84 @@ func (h Handlers) DiscardDraft(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/recipes", http.StatusSeeOther)
 }
 
+// plannedDraftPath reads the Plan Proposal and the Recipe Draft of a
+// planned draft's path, answering 404 if either isn't a number.
+func plannedDraftPath(w http.ResponseWriter, r *http.Request) (proposal, id int64, ok bool) {
+	proposal, err := strconv.ParseInt(r.PathValue("proposal"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return 0, 0, false
+	}
+	id, ok = httpx.PathID(w, r)
+	return proposal, id, ok
+}
+
+// proposalURL is the page of the Plan Proposal with id, where the user
+// goes back to once a Recipe Draft it prepares is checked.
+func proposalURL(id int64) string { return fmt.Sprintf("/plan-proposals/%d", id) }
+
+func plannedDraftForm(proposal, id int64, f RecipeForm) RecipeForm {
+	base := fmt.Sprintf("%s/recipe-drafts/%d", proposalURL(proposal), id)
+	f.Title = "Check the drafted Recipe"
+	f.Action = base
+	f.Submit = "Accept Recipe"
+	f.Discard = base + "/discard"
+	return f
+}
+
+// ShowPlannedDraft shows a Recipe Draft the planner drafted for a Plan
+// Proposal, ready to check and accept.
+func (h Handlers) ShowPlannedDraft(w http.ResponseWriter, r *http.Request) {
+	proposal, id, ok := plannedDraftPath(w, r)
+	if !ok {
+		return
+	}
+	draft, found, err := h.Service.DraftByID(r.Context(), id)
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load draft", err)
+		return
+	}
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+	known, err := h.Service.KnownIngredients(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load ingredients", err)
+		return
+	}
+	_, f, _ := readRecipeForm(recipeFormValues(draft, known), known)
+	templ.Handler(RecipeFormPage(plannedDraftForm(proposal, id, f))).ServeHTTP(w, r)
+}
+
+// AcceptPlannedDraft saves a Recipe Draft the planner drafted, as the user
+// corrected it, to the Recipe Library, and goes back to its Plan Proposal.
+func (h Handlers) AcceptPlannedDraft(w http.ResponseWriter, r *http.Request) {
+	proposal, id, ok := plannedDraftPath(w, r)
+	if !ok {
+		return
+	}
+	h.submitThen(w, r, func(f RecipeForm) RecipeForm { return plannedDraftForm(proposal, id, f) },
+		func(ctx context.Context, rec domain.Recipe) (int64, error) {
+			return h.Service.AcceptDraftByID(ctx, id, rec)
+		},
+		func(int64) string { return proposalURL(proposal) })
+}
+
+// DiscardPlannedDraft drops a Recipe Draft the planner drafted, and goes
+// back to its Plan Proposal, which no longer applies.
+func (h Handlers) DiscardPlannedDraft(w http.ResponseWriter, r *http.Request) {
+	proposal, id, ok := plannedDraftPath(w, r)
+	if !ok {
+		return
+	}
+	if err := h.Service.DiscardByID(r.Context(), id); err != nil && !errors.Is(err, ErrDraftGone) {
+		httpx.ServerError(w, h.Log, "discard draft", err)
+		return
+	}
+	http.Redirect(w, r, proposalURL(proposal), http.StatusSeeOther)
+}
+
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	rec, ok := h.recipeFromPath(w, r)
 	if !ok {
@@ -236,10 +315,21 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // submit reads a submitted Recipe form and, when it is valid, saves it with
-// save; otherwise it shows the form back, framed by frame.
+// save and shows the Recipe saved; otherwise it shows the form back, framed
+// by frame.
 func (h Handlers) submit(w http.ResponseWriter, r *http.Request,
 	frame func(RecipeForm) RecipeForm,
 	save func(context.Context, domain.Recipe) (int64, error),
+) {
+	h.submitThen(w, r, frame, save, func(id int64) string { return fmt.Sprintf("/recipes/%d", id) })
+}
+
+// submitThen is submit, going on to the page then gives for the Recipe
+// saved.
+func (h Handlers) submitThen(w http.ResponseWriter, r *http.Request,
+	frame func(RecipeForm) RecipeForm,
+	save func(context.Context, domain.Recipe) (int64, error),
+	then func(id int64) string,
 ) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -267,7 +357,7 @@ func (h Handlers) submit(w http.ResponseWriter, r *http.Request,
 		templ.Handler(RecipeFormPage(frame(f)), templ.WithStatus(http.StatusInternalServerError)).ServeHTTP(w, r)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/recipes/%d", id), http.StatusSeeOther)
+	http.Redirect(w, r, then(id), http.StatusSeeOther)
 }
 
 // recipeFromPath loads the Recipe the path names, answering 404 if there

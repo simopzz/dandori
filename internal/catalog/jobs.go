@@ -395,3 +395,56 @@ func (s *Service) proposeProductMapping() agent.Tool {
 		},
 	}
 }
+
+// Tool lists the Known Catalog as an agent tool, for the planner: what can
+// be bought, in which packs, and which Catalog Product each Ingredient is
+// bought as.
+func (s *Service) Tool() agent.Tool {
+	return agent.Tool{
+		Name: "list_catalog",
+		Description: "List the Known Catalog: each Catalog Product with its pack size and whether it was last seen available, and each Ingredient's Product Mapping, the Catalog Product it is bought as. " +
+			"Design Prep Sessions around whole packs, so little is left over.",
+		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
+		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
+			products, err := loadProducts(ctx, s.pool)
+			if err != nil {
+				return "", err
+			}
+			mappings, err := loadMappings(ctx, s.pool)
+			if err != nil {
+				return "", err
+			}
+			return describeCatalog(products, mappings), nil
+		},
+	}
+}
+
+// describeCatalog is the Known Catalog and the Product Mappings as the
+// planner reads them.
+func describeCatalog(products []Product, mappings []Mapping) string {
+	var w strings.Builder
+	w.WriteString("Known Catalog:\n")
+	if len(products) == 0 {
+		w.WriteString("(empty)\n")
+	}
+	for _, p := range products {
+		available := "available"
+		if !p.Available {
+			available = "unavailable"
+		}
+		fmt.Fprintf(&w, "- %s: %s, a pack of %s %s, %s\n", p.Code, p.Name, formatAmount(p.PackQuantity), p.Unit, available)
+	}
+	w.WriteString("\nProduct Mappings:\n")
+	mapped := 0
+	for _, m := range mappings {
+		if m.ProductID == 0 || m.Proposed {
+			continue
+		}
+		mapped++
+		fmt.Fprintf(&w, "- %s is bought as %s\n", m.Ingredient.Name, m.ProductName)
+	}
+	if mapped == 0 {
+		w.WriteString("(none)\n")
+	}
+	return w.String()
+}
