@@ -334,7 +334,7 @@ func rejectWith(t *testing.T, h *apptest.Harness, proposal, note string) apptest
 	return res
 }
 
-func TestRejectingWithANoteStartsAPlanningRunTakingItIntoAccount(t *testing.T) {
+func TestRejectingWithNotesStartsAPlanningRunWhereTheNewestWins(t *testing.T) {
 	h, _, llm := startPlanningWith(t)
 	exceptions := openCycle(t, h, "2026-11-02", "2026-11-04").Path
 	plan := shortCyclePlan(dinnerOf(map[string]any{"recipe_id": recipeID(t, h)}))
@@ -343,8 +343,12 @@ func TestRejectingWithANoteStartsAPlanningRunTakingItIntoAccount(t *testing.T) {
 	}
 	propose()
 	planCycle(t, h, exceptions)
+	page := text(h.Get(t, proposalPaths(t, h)[0]).Body)
+	if !strings.Contains(page, `Anything you'd change, even just "more variety at breakfast": the next Plan Proposal follows it. Leave it empty to just reject.`) {
+		t.Errorf("the reject form does not say any request counts and an empty note just rejects:\n%s", page)
+	}
 
-	for _, note := range []string{"less chicken", "no oven on Tuesday"} {
+	for _, note := range []string{"more pasta", "less pasta"} {
 		propose()
 		res := rejectWith(t, h, proposalPaths(t, h)[0], note)
 		if !strings.Contains(text(res.Body), "A new planning Run takes the note into account") {
@@ -358,8 +362,8 @@ func TestRejectingWithANoteStartsAPlanningRunTakingItIntoAccount(t *testing.T) {
 	}
 	asked := plannerRequests(llm)
 	prompt := asked[len(asked)-2].Messages[0].Content[0].Text
-	if !strings.Contains(prompt, "notes, newest first. Take them into account:\n- no oven on Tuesday\n- less chicken") {
-		t.Errorf("the last planning Run is not told both notes, newest first:\n%s", prompt)
+	if !strings.Contains(prompt, "notes, newest first. Take them into account; where two disagree, the newer one wins:\n- less pasta\n- more pasta") {
+		t.Errorf("the last planning Run is not told both notes, newest first, the newer winning:\n%s", prompt)
 	}
 	if paths := proposalPaths(t, h); len(paths) != 3 {
 		t.Errorf("the Plan page lists %d Plan Proposals, want 3", len(paths))
