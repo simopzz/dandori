@@ -41,6 +41,9 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 		Model:     req.Model,
 		MaxTokens: maxTokens,
 	}
+	if req.Effort != "" {
+		params.OutputConfig = sdk.OutputConfigParam{Effort: sdk.OutputConfigEffort(req.Effort)}
+	}
 	if req.System != "" {
 		params.System = []sdk.TextBlockParam{{Text: req.System}}
 	}
@@ -63,7 +66,14 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 	if err != nil {
 		return agent.Response{}, classify(ctx, err)
 	}
-	resp := agent.Response{StopReason: agent.StopReason(msg.StopReason)}
+	resp := agent.Response{
+		StopReason: agent.StopReason(msg.StopReason),
+		Usage: agent.Usage{
+			InputTokens:    msg.Usage.InputTokens,
+			OutputTokens:   msg.Usage.OutputTokens,
+			ThinkingTokens: msg.Usage.OutputTokensDetails.ThinkingTokens,
+		},
+	}
 	for _, b := range msg.Content {
 		block := agent.Block{Type: agent.BlockOther, Raw: json.RawMessage(b.RawJSON())}
 		switch v := b.AsAny().(type) {

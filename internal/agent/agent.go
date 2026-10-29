@@ -20,12 +20,23 @@ type Request struct {
 	System   string
 	Messages []Message
 	Tools    []ToolSpec
+	// Effort is how hard the model thinks, as the API names it (low,
+	// medium, high...); empty leaves it to the model's default.
+	Effort string
 }
 
 // Response is the model's turn.
 type Response struct {
 	StopReason StopReason
 	Content    []Block
+	Usage      Usage
+}
+
+// Usage is the tokens a model turn used. Thinking is counted in Output.
+type Usage struct {
+	InputTokens    int64
+	OutputTokens   int64
+	ThinkingTokens int64
 }
 
 // StopReason says why the model ended its turn.

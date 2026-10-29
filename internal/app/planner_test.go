@@ -117,6 +117,11 @@ func TestPlanningACycleYieldsAPlanProposalThatCanBeApproved(t *testing.T) {
 		t.Fatalf("planning Run did not succeed:\n%s", run)
 	}
 	asked := plannerRequests(llm)
+	// At the default effort the model can think its whole token budget
+	// away before it submits a Plan as long as a real Cycle's.
+	if asked[0].Effort != "medium" {
+		t.Errorf("the planner asks the model at effort %q, want medium", asked[0].Effort)
+	}
 	prompt := asked[0].Messages[0].Content[0].Text
 	for _, want := range []string{"breakfast on Mon 2 Nov", "dinner on Wed 4 Nov"} {
 		if !strings.Contains(prompt, want) {

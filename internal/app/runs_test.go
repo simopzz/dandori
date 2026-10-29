@@ -303,9 +303,20 @@ func TestFailingRunShowsWhyItFailed(t *testing.T) {
 			want: []string{"Retry 1 of 3", "Retry 3 of 3", "Error Run failed asking the model: overloaded (529)"},
 		},
 		{
-			name:   "answer cut off",
-			script: []fakellm.Step{fakellm.Respond(agent.Response{StopReason: agent.StopMaxTokens})},
-			want:   []string{"Error Run failed the model's answer was cut off at its token limit"},
+			name: "answer cut off",
+			script: []fakellm.Step{fakellm.Respond(agent.Response{
+				StopReason: agent.StopMaxTokens,
+				Content:    []agent.Block{{Type: agent.BlockText, Text: "The oats are"}},
+			})},
+			want: []string{"Error Run failed the model ran out of its token budget before it finished"},
+		},
+		{
+			name: "budget spent thinking",
+			script: []fakellm.Step{fakellm.Respond(agent.Response{
+				StopReason: agent.StopMaxTokens,
+				Content:    []agent.Block{{Type: agent.BlockOther, Raw: json.RawMessage(`{"type":"thinking"}`)}},
+			})},
+			want: []string{"Error Run failed the model ran out of its token budget while thinking"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -434,5 +445,34 @@ func TestUnknownKindOfRunIsRejected(t *testing.T) {
 	}
 	if list := text(h.Get(t, "/runs").Body); !strings.Contains(list, "No agent has run yet.") {
 		t.Errorf("a rejected Run was recorded:\n%s", list)
+	}
+}
+
+func TestRunTracesTokenUsage(t *testing.T) {
+	llm := fakellm.New(fakellm.Respond(agent.Response{
+		StopReason: agent.StopEndTurn,
+		Content:    []agent.Block{{Type: agent.BlockText, Text: "Done."}},
+		Usage:      agent.Usage{InputTokens: 1200, OutputTokens: 800, ThinkingTokens: 650},
+	}))
+	h := startWith(t, llm, map[string]agent.Job{"pantry": pantryJob()})
+	run, _ := finish(t, h, "pantry")
+
+	panel := text(h.Get(t, run).Body)
+	if want := "Tokens 1200 in, 800 out, 650 of them thinking"; !strings.Contains(panel, want) {
+		t.Errorf("trace does not show %q:\n%s", want, panel)
+	}
+}
+
+func TestJobEffortReachesTheModel(t *testing.T) {
+	for _, effort := range []string{"", "medium"} {
+		llm := fakellm.New(fakellm.Reply("Done."))
+		job := pantryJob()
+		job.Effort = effort
+		h := startWith(t, llm, map[string]agent.Job{"pantry": job})
+		finish(t, h, "pantry")
+
+		if got := llm.Requests()[0].Effort; got != effort {
+			t.Errorf("job effort %q reached the model as %q", effort, got)
+		}
 	}
 }
