@@ -624,6 +624,13 @@ a.row-title:hover { text-decoration: underline; }
   .slot-day li:not(:has(> details[open])) summary .row-meta { grid-column: 1; grid-row: 1; }
 }
 
+/* A Slot opening or closing, through slot-grid.js: its cell unfolds, its
+   contents unscaled. */
+html.slot-toggle::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease-out; overflow: clip; }
+
+html.slot-toggle::view-transition-old(*),
+html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; object-position: left top; }
+
 /* trace panel: a Run's Trace Events */
 
 .trace { list-style: none; padding: 0; margin: var(--space-4) 0; font-size: 0.9rem; }
