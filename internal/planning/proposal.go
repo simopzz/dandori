@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/recipes"
 )
 
 // proposedPlan is a Plan as a Plan Proposal stores it, the shape the
@@ -25,6 +27,9 @@ type proposedPlan struct {
 	Kept         []proposedKept        `json:"kept"`
 
 	from *domain.Slot
+	// run is the planning Run that submitted it, whose Recipe Drafts are
+	// the only ones it may prepare; 0 when no Run did.
+	run int64
 }
 
 // start is the first Slot of c the Plan replaces.
@@ -163,6 +168,15 @@ func (p proposedPlan) draftIDs() []int64 {
 	return ids
 }
 
+// ownDrafts loads the Recipe Drafts p prepares, by id, leaving out those
+// discarded and those another Run drafted: a Plan Proposal prepares only
+// the drafts of the Run that submitted it.
+func (s *Service) ownDrafts(ctx context.Context, q db.Querier, p proposedPlan) (map[int64]recipes.Drafted, error) {
+	drafts, err := s.recipes.DraftsByID(ctx, q, p.draftIDs())
+	maps.DeleteFunc(drafts, func(_ int64, d recipes.Drafted) bool { return p.run == 0 || d.RunID != p.run })
+	return drafts, err
+}
+
 // resolve turns p into a domain.Plan, with its Recipes and Ingredients. A
 // Recipe Draft prepares the Recipe it became once accepted, and itself
 // while it is pending.
@@ -177,7 +191,7 @@ func (s *Service) resolve(ctx context.Context, q db.Querier, p proposedPlan) (do
 			names = append(names, ing.Name)
 		}
 	}
-	drafts, err := s.recipes.Drafted(ctx, q, p.draftIDs())
+	drafts, err := s.ownDrafts(ctx, q, p)
 	if err != nil {
 		return domain.Plan{}, err
 	}
@@ -207,7 +221,7 @@ func (s *Service) resolve(ctx context.Context, q db.Querier, p proposedPlan) (do
 			d, ok := drafts[*ps.DraftID]
 			switch {
 			case !ok:
-				return plan, unreadable("there is no Recipe Draft %d: it was discarded", *ps.DraftID)
+				return plan, unreadable("there is no Recipe Draft %d of the planning Run that proposed it: it was discarded, or never drafted there", *ps.DraftID)
 			case d.RecipeID != 0:
 				if session.Recipe = recipes[d.RecipeID]; session.Recipe == nil {
 					return plan, unreadable("there is no Recipe %d", d.RecipeID)

@@ -430,7 +430,9 @@ templ ProposalView(p ProposalPage) {
 			}
 		}
 		if p.Run != "" {
-			<p><a href={ templ.SafeURL(p.Run) }>The planning Run that proposed it</a></p>
+			@web.Hint() {
+				<a href={ templ.SafeURL(p.Run) }>The planning Run that proposed it</a>
+			}
 		}
 		if len(p.Violations) > 0 {
 			@web.Alert() {

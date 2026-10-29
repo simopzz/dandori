@@ -56,55 +56,68 @@ func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) err
 	if !c.Contains(from) {
 		return &CannotPlanError{Reason: "it has no Slots left to plan"}
 	}
-	if run, going, err := livePlanningRun(ctx, q, c.ID); err != nil {
+	if run, status, err := latestPlanningRun(ctx, q, c.ID); err != nil {
 		return err
-	} else if going {
+	} else if status == "running" {
 		return &CannotPlanError{Reason: "it is being planned", RunID: run}
 	}
 	return nil
 }
 
+// canPlan reports whether a planning Run can start for c now.
+func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (bool, error) {
+	err := plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
+	if errors.Is(err, ErrCannotPlan) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // StartPlanning starts a planning Run for the Cycle with id, returning the
 // Run's id. The Run submits the Cycle's initial Plan Proposal.
 func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
-	return s.startPlanning(ctx, id, 0)
-}
-
-// startPlanning starts a planning Run for the Cycle with id, after the
-// rejection of the Plan Proposal with id after when it isn't 0.
-func (s *Service) startPlanning(ctx context.Context, id, after int64) (int64, error) {
 	if err := s.Arrive(ctx); err != nil {
 		return 0, err
 	}
 	var run int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		// Serialises with another start, and with the planner submitting.
-		if err := lockCycle(ctx, tx, id); err != nil {
-			return err
-		}
-		c, err := findCycle(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if c == nil {
-			return ErrNoCycle
-		}
-		// What is prepared today is taken as done: a Cycle whose first day
-		// has come is planned from tomorrow.
-		from := domain.FirstUnprepared(c.Start, s.today())
-		if err := plannable(ctx, tx, *c, from); err != nil {
-			return err
-		}
-		notes, err := loadNotes(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if run, err = s.runs.Start(ctx, planningKind, s.planningJob(*c, from, notes)); err != nil {
-			return err
-		}
-		return insertPlanningRun(ctx, tx, run, id, after)
+		var err error
+		run, err = s.startPlanningIn(ctx, tx, id, 0)
+		return err
 	})
 	return run, err
+}
+
+// startPlanningIn starts a planning Run for the Cycle with id as part of
+// tx, after the rejection of the Plan Proposal with id after when it isn't
+// 0, and returns the Run's id.
+func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int64) (int64, error) {
+	// Serialises with another start, and with the planner submitting.
+	if err := lockCycle(ctx, tx, id); err != nil {
+		return 0, err
+	}
+	c, err := findCycle(ctx, tx, id)
+	if err != nil {
+		return 0, err
+	}
+	if c == nil {
+		return 0, ErrNoCycle
+	}
+	// What is prepared today is taken as done: a Cycle whose first day has
+	// come is planned from tomorrow.
+	from := domain.FirstUnprepared(c.Start, s.today())
+	if err := plannable(ctx, tx, *c, from); err != nil {
+		return 0, err
+	}
+	notes, err := loadNotes(ctx, tx, id)
+	if err != nil {
+		return 0, err
+	}
+	run, err := s.runs.Start(ctx, planningKind, s.planningJob(*c, from, notes))
+	if err != nil {
+		return 0, err
+	}
+	return run, insertPlanningRun(ctx, tx, run, id, after)
 }
 
 // lastSlot is the Cycle's last Slot.
@@ -178,9 +191,8 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, notes []string) agent.J
 // id from the Slot from on can use.
 func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 	return agent.Tool{
-		Name: "list_kitchen",
-		Description: "List what the kitchen holds: the Portions without a Slot the Plan may put in Slots, by id, and the Stock Items, each with its Storage Location and expiry date. " +
-			"Put each such Portion in a Slot with kept before scheduling new Prep Sessions.",
+		Name:        "list_kitchen",
+		Description: "List what the kitchen holds: the Portions without a Slot the Plan may put in Slots (kept), by id, and the Stock Items, each with its Storage Location and expiry date.",
 		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
 		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
 			kept, err := loadKept(ctx, s.pool, id, from, domain.FirstUnprepared(from, s.today()))
@@ -197,7 +209,7 @@ func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 				b.WriteString("(none)\n")
 			}
 			for _, k := range kept {
-				fmt.Fprintf(&b, "- Portion %d: %s, %s\n", k.ID, k.Name, formatNutrition(k.Nutrition))
+				fmt.Fprintf(&b, "- Portion %d: %s, %s\n", k.ID, k.Name, k.Nutrition.Describe())
 			}
 			b.WriteString("\nStock Items:\n")
 			if len(items) == 0 {
@@ -344,10 +356,10 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 			return agent.Stop(errors.New("the Cycle was dropped"))
 		}
 		// The user may have planned it another way meanwhile, or it closed.
-		if err := plannableBy(ctx, tx, *c, from, run); err != nil {
+		if err := stillPlannable(ctx, tx, *c, from, run); err != nil {
 			return agent.Stop(err)
 		}
-		ch, err := s.checkProposal(ctx, tx, storedProposal{CycleID: id, Plan: raw})
+		ch, err := s.checkProposal(ctx, tx, storedProposal{CycleID: id, RunID: run, Plan: raw})
 		if unreadable := (*UnreadableError)(nil); errors.As(err, &unreadable) {
 			problems = append(problems, "the Plan can't be read: "+unreadable.Reason)
 			return nil
@@ -366,9 +378,9 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 	return problems, err
 }
 
-// plannableBy checks the Cycle c can still get an initial Plan from the
-// planning Run with run, going for it.
-func plannableBy(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
+// stillPlannable checks the Cycle c can still get an initial Plan from
+// the planning Run with run, going for it.
+func stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
 	err := plannable(ctx, q, c, from)
 	if going := (*CannotPlanError)(nil); errors.As(err, &going) && going.RunID == run {
 		return nil
@@ -387,15 +399,12 @@ type Planning struct {
 // planning loads how planning c stands.
 func (s *Service) planning(ctx context.Context, q db.Querier, c Cycle) (Planning, error) {
 	var p Planning
-	err := plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
-	switch {
-	case err == nil:
-		p.CanPlan = true
-	case !errors.Is(err, ErrCannotPlan):
+	var err error
+	if p.CanPlan, err = s.canPlan(ctx, q, c); err != nil {
 		return p, err
 	}
-	id, found, err := latestPlanningRun(ctx, q, c.ID)
-	if err != nil || !found {
+	id, status, err := latestPlanningRun(ctx, q, c.ID)
+	if err != nil || status == "" {
 		return p, err
 	}
 	run, found, err := s.runs.Get(ctx, id)

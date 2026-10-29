@@ -33,9 +33,6 @@ func (s *Service) Tool() agent.Tool {
 
 // describe is p as the model reads it.
 func describe(p domain.Profile) string {
-	nutrition := func(n domain.Nutrition) string {
-		return fmt.Sprintf("%d kcal, %d g protein, %d g carbs, %d g fat", n.Kcal, n.ProteinG, n.CarbsG, n.FatG)
-	}
 	list := func(terms []string) string {
 		if len(terms) == 0 {
 			return "none"
@@ -52,5 +49,5 @@ Exclusions: %s.
 Allergies: %s.
 Default Meal Out estimate: %s.
 Slot times: %s.`,
-		nutrition(p.Targets), nutrition(p.UntrackedAllowance), list(p.Exclusions), list(p.Allergies), nutrition(p.MealOut), strings.Join(times, ", "))
+		p.Targets.Describe(), p.UntrackedAllowance.Describe(), list(p.Exclusions), list(p.Allergies), p.MealOut.Describe(), strings.Join(times, ", "))
 }

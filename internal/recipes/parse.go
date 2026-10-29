@@ -220,8 +220,8 @@ func (s *Service) DraftTool() agent.Tool {
 				return "", fmt.Errorf("store the draft: %w", err)
 			}
 			n := p.recipe(known).NutritionPerPortion()
-			return fmt.Sprintf("Drafted %s as Recipe Draft %d, draft_id %d: %d Portions as written; per Portion %d kcal, %d g protein, %d g carbs, %d g fat.",
-				strings.TrimSpace(p.Name), id, id, p.Portions, n.Kcal, n.ProteinG, n.CarbsG, n.FatG), nil
+			return fmt.Sprintf("Drafted %s as Recipe Draft %d, draft_id %d: %d Portions as written; per Portion %s.",
+				strings.TrimSpace(p.Name), id, id, p.Portions, n.Describe()), nil
 		},
 	}
 }

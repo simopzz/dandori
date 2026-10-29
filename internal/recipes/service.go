@@ -212,10 +212,7 @@ func (s *Service) HasDraft(ctx context.Context, runID int64) (bool, error) {
 // AcceptDraft adds rec, the draft of the parse Run with runID as the user
 // corrected it, to the Recipe Library. It returns the new Recipe's id.
 func (s *Service) AcceptDraft(ctx context.Context, runID int64, rec domain.Recipe) (int64, error) {
-	id, found, err := draftOfRun(ctx, s.pool, runID)
-	if err == nil && !found {
-		err = ErrDraftGone
-	}
+	id, err := s.pendingDraftOf(ctx, runID)
 	if err != nil {
 		return 0, err
 	}
@@ -255,14 +252,21 @@ func acceptDraft(ctx context.Context, q db.Querier, id int64, rec domain.Recipe)
 
 // Discard drops the Recipe Draft of the parse Run with id.
 func (s *Service) Discard(ctx context.Context, runID int64) error {
-	id, found, err := draftOfRun(ctx, s.pool, runID)
-	if err == nil && !found {
-		err = ErrDraftGone
-	}
+	id, err := s.pendingDraftOf(ctx, runID)
 	if err != nil {
 		return err
 	}
 	return s.DiscardByID(ctx, id)
+}
+
+// pendingDraftOf is the id of the parse Run with runID's draft, or
+// ErrDraftGone once it was accepted or discarded.
+func (s *Service) pendingDraftOf(ctx context.Context, runID int64) (int64, error) {
+	id, found, err := draftOfRun(ctx, s.pool, runID)
+	if err == nil && !found {
+		err = ErrDraftGone
+	}
+	return id, err
 }
 
 // DiscardByID drops the pending Recipe Draft with id.
@@ -274,15 +278,17 @@ func (s *Service) DiscardByID(ctx context.Context, id int64) error {
 // it reads it.
 type Drafted struct {
 	ID int64
+	// RunID is the Run that drafted it.
+	RunID int64
 	// Recipe is the draft, its Ingredients matched to the known ones.
 	Recipe domain.Recipe
 	// RecipeID is the Recipe it became once accepted; 0 while it is pending.
 	RecipeID int64
 }
 
-// Drafted loads the Recipe Drafts with ids, by id, through q, so it reads
+// DraftsByID loads the Recipe Drafts with ids, by id, through q, so it reads
 // them in the caller's transaction. A discarded one is missing.
-func (s *Service) Drafted(ctx context.Context, q db.Querier, ids []int64) (map[int64]Drafted, error) {
+func (s *Service) DraftsByID(ctx context.Context, q db.Querier, ids []int64) (map[int64]Drafted, error) {
 	drafts, err := loadDrafts(ctx, q, ids)
 	if err != nil {
 		return nil, err
@@ -293,7 +299,7 @@ func (s *Service) Drafted(ctx context.Context, q db.Querier, ids []int64) (map[i
 	}
 	drafted := map[int64]Drafted{}
 	for id, d := range drafts {
-		drafted[id] = Drafted{ID: id, Recipe: d.recipe.recipe(known), RecipeID: d.recipeID}
+		drafted[id] = Drafted{ID: id, RunID: d.runID, Recipe: d.recipe.recipe(known), RecipeID: d.recipeID}
 	}
 	return drafted, nil
 }
@@ -302,7 +308,7 @@ func (s *Service) Drafted(ctx context.Context, q db.Querier, ids []int64) (map[i
 // Recipe Library as drafted, through q, so it is part of the caller's
 // transaction. It returns the Recipe each draft became, by draft id.
 func (s *Service) AcceptDrafted(ctx context.Context, q db.Querier, ids []int64) (map[int64]int64, error) {
-	drafted, err := s.Drafted(ctx, q, ids)
+	drafted, err := s.DraftsByID(ctx, q, ids)
 	if err != nil {
 		return nil, err
 	}

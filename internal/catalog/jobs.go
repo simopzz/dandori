@@ -401,9 +401,8 @@ func (s *Service) proposeProductMapping() agent.Tool {
 // bought as.
 func (s *Service) Tool() agent.Tool {
 	return agent.Tool{
-		Name: "list_catalog",
-		Description: "List the Known Catalog: each Catalog Product with its pack size and whether it was last seen available, and each Ingredient's Product Mapping, the Catalog Product it is bought as. " +
-			"Design Prep Sessions around whole packs, so little is left over.",
+		Name:        "list_catalog",
+		Description: "List the Known Catalog: each Catalog Product with its pack size and whether it was last seen available, and each Ingredient's Product Mapping, the Catalog Product it is bought as.",
 		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
 		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
 			products, err := loadProducts(ctx, s.pool)

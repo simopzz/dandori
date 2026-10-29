@@ -225,21 +225,24 @@ func TestAPlannerEndingWithoutAPlanFailsTheRun(t *testing.T) {
 }
 
 // planWithDraft scripts the planner to draft the Chickpea and chicken curry
-// and cook it for dinner on the 2nd of shortCyclePlan.
-func planWithDraft(llm *fakellm.LLM) {
+// and cook it for dinner on the 2nd of shortCyclePlan, returning the id of
+// the draft once the Run has drafted it.
+func planWithDraft(llm *fakellm.LLM) (draft func() int64) {
+	var id int64
 	llm.Script(
 		fakellm.CallTool("draft_recipe", chickpeaCurryParsed()),
 		fakellm.Then(func(req agent.Request) fakellm.Step {
 			result := req.Messages[len(req.Messages)-1].Content[0].Text
 			_, after, _ := strings.Cut(result, "draft_id ")
-			id, err := strconv.ParseInt(strings.TrimRight(strings.Fields(after)[0], ":"), 10, 64)
-			if err != nil {
+			var err error
+			if id, err = strconv.ParseInt(strings.TrimRight(strings.Fields(after)[0], ":"), 10, 64); err != nil {
 				return fakellm.Reply("no draft id in " + result)
 			}
 			return fakellm.CallTool("submit_plan", shortCyclePlan(dinnerOf(map[string]any{"draft_id": id})))
 		}),
 		fakellm.Reply("Planned the Cycle around a new curry."),
 	)
+	return func() int64 { return id }
 }
 
 func TestDraftedRecipesAreInTheRecipeLibraryOnlyOnceAccepted(t *testing.T) {
@@ -382,5 +385,35 @@ func TestACycleBeingPlannedIsNotPlannedTwice(t *testing.T) {
 	}
 	if link := apptest.Link(t, plan.Body, "follow the planning Run"); link != first.Path {
 		t.Errorf("the Plan page follows %s, want %s", link, first.Path)
+	}
+}
+
+func TestAPlanPreparesOnlyTheRecipeDraftsOfItsOwnRun(t *testing.T) {
+	h, _, llm := startPlanningWith(t)
+	exceptions := openCycle(t, h, "2026-11-02", "2026-11-04").Path
+	draft := planWithDraft(llm)
+	planCycle(t, h, exceptions)
+
+	// The next planning Run names the first one's draft, still pending.
+	llm.Script(
+		fakellm.Then(func(agent.Request) fakellm.Step {
+			return fakellm.CallTool("submit_plan", shortCyclePlan(dinnerOf(map[string]any{"draft_id": draft()})))
+		}),
+		fakellm.CallTool("submit_plan", shortCyclePlan(dinnerOf(map[string]any{"recipe_id": recipeID(t, h)}))),
+		fakellm.Reply("Planned."),
+	)
+	res := rejectWith(t, h, proposalPaths(t, h)[0], "not curry")
+	replan := apptest.Link(t, res.Body, "follow it")
+	h.Stream(t, replan+"/events", "").Rest(t)
+
+	asked := plannerRequests(llm)
+	refused := asked[len(asked)-2].Messages[len(asked[len(asked)-2].Messages)-1].Content[0]
+	if !refused.IsError || !strings.Contains(refused.Text, fmt.Sprintf("there is no Recipe Draft %d of the planning Run that proposed it", draft())) {
+		t.Errorf("a Plan preparing another Run's Recipe Draft was not refused: %+v", refused)
+	}
+	approve := apptest.Form(t, h.Get(t, proposalPaths(t, h)[0]).Body, "approve")
+	h.PostForm(t, approve.Action, approve.Values)
+	if library := text(h.Get(t, "/recipes").Body); strings.Contains(library, "Chickpea") {
+		t.Errorf("another Run's Recipe Draft was accepted:\n%s", library)
 	}
 }

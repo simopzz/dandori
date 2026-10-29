@@ -620,28 +620,16 @@ func hasPending(ctx context.Context, q db.Querier, id int64) (bool, error) {
 	return waiting, err
 }
 
-// livePlanningRun is the planning Run going for the Cycle with id, if one
-// is.
-func livePlanningRun(ctx context.Context, q db.Querier, id int64) (int64, bool, error) {
-	var run int64
-	err := q.QueryRow(ctx, `
-		SELECT p.run_id FROM planning_run p JOIN run r ON r.id = p.run_id
-		WHERE p.cycle_id = $1 AND r.status = 'running' ORDER BY p.run_id DESC LIMIT 1`, id).Scan(&run)
+// latestPlanningRun is the last planning Run of the Cycle with id and its
+// status; status is empty when it has had none.
+func latestPlanningRun(ctx context.Context, q db.Querier, id int64) (run int64, status string, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT p.run_id, r.status FROM planning_run p JOIN run r ON r.id = p.run_id
+		WHERE p.cycle_id = $1 ORDER BY p.run_id DESC LIMIT 1`, id).Scan(&run, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, false, nil
+		return 0, "", nil
 	}
-	return run, err == nil, err
-}
-
-// latestPlanningRun is the last planning Run of the Cycle with id, if it
-// has had one.
-func latestPlanningRun(ctx context.Context, q db.Querier, id int64) (int64, bool, error) {
-	var run int64
-	err := q.QueryRow(ctx, `SELECT run_id FROM planning_run WHERE cycle_id = $1 ORDER BY run_id DESC LIMIT 1`, id).Scan(&run)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, false, nil
-	}
-	return run, err == nil, err
+	return run, status, err
 }
 
 // planningRunAfter is the planning Run the rejection of the Plan Proposal

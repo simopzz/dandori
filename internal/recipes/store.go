@@ -207,19 +207,20 @@ func draftOfRun(ctx context.Context, q db.Querier, runID int64) (int64, bool, er
 	return id, err == nil, err
 }
 
-// storedDraft is a Recipe Draft as stored: pending while recipeID is 0.
+// storedDraft is a Recipe Draft of the Run with runID as stored: pending
+// while recipeID is 0.
 type storedDraft struct {
-	id, recipeID int64
-	recipe       parsedRecipe
+	id, runID, recipeID int64
+	recipe              parsedRecipe
 }
 
 // loadDrafts loads the drafts with ids, by id, pending or accepted.
 func loadDrafts(ctx context.Context, q db.Querier, ids []int64) (map[int64]storedDraft, error) {
-	rows, _ := q.Query(ctx, `SELECT id, coalesce(recipe_id, 0), recipe FROM recipe_draft WHERE id = ANY($1)`, ids)
+	rows, _ := q.Query(ctx, `SELECT id, run_id, coalesce(recipe_id, 0), recipe FROM recipe_draft WHERE id = ANY($1)`, ids)
 	drafts := map[int64]storedDraft{}
 	var d storedDraft
 	var raw []byte
-	_, err := pgx.ForEachRow(rows, []any{&d.id, &d.recipeID, &raw}, func() error {
+	_, err := pgx.ForEachRow(rows, []any{&d.id, &d.runID, &d.recipeID, &raw}, func() error {
 		d.recipe = parsedRecipe{}
 		if err := json.Unmarshal(raw, &d.recipe); err != nil {
 			return fmt.Errorf("read draft %d: %w", d.id, err)

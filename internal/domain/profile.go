@@ -1,6 +1,9 @@
 package domain
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Nutrition is an amount of calories and macros: a day's worth for the
 // Targets and the Untracked Allowance, one meal's worth for a Meal Out.
@@ -49,6 +52,12 @@ func (p Profile) Validate() map[string]string {
 		}
 	}
 	return problems
+}
+
+// Describe is n as the agent reads it, e.g. "589 kcal, 52 g protein, 64 g
+// carbs, 13 g fat".
+func (n Nutrition) Describe() string {
+	return fmt.Sprintf("%d kcal, %d g protein, %d g carbs, %d g fat", n.Kcal, n.ProteinG, n.CarbsG, n.FatG)
 }
 
 func (n Nutrition) amounts() map[string]int {

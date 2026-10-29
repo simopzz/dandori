@@ -449,6 +449,7 @@ func (s *Service) checkProposal(ctx context.Context, q db.Querier, stored stored
 	if ch.proposed, err = readPlan(stored.Plan); err != nil {
 		return ch, err
 	}
+	ch.proposed.run = stored.RunID
 	if ch.from, err = ch.proposed.start(ch.cycle); err != nil {
 		return ch, err
 	}
@@ -563,15 +564,15 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 // as the Recipe it became; a discarded one is left out.
 func (s *Service) drafts(ctx context.Context, q db.Querier, p proposedPlan) ([]recipes.Drafted, error) {
 	ids := p.draftIDs()
-	drafted, err := s.recipes.Drafted(ctx, q, ids)
+	drafted, err := s.ownDrafts(ctx, q, p)
 	if err != nil {
 		return nil, err
 	}
-	var became []int64
+	var recipeIDs []int64
 	for _, d := range drafted {
-		became = append(became, d.RecipeID)
+		recipeIDs = append(recipeIDs, d.RecipeID)
 	}
-	accepted, err := loadRecipes(ctx, q, became)
+	accepted, err := loadRecipes(ctx, q, recipeIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -596,13 +597,13 @@ func (s *Service) acceptDrafts(ctx context.Context, q db.Querier, p *proposedPla
 	if len(ids) == 0 {
 		return nil
 	}
-	became, err := s.recipes.AcceptDrafted(ctx, q, ids)
+	recipeOf, err := s.recipes.AcceptDrafted(ctx, q, ids)
 	if err != nil {
 		return err
 	}
 	for i := range p.PrepSessions {
 		if ps := &p.PrepSessions[i]; ps.DraftID != nil {
-			id := became[*ps.DraftID]
+			id := recipeOf[*ps.DraftID]
 			ps.RecipeID, ps.DraftID = &id, nil
 		}
 	}
@@ -610,28 +611,32 @@ func (s *Service) acceptDrafts(ctx context.Context, q db.Querier, p *proposedPla
 }
 
 // Reject rejects the Plan Proposal with id, with the user's note. A note
-// asks for another: while the Cycle has no Plan, a new planning Run starts
-// that takes it into account, and its id is returned; 0 when none started.
+// asks for another: while the Cycle has no Plan, a new planning Run that
+// takes it into account starts with the rejection, all at once or not at
+// all, and its id is returned; 0 when none started.
 func (s *Service) Reject(ctx context.Context, id int64, note string) (int64, error) {
 	if err := s.Arrive(ctx); err != nil {
 		return 0, err
 	}
-	var cycleID int64
+	var run int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		// The Cycle is locked before the Plan Proposal, as Approve does.
+		if err := lockCycleOf(ctx, tx, id); err != nil {
+			return err
+		}
 		stored, err := pending(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		cycleID = stored.CycleID
-		return decideProposal(ctx, tx, id, "rejected", note)
+		if err := decideProposal(ctx, tx, id, "rejected", note); err != nil || note == "" {
+			return err
+		}
+		run, err = s.startPlanningIn(ctx, tx, stored.CycleID, id)
+		if errors.Is(err, ErrCannotPlan) {
+			run, err = 0, nil
+		}
+		return err
 	})
-	if err != nil || note == "" {
-		return 0, err
-	}
-	run, err := s.startPlanning(ctx, cycleID, id)
-	if errors.Is(err, ErrCannotPlan) {
-		return 0, nil
-	}
 	return run, err
 }
 
