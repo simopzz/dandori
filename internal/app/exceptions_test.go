@@ -195,6 +195,11 @@ func TestAPastSlotIsNotLoggedAheadAndItsExceptionStands(t *testing.T) {
 	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "That Slot is past") {
 		t.Fatalf("change a past Slot = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
 	}
+	// Under htmx, the row alone: the Slot as it stands, saying why.
+	res = h.HTMXPostForm(t, snack.Action, snack.Values)
+	if res.StatusCode != http.StatusConflict || !isRow(res.Body) || !strings.Contains(text(res.Body), "snack Meal Out · 900 kcal") || !strings.Contains(text(res.Body), "That Slot is past") {
+		t.Fatalf("HTMX change a past Slot = %d, want 409 and its row saying why:\n%s", res.StatusCode, res.Body)
+	}
 	if page := text(h.Get(t, exceptions).Body); !strings.Contains(page, "snack Meal Out") {
 		t.Errorf("a past Exception was changed:\n%s", page)
 	}
@@ -239,4 +244,61 @@ func TestExceptionIsChangedAndRemoved(t *testing.T) {
 	if page := text(res.Body); strings.Contains(page, "Meal Out ·") || strings.Contains(page, "lunch skipped") {
 		t.Errorf("the Exception was not removed:\n%s", page)
 	}
+}
+
+func TestAnExceptedSlotBeforeAPlanProposalCountsOnlyItsException(t *testing.T) {
+	h, today := startPlanning(t)
+	exceptions := openCycle(t, h, "2026-11-02", "").Path
+	approvePlan(t, h, lemonPlan(t, h))
+	// Wednesday's lunch, the Lemon chicken with rice, is skipped after all.
+	today.set(t, "2026-11-04")
+	logException(t, h, exceptions, "2026-11-04", "lunch", map[string]string{"exception": "skipped"}, false)
+
+	today.set(t, "2026-11-05")
+	page := text(h.Get(t, proposePlan(t, h, `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)).Body)
+	// Seven Untracked Allowances, Monday's Lemon chicken with rice and
+	// Tuesday's lemon: 1050 + 589 + 20 kcal, 35 + 52 + 1 g protein. The
+	// skipped lunch's Portion counts nothing.
+	if want := "Sun 8 Nov 150 kcal · 5 g protein · 15 g carbs · 5 g fat Seven days: 1659 kcal · 88 g protein"; !strings.Contains(page, want) {
+		t.Errorf("Plan Proposal page does not show %q:\n%s", want, page)
+	}
+}
+
+func TestPlanProposalFillingAnExceptedSlotIsNotApproved(t *testing.T) {
+	h, _ := startPlanning(t)
+	exceptions := openCycle(t, h, "2026-11-02", "").Path
+	proposal := proposePlan(t, h, lemonPlan(t, h))
+	// Made before the snack was skipped; no Plan relies on it, so the
+	// Plan Proposal stays pending.
+	logException(t, h, exceptions, "2026-11-03", "snack", map[string]string{"exception": "skipped"}, false)
+
+	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
+	res := h.PostForm(t, approve.Action, approve.Values)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "fills a Slot logged as a Meal Out or skipped, so it was not approved") {
+		t.Fatalf("approve a Plan Proposal filling an excepted Slot = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "No Plan yet") {
+		t.Errorf("a Plan Proposal filling an excepted Slot became the Plan:\n%s", plan)
+	}
+}
+
+func TestAnExceptionBetweenCyclesIsShownAndRemoved(t *testing.T) {
+	h, _, llm := planningRun(t)
+	logException(t, h, openCycle(t, h, "2026-11-02", "").Path, "2026-11-07", "lunch", map[string]string{"exception": "meal-out"}, false)
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Exceptions between Cycles") {
+		t.Fatalf("the Plan page shows an Exception its Cycle holds as between Cycles:\n%s", page)
+	}
+
+	drop := apptest.Form(t, h.Get(t, "/plan").Body, "drop")
+	page := h.PostForm(t, drop.Action, drop.Values).Body
+	if want := "count them. lunch on Sat 7 Nov Meal Out · 900 kcal · 35 g protein Remove"; !strings.Contains(text(page), want) {
+		t.Fatalf("Plan page does not show %q:\n%s", want, text(page))
+	}
+	remove := apptest.Form(t, page, "remove-exception-2026-11-07-lunch")
+	res := h.PostForm(t, remove.Action, remove.Values)
+	if res.StatusCode != http.StatusOK || res.Path != "/plan" || strings.Contains(text(res.Body), "Exceptions between Cycles") {
+		t.Fatalf("remove an Exception between Cycles = %d at %s, want the Plan page without it:\n%s", res.StatusCode, res.Path, text(res.Body))
+	}
+	openCycle(t, h, "2026-11-09", "2026-11-12")
+	seesExceptions(t, h, llm, "No Exceptions from Tue 3 Nov to Thu 12 Nov.")
 }

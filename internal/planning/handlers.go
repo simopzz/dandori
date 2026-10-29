@@ -62,6 +62,18 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 		if change.Values != nil {
 			p.Upcoming.Change = change
 		}
+		n += 3
+	}
+	p.BetweenNumber = max(n, 2)
+	for _, es := range o.Between {
+		p.Between = append(p.Between, BetweenRow{
+			ID:     slotID(es.Slot),
+			Slot:   es.Slot.String(),
+			State:  describeException(*es.Exception, o.MealOut),
+			Day:    es.Slot.On.Format(dateLayout),
+			Kind:   string(es.Slot.Kind),
+			ToCome: es.ToCome,
+		})
 	}
 	templ.Handler(Page(p), templ.WithStatus(status)).ServeHTTP(w, r)
 }
@@ -69,13 +81,13 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 func cycleView(cp CyclePlan, number int) *CycleView {
 	c := cp.Cycle
 	v := &CycleView{
-		ID:        c.ID,
-		Number:    number,
-		Delivery:  describeDelivery(c.Delivery, longDate),
-		Ordered:   c.Delivery.Ordered,
-		Starts:    c.Start.String(),
-		Ends:      c.EndsOn.Format(longDate),
-		NeedsPlan: c.NeedsProposal,
+		ID:                   c.ID,
+		Number:               number,
+		Delivery:             describeDelivery(c.Delivery, longDate),
+		Ordered:              c.Delivery.Ordered,
+		Starts:               c.Start.String(),
+		Ends:                 c.EndsOn.Format(longDate),
+		NeedsProposalBecause: c.NeedsProposalBecause,
 	}
 	if cp.Plan != nil {
 		v.HasPlan, v.Calendar = true, calendarOf(*cp.Plan)
@@ -222,6 +234,28 @@ func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// RemoveExceptionBetweenCycles removes the Exception of a Slot still to
+// come that no Cycle holds.
+func (h Handlers) RemoveExceptionBetweenCycles(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	slot, ok := readSlotField(r.PostForm)
+	if !ok {
+		http.Error(w, "bad slot", http.StatusBadRequest)
+		return
+	}
+	switch err := h.Service.RemoveExceptionBetweenCycles(r.Context(), slot); {
+	case errors.Is(err, ErrSlotUnavailable):
+		h.render(w, r, PlanPage{Problem: "That Slot is past, or a Cycle holds it now: change it on that Cycle's Exceptions page."}, http.StatusConflict)
+	case err != nil:
+		httpx.ServerError(w, h.Log, "remove exception", err)
+	default:
+		http.Redirect(w, r, "/plan", http.StatusSeeOther)
+	}
+}
+
 // readDelivery reads a Delivery's date and window from form, returning
 // what is wrong with them keyed by form field name.
 func readDelivery(form url.Values) (domain.Delivery, map[string]string) {
@@ -304,6 +338,8 @@ func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 		h.renderProposal(w, r, id, "This Plan Proposal's Cycle has closed: a later Delivery started the next one.", http.StatusConflict)
 	case errors.Is(err, ErrStartsInPast):
 		h.renderProposal(w, r, id, "This Plan Proposal starts in the past, so it was not approved: what was prepared and eaten since stays.", http.StatusConflict)
+	case errors.Is(err, ErrFillsExceptedSlot):
+		h.renderProposal(w, r, id, "This Plan Proposal fills a Slot logged as a Meal Out or skipped, so it was not approved: ask for a new one.", http.StatusConflict)
 	case errors.As(err, &unreadable):
 		h.renderProposal(w, r, id, "This Plan Proposal can't be read, so it was not approved: "+unreadable.Reason+".", http.StatusConflict)
 	case errors.Is(err, ErrInapplicable):

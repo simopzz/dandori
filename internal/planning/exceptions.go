@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 )
 
@@ -52,7 +54,7 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 	}
 	ce.MealOut = p.MealOut
 	err = pgx.BeginTxFunc(ctx, s.pool, snapshot, func(tx pgx.Tx) error {
-		c, err := scanCycle(tx.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE id = $1`, id))
+		c, err := findCycle(ctx, tx, id)
 		if err != nil {
 			return err
 		}
@@ -66,7 +68,7 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 		}
 		byKey := map[string]domain.Exception{}
 		for _, e := range exceptions {
-			byKey[slotKey(e.Slot)] = e
+			byKey[slotID(e.Slot)] = e
 		}
 		for d := c.Start.On; !d.After(c.LastDay()); d = d.AddDate(0, 0, 1) {
 			for _, k := range domain.SlotKinds {
@@ -75,7 +77,7 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 					continue
 				}
 				es := ExceptionSlot{Slot: slot, ToCome: c.Status != "closed" && slot.ToCome(s.now(), p.SlotTimes)}
-				if e, ok := byKey[slotKey(slot)]; ok {
+				if e, ok := byKey[slotID(slot)]; ok {
 					es.Exception = &e
 				}
 				ce.Slots = append(ce.Slots, es)
@@ -104,7 +106,7 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
 		}
-		c, err := scanCycle(tx.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE id = $1`, id))
+		c, err := findCycle(ctx, tx, id)
 		switch {
 		case err != nil:
 			return err
@@ -133,14 +135,62 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 		if err != nil || !relied {
 			return err
 		}
-		if err := setNeedsProposal(ctx, tx, c.ID, "An Exception changed"); err != nil {
+		if err := setNeedsProposal(ctx, tx, c.ID, exceptionChanged); err != nil {
 			return err
 		}
-		return rejectPending(ctx, tx, c.ID, "An Exception changed: "+slot.String()+" is now "+describeSlotState(e)+".")
+		return rejectPending(ctx, tx, c.ID, exceptionChanged+": "+slot.String()+" is now "+describeSlotState(e)+".")
 	})
 }
 
-func slotKey(s domain.Slot) string { return s.On.Format(time.DateOnly) + " " + string(s.Kind) }
+// between loads the Exceptions from the day first on whose Slots no
+// Cycle holds, as Slots at times.
+func (s *Service) between(ctx context.Context, q db.Querier, first time.Time, times domain.SlotTimes) ([]ExceptionSlot, error) {
+	exceptions, err := loadExceptionsFrom(ctx, q, first)
+	if err != nil {
+		return nil, err
+	}
+	cycles, err := loadCyclesFrom(ctx, q, first)
+	if err != nil {
+		return nil, err
+	}
+	var between []ExceptionSlot
+	for _, e := range exceptions {
+		if !slices.ContainsFunc(cycles, func(c Cycle) bool { return c.Contains(e.Slot) }) {
+			between = append(between, ExceptionSlot{Slot: e.Slot, Exception: &e, ToCome: e.Slot.ToCome(s.now(), times)})
+		}
+	}
+	return between, nil
+}
+
+// RemoveExceptionBetweenCycles removes the Exception of slot, a Slot still
+// to come that no Cycle holds; one a Cycle holds is changed on its
+// Exceptions page.
+func (s *Service) RemoveExceptionBetweenCycles(ctx context.Context, slot domain.Slot) error {
+	if err := s.Arrive(ctx); err != nil {
+		return err
+	}
+	p, _, err := s.profile.Get(ctx)
+	if err != nil {
+		return err
+	}
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		// Serialises with the opening, move or drop of a Cycle.
+		if err := lockCycles(ctx, tx); err != nil {
+			return err
+		}
+		cycles, err := loadCyclesFrom(ctx, tx, slot.On)
+		if err != nil {
+			return err
+		}
+		if !slot.ToCome(s.now(), p.SlotTimes) || slices.ContainsFunc(cycles, func(c Cycle) bool { return c.Contains(slot) }) {
+			return ErrSlotUnavailable
+		}
+		return saveException(ctx, tx, slot, nil)
+	})
+}
+
+// slotID names s by its day and kind, e.g. "2026-11-07-lunch".
+func slotID(s domain.Slot) string { return s.On.Format(time.DateOnly) + "-" + string(s.Kind) }
 
 // sameException reports whether a and b, either nil for none, log their
 // Slot the same way.

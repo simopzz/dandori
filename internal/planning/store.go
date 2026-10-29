@@ -33,7 +33,7 @@ func scanCycle(row pgx.Row) (*Cycle, error) {
 	var closedWith *domain.SlotKind
 	d := &c.Delivery
 	err := row.Scan(&c.ID, &d.On, &d.From, &d.To, &d.Ordered,
-		&c.Start.On, &c.Start.Kind, &c.EndsOn, &closedOn, &closedWith, &c.Status, &c.NeedsProposal)
+		&c.Start.On, &c.Start.Kind, &c.EndsOn, &closedOn, &closedWith, &c.Status, &c.NeedsProposalBecause)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -55,12 +55,27 @@ func loadCycleWith(ctx context.Context, q db.Querier, status string) (*Cycle, er
 	return scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE status = $1`, status))
 }
 
+// findCycle loads the Cycle with id, or nil when there is none.
+func findCycle(ctx context.Context, q db.Querier, id int64) (*Cycle, error) {
+	return scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE id = $1`, id))
+}
+
 func loadCycle(ctx context.Context, q db.Querier, id int64) (Cycle, error) {
-	c, err := scanCycle(q.QueryRow(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE id = $1`, id))
+	c, err := findCycle(ctx, q, id)
 	if c == nil {
 		return Cycle{}, cmp.Or(err, pgx.ErrNoRows)
 	}
 	return *c, err
+}
+
+// loadCyclesFrom loads the Cycles planned to end on or after the day
+// first, closed ones included.
+func loadCyclesFrom(ctx context.Context, q db.Querier, first time.Time) ([]Cycle, error) {
+	rows, _ := q.Query(ctx, `SELECT `+cycleColumns+` FROM cycle WHERE ends_on >= $1 ORDER BY delivery_on`, first)
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
+		c, err := scanCycle(row)
+		return *c, err
+	})
 }
 
 // lockCycles serialises changes to Cycles: opening, moving, dropping and
@@ -132,6 +147,10 @@ func moveCycle(ctx context.Context, q db.Querier, id int64, c domain.Cycle, note
 // deliveryMoved is why a Plan a Delivery moved under needs a new Plan
 // Proposal.
 const deliveryMoved = "A Delivery moved"
+
+// exceptionChanged is why a Plan needs a new Plan Proposal once an
+// Exception changed one of its Slots.
+const exceptionChanged = "An Exception changed"
 
 // setNeedsProposal marks the Plan of the Cycle with id as needing a new
 // Plan Proposal, because of what because says, or, when it is empty, as
@@ -405,12 +424,14 @@ func loadKept(ctx context.Context, q db.Querier, id int64, from, prepared domain
 
 // loadEarlier loads what the Slots before from eat, from six days before
 // c's first day on: all a trailing seven days of c can reach. They
-// are earlier Cycles' Slots, and c's own that a Plan from from on keeps.
+// are earlier Cycles' Slots, and c's own that a Plan from from on keeps;
+// an excepted Slot's Portion isn't eaten, and only its Exception counts.
 func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) ([]domain.DayNutrition, error) {
 	refs, err := loadPortionRefs(ctx, q, `
 		SELECT p.id, p.prep_session_id, s.day, s.kind
 		FROM slot s JOIN portion p ON p.id = s.portion_id
-		WHERE s.day >= $1::date - 6 AND (s.day, `+order("s.kind")+`) < ($2::date, $3)`,
+		WHERE s.day >= $1::date - 6 AND (s.day, `+order("s.kind")+`) < ($2::date, $3)
+			AND NOT EXISTS (SELECT FROM slot_exception e WHERE e.day = s.day AND e.kind = s.kind)`,
 		c.Start.On, from.On, slotOrder(from))
 	if err != nil {
 		return nil, err
@@ -540,6 +561,18 @@ func loadExceptions(ctx context.Context, q db.Querier, first, last time.Time) ([
 	rows, _ := q.Query(ctx, `
 		SELECT day, kind, exception, kcal, protein_g, carbs_g, fat_g FROM slot_exception
 		WHERE day BETWEEN $1 AND $2 ORDER BY day, `+order("kind"), first, last)
+	return collectExceptions(rows)
+}
+
+// loadExceptionsFrom loads the Exceptions from the day first on.
+func loadExceptionsFrom(ctx context.Context, q db.Querier, first time.Time) ([]domain.Exception, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT day, kind, exception, kcal, protein_g, carbs_g, fat_g FROM slot_exception
+		WHERE day >= $1 ORDER BY day, `+order("kind"), first)
+	return collectExceptions(rows)
+}
+
+func collectExceptions(rows pgx.Rows) ([]domain.Exception, error) {
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Exception, error) {
 		var e domain.Exception
 		est := &e.Estimate

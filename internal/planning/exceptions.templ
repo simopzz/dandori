@@ -87,6 +87,11 @@ templ exceptionRowView(s ExceptionRow) {
 	if !s.ToCome {
 		@web.Row() {
 			@exceptionSummary(s)
+			if s.Problem != "" {
+				@web.Alert() {
+					{ s.Problem }
+				}
+			}
 		}
 	} else {
 		@web.EditRow(len(s.Form.Errors) > 0 || s.Problem != "", exceptionSummary(s)) {

@@ -19,6 +19,21 @@ type PlanPage struct {
 	// Problem is why the user's change was refused, if it was.
 	Problem string
 	Open    CycleForm
+	// Between is the Exceptions on days between Cycles, in the Section
+	// numbered BetweenNumber.
+	Between       []BetweenRow
+	BetweenNumber int
+}
+
+// BetweenRow is an Exception on a day between Cycles: a Cycle opened over
+// it would plan around it, and a trailing seven days reaching it counts it.
+type BetweenRow struct {
+	ID     string // e.g. "2026-11-07-lunch"
+	Slot   string // e.g. "lunch on Sat 7 Nov"
+	State  string
+	Day    string // YYYY-MM-DD
+	Kind   string
+	ToCome bool // whether it can still be removed
 }
 
 // CycleView is a Cycle as shown, with its Plan and Plan Proposals.
@@ -30,9 +45,9 @@ type CycleView struct {
 	Ordered   bool
 	Starts    string // its first Slot, e.g. "dinner on Mon 2 Nov"
 	Ends      string
-	// NeedsPlan is why its Plan needs a new Plan Proposal, e.g. "A Delivery
-	// moved"; empty when it doesn't.
-	NeedsPlan string
+	// NeedsProposalBecause is why its Plan needs a new Plan Proposal,
+	// e.g. "A Delivery moved"; empty when it doesn't.
+	NeedsProposalBecause string
 	// HasPlan is whether a Plan Proposal of the Cycle was approved; Calendar
 	// is its Plan.
 	HasPlan   bool
@@ -133,6 +148,39 @@ templ Page(p PlanPage) {
 		} else {
 			@openSheet(p.Open)
 		}
+		if len(p.Between) > 0 {
+			@betweenSection(p.BetweenNumber, p.Between)
+		}
+	}
+}
+
+// betweenSection lists the Exceptions on days between Cycles, left by a
+// moved Delivery or a dropped Cycle, each still to come with a form to
+// remove it.
+templ betweenSection(number int, rows []BetweenRow) {
+	@web.Section(number, "Exceptions between Cycles") {
+		@web.Hint() {
+			These Slots are in no Cycle, but a Cycle opened over them plans around them, and the trailing seven days reaching them count them.
+		}
+		@web.Rows() {
+			for _, b := range rows {
+				@web.Row() {
+					<span class="row-title">{ b.Slot }</span>
+					<span class="row-meta">
+						<span>{ b.State }</span>
+					</span>
+					if b.ToCome {
+						<form id={ "remove-exception-" + b.ID } class="row-action" method="post" action="/exceptions/remove">
+							<input type="hidden" name="day" value={ b.Day }/>
+							<input type="hidden" name="kind" value={ b.Kind }/>
+							@web.TextButton(templ.Attributes{"type": "submit"}) {
+								Remove
+							}
+						</form>
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -159,9 +207,9 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 			<dt>Ends</dt>
 			<dd>{ c.Ends }</dd>
 		</dl>
-		if c.NeedsPlan != "" {
+		if c.NeedsProposalBecause != "" {
 			@web.Alert() {
-				{ c.NeedsPlan }: this Plan needs a new Plan Proposal.
+				{ c.NeedsProposalBecause }: this Plan needs a new Plan Proposal.
 			}
 		}
 		<p><a href={ templ.SafeURL(exceptionsURL(c.ID)) }>Exceptions</a></p>
