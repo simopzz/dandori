@@ -114,3 +114,17 @@ func TestCycleWithoutAPlanHasNothingOnItsGroceryList(t *testing.T) {
 		t.Errorf("Grocery List of a Cycle without a Plan does not say there is nothing to buy:\n%s", list)
 	}
 }
+
+func TestOrderingAMovedDeliveryFixesTheGroceryListOfTheMovedCycle(t *testing.T) {
+	h, _ := startGroceries(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonPlan(t, h))
+
+	// Moved to the 3rd, the Cycle loses the Lemon chicken cooked on the
+	// 2nd; the lemon for the snack on the 3rd is all it still needs.
+	changeDelivery(t, h, map[string]string{"delivery_on": "2026-11-03", "ordered": "yes"})
+	list := groceryList(t, h)
+	if strings.Contains(list, "chicken breast") || !strings.Contains(list, "lemon 1 piece needed") {
+		t.Errorf("the Grocery List fixed on ordering is not the moved Cycle's:\n%s", list)
+	}
+}

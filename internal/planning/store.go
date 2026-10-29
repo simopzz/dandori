@@ -664,6 +664,8 @@ func insertProposal(ctx context.Context, q db.Querier, id, run int64, plan []byt
 	return err
 }
 
+// groceryListFixed reports whether the Grocery List of the Cycle with id is
+// fixed, its lines stored.
 func groceryListFixed(ctx context.Context, q db.Querier, id int64) (bool, error) {
 	var fixed bool
 	err := q.QueryRow(ctx, `SELECT grocery_list_fixed FROM cycle WHERE id = $1`, id).Scan(&fixed)

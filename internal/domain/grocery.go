@@ -60,7 +60,8 @@ const tolerance = 1e-6
 // NewGroceryList is what plan needs of each Ingredient, less the Stock
 // Items not expired on the Delivery day, rounded up to whole packs of its
 // Product Mapping in mappings, keyed by Ingredient name. A Prep Session of
-// a Recipe scales it to the Portions it yields.
+// a Recipe scales it to the Portions it yields. A Product Mapping to a
+// Catalog Product no longer sold in the Ingredient's unit counts as none.
 func NewGroceryList(plan Plan, stock []StockItem, mappings map[string]ProductMapping, delivery time.Time) GroceryList {
 	needed := map[string]float64{}
 	ingredients := map[string]Ingredient{}
@@ -81,7 +82,7 @@ func NewGroceryList(plan Plan, stock []StockItem, mappings map[string]ProductMap
 			continue
 		}
 		line := GroceryLine{Ingredient: ing, Needed: needed[name]}
-		if m, ok := mappings[name]; ok {
+		if m, ok := mappings[name]; ok && MappingProblem(ing, m.Product) == "" {
 			line.Mapping = &m
 			line.Packs = int(math.Ceil(line.Needed/m.Product.PackQuantity - tolerance))
 		}

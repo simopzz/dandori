@@ -64,8 +64,9 @@ func (s *Service) Items(ctx context.Context) ([]Item, error) {
 	return loadItems(ctx, s.pool)
 }
 
-// ItemsIn loads every Stock Item as Items does, through q, so a caller's
-// transaction can read them with what else it reads.
+// ItemsIn loads every Stock Item through q, so a caller's transaction can
+// read them with what else it reads. Unlike Items, it takes no Delivery as
+// arrived first: Arrive itself reads them.
 func (s *Service) ItemsIn(ctx context.Context, q db.Querier) ([]domain.StockItem, error) {
 	items, err := loadItems(ctx, q)
 	stock := make([]domain.StockItem, len(items))

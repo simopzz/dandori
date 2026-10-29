@@ -98,6 +98,12 @@ func TestGroceryListRoundsWhatThePlanNeedsUpToWholePacks(t *testing.T) {
 			},
 		},
 		{
+			name:     "a Product Mapping to a product now sold in another unit counts as none",
+			plan:     domain.Plan{PrepSessions: []domain.PrepSession{session(nil, 1, domain.RecipeIngredient{Ingredient: milk, Quantity: 500})}},
+			mappings: map[string]domain.ProductMapping{"milk": {Product: product("Latte 1 kg", 1000, domain.Grams, "Latte")}},
+			want:     []line{{ingredient: "milk", needed: 500, bought: 500}},
+		},
+		{
 			name: "no Plan, nothing to buy",
 		},
 	}

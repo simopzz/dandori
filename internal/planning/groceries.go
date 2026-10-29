@@ -109,16 +109,16 @@ func (h Handlers) ShowGroceries(w http.ResponseWriter, r *http.Request) {
 	page := GroceriesPage{Title: "For the Cycle delivered " + g.Cycle.Delivery.On.Format(longDate)}
 	switch {
 	case g.Fixed && g.Cycle.Status == "upcoming":
-		page.Fixed = "Fixed when its Delivery was marked ordered."
+		page.FixedBecause = "Fixed when its Delivery was marked ordered."
 	case g.Fixed:
-		page.Fixed = "Its Delivery has arrived: everything on it became Stock Items."
+		page.FixedBecause = "Its Delivery has arrived: everything on it became Stock Items."
 	}
 	switch {
 	case len(g.List) > 0:
 	case !g.HasPlan && !g.Fixed:
-		page.Empty = "No Plan yet: approve a Plan Proposal, and what it needs beyond stock shows here."
+		page.EmptyBecause = "No Plan yet: approve a Plan Proposal, and what it needs beyond stock shows here."
 	default:
-		page.Empty = "Stock covers everything the Plan needs."
+		page.EmptyBecause = "Stock covers everything the Plan needs."
 	}
 	for _, a := range g.List.ByAisle() {
 		aisle := GroceryAisle{Title: a.Aisle, Unmapped: a.Unmapped}

@@ -13,12 +13,12 @@ import "github.com/simopzz/dandori/internal/web"
 // GroceriesPage is a Cycle's Grocery List, its lines grouped by aisle.
 type GroceriesPage struct {
 	Title string // e.g. "For the Cycle delivered Mon 2 Nov 2026"
-	// Fixed says why the list no longer follows the Plan, e.g. "Fixed
+	// FixedBecause says why the list no longer follows the Plan, e.g. "Fixed
 	// when its Delivery was marked ordered."; empty while it does.
-	Fixed string
-	// Empty says why there is nothing to buy, when there isn't.
-	Empty  string
-	Aisles []GroceryAisle
+	FixedBecause string
+	// EmptyBecause says why there is nothing to buy, when there isn't.
+	EmptyBecause string
+	Aisles       []GroceryAisle
 }
 
 // GroceryAisle is the lines of one aisle, or of the Ingredients with no
@@ -106,7 +106,7 @@ func GroceriesView(p GroceriesPage) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if p.Fixed != "" {
+			if p.FixedBecause != "" {
 				templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -120,9 +120,9 @@ func GroceriesView(p GroceriesPage) templ.Component {
 					}
 					ctx = templ.InitializeContext(ctx)
 					var templ_7745c5c3_Var6 string
-					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(p.Fixed)
+					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(p.FixedBecause)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/groceries.templ`, Line: 40, Col: 13}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/groceries.templ`, Line: 40, Col: 20}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -139,7 +139,7 @@ func GroceriesView(p GroceriesPage) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if p.Empty != "" {
+			if p.EmptyBecause != "" {
 				templ_7745c5c3_Var7 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -187,9 +187,9 @@ func GroceriesView(p GroceriesPage) templ.Component {
 						}
 						ctx = templ.InitializeContext(ctx)
 						var templ_7745c5c3_Var10 string
-						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(p.Empty)
+						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(p.EmptyBecause)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/groceries.templ`, Line: 49, Col: 14}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/groceries.templ`, Line: 49, Col: 21}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 						if templ_7745c5c3_Err != nil {

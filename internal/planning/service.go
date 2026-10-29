@@ -378,18 +378,25 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 		if upcoming == nil || upcoming.ID != id {
 			return ErrNotUpcoming
 		}
-		if d.Ordered && !upcoming.Delivery.Ordered {
-			if _, err := s.fixGroceryList(ctx, tx, *upcoming); err != nil {
-				return err
-			}
-		}
+		ordering := d.Ordered && !upcoming.Delivery.Ordered
 		d.Ordered = d.Ordered || upcoming.Delivery.Ordered
 		moved, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return upcoming.MovedTo(d, times) })
 		if err != nil {
 			return err
 		}
+		// Ordering fixes the Grocery List of the Cycle as it is moved.
+		fixGroceries := func() error {
+			if !ordering {
+				return nil
+			}
+			_, err := s.fixGroceryList(ctx, tx, Cycle{ID: id, Cycle: moved})
+			return err
+		}
 		if d.On.Equal(upcoming.Delivery.On) && d.From == upcoming.Delivery.From && d.To == upcoming.Delivery.To {
-			return updateDelivery(ctx, tx, id, moved)
+			if err := updateDelivery(ctx, tx, id, moved); err != nil {
+				return err
+			}
+			return fixGroceries()
 		}
 		current, err := loadCycleWith(ctx, tx, "current")
 		if err != nil {
@@ -410,6 +417,9 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 			return err
 		}
 		if err := moveCycle(ctx, tx, id, moved, "Its Delivery moved to "+describeDelivery(d, shortDate)+"."); err != nil {
+			return err
+		}
+		if err := fixGroceries(); err != nil {
 			return err
 		}
 		if flagCurrent {

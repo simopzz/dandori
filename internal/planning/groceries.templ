@@ -5,11 +5,11 @@ import "github.com/simopzz/dandori/internal/web"
 // GroceriesPage is a Cycle's Grocery List, its lines grouped by aisle.
 type GroceriesPage struct {
 	Title string // e.g. "For the Cycle delivered Mon 2 Nov 2026"
-	// Fixed says why the list no longer follows the Plan, e.g. "Fixed
+	// FixedBecause says why the list no longer follows the Plan, e.g. "Fixed
 	// when its Delivery was marked ordered."; empty while it does.
-	Fixed string
-	// Empty says why there is nothing to buy, when there isn't.
-	Empty  string
+	FixedBecause string
+	// EmptyBecause says why there is nothing to buy, when there isn't.
+	EmptyBecause string
 	Aisles []GroceryAisle
 }
 
@@ -35,18 +35,18 @@ templ GroceriesView(p GroceriesPage) {
 		@web.PageHeader("買物", "Grocery List") {
 			<p class="lede">{ p.Title }</p>
 		}
-		if p.Fixed != "" {
+		if p.FixedBecause != "" {
 			@web.Notice() {
-				{ p.Fixed }
+				{ p.FixedBecause }
 			}
 		}
-		if p.Empty != "" {
+		if p.EmptyBecause != "" {
 			@web.Section(1, "Grocery List") {
 				@web.Empty() {
 					Nothing to buy.
 				}
 				@web.Hint() {
-					{ p.Empty }
+					{ p.EmptyBecause }
 				}
 			}
 		}
