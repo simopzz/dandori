@@ -12,11 +12,13 @@ import (
 
 const productColumns = `id, code, name, pack_quantity, unit, kcal, protein_g, carbs_g, fat_g, aisle, price, available, availability_seen_at`
 
-func scanProduct(row pgx.Row) (Product, error) {
+// scanProduct reads a Catalog Product's productColumns, then any columns
+// after them into extra.
+func scanProduct(row pgx.Row, extra ...any) (Product, error) {
 	var p Product
 	var kcal, protein, carbs, fat *float64
-	err := row.Scan(&p.ID, &p.Code, &p.Name, &p.PackQuantity, &p.Unit, &kcal, &protein, &carbs, &fat,
-		&p.Aisle, &p.Price, &p.Available, &p.AvailabilitySeen)
+	err := row.Scan(append([]any{&p.ID, &p.Code, &p.Name, &p.PackQuantity, &p.Unit, &kcal, &protein, &carbs, &fat,
+		&p.Aisle, &p.Price, &p.Available, &p.AvailabilitySeen}, extra...)...)
 	if kcal != nil {
 		p.Nutrition = &domain.IngredientNutrition{Kcal: *kcal, ProteinG: *protein, CarbsG: *carbs, FatG: *fat}
 	}
@@ -126,4 +128,26 @@ func proposeMapping(ctx context.Context, q db.Querier, ingredientID, productID i
 		ON CONFLICT (ingredient_id) DO NOTHING`,
 		ingredientID, productID)
 	return tag.RowsAffected() == 1, err
+}
+
+// loadProductMappings loads the Product Mapping of every Ingredient with
+// one, keyed by Ingredient name.
+func loadProductMappings(ctx context.Context, q db.Querier) (map[string]domain.ProductMapping, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT `+productColumns+`, m.ingredient, m.proposed
+		FROM catalog_product JOIN (
+			SELECT m.catalog_product_id, m.proposed, i.name AS ingredient
+			FROM product_mapping m JOIN ingredient i ON i.id = m.ingredient_id
+		) m ON m.catalog_product_id = catalog_product.id`)
+	mappings := map[string]domain.ProductMapping{}
+	var name string
+	var proposed bool
+	for rows.Next() {
+		p, err := scanProduct(rows, &name, &proposed)
+		if err != nil {
+			return nil, err
+		}
+		mappings[name] = domain.ProductMapping{Product: p.CatalogProduct, Proposed: proposed}
+	}
+	return mappings, rows.Err()
 }

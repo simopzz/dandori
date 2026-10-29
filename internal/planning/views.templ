@@ -240,6 +240,7 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 		}
 		<p>
 			<a href={ templ.SafeURL(exceptionsURL(c.ID)) }>Exceptions</a>
+			· <a href={ templ.SafeURL(groceriesURL(c.ID)) }>Grocery List</a>
 			if c.PreviousID != 0 {
 				· <a href={ templ.SafeURL(exceptionsURL(c.PreviousID)) }>Exceptions of the previous Cycle</a>
 			}

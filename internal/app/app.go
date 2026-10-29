@@ -281,6 +281,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /cycles/{id}/plan", a.needsDatabase(http.HandlerFunc(plan.Plan)))
 	mux.Handle("GET /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.ShowExceptions)))
 	mux.Handle("POST /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.LogException)))
+	mux.Handle("GET /cycles/{id}/groceries", a.needsDatabase(http.HandlerFunc(plan.ShowGroceries)))
 	mux.Handle("POST /exceptions/remove", a.needsDatabase(http.HandlerFunc(plan.RemoveExceptionBetweenCycles)))
 	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(http.HandlerFunc(plan.ShowProposal)))
 	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(http.HandlerFunc(plan.Approve)))

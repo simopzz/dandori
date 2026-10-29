@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/esselunga"
 	"github.com/simopzz/dandori/internal/runs"
@@ -150,4 +151,11 @@ func (s *Service) Run(ctx context.Context, id int64) (run runs.Run, found bool, 
 // proposal, with its Trace. found is false before the first.
 func (s *Service) LastRun(ctx context.Context) (runs.Run, bool, error) {
 	return s.runs.Latest(ctx, seedKind, refreshKind, proposalKind)
+}
+
+// ProductMappings loads the Product Mapping of every Ingredient with one,
+// keyed by Ingredient name, through q, so a caller's transaction can read
+// them with what else it reads.
+func (s *Service) ProductMappings(ctx context.Context, q db.Querier) (map[string]domain.ProductMapping, error) {
+	return loadProductMappings(ctx, q)
 }

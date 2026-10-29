@@ -186,9 +186,10 @@ func (s *Service) today() time.Time { return domain.DayOf(s.now()) }
 var snapshot = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
 
 // Arrive takes the upcoming Cycle's Delivery as arrived once its window has
-// ended: the Cycle becomes current, and the current one closes, early if
-// it hadn't ended, carrying what is left over as Portions without a Slot
-// and rejecting its pending Plan Proposals. Every use case calls it first,
+// ended: the Cycle becomes current, everything on its Grocery List becomes
+// Stock Items, and the current one closes, early if it hadn't ended,
+// carrying what is left over as Portions without a Slot and rejecting its
+// pending Plan Proposals. Every use case calls it first,
 // so what it shows and changes is as of now.
 func (s *Service) Arrive(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -217,6 +218,13 @@ func (s *Service) Arrive(ctx context.Context) error {
 			if err := closeCycle(ctx, tx, current.ID, arrival, note); err != nil {
 				return err
 			}
+		}
+		list, err := s.fixGroceryList(ctx, tx, *upcoming)
+		if err != nil {
+			return err
+		}
+		if err := s.stock.Receive(ctx, tx, list.StockItems()); err != nil {
+			return err
 		}
 		return setStatus(ctx, tx, upcoming.ID, "current")
 	})
@@ -349,11 +357,12 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 }
 
 // ChangeDelivery changes the Delivery of the upcoming Cycle with id to d,
-// keeping it ordered once it was. A move shifts the Cycle's first Slot,
-// and its end date when the Delivery is later; it drops what the Plan has
-// outside the moved Cycle, rejects its pending Plan Proposals and marks
-// its Plan as needing a new one; so too the current Cycle's Plan, if it no
-// longer reaches the Delivery.
+// keeping it ordered once it was; marking it ordered fixes its Grocery
+// List. A move shifts the Cycle's first Slot, and its end date when the
+// Delivery is later; it drops what the Plan has outside the moved Cycle,
+// rejects its pending Plan Proposals and marks its Plan as needing a new
+// one; so too the current Cycle's Plan, if it no longer reaches the
+// Delivery.
 func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Delivery) error {
 	if err := s.Arrive(ctx); err != nil {
 		return err
@@ -368,6 +377,11 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 		}
 		if upcoming == nil || upcoming.ID != id {
 			return ErrNotUpcoming
+		}
+		if d.Ordered && !upcoming.Delivery.Ordered {
+			if _, err := s.fixGroceryList(ctx, tx, *upcoming); err != nil {
+				return err
+			}
 		}
 		d.Ordered = d.Ordered || upcoming.Delivery.Ordered
 		moved, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return upcoming.MovedTo(d, times) })
