@@ -86,6 +86,7 @@ elements themselves.
 | `Rows()` | A list of `Row`s or `EditRow`s. |
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
+| `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window). |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
@@ -112,9 +113,12 @@ Base elements (`input`, `select`, `textarea`, `table`, `dl`, `h1`–`h3`, lists)
 are styled once in `app.css`: underline-only inputs, square bordered
 textareas, tables ruled like rows, `dl` as a two-column list of facts.
 
-Two feature-shaped components live in `app.css` because nothing else needs
-them yet: the Recipe Draft form (`ingredient-grid`, `draft-steps`) and the
-Run `trace` panel.
+Three feature-shaped components live in `app.css` because nothing else needs
+them yet: the Recipe Draft form (`ingredient-grid`, `draft-steps`), the
+Run `trace` panel, and the Exceptions page's `slot-grid`, a Cycle's Slots as
+rows on a phone and a day × Slot grid on desktop, where an open Slot spans
+its day over the day's other Slots; `slot-grid.js` animates a Slot opening
+and closing.
 
 ## Accessibility baseline
 

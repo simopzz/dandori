@@ -17,7 +17,10 @@ type ExceptionsPage struct {
 
 // ExceptionDay is one day of a Cycle and its Slots.
 type ExceptionDay struct {
-	Date  string // e.g. "Mon 2 Nov"
+	Date string // e.g. "Mon 2 Nov"
+	// Gaps is how many Slot kinds come before its first Slot: the empty
+	// cells keeping each Slot in its column on desktop.
+	Gaps  int
 	Slots []ExceptionRow
 }
 
@@ -28,7 +31,10 @@ type ExceptionRow struct {
 	Action string
 	Day    string // YYYY-MM-DD
 	Kind   string
-	State  string // e.g. "from the Plan", "Meal Out · 900 kcal · 35 g protein"
+	State  string // e.g. "from the Plan", "Meal Out · 900 kcal"
+	// More is the rest of a Meal Out's estimate, e.g. "35 g protein",
+	// left out of a desktop cell.
+	More string
 	// Editable is whether it can be logged: whether the Cycle holds it.
 	Editable bool
 	// Default is the Profile's default Meal Out estimate.
@@ -57,15 +63,29 @@ templ ExceptionsView(p ExceptionsPage) {
 			Log the Slots you won't eat from the Plan: a Meal Out, with the Profile's default estimate unless you give your own, or a skipped Slot. The planning Run plans around them. Once a Slot is past, correct it if it went otherwise.
 		}
 		@web.Section(1, "Slots") {
-			for _, d := range p.Days {
-				<h3>{ d.Date }</h3>
-				@web.Rows() {
-					for _, s := range d.Slots {
-						@exceptionRowView(s)
+			<div class="slot-grid">
+				<div class="slot-grid-head" aria-hidden="true">
+					<span></span>
+					for _, k := range domain.SlotKinds {
+						<span>{ string(k) }</span>
 					}
+				</div>
+				for _, d := range p.Days {
+					<div class="slot-day">
+						<h3>{ d.Date }</h3>
+						@web.Rows() {
+							for range d.Gaps {
+								<li class="slot-gap" aria-hidden="true"></li>
+							}
+							for _, s := range d.Slots {
+								@exceptionRowView(s)
+							}
+						}
+					</div>
 				}
-			}
+			</div>
 		}
+		<script src="/static/slot-grid.js" defer></script>
 		<div id="exceptions-done" class="section">
 			@web.Hint() {
 				Nothing to log? Continue: no Exceptions are known.
@@ -79,8 +99,9 @@ templ ExceptionsView(p ExceptionsPage) {
 	}
 }
 
-// exceptionRowView is a Slot's row. Its form swaps only the row under
-// htmx, not the boosted page, so the page keeps its place (ADR 0009).
+// exceptionRowView is a Slot's row, on desktop a cell of its day's line.
+// Its form swaps only the row under htmx, not the boosted page, so the
+// page keeps its place (ADR 0009); opening it closes the day's open one.
 templ exceptionRowView(s ExceptionRow) {
 	if !s.Editable {
 		@web.Row() {
@@ -92,7 +113,7 @@ templ exceptionRowView(s ExceptionRow) {
 			}
 		}
 	} else {
-		@web.EditRow(len(s.Form.Errors) > 0 || s.Problem != "", exceptionSummary(s)) {
+		@web.EditRowIn("slots-"+s.Day, len(s.Form.Errors) > 0 || s.Problem != "", exceptionSummary(s)) {
 			<form id={ "exception-" + s.ID } class="stack" method="post" action={ templ.SafeURL(s.Action) } hx-post={ s.Action } hx-target="closest li" hx-swap="outerHTML">
 				if s.Problem != "" {
 					@web.Alert() {
@@ -129,7 +150,12 @@ templ exceptionRowView(s ExceptionRow) {
 templ exceptionSummary(s ExceptionRow) {
 	<span id={ "slot-" + s.ID } class="row-title">{ s.Kind }</span>
 	<span class="row-meta">
-		<span>{ s.State }</span>
+		<span>
+			{ s.State }
+			if s.More != "" {
+				<span class="slot-more">· { s.More }</span>
+			}
+		</span>
 	</span>
 }
 

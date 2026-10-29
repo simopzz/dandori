@@ -55,7 +55,7 @@ func (h Handlers) renderExceptions(w http.ResponseWriter, r *http.Request, id in
 		}
 		date := s.Slot.On.Format(shortDate)
 		if n := len(page.Days); n == 0 || page.Days[n-1].Date != date {
-			page.Days = append(page.Days, ExceptionDay{Date: date})
+			page.Days = append(page.Days, ExceptionDay{Date: date, Gaps: slices.Index(domain.SlotKinds, s.Slot.Kind)})
 		}
 		day := &page.Days[len(page.Days)-1]
 		day.Slots = append(day.Slots, row)
@@ -107,7 +107,7 @@ func exceptionRow(id int64, s ExceptionSlot, mealOut domain.Nutrition) Exception
 		Form:     ExceptionForm{Values: map[string]string{"exception": ""}},
 	}
 	if e := s.Exception; e != nil {
-		row.State = describeException(*e, mealOut)
+		row.State, row.More = describeException(*e, mealOut)
 		row.Form.Values["exception"] = string(e.Kind)
 		for i, own := range []*int{e.Estimate.Kcal, e.Estimate.ProteinG, e.Estimate.CarbsG, e.Estimate.FatG} {
 			if own != nil {
@@ -118,14 +118,15 @@ func exceptionRow(id int64, s ExceptionSlot, mealOut domain.Nutrition) Exception
 	return row
 }
 
-// describeException is what fills e's Slot as a row shows it, a Meal Out
-// with its estimate over mealOut, the default.
-func describeException(e domain.Exception, mealOut domain.Nutrition) string {
+// describeException is what fills e's Slot as a row shows it: its state,
+// and for a Meal Out, with its estimate over mealOut, the default, its
+// calories, and its protein as more.
+func describeException(e domain.Exception, mealOut domain.Nutrition) (state, more string) {
 	if e.Kind != domain.MealOut {
-		return e.Kind.Describe()
+		return e.Kind.Describe(), ""
 	}
 	n := e.Nutrition(mealOut)
-	return fmt.Sprintf("Meal Out · %d kcal · %d g protein", n.Kcal, n.ProteinG)
+	return fmt.Sprintf("Meal Out · %d kcal", n.Kcal), fmt.Sprintf("%d g protein", n.ProteinG)
 }
 
 // LogException logs a Slot of a Cycle as a Meal Out or skipped, or back

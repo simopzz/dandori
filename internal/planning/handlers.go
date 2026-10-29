@@ -69,10 +69,14 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 	}
 	p.BetweenNumber = max(n, 2)
 	for _, es := range o.Between {
+		state, more := describeException(*es.Exception, o.MealOut)
+		if more != "" {
+			state += " · " + more
+		}
 		p.Between = append(p.Between, BetweenRow{
 			ID:    slotID(es.Slot),
 			Slot:  es.Slot.String(),
-			State: describeException(*es.Exception, o.MealOut),
+			State: state,
 			Day:   es.Slot.On.Format(dateLayout),
 			Kind:  string(es.Slot.Kind),
 		})

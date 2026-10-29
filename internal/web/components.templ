@@ -72,8 +72,16 @@ templ Row() {
 // EditRow is one line of a list that opens in place to edit: summary is
 // the line, the children are what it opens to.
 templ EditRow(open bool, summary templ.Component) {
+	@EditRowIn("", open, summary) {
+		{ children... }
+	}
+}
+
+// EditRowIn is an EditRow one of group, e.g. the Slots of a day: opening
+// it closes the group's open one.
+templ EditRowIn(group string, open bool, summary templ.Component) {
 	<li class="row">
-		<details open?={ open }>
+		<details { detailsAttributes(group, open)... }>
 			<summary>
 				@summary
 				<span class="row-edit">
@@ -86,6 +94,16 @@ templ EditRow(open bool, summary templ.Component) {
 			</div>
 		</details>
 	</li>
+}
+
+// detailsAttributes are an EditRow's <details> attributes: open, and the
+// name of its group when it has one.
+func detailsAttributes(group string, open bool) templ.Attributes {
+	a := templ.Attributes{"open": open}
+	if group != "" {
+		a["name"] = group
+	}
+	return a
 }
 
 // Field is a labelled form control: the control is the children. hint,
