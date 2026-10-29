@@ -106,3 +106,31 @@ func TestRecipeValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestClosestIngredientSuggestsTheKnownIngredientANearMissMeant(t *testing.T) {
+	known := []string{"fiocchi d'avena", "petto di pollo", "riso basmati", "olio extravergine d'oliva"}
+	tests := []struct {
+		name      string
+		typed     string
+		want      string
+		suggested bool
+	}{
+		{"a letter missing", "fiocci d'avena", "fiocchi d'avena", true},
+		{"a letter missing at the end of a word", "petto di polo", "petto di pollo", true},
+		{"words swapped", "basmati riso", "riso basmati", true},
+		{"another cut of another meat", "petto di tacchino", "", false},
+		{"another food altogether", "zucchine", "", false},
+		{"sharing one word", "riso integrale", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := domain.ClosestIngredient(tt.typed, known)
+			if got != tt.want || ok != tt.suggested {
+				t.Errorf("ClosestIngredient(%q) = %q, %v; want %q, %v", tt.typed, got, ok, tt.want, tt.suggested)
+			}
+		})
+	}
+	if got, ok := domain.ClosestIngredient("petto di polo", nil); ok {
+		t.Errorf("ClosestIngredient with no known Ingredients = %q, want none", got)
+	}
+}

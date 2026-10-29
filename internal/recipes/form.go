@@ -3,8 +3,10 @@ package recipes
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -41,9 +43,9 @@ func recipeFormValues(rec domain.Recipe, known map[string]domain.Ingredient) url
 
 // readRecipeForm reads a Recipe form, matching its Ingredients by name to
 // the known ones. It returns the form to show back, and whether the Recipe
-// can be saved: it is valid, and no Ingredient turned from known to new or
-// back since the form was shown, so every new Ingredient's nutritional
-// values have been seen.
+// can be saved: it is valid, no Ingredient turned from known to new or back
+// since the form was shown, so every new Ingredient's nutritional values
+// have been seen, and the user didn't just take a suggested Ingredient.
 func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
 	get := func(name string) string { return strings.TrimSpace(form.Get(name)) }
 	f := RecipeForm{Values: map[string]string{}, Errors: map[string]string{}}
@@ -51,6 +53,7 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 		f.Values[name] = get(name)
 	}
 	f.Steps = nonBlank(form["steps"])
+	f.Known = slices.Sorted(maps.Keys(known))
 	rec := domain.Recipe{
 		Name:       get("name"),
 		Appliances: domain.FoodTerms(get("appliances")),
@@ -70,6 +73,13 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 			CarbsG:   in("carbs_g"),
 			FatG:     in("fat_g"),
 		}
+		// The user took the known Ingredient suggested for this row.
+		acceptedName := domain.IngredientName(in("accept"))
+		accepted := acceptedName != ""
+		if accepted {
+			row.Name = acceptedName
+			f.Accepted = true
+		}
 		if row.Name == "" && row.Quantity == "" {
 			continue // a blank row, or one cleared to remove it
 		}
@@ -78,7 +88,7 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 		out := func(name string) string { return fmt.Sprintf("ing_%s_%d", name, at) }
 
 		ing, isKnown := known[row.Name]
-		if row.Name != "" && in("new") != strconv.FormatBool(!isKnown) {
+		if row.Name != "" && in("new") != strconv.FormatBool(!isKnown) && !accepted {
 			f.Rematched = true
 		}
 		// A known Ingredient in another unit, say after a rename: the
@@ -110,7 +120,7 @@ func readRecipeForm(form url.Values, known map[string]domain.Ingredient) (domain
 			f.Errors[field] = msg
 		}
 	}
-	ok := len(f.Errors) == 0 && !f.Rematched
+	ok := len(f.Errors) == 0 && !f.Rematched && !f.Accepted
 	if len(f.Errors) == 0 {
 		n := PortionNutrition(rec.NutritionPerPortion())
 		f.PerPortion = &n

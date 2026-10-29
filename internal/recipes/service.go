@@ -58,6 +58,7 @@ type Service struct {
 	embedder embedding.Embedder
 	stock    *stock.Service
 	today    func() time.Time
+	matcher  IngredientMatcher
 }
 
 // Config is what the Recipe Library needs besides its database.
@@ -73,11 +74,18 @@ type Config struct {
 	Stock *stock.Service
 	// Today is the day it is, before which a Stock Item has expired.
 	Today func() time.Time
+	// Matcher suggests the known Ingredient a new one's name was meant to
+	// be; TrigramMatcher when nil.
+	Matcher IngredientMatcher
 }
 
 // New creates the Service.
 func New(pool *pgxpool.Pool, cfg Config) *Service {
-	return &Service{pool: pool, runs: cfg.Runs, language: cfg.Language, embedder: cfg.Embedder, stock: cfg.Stock, today: cfg.Today}
+	matcher := cfg.Matcher
+	if matcher == nil {
+		matcher = TrigramMatcher{}
+	}
+	return &Service{pool: pool, runs: cfg.Runs, language: cfg.Language, embedder: cfg.Embedder, stock: cfg.Stock, today: cfg.Today, matcher: matcher}
 }
 
 // snapshot reads several queries as of one moment, so a Recipe saved or
@@ -115,6 +123,13 @@ func (s *Service) Get(ctx context.Context, id int64) (Stored, error) {
 // KnownIngredients loads every Ingredient in the Recipe Library, by name.
 func (s *Service) KnownIngredients(ctx context.Context) (map[string]domain.Ingredient, error) {
 	return loadIngredients(ctx, s.pool)
+}
+
+// ClosestIngredient is the known Ingredient name, of those in known, that
+// name, matching none, was most likely meant to be; ok is false when it is
+// most likely a new Ingredient.
+func (s *Service) ClosestIngredient(ctx context.Context, name string, known []string) (closest string, ok bool, err error) {
+	return s.matcher.Closest(ctx, name, known)
 }
 
 // Update replaces the Recipe with id by rec, adding its new Ingredients.
