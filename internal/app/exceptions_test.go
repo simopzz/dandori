@@ -359,3 +359,40 @@ func TestWithNoCycleUpcomingThePlanningRunSeesTheCurrentOnesExceptions(t *testin
 	today.set(t, "2026-11-03")
 	seesExceptions(t, h, llm, "Exceptions from Tue 27 Oct to Thu 12 Nov: - lunch on Sat 7 Nov: skipped, counts nothing.")
 }
+
+// dayLine is the markup of the day labelled date on an Exceptions page.
+func dayLine(t *testing.T, page, date string) string {
+	t.Helper()
+	i := strings.Index(page, "<h3>"+date+"</h3>")
+	if i < 0 {
+		t.Fatalf("Exceptions page has no day %s:\n%s", date, text(page))
+	}
+	line := page[i+len("<h3>"):]
+	if j := strings.Index(line, "<h3>"); j >= 0 {
+		line = line[:j]
+	}
+	return line
+}
+
+// On desktop, a day's Slots are one line with a column per Slot kind. See
+// #69.
+func TestExceptionsPageKeepsEachSlotInItsColumnAndOneOpenADay(t *testing.T) {
+	h, _ := startPlanning(t)
+	// Delivered before dinner: Monday holds dinner alone, in the last
+	// column, after empty cells for the Slots before it.
+	res := openCycleIn(t, h, "2026-11-02", "17:30", "19:00", "")
+	if monday := dayLine(t, res.Body, "Mon 2 Nov"); strings.Count(monday, `class="slot-gap"`) != 3 || !strings.Contains(monday, `id="exception-2026-11-02-dinner"`) {
+		t.Errorf("Monday is not three empty cells and dinner:\n%s", monday)
+	}
+	if tuesday := dayLine(t, res.Body, "Tue 3 Nov"); strings.Contains(tuesday, "slot-gap") {
+		t.Errorf("a full day has empty cells:\n%s", tuesday)
+	}
+	// Opening a Slot closes the day's open one.
+	if got := strings.Count(res.Body, `<details name="slots-2026-11-03"`); got != 4 {
+		t.Errorf("Tuesday has %d Slots opening one at a time, want 4", got)
+	}
+	res = logException(t, h, res.Path, "2026-11-03", "lunch", map[string]string{"exception": "skipped"}, true)
+	if !isRow(res.Body) || !strings.Contains(res.Body, `<details name="slots-2026-11-03"`) {
+		t.Errorf("HTMX row does not stay one of its day's Slots:\n%s", res.Body)
+	}
+}

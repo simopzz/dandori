@@ -569,6 +569,61 @@ a.row-title:hover { text-decoration: underline; }
 
 .draft-steps textarea { field-sizing: content; min-height: var(--tap); vertical-align: top; }
 
+/* Exceptions page: a Cycle's Slots, rows on a phone, a day × Slot grid on
+   desktop */
+
+.slot-grid-head,
+.slot-gap { display: none; }
+
+@media (min-width: 900px) {
+  .slot-grid-head,
+  .slot-day {
+    display: grid;
+    grid-template-columns: 5.5rem repeat(4, minmax(0, 1fr));
+    column-gap: var(--space-3);
+  }
+
+  .slot-grid-head { font-size: 0.75rem; letter-spacing: 0.08em; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); padding: var(--space-2) 0; }
+
+  .slot-day > h3 { margin: 0; padding: var(--space-3) 0; font-size: 1rem; border-bottom: 1px solid var(--color-rule); }
+
+  .slot-day > .rows { grid-column: 2 / -1; display: grid; grid-template-columns: subgrid; margin: 0; }
+
+  /* Each Slot keeps its column, all on the day's one line. */
+  .slot-day > .rows > li { grid-row: 1; }
+
+  .slot-day > .rows > li:nth-child(1) { grid-column: 1; }
+
+  .slot-day > .rows > li:nth-child(2) { grid-column: 2; }
+
+  .slot-day > .rows > li:nth-child(3) { grid-column: 3; }
+
+  .slot-day > .rows > li:nth-child(4) { grid-column: 4; }
+
+  .slot-gap { display: block; border-bottom: 1px solid var(--color-rule); }
+
+  /* An open Slot spans its day, over the day's other Slots, which stay in
+     place, hidden; the line grows to its form, pushing later days down. */
+  .slot-day > .rows > li:has(> details[open]) { grid-column: 1 / -1; }
+
+  .slot-day > .rows:has(> li > details[open]) > li:not(:has(> details[open])) { visibility: hidden; }
+
+  /* The column heads name a closed cell's Slot. */
+  .slot-day li:not(:has(> details[open])) .row-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .slot-day li:not(:has(> details[open])) .slot-more { display: none; }
+
+  /* Its state takes the name's place, beside the chevron. */
+  .slot-day li:not(:has(> details[open])) summary .row-meta { grid-column: 1; grid-row: 1; }
+}
+
 /* trace panel: a Run's Trace Events */
 
 .trace { list-style: none; padding: 0; margin: var(--space-4) 0; font-size: 0.9rem; }
