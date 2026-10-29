@@ -146,13 +146,14 @@ func TestExceptionOutlivesAMovedDeliveryAndADroppedCycle(t *testing.T) {
 }
 
 func TestSkippingTheExceptionsLeavesNoneKnown(t *testing.T) {
-	h, _, llm := planningRun(t)
-	page := openCycle(t, h, "2026-11-02", "").Body
-	res := h.Get(t, apptest.Link(t, page, "Continue"))
-	if res.StatusCode != http.StatusOK || res.Path != "/plan" {
-		t.Fatalf("continue = %d at %s, want the Plan page", res.StatusCode, res.Path)
+	h, _, llm := startPlanningWith(t)
+	exceptions := openCycle(t, h, "2026-11-02", "").Path
+	// The planner reads the Exceptions, then stops without a Plan.
+	llm.Script(fakellm.CallTool("list_exceptions", map[string]any{}), fakellm.Reply("Stopping here."))
+	trace := text(planCycle(t, h, exceptions).Body)
+	if want := "Tool result list_exceptions No Exceptions from Tue 27 Oct to Thu 12 Nov. "; !strings.Contains(trace, want) {
+		t.Errorf("the planning Run is not told %q:\n%s", want, trace)
 	}
-	seesExceptions(t, h, llm, "No Exceptions from Tue 27 Oct to Thu 12 Nov.")
 }
 
 func TestExceptionAPlanReliesOnNeedsANewPlanProposal(t *testing.T) {

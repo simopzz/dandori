@@ -250,8 +250,8 @@ func describeResults(res Results) string {
 	}
 	for i, r := range res.Recipes {
 		n := r.NutritionPerPortion()
-		fmt.Fprintf(&b, "%d. %s (Recipe %d): %d Portions, %s, needs %s; per Portion %d kcal, %d g protein, %d g carbs, %d g fat. Ingredients: ",
-			i+1, r.Name, r.ID, r.Portions, formatMinutes(r.PrepMinutes), orNone(r.Appliances), n.Kcal, n.ProteinG, n.CarbsG, n.FatG)
+		fmt.Fprintf(&b, "%d. %s (Recipe %d): %d Portions, %s, needs %s; per Portion %s. Ingredients: ",
+			i+1, r.Name, r.ID, r.Portions, formatMinutes(r.PrepMinutes), orNone(r.Appliances), n.Describe())
 		for j, ri := range r.Ingredients {
 			if j > 0 {
 				b.WriteString(", ")

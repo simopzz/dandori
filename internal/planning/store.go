@@ -514,22 +514,24 @@ func replacePlan(ctx context.Context, q db.Querier, c Cycle, from, prepared doma
 // storedProposal is a Plan Proposal as stored, its Plan not yet read.
 type storedProposal struct {
 	ID, CycleID int64
-	Origin      string
-	Status      string
-	Note        string
-	Plan        []byte
+	// RunID is the planning Run that submitted it; 0 when none did.
+	RunID  int64
+	Origin string
+	Status string
+	Note   string
+	Plan   []byte
 }
 
 // loadProposal loads the Plan Proposal with id, locking it until the
 // transaction ends when lock is set. It returns ErrNotFound when there is
 // none.
 func loadProposal(ctx context.Context, q db.Querier, id int64, lock bool) (storedProposal, error) {
-	sql := `SELECT id, cycle_id, origin, status, note, plan FROM plan_proposal WHERE id = $1`
+	sql := `SELECT id, cycle_id, coalesce(run_id, 0), origin, status, note, plan FROM plan_proposal WHERE id = $1`
 	if lock {
 		sql += ` FOR UPDATE`
 	}
 	var p storedProposal
-	err := q.QueryRow(ctx, sql, id).Scan(&p.ID, &p.CycleID, &p.Origin, &p.Status, &p.Note, &p.Plan)
+	err := q.QueryRow(ctx, sql, id).Scan(&p.ID, &p.CycleID, &p.RunID, &p.Origin, &p.Status, &p.Note, &p.Plan)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNotFound
 	}
@@ -601,5 +603,63 @@ func saveException(ctx context.Context, q db.Querier, slot domain.Slot, e *domai
 		ON CONFLICT (day, kind) DO UPDATE SET exception = EXCLUDED.exception,
 			kcal = EXCLUDED.kcal, protein_g = EXCLUDED.protein_g, carbs_g = EXCLUDED.carbs_g, fat_g = EXCLUDED.fat_g`,
 		slot.On, slot.Kind, e.Kind, est.Kcal, est.ProteinG, est.CarbsG, est.FatG)
+	return err
+}
+
+// lockCycle locks the Cycle with id until the transaction ends.
+func lockCycle(ctx context.Context, q db.Querier, id int64) error {
+	_, err := q.Exec(ctx, `SELECT FROM cycle WHERE id = $1 FOR UPDATE`, id)
+	return err
+}
+
+// hasPending reports whether a Plan Proposal of the Cycle with id is
+// pending.
+func hasPending(ctx context.Context, q db.Querier, id int64) (bool, error) {
+	var waiting bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT FROM plan_proposal WHERE cycle_id = $1 AND status = 'pending')`, id).Scan(&waiting)
+	return waiting, err
+}
+
+// latestPlanningRun is the last planning Run of the Cycle with id and its
+// status; status is empty when it has had none.
+func latestPlanningRun(ctx context.Context, q db.Querier, id int64) (run int64, status string, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT p.run_id, r.status FROM planning_run p JOIN run r ON r.id = p.run_id
+		WHERE p.cycle_id = $1 ORDER BY p.run_id DESC LIMIT 1`, id).Scan(&run, &status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", nil
+	}
+	return run, status, err
+}
+
+// planningRunAfter is the planning Run the rejection of the Plan Proposal
+// with id started, if it started one.
+func planningRunAfter(ctx context.Context, q db.Querier, id int64) (int64, error) {
+	var run int64
+	err := q.QueryRow(ctx, `SELECT coalesce(max(run_id), 0) FROM planning_run WHERE after_proposal = $1`, id).Scan(&run)
+	return run, err
+}
+
+// insertPlanningRun records run as a planning Run of the Cycle with id,
+// started by rejecting the Plan Proposal with id after, or by the user
+// when after is 0.
+func insertPlanningRun(ctx context.Context, q db.Querier, run, id, after int64) error {
+	_, err := q.Exec(ctx, `INSERT INTO planning_run (run_id, cycle_id, after_proposal) VALUES ($1, $2, nullif($3, 0))`, run, id, after)
+	return err
+}
+
+// loadNotes loads the notes of the Cycle with id's rejected Plan
+// Proposals, newest first.
+func loadNotes(ctx context.Context, q db.Querier, id int64) ([]string, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT note FROM plan_proposal WHERE cycle_id = $1 AND status = 'rejected' AND note <> ''
+		ORDER BY decided_at DESC, id DESC`, id)
+	return pgx.CollectRows(rows, pgx.RowTo[string])
+}
+
+// insertProposal stores plan as the initial Plan Proposal of the Cycle
+// with id, submitted by the planning Run with run.
+func insertProposal(ctx context.Context, q db.Querier, id, run int64, plan []byte) error {
+	_, err := q.Exec(ctx, `INSERT INTO plan_proposal (cycle_id, origin, plan, run_id) VALUES ($1, 'initial', $2, $3)`, id, plan, run)
 	return err
 }

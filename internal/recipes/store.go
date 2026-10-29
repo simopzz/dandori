@@ -179,34 +179,89 @@ func deleteRecipe(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// saveDraft stores p as the draft of the parse Run with id, replacing any
-// earlier one.
-func saveDraft(ctx context.Context, q db.Querier, runID int64, p parsedRecipe) error {
+// replaceDraft stores p as the draft of the parse Run with id, replacing
+// any earlier one.
+func replaceDraft(ctx context.Context, q db.Querier, runID int64, p parsedRecipe) error {
 	_, err := q.Exec(ctx, `
-		INSERT INTO recipe_draft (run_id, recipe) VALUES ($1, $2)
-		ON CONFLICT (run_id) DO UPDATE SET recipe = EXCLUDED.recipe`,
+		WITH earlier AS (DELETE FROM recipe_draft WHERE run_id = $1 AND recipe_id IS NULL)
+		INSERT INTO recipe_draft (run_id, recipe) VALUES ($1, $2)`,
 		runID, p)
 	return err
 }
 
-func loadDraft(ctx context.Context, q db.Querier, runID int64) (parsedRecipe, bool, error) {
-	var raw []byte
-	err := q.QueryRow(ctx, `SELECT recipe FROM recipe_draft WHERE run_id = $1`, runID).Scan(&raw)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return parsedRecipe{}, false, nil
-	}
-	if err != nil {
-		return parsedRecipe{}, false, err
-	}
-	var p parsedRecipe
-	if err := json.Unmarshal(raw, &p); err != nil {
-		return parsedRecipe{}, false, fmt.Errorf("read draft of run %d: %w", runID, err)
-	}
-	return p, true, nil
+// insertDraft stores p as one more draft of the Run with id, returning the
+// draft's id.
+func insertDraft(ctx context.Context, q db.Querier, runID int64, p parsedRecipe) (int64, error) {
+	var id int64
+	err := q.QueryRow(ctx, `INSERT INTO recipe_draft (run_id, recipe) VALUES ($1, $2) RETURNING id`, runID, p).Scan(&id)
+	return id, err
 }
 
-func deleteDraft(ctx context.Context, q db.Querier, runID int64) error {
-	tag, err := q.Exec(ctx, `DELETE FROM recipe_draft WHERE run_id = $1`, runID)
+// draftOfRun is the id of the pending draft of the parse Run with id.
+func draftOfRun(ctx context.Context, q db.Querier, runID int64) (int64, bool, error) {
+	var id int64
+	err := q.QueryRow(ctx, `SELECT id FROM recipe_draft WHERE run_id = $1 AND recipe_id IS NULL`, runID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	return id, err == nil, err
+}
+
+// storedDraft is a Recipe Draft of the Run with runID as stored: pending
+// while recipeID is 0.
+type storedDraft struct {
+	id, runID, recipeID int64
+	recipe              parsedRecipe
+}
+
+// loadDrafts loads the drafts with ids, by id, pending or accepted.
+func loadDrafts(ctx context.Context, q db.Querier, ids []int64) (map[int64]storedDraft, error) {
+	rows, _ := q.Query(ctx, `SELECT id, run_id, coalesce(recipe_id, 0), recipe FROM recipe_draft WHERE id = ANY($1)`, ids)
+	drafts := map[int64]storedDraft{}
+	var d storedDraft
+	var raw []byte
+	_, err := pgx.ForEachRow(rows, []any{&d.id, &d.runID, &d.recipeID, &raw}, func() error {
+		d.recipe = parsedRecipe{}
+		if err := json.Unmarshal(raw, &d.recipe); err != nil {
+			return fmt.Errorf("read draft %d: %w", d.id, err)
+		}
+		drafts[d.id] = d
+		return nil
+	})
+	return drafts, err
+}
+
+// loadDraft loads the draft with id while it is pending.
+func loadDraft(ctx context.Context, q db.Querier, id int64) (parsedRecipe, bool, error) {
+	drafts, err := loadDrafts(ctx, q, []int64{id})
+	d, found := drafts[id]
+	if err != nil || !found || d.recipeID != 0 {
+		return parsedRecipe{}, false, err
+	}
+	return d.recipe, true, nil
+}
+
+// lockDraft locks the draft with id until the transaction ends, if it is
+// pending, so it is accepted only once. It returns ErrDraftGone when it
+// isn't.
+func lockDraft(ctx context.Context, q db.Querier, id int64) error {
+	tag, err := q.Exec(ctx, `SELECT FROM recipe_draft WHERE id = $1 AND recipe_id IS NULL FOR UPDATE`, id)
+	if err == nil && tag.RowsAffected() == 0 {
+		err = ErrDraftGone
+	}
+	return err
+}
+
+// markAccepted records that the draft with id became the Recipe with
+// recipeID.
+func markAccepted(ctx context.Context, q db.Querier, id, recipeID int64) error {
+	_, err := q.Exec(ctx, `UPDATE recipe_draft SET recipe_id = $2 WHERE id = $1`, id, recipeID)
+	return err
+}
+
+// deleteDraft discards the draft with id while it is pending.
+func deleteDraft(ctx context.Context, q db.Querier, id int64) error {
+	tag, err := q.Exec(ctx, `DELETE FROM recipe_draft WHERE id = $1 AND recipe_id IS NULL`, id)
 	if err == nil && tag.RowsAffected() == 0 {
 		err = ErrDraftGone
 	}

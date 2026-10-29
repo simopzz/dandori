@@ -47,6 +47,12 @@ type CycleView struct {
 	// NeedsProposalBecause is why its Plan needs a new Plan Proposal,
 	// e.g. "A Delivery moved"; empty when it doesn't.
 	NeedsProposalBecause string
+	// PlanAction starts a planning Run for it; empty when one can't start.
+	PlanAction string
+	// PlanningRun is its planning Run while it goes, or the last one when it
+	// failed, with why in PlanningFailed; empty otherwise.
+	PlanningRun    string
+	PlanningFailed string
 	// HasPlan is whether a Plan Proposal of the Cycle was approved; Calendar
 	// is its Plan.
 	HasPlan   bool
@@ -110,6 +116,27 @@ type ProposalPage struct {
 	Violations []string
 	Calendar   []CalendarDay
 	Sessions   []PrepSessionRow
+	// Drafts are the Recipe Drafts it prepares.
+	Drafts []DraftRow
+	// Run is the planning Run that submitted it, and Replan the one its
+	// rejection started; empty when there is none.
+	Run, Replan string
+}
+
+// DraftRow is a Recipe Draft a Plan Proposal prepares: Link is where to
+// check and accept it, or, once Accepted, the Recipe it became.
+type DraftRow struct {
+	Name     string
+	Link     string
+	Accepted bool
+}
+
+// decideNumber is the number of a Plan Proposal page's Decide Section.
+func (p ProposalPage) decideNumber() int {
+	if len(p.Drafts) > 0 {
+		return 4
+	}
+	return 3
 }
 
 templ Page(p PlanPage) {
@@ -223,8 +250,22 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 	}
 	@web.Section(c.Number+1, plan) {
 		if !c.HasPlan {
-			@web.Empty() {
-				No Plan yet: approve a Plan Proposal.
+			if c.PlanningRun != "" && c.PlanningFailed == "" {
+				@web.Notice() {
+					Being planned: <a href={ templ.SafeURL(c.PlanningRun) }>follow the planning Run</a>.
+				}
+			} else {
+				@web.Empty() {
+					No Plan yet: approve a Plan Proposal.
+				}
+			}
+			if c.PlanningFailed != "" {
+				@web.Alert() {
+					The last <a href={ templ.SafeURL(c.PlanningRun) }>planning Run</a> failed: { c.PlanningFailed }
+				}
+			}
+			if c.PlanAction != "" {
+				@planForm(c.PlanAction)
 			}
 		} else {
 			@calendar(c.Calendar)
@@ -383,6 +424,16 @@ templ ProposalView(p ProposalPage) {
 				Note: { p.Note }
 			}
 		}
+		if p.Replan != "" {
+			@web.Notice() {
+				A new planning Run takes the note into account: <a href={ templ.SafeURL(p.Replan) }>follow it</a>.
+			}
+		}
+		if p.Run != "" {
+			@web.Hint() {
+				<a href={ templ.SafeURL(p.Run) }>The planning Run that proposed it</a>
+			}
+		}
 		if len(p.Violations) > 0 {
 			@web.Alert() {
 				<p>This Plan Proposal breaks the rules of the Plan:</p>
@@ -426,8 +477,31 @@ templ ProposalView(p ProposalPage) {
 					}
 				}
 			}
+			if len(p.Drafts) > 0 {
+				@web.Section(3, "Recipe Drafts") {
+					@web.Hint() {
+						The planner drafted these Recipes. Check and accept each into the Recipe Library, or approve the Plan Proposal to accept them as drafted.
+					}
+					@web.Rows() {
+						for _, d := range p.Drafts {
+							@web.Row() {
+								<a class="row-title" href={ templ.SafeURL(d.Link) }>{ d.Name }</a>
+								if d.Accepted {
+									@web.Tag(false, "") {
+										accepted
+									}
+								} else {
+									@web.Tag(true, "") {
+										to check
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 			if p.Status == "pending" {
-				@web.Section(3, "Decide") {
+				@web.Section(p.decideNumber(), "Decide") {
 					<form id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/approve", p.ID)) }>
 						@web.Actions() {
 							@web.Button(templ.Attributes{"type": "submit"}) {
@@ -450,6 +524,17 @@ templ rejectForm(id int64) {
 		@web.Actions() {
 			@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
 				Reject
+			}
+		}
+	</form>
+}
+
+// planForm starts a planning Run for a Cycle at action.
+templ planForm(action string) {
+	<form id="plan-cycle" method="post" action={ templ.SafeURL(action) }>
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				Plan this Cycle
 			}
 		}
 	</form>

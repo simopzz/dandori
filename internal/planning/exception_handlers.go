@@ -48,6 +48,9 @@ func (h Handlers) renderExceptions(w http.ResponseWriter, r *http.Request, id in
 		Title:   "For the Cycle delivered " + ce.Cycle.Delivery.On.Format(longDate),
 		Problem: problem,
 	}
+	if ce.CanPlan {
+		page.PlanAction = planURL(id)
+	}
 	for _, s := range ce.Slots {
 		row := exceptionRow(id, s, ce.MealOut)
 		if rejected != nil && rejected.ID == row.ID {

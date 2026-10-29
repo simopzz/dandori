@@ -30,6 +30,8 @@ type CycleExceptions struct {
 	Slots []ExceptionSlot
 	// MealOut is the Profile's default Meal Out estimate.
 	MealOut domain.Nutrition
+	// CanPlan is whether a planning Run can start for the Cycle now.
+	CanPlan bool
 }
 
 // ExceptionSlot is one of a Cycle's Slots and its Exception, or nil when
@@ -60,6 +62,9 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 			return ErrNoCycle
 		}
 		ce.Cycle = *c
+		if ce.CanPlan, err = s.canPlan(ctx, tx, *c); err != nil {
+			return err
+		}
 		exceptions, err := loadExceptions(ctx, tx, c.Start.On, c.LastDay())
 		if err != nil {
 			return err
@@ -290,8 +295,7 @@ func describeExceptions(from, to time.Time, exceptions []domain.Exception, mealO
 	fmt.Fprintf(&b, "Exceptions from %s:\n", days)
 	for _, e := range exceptions {
 		if e.Kind == domain.MealOut {
-			n := e.Nutrition(mealOut)
-			fmt.Fprintf(&b, "- %s: Meal Out, estimated %d kcal, %d g protein, %d g carbs, %d g fat.\n", e.Slot, n.Kcal, n.ProteinG, n.CarbsG, n.FatG)
+			fmt.Fprintf(&b, "- %s: Meal Out, estimated %s.\n", e.Slot, e.Nutrition(mealOut).Describe())
 			continue
 		}
 		fmt.Fprintf(&b, "- %s: skipped, counts nothing.\n", e.Slot)

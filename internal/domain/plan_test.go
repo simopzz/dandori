@@ -21,8 +21,13 @@ func single(on string, kind domain.SlotKind) domain.PrepSession {
 	}
 }
 
+// tea is an Ingredient eaten as it is that counts nothing toward the
+// Targets.
+var tea = domain.Ingredient{Name: "tea", Unit: domain.Pieces}
+
 // week is the first Cycle, 2026-11-02 to 2026-11-08, with a meal at every
-// breakfast, lunch and dinner and the kept Portion 7 as Sunday's snack.
+// breakfast, lunch and dinner, tea for the snacks from Monday to Saturday
+// and the kept Portion 7 as Sunday's snack.
 // Against Targets of 2000 kcal and 100 g protein a day, with an Untracked
 // Allowance of 200 kcal and 10 g, the week eats 21×500 + 7×200 = 11900 kcal
 // and 21×25 + 7×10 = 595 g protein before the snack: a snack of 2100 kcal
@@ -46,11 +51,26 @@ func week(snack domain.Nutrition) domain.PlanCheck {
 		for _, kind := range []domain.SlotKind{domain.Breakfast, domain.Lunch, domain.Dinner} {
 			c.Plan.PrepSessions = append(c.Plan.PrepSessions, single(on, kind))
 		}
+		if d < 8 {
+			snack := single(on, domain.Snack)
+			snack.Ingredients[0].Ingredient = tea
+			c.Plan.PrepSessions = append(c.Plan.PrepSessions, snack)
+		}
 	}
 	return c
 }
 
 var onTarget = domain.Nutrition{Kcal: 2100, ProteinG: 105}
+
+// without drops p's Prep Sessions at s.
+func without(p *domain.Plan, s *domain.Slot) {
+	p.PrepSessions = slices.DeleteFunc(p.PrepSessions, func(ps domain.PrepSession) bool { return ps.At == *s })
+}
+
+// prepAt is p's Prep Session at s.
+func prepAt(p *domain.Plan, s *domain.Slot) *domain.PrepSession {
+	return &p.PrepSessions[slices.IndexFunc(p.PrepSessions, func(ps domain.PrepSession) bool { return ps.At == *s })]
+}
 
 func rules(vs []domain.Violation) []domain.Rule {
 	var rs []domain.Rule
@@ -93,9 +113,9 @@ func TestPlanYieldAndSlots(t *testing.T) {
 		{
 			"a Portion with no eating planned",
 			func(p *domain.Plan) { p.PrepSessions[0].Portions[0].EatAt = nil },
-			// Monday's breakfast is no longer eaten: 500 kcal less is within
-			// 5%, 25 g protein less is under the floor.
-			[]domain.Rule{domain.RuleUnplannedPortion, domain.RuleProtein},
+			// Monday's breakfast is no longer eaten, and is left empty: 500
+			// kcal less is within 5%, 25 g protein less is under the floor.
+			[]domain.Rule{domain.RuleUnplannedPortion, domain.RuleEmptySlot, domain.RuleProtein},
 		},
 		{
 			"a Portion eaten after the Cycle stays without a Slot",
@@ -110,7 +130,7 @@ func TestPlanYieldAndSlots(t *testing.T) {
 		{
 			"a Portion eaten before the Cycle",
 			func(p *domain.Plan) { p.PrepSessions[0].Portions[0].EatAt = at("2026-11-01", domain.Dinner) },
-			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEatenBeforePrepared, domain.RuleProtein},
+			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEatenBeforePrepared, domain.RuleEmptySlot, domain.RuleProtein},
 		},
 		{
 			"a Prep Session outside the Cycle",
@@ -128,9 +148,11 @@ func TestPlanYieldAndSlots(t *testing.T) {
 		{
 			"a kept Portion in two Slots",
 			func(p *domain.Plan) {
+				without(p, at("2026-11-07", domain.Snack))
 				p.Kept = append(p.Kept, domain.KeptAssignment{PortionID: 7, Slot: *at("2026-11-07", domain.Snack)})
 			},
-			[]domain.Rule{domain.RulePortionInTwoSlots, domain.RuleCalories},
+			// The second Slot stays empty.
+			[]domain.Rule{domain.RulePortionInTwoSlots, domain.RuleEmptySlot, domain.RuleCalories},
 		},
 		{
 			"a Portion that isn't kept",
@@ -142,12 +164,12 @@ func TestPlanYieldAndSlots(t *testing.T) {
 		{
 			"a kept Portion in a Slot outside the Cycle",
 			func(p *domain.Plan) { p.Kept[0].Slot = *at("2026-11-09", domain.Snack) },
-			[]domain.Rule{domain.RuleEatenOutsideCycle, domain.RuleCalories, domain.RuleProtein},
+			[]domain.Rule{domain.RuleEatenOutsideCycle, domain.RuleEmptySlot, domain.RuleCalories, domain.RuleProtein},
 		},
 		{
 			"a kept Portion left unused while new Prep Sessions are scheduled",
 			func(p *domain.Plan) { p.Kept = nil },
-			[]domain.Rule{domain.RuleUnusedPortion, domain.RuleCalories, domain.RuleProtein},
+			[]domain.Rule{domain.RuleUnusedPortion, domain.RuleEmptySlot, domain.RuleCalories, domain.RuleProtein},
 		},
 	}
 	for _, tt := range tests {
@@ -161,7 +183,11 @@ func TestPlanYieldAndSlots(t *testing.T) {
 
 func TestKeptPortionsMayStayUnusedWhenNoPrepSessionIsScheduled(t *testing.T) {
 	c := week(onTarget)
-	c.Plan = domain.Plan{}
+	// A Plan Proposal for Sunday's dinner alone fills it with the kept
+	// Portion 7, leaving Portion 8 without a Slot.
+	c.From = *at("2026-11-08", domain.Dinner)
+	c.Kept = append(c.Kept, domain.KeptPortion{ID: 8})
+	c.Plan = domain.Plan{Kept: []domain.KeptAssignment{{PortionID: 7, Slot: c.From}}}
 	c.Since = c.Cycle.EndsOn // no trailing window to check
 	checkPlan(t, c)
 }
@@ -381,6 +407,7 @@ func TestPlanProposalChangesThePlanOnlyFromItsStart(t *testing.T) {
 		{
 			"a Prep Session before the start",
 			func(c *domain.PlanCheck) {
+				without(&c.Plan, at("2026-11-07", domain.Snack))
 				s := single("2026-11-04", domain.Dinner)
 				s.Portions[0].EatAt = at("2026-11-07", domain.Snack)
 				c.Plan.PrepSessions = append(c.Plan.PrepSessions, s)
@@ -390,17 +417,17 @@ func TestPlanProposalChangesThePlanOnlyFromItsStart(t *testing.T) {
 		{
 			"a Portion eaten before the start",
 			func(c *domain.PlanCheck) {
-				s := single("2026-11-05", domain.Snack)
-				s.Portions[0].EatAt = at("2026-11-04", domain.Snack)
-				c.Plan.PrepSessions = append(c.Plan.PrepSessions, s)
+				prepAt(&c.Plan, at("2026-11-05", domain.Snack)).Portions[0].EatAt = at("2026-11-04", domain.Snack)
 			},
-			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEatenBeforePrepared},
+			// Thursday's snack is left empty.
+			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEatenBeforePrepared, domain.RuleEmptySlot},
 		},
 		{
-			// It would no longer be eaten: the week misses the snack's 2100 kcal.
+			// It would no longer be eaten: the week misses the snack's 2100
+			// kcal, and Sunday's snack is left empty.
 			"a kept Portion put in a Slot before the start",
 			func(c *domain.PlanCheck) { c.Plan.Kept[0].Slot = *at("2026-11-04", domain.Snack) },
-			[]domain.Rule{domain.RuleBeforeStart, domain.RuleCalories, domain.RuleProtein},
+			[]domain.Rule{domain.RuleBeforeStart, domain.RuleEmptySlot, domain.RuleCalories, domain.RuleProtein},
 		},
 		{
 			"a start already past",
@@ -408,18 +435,28 @@ func TestPlanProposalChangesThePlanOnlyFromItsStart(t *testing.T) {
 			[]domain.Rule{domain.RuleStartsInPast},
 		},
 		{
-			// Thursday's three meals would be prepared today, which is taken as
-			// done: a Plan starting today schedules Prep Sessions from tomorrow.
+			// Thursday's three meals and tea would be prepared today, which is
+			// taken as done: a Plan starting today schedules Prep Sessions from
+			// tomorrow.
 			"a start today",
 			func(c *domain.PlanCheck) { c.Today = day("2026-11-05") },
-			[]domain.Rule{domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared},
+			[]domain.Rule{domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared, domain.RuleAlreadyPrepared},
 		},
 		{
 			"a start today with Prep Sessions from tomorrow",
 			func(c *domain.PlanCheck) {
 				c.Today = day("2026-11-05")
+				// Thursday's Portions, prepared today, are kept and put back in
+				// their Slots.
+				for i, ps := range c.Plan.PrepSessions {
+					if ps.At.On.After(c.Today) {
+						continue
+					}
+					id := int64(20 + i)
+					c.Kept = append(c.Kept, domain.KeptPortion{ID: id, Nutrition: ps.NutritionPerPortion()})
+					c.Plan.Kept = append(c.Plan.Kept, domain.KeptAssignment{PortionID: id, Slot: ps.At})
+				}
 				c.Plan.PrepSessions = slices.DeleteFunc(c.Plan.PrepSessions, func(ps domain.PrepSession) bool { return !ps.At.On.After(c.Today) })
-				c.Earlier = append(c.Earlier, domain.DayNutrition{On: day("2026-11-05"), Nutrition: domain.Nutrition{Kcal: 1500, ProteinG: 75}})
 			},
 			nil,
 		},
@@ -439,5 +476,43 @@ func TestDaysBeforeTheStartShowWhatStays(t *testing.T) {
 	// adds the 200 kcal Untracked Allowance.
 	if len(days) != 7 || days[0].Eaten.Kcal != 1700 || days[3].Eaten.Kcal != 1700 {
 		t.Errorf("Days() = %+v, want 1700 kcal on Monday and on Thursday", days)
+	}
+}
+
+func TestEverySlotIsFilledUnlessExcepted(t *testing.T) {
+	tests := []struct {
+		name   string
+		change func(c *domain.PlanCheck)
+		want   []domain.Rule
+	}{
+		{
+			"a snack left empty",
+			func(c *domain.PlanCheck) { without(&c.Plan, at("2026-11-03", domain.Snack)) },
+			[]domain.Rule{domain.RuleEmptySlot},
+		},
+		{
+			"a snack logged as skipped",
+			func(c *domain.PlanCheck) {
+				without(&c.Plan, at("2026-11-03", domain.Snack))
+				c.Exceptions = []domain.Exception{{Slot: *at("2026-11-03", domain.Snack), Kind: domain.Skipped}}
+			},
+			nil,
+		},
+		{
+			"a snack before the Plan Proposal starts",
+			func(c *domain.PlanCheck) {
+				c.From = *at("2026-11-03", domain.Dinner)
+				c.Plan.PrepSessions = slices.DeleteFunc(c.Plan.PrepSessions, func(ps domain.PrepSession) bool { return ps.At.Before(c.From) })
+				c.Since = c.Cycle.EndsOn // no trailing window to check
+			},
+			nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := week(onTarget)
+			tt.change(&c)
+			checkPlan(t, c, tt.want...)
+		})
 	}
 }

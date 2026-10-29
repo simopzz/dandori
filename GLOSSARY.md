@@ -41,7 +41,7 @@ A reusable description of a dish: its Ingredients with their quantities, steps, 
 _Avoid_: Dish
 
 **Recipe Draft**:
-A Recipe parsed from text the user pasted, awaiting their check: accepting it adds it to the Recipe Library, discarding it drops it.
+A Recipe parsed from text the user pasted, or drafted by the planner for a Plan Proposal, awaiting their check: accepting it adds it to the Recipe Library, discarding it drops it. Approving a Plan Proposal accepts the Recipe Drafts it prepares, as drafted.
 _Avoid_: Pending recipe, import
 
 **Recipe Library**:
@@ -143,7 +143,7 @@ _Avoid_: Log entry, step
 - A Prep Session at dinner yields three Portions by default: eaten now, eaten as lunch two days later, and a third scheduled two to three days after the second is eaten. The third is typically frozen. Other Prep Sessions yield as many Portions as their planned eating needs, often a single one eaten straight away.
 - A Prep Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Prep Sessions.
 - A Prep Session of a Recipe scales its Ingredients to the Portions the Prep Session yields: a Recipe that makes four Portions, cooked for three, uses three quarters of each Ingredient. Nutritional values per Portion are the same either way.
-- Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values.
+- Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values: on its Recipe Draft, where they can be edited, or by approving a Plan Proposal that prepares the draft as it is.
 - Every food term is in the Content Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.

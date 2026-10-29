@@ -13,9 +13,13 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/catalog"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/profile"
+	"github.com/simopzz/dandori/internal/recipes"
+	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/stock"
 )
 
 // ErrNotFound means there is no Plan Proposal with that id.
@@ -84,12 +88,14 @@ type ProposalSummary struct {
 	Status string
 }
 
-// CyclePlan is a Cycle, its Plan, and its Plan Proposals.
+// CyclePlan is a Cycle, its Plan, its Plan Proposals, and how planning
+// it stands.
 type CyclePlan struct {
 	Cycle Cycle
 	// Plan is the Cycle's Plan, or nil until a Plan Proposal is approved.
 	Plan      *domain.PlanCheck
 	Proposals []ProposalSummary
+	Planning  Planning
 }
 
 // Overview is the current Cycle and the upcoming one.
@@ -124,19 +130,54 @@ type Proposal struct {
 	// Check is the proposed Plan with what it was validated against.
 	Check      domain.PlanCheck
 	Violations []domain.Violation
+	// Drafts are the Recipe Drafts it prepares.
+	Drafts []recipes.Drafted
+	// RunID is the planning Run that submitted it; ReplanID the one its
+	// rejection started. Either is 0 when there is none.
+	RunID, ReplanID int64
 }
 
 // Service is the planning use cases.
 type Service struct {
-	pool    *pgxpool.Pool
-	profile *profile.Service
-	now     func() time.Time
+	pool     *pgxpool.Pool
+	profile  *profile.Service
+	recipes  *recipes.Service
+	stock    *stock.Service
+	catalog  *catalog.Service
+	runs     *runs.Engine
+	language domain.ContentLanguage
+	attempts int
+	now      func() time.Time
 }
 
-// New creates the Service; Plans are checked against the Profile in
-// profile, and Deliveries arrive, at the time now says it is.
-func New(pool *pgxpool.Pool, profile *profile.Service, now func() time.Time) *Service {
-	return &Service{pool: pool, profile: profile, now: now}
+// Config is what planning needs besides its database.
+type Config struct {
+	// Profile is what Plans are checked against.
+	Profile *profile.Service
+	// Recipes, Stock and Catalog are what the planner plans with: the
+	// Recipe Library and the Recipe Drafts it adds, the Stock Items, and the
+	// Known Catalog.
+	Recipes *recipes.Service
+	Stock   *stock.Service
+	Catalog *catalog.Service
+	// Runs is where planning Runs go through.
+	Runs *runs.Engine
+	// Language is the Content Language food terms are written in.
+	Language domain.ContentLanguage
+	// PlanAttempts is how many Plans breaking the rules a planning Run may
+	// submit; the last one fails it.
+	PlanAttempts int
+	// Now is the clock: Deliveries arrive, and the Plan is taken to happen,
+	// at the time it says.
+	Now func() time.Time
+}
+
+// New creates the Service.
+func New(pool *pgxpool.Pool, cfg Config) *Service {
+	return &Service{
+		pool: pool, profile: cfg.Profile, recipes: cfg.Recipes, stock: cfg.Stock, catalog: cfg.Catalog,
+		runs: cfg.Runs, language: cfg.Language, attempts: cfg.PlanAttempts, now: cfg.Now,
+	}
 }
 
 func (s *Service) today() time.Time { return domain.DayOf(s.now()) }
@@ -223,6 +264,9 @@ func (s *Service) cyclePlan(ctx context.Context, tx pgx.Tx, status string) (*Cyc
 	}
 	cp := &CyclePlan{Cycle: *c}
 	if cp.Proposals, err = loadProposals(ctx, tx, c.ID); err != nil {
+		return nil, err
+	}
+	if cp.Planning, err = s.planning(ctx, tx, *c); err != nil {
 		return nil, err
 	}
 	approved, err := hasPlan(ctx, tx, c.ID)
@@ -405,10 +449,11 @@ func (s *Service) checkProposal(ctx context.Context, q db.Querier, stored stored
 	if ch.proposed, err = readPlan(stored.Plan); err != nil {
 		return ch, err
 	}
+	ch.proposed.run = stored.RunID
 	if ch.from, err = ch.proposed.start(ch.cycle); err != nil {
 		return ch, err
 	}
-	plan, err := ch.proposed.resolve(ctx, q)
+	plan, err := s.resolve(ctx, q, ch.proposed)
 	if err != nil {
 		return ch, err
 	}
@@ -432,14 +477,20 @@ func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 		if err != nil {
 			return err
 		}
-		ch, err := s.checkProposal(ctx, tx, stored)
-		p = Proposal{ID: stored.ID, Cycle: ch.cycle, Origin: stored.Origin, Status: stored.Status, Note: stored.Note, Check: ch.check}
-		if unreadable := (*UnreadableError)(nil); errors.As(err, &unreadable) {
+		ch, checkErr := s.checkProposal(ctx, tx, stored)
+		p = Proposal{ID: stored.ID, Cycle: ch.cycle, Origin: stored.Origin, Status: stored.Status, Note: stored.Note, Check: ch.check, RunID: stored.RunID}
+		if p.ReplanID, err = planningRunAfter(ctx, tx, id); err != nil {
+			return err
+		}
+		if p.Drafts, err = s.drafts(ctx, tx, ch.proposed); err != nil {
+			return err
+		}
+		if unreadable := (*UnreadableError)(nil); errors.As(checkErr, &unreadable) {
 			p.Unreadable = unreadable.Reason
 			return nil
 		}
-		if err != nil {
-			return err
+		if checkErr != nil {
+			return checkErr
 		}
 		// A decided Plan Proposal's rules were for the day it was decided.
 		if stored.Status == "pending" {
@@ -488,6 +539,10 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if breaks(domain.RuleExceptedSlot) {
 			return ErrFillsExceptedSlot
 		}
+		// Approving it accepts the Recipe Drafts it prepares, as drafted.
+		if err := s.acceptDrafts(ctx, tx, &ch.proposed); err != nil {
+			return err
+		}
 		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
 		// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
 		// Portion taken twice.
@@ -505,17 +560,84 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 	})
 }
 
-// Reject rejects the Plan Proposal with id, with the user's note.
-func (s *Service) Reject(ctx context.Context, id int64, note string) error {
-	if err := s.Arrive(ctx); err != nil {
+// drafts loads the Recipe Drafts p prepares, in order, each accepted one
+// as the Recipe it became; a discarded one is left out.
+func (s *Service) drafts(ctx context.Context, q db.Querier, p proposedPlan) ([]recipes.Drafted, error) {
+	ids := p.draftIDs()
+	drafted, err := s.ownDrafts(ctx, q, p)
+	if err != nil {
+		return nil, err
+	}
+	var recipeIDs []int64
+	for _, d := range drafted {
+		recipeIDs = append(recipeIDs, d.RecipeID)
+	}
+	accepted, err := loadRecipes(ctx, q, recipeIDs)
+	if err != nil {
+		return nil, err
+	}
+	var drafts []recipes.Drafted
+	for _, id := range ids {
+		d, ok := drafted[id]
+		if !ok {
+			continue
+		}
+		if r := accepted[d.RecipeID]; r != nil {
+			d.Recipe = *r
+		}
+		drafts = append(drafts, d)
+	}
+	return drafts, nil
+}
+
+// acceptDrafts adds the Recipe Drafts p prepares still pending to the
+// Recipe Library, and has p prepare the Recipes they became.
+func (s *Service) acceptDrafts(ctx context.Context, q db.Querier, p *proposedPlan) error {
+	ids := p.draftIDs()
+	if len(ids) == 0 {
+		return nil
+	}
+	recipeOf, err := s.recipes.AcceptDrafted(ctx, q, ids)
+	if err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := pending(ctx, tx, id); err != nil {
+	for i := range p.PrepSessions {
+		if ps := &p.PrepSessions[i]; ps.DraftID != nil {
+			id := recipeOf[*ps.DraftID]
+			ps.RecipeID, ps.DraftID = &id, nil
+		}
+	}
+	return nil
+}
+
+// Reject rejects the Plan Proposal with id, with the user's note. A note
+// asks for another: while the Cycle has no Plan, a new planning Run that
+// takes it into account starts with the rejection, all at once or not at
+// all, and its id is returned; 0 when none started.
+func (s *Service) Reject(ctx context.Context, id int64, note string) (int64, error) {
+	if err := s.Arrive(ctx); err != nil {
+		return 0, err
+	}
+	var run int64
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		// The Cycle is locked before the Plan Proposal, as Approve does.
+		if err := lockCycleOf(ctx, tx, id); err != nil {
 			return err
 		}
-		return decideProposal(ctx, tx, id, "rejected", note)
+		stored, err := pending(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if err := decideProposal(ctx, tx, id, "rejected", note); err != nil || note == "" {
+			return err
+		}
+		run, err = s.startPlanningIn(ctx, tx, stored.CycleID, id)
+		if errors.Is(err, ErrCannotPlan) {
+			run, err = 0, nil
+		}
+		return err
 	})
+	return run, err
 }
 
 // pending loads the Plan Proposal with id, locked, if it is still to be

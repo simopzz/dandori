@@ -14,6 +14,9 @@ type Job struct {
 	// Start, when set, runs before the model is first asked, such as a
 	// check that the store session is logged in. An error fails the Run.
 	Start func(ctx context.Context, tr Trace) error
+	// Finish, when set, runs once the model ends its turn, such as a check
+	// that it submitted what the Run is for. An error fails the Run.
+	Finish func(ctx context.Context, tr Trace) error
 	// LLM, when set, answers this Job instead of the app's model, as in the
 	// demo's scripted Runs.
 	LLM LLM

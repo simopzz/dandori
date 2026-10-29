@@ -65,6 +65,9 @@ func (l Loop) Run(ctx context.Context, job Job, tr Trace) error {
 
 		switch resp.StopReason {
 		case StopEndTurn, StopSequence:
+			if job.Finish != nil {
+				return job.Finish(ctx, tr)
+			}
 			return nil
 		case StopToolUse:
 			results, err := runTools(ctx, tools, resp.Content, tr)

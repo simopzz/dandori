@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/embedding"
 	"github.com/simopzz/dandori/internal/runs"
@@ -180,7 +181,17 @@ func (s *Service) Draft(ctx context.Context, runID int64) (rec domain.Recipe, fo
 	if s.runs.Live(runID) {
 		return domain.Recipe{}, false, nil
 	}
-	p, found, err := loadDraft(ctx, s.pool, runID)
+	id, found, err := draftOfRun(ctx, s.pool, runID)
+	if err != nil || !found {
+		return domain.Recipe{}, false, err
+	}
+	return s.DraftByID(ctx, id)
+}
+
+// DraftByID is the pending Recipe Draft with id, its Ingredients matched
+// to the known ones. found is false when it was accepted or discarded.
+func (s *Service) DraftByID(ctx context.Context, id int64) (rec domain.Recipe, found bool, err error) {
+	p, found, err := loadDraft(ctx, s.pool, id)
 	if err != nil || !found {
 		return domain.Recipe{}, false, err
 	}
@@ -194,33 +205,128 @@ func (s *Service) Draft(ctx context.Context, runID int64) (rec domain.Recipe, fo
 // HasDraft reports whether the Recipe Draft of the Run with id is still
 // waiting to be accepted or discarded.
 func (s *Service) HasDraft(ctx context.Context, runID int64) (bool, error) {
-	_, found, err := loadDraft(ctx, s.pool, runID)
+	_, found, err := draftOfRun(ctx, s.pool, runID)
 	return found, err
 }
 
-// AcceptDraft adds rec, the draft as the user corrected it, to the Recipe
-// Library, and drops the draft. It returns the new Recipe's id.
+// AcceptDraft adds rec, the draft of the parse Run with runID as the user
+// corrected it, to the Recipe Library. It returns the new Recipe's id.
 func (s *Service) AcceptDraft(ctx context.Context, runID int64, rec domain.Recipe) (int64, error) {
+	id, err := s.pendingDraftOf(ctx, runID)
+	if err != nil {
+		return 0, err
+	}
+	return s.AcceptDraftByID(ctx, id, rec)
+}
+
+// AcceptDraftByID adds rec, the Recipe Draft with id as the user corrected
+// it, to the Recipe Library. It returns the new Recipe's id.
+func (s *Service) AcceptDraftByID(ctx context.Context, id int64, rec domain.Recipe) (int64, error) {
 	if err := validate(rec); err != nil {
 		return 0, err
 	}
-	var id int64
+	var recipeID int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		// Deleting the draft first locks it, so it is accepted only once.
-		if err := deleteDraft(ctx, tx, runID); err != nil {
-			return err
-		}
 		var err error
-		id, err = saveRecipe(ctx, tx, 0, rec)
+		recipeID, err = acceptDraft(ctx, tx, id, rec)
 		return err
 	})
 	if err == nil {
 		s.embedSaved(ctx)
 	}
+	return recipeID, err
+}
+
+// acceptDraft adds rec to the Recipe Library as what the pending draft
+// with id became.
+func acceptDraft(ctx context.Context, q db.Querier, id int64, rec domain.Recipe) (int64, error) {
+	if err := lockDraft(ctx, q, id); err != nil {
+		return 0, err
+	}
+	recipeID, err := saveRecipe(ctx, q, 0, rec)
+	if err != nil {
+		return 0, err
+	}
+	return recipeID, markAccepted(ctx, q, id, recipeID)
+}
+
+// Discard drops the Recipe Draft of the parse Run with id.
+func (s *Service) Discard(ctx context.Context, runID int64) error {
+	id, err := s.pendingDraftOf(ctx, runID)
+	if err != nil {
+		return err
+	}
+	return s.DiscardByID(ctx, id)
+}
+
+// pendingDraftOf is the id of the parse Run with runID's draft, or
+// ErrDraftGone once it was accepted or discarded.
+func (s *Service) pendingDraftOf(ctx context.Context, runID int64) (int64, error) {
+	id, found, err := draftOfRun(ctx, s.pool, runID)
+	if err == nil && !found {
+		err = ErrDraftGone
+	}
 	return id, err
 }
 
-// Discard drops the Recipe Draft of the Run with id.
-func (s *Service) Discard(ctx context.Context, runID int64) error {
-	return deleteDraft(ctx, s.pool, runID)
+// DiscardByID drops the pending Recipe Draft with id.
+func (s *Service) DiscardByID(ctx context.Context, id int64) error {
+	return deleteDraft(ctx, s.pool, id)
+}
+
+// Drafted is a Recipe Draft the planner drafted, as a Plan Proposal using
+// it reads it.
+type Drafted struct {
+	ID int64
+	// RunID is the Run that drafted it.
+	RunID int64
+	// Recipe is the draft, its Ingredients matched to the known ones.
+	Recipe domain.Recipe
+	// RecipeID is the Recipe it became once accepted; 0 while it is pending.
+	RecipeID int64
+}
+
+// DraftsByID loads the Recipe Drafts with ids, by id, through q, so it reads
+// them in the caller's transaction. A discarded one is missing.
+func (s *Service) DraftsByID(ctx context.Context, q db.Querier, ids []int64) (map[int64]Drafted, error) {
+	drafts, err := loadDrafts(ctx, q, ids)
+	if err != nil {
+		return nil, err
+	}
+	known, err := loadIngredients(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	drafted := map[int64]Drafted{}
+	for id, d := range drafts {
+		drafted[id] = Drafted{ID: id, RunID: d.runID, Recipe: d.recipe.recipe(known), RecipeID: d.recipeID}
+	}
+	return drafted, nil
+}
+
+// AcceptDrafted adds the Recipe Drafts with ids still pending to the
+// Recipe Library as drafted, through q, so it is part of the caller's
+// transaction. It returns the Recipe each draft became, by draft id.
+func (s *Service) AcceptDrafted(ctx context.Context, q db.Querier, ids []int64) (map[int64]int64, error) {
+	drafted, err := s.DraftsByID(ctx, q, ids)
+	if err != nil {
+		return nil, err
+	}
+	recipes := map[int64]int64{}
+	for _, id := range ids {
+		d, ok := drafted[id]
+		switch {
+		case !ok:
+			return nil, ErrDraftGone
+		case d.RecipeID == 0:
+			if err := validate(d.Recipe); err != nil {
+				return nil, err
+			}
+			if d.RecipeID, err = acceptDraft(ctx, q, id, d.Recipe); err != nil {
+				return nil, err
+			}
+		}
+		recipes[id] = d.RecipeID
+	}
+	return recipes, nil
 }

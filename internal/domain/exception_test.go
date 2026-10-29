@@ -24,6 +24,7 @@ func TestExceptedSlotGetsNoPortionAndNoPrepSession(t *testing.T) {
 		{
 			name:       "an Exception on a Slot the Plan leaves empty",
 			exceptions: []domain.Exception{skipped("2026-11-04", domain.Snack)},
+			change:     func(p *domain.Plan) { without(p, at("2026-11-04", domain.Snack)) },
 		},
 		{
 			// Wednesday's lunch is the meal prepared and eaten then.
@@ -34,24 +35,24 @@ func TestExceptedSlotGetsNoPortionAndNoPrepSession(t *testing.T) {
 		},
 		{
 			// Thursday's breakfast is prepared then and eaten at the Meal
-			// Out's lunch.
+			// Out's snack instead of the tea.
 			name:       "a Portion on a Meal Out",
 			exceptions: []domain.Exception{mealOut("2026-11-05", domain.Snack)},
 			change: func(p *domain.Plan) {
-				s := single("2026-11-05", domain.Breakfast)
-				s.Portions[0].EatAt = at("2026-11-05", domain.Snack)
-				p.PrepSessions[9] = s
+				without(p, at("2026-11-05", domain.Snack))
+				prepAt(p, at("2026-11-05", domain.Breakfast)).Portions[0].EatAt = at("2026-11-05", domain.Snack)
 			},
-			// Nor is the breakfast: short of protein.
-			want: []domain.Rule{domain.RuleExceptedSlot, domain.RuleProtein},
+			// Nor is the breakfast, left empty: short of protein.
+			want: []domain.Rule{domain.RuleExceptedSlot, domain.RuleEmptySlot, domain.RuleProtein},
 		},
 		{
 			// Thursday's breakfast is still prepared at the Meal Out's
-			// breakfast, but eaten at the snack.
+			// breakfast, but eaten at the snack instead of the tea.
 			name:       "a Prep Session on a Meal Out",
 			exceptions: []domain.Exception{mealOut("2026-11-05", domain.Breakfast)},
 			change: func(p *domain.Plan) {
-				p.PrepSessions[9].Portions[0].EatAt = at("2026-11-05", domain.Snack)
+				without(p, at("2026-11-05", domain.Snack))
+				prepAt(p, at("2026-11-05", domain.Breakfast)).Portions[0].EatAt = at("2026-11-05", domain.Snack)
 			},
 			want: []domain.Rule{domain.RuleExceptedSlot},
 		},

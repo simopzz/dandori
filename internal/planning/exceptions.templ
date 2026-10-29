@@ -13,6 +13,9 @@ type ExceptionsPage struct {
 	Title   string // e.g. "For the Cycle delivered Mon 2 Nov 2026"
 	Problem string // why the user's change was refused, if it was
 	Days    []ExceptionDay
+	// PlanAction starts a planning Run for the Cycle; empty when one can't
+	// start.
+	PlanAction string
 }
 
 // ExceptionDay is one day of a Cycle and its Slots.
@@ -87,12 +90,19 @@ templ ExceptionsView(p ExceptionsPage) {
 		}
 		<script src="/static/slot-grid.js" defer></script>
 		<div id="exceptions-done" class="section">
-			@web.Hint() {
-				Nothing to log? Continue: no Exceptions are known.
-			}
-			@web.Actions() {
-				@web.ButtonLink(templ.SafeURL("/plan")) {
-					Continue
+			if p.PlanAction != "" {
+				@web.Hint() {
+					Logged what you know? Plan the Cycle: a planning Run proposes its Plan around these Exceptions.
+				}
+				@planForm(p.PlanAction)
+			} else {
+				@web.Hint() {
+					Nothing to log? Continue: no Exceptions are known.
+				}
+				@web.Actions() {
+					@web.ButtonLink(templ.SafeURL("/plan")) {
+						Continue
+					}
 				}
 			}
 		</div>

@@ -184,11 +184,44 @@ func (s *Service) parseJob(text string, known map[string]domain.Ingredient) agen
 				if problems := p.problems(known); len(problems) > 0 {
 					return "", errors.New("fix these and submit again:\n" + strings.Join(problems, "\n"))
 				}
-				if err := saveDraft(ctx, s.pool, runs.IDFrom(ctx), p); err != nil {
+				if err := replaceDraft(ctx, s.pool, runs.IDFrom(ctx), p); err != nil {
 					return "", fmt.Errorf("store the draft: %w", err)
 				}
 				return "The draft is saved for the user to check.", nil
 			},
 		}},
+	}
+}
+
+// DraftTool drafts a new Recipe as an agent tool, for the planner: stored
+// with the Run as a Recipe Draft, it is in the Recipe Library only once the
+// user accepts it.
+func (s *Service) DraftTool() agent.Tool {
+	return agent.Tool{
+		Name: "draft_recipe",
+		Description: fmt.Sprintf("Draft a new Recipe, when the Recipe Library has none that fits. It is saved as a Recipe Draft, and its id goes in a Prep Session as draft_id; "+
+			"the user accepts it into the Recipe Library. Write it in %[1]s; reuse known Ingredients by their exact name and unit, and estimate the nutrition, per 100 g, per 100 ml or per piece, of any other.",
+			s.language.Name()),
+		InputSchema: submitRecipeSchema,
+		Run: func(ctx context.Context, _ agent.Trace, input json.RawMessage) (string, error) {
+			var p parsedRecipe
+			if err := json.Unmarshal(input, &p); err != nil {
+				return "", fmt.Errorf("the Recipe does not match the schema: %w", err)
+			}
+			known, err := loadIngredients(ctx, s.pool)
+			if err != nil {
+				return "", err
+			}
+			if problems := p.problems(known); len(problems) > 0 {
+				return "", errors.New("fix these and draft it again:\n" + strings.Join(problems, "\n"))
+			}
+			id, err := insertDraft(ctx, s.pool, runs.IDFrom(ctx), p)
+			if err != nil {
+				return "", fmt.Errorf("store the draft: %w", err)
+			}
+			n := p.recipe(known).NutritionPerPortion()
+			return fmt.Sprintf("Drafted %s as Recipe Draft %d, draft_id %d: %d Portions as written; per Portion %s.",
+				strings.TrimSpace(p.Name), id, id, p.Portions, n.Describe()), nil
+		},
 	}
 }
