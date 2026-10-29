@@ -137,13 +137,28 @@ func (c PlanCheck) inPlan(s Slot) bool {
 	return !s.Before(c.From) && s.Before(c.Cycle.Until())
 }
 
-// Days is every day of the Cycle under the Plan, in order.
+// excepted is the Exceptions by their Slot's key.
+func (c PlanCheck) excepted() map[string]Exception {
+	excepted := map[string]Exception{}
+	for _, e := range c.Exceptions {
+		excepted[e.Slot.key()] = e
+	}
+	return excepted
+}
+
+// Days is every day of the Cycle under the Plan, in order. An excepted
+// Slot's Portion isn't eaten: only its Exception counts.
 func (c PlanCheck) Days() []PlanDay {
+	excepted := c.excepted()
+	eats := func(s Slot) bool {
+		_, ok := excepted[s.key()]
+		return c.inPlan(s) && !ok
+	}
 	slots := map[string]Nutrition{}
 	for _, ps := range c.Plan.PrepSessions {
 		n := ps.NutritionPerPortion()
 		for _, p := range ps.Portions {
-			if p.EatAt != nil && c.inPlan(*p.EatAt) {
+			if p.EatAt != nil && eats(*p.EatAt) {
 				day := p.EatAt.On.Format(time.DateOnly)
 				slots[day] = slots[day].plus(n)
 			}
@@ -154,7 +169,7 @@ func (c PlanCheck) Days() []PlanDay {
 		kept[k.ID] = k.Nutrition
 	}
 	for _, k := range c.Plan.Kept {
-		if n, ok := kept[k.PortionID]; ok && c.inPlan(k.Slot) {
+		if n, ok := kept[k.PortionID]; ok && eats(k.Slot) {
 			day := k.Slot.On.Format(time.DateOnly)
 			slots[day] = slots[day].plus(n)
 		}
@@ -193,10 +208,7 @@ func ValidatePlan(c PlanCheck) []Violation {
 	add := func(r Rule, format string, args ...any) {
 		vs = append(vs, Violation{Rule: r, Message: fmt.Sprintf(format, args...)})
 	}
-	excepted := map[string]Exception{}
-	for _, e := range c.Exceptions {
-		excepted[e.Slot.key()] = e
-	}
+	excepted := c.excepted()
 	filled := map[string]string{}
 	fill := func(s Slot, name string) {
 		if e, ok := excepted[s.key()]; ok {

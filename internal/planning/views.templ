@@ -155,8 +155,8 @@ templ Page(p PlanPage) {
 }
 
 // betweenSection lists the Exceptions on days between Cycles, left by a
-// moved Delivery or a dropped Cycle, each still to come with a form to
-// remove it.
+// moved Delivery or a dropped Cycle; those still to come have a form to
+// remove them, and past ones stand as what happened.
 templ betweenSection(number int, rows []BetweenRow) {
 	@web.Section(number, "Exceptions between Cycles") {
 		@web.Hint() {

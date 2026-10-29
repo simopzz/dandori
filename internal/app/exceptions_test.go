@@ -89,10 +89,13 @@ func TestExceptionsLoggedBeforePlanningAreWhatThePlanningRunSees(t *testing.T) {
 		// 150 + 1000 + 589 kcal, 5 + 35 + 52 g protein, 15 + 90 + 64 g carbs,
 		// 5 + 40 + 13 g fat.
 		"Sat 7 Nov 1739 kcal · 92 g protein · 169 g carbs · 58 g fat lunch Meal Out dinner Lemon chicken with rice",
-		"Tue 3 Nov 170 kcal · 6 g protein · 21 g carbs · 5 g fat snack lemon snack skipped",
+		// The lemon on the skipped snack isn't eaten: the Untracked Allowance
+		// alone.
+		"Tue 3 Nov 150 kcal · 5 g protein · 15 g carbs · 5 g fat snack skipped, not lemon",
 		// TestPlanProposalShowsSlotsPrepSessionsNutritionAndBrokenRules's
-		// 2837 kcal and 192 g, with the Meal Out's 1000 kcal and 35 g.
-		"Sun 8 Nov 150 kcal · 5 g protein · 15 g carbs · 5 g fat Seven days: 3837 kcal · 227 g protein",
+		// 2837 kcal and 192 g, with the Meal Out's 1000 kcal and 35 g, less
+		// the lemon's 20 kcal and 1 g.
+		"Sun 8 Nov 150 kcal · 5 g protein · 15 g carbs · 5 g fat Seven days: 3817 kcal · 226 g protein",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("Plan Proposal page does not show %q:\n%s", want, page)
@@ -208,10 +211,10 @@ func TestAPastSlotIsNotLoggedAheadAndItsExceptionStands(t *testing.T) {
 func TestMealOutEstimateIsCheckedAndKeptAsTyped(t *testing.T) {
 	h, _ := startPlanning(t)
 	exceptions := openCycle(t, h, "2026-11-02", "").Path
-	fields := map[string]string{"exception": "meal-out", "estimate_kcal": "-5", "estimate_protein_g": "lots"}
+	fields := map[string]string{"exception": "meal-out", "estimate_kcal": "-5", "estimate_protein_g": "lots", "estimate_carbs_g": "3000000000"}
 
 	res := logException(t, h, exceptions, "2026-11-07", "lunch", fields, true)
-	if res.StatusCode != http.StatusUnprocessableEntity || !isRow(res.Body) || !strings.Contains(text(res.Body), "Can't be negative") || !strings.Contains(text(res.Body), "Must be a whole number") {
+	if res.StatusCode != http.StatusUnprocessableEntity || !isRow(res.Body) || !strings.Contains(text(res.Body), "Can't be negative") || !strings.Contains(text(res.Body), "Must be a whole number") || !strings.Contains(text(res.Body), "Too large") {
 		t.Fatalf("HTMX invalid estimate = %d, want 422 and its row saying why:\n%s", res.StatusCode, res.Body)
 	}
 	if !hasField(res.Body, "estimate_kcal", "-5") || !hasField(res.Body, "estimate_protein_g", "lots") {
@@ -301,4 +304,26 @@ func TestAnExceptionBetweenCyclesIsShownAndRemoved(t *testing.T) {
 	}
 	openCycle(t, h, "2026-11-09", "2026-11-12")
 	seesExceptions(t, h, llm, "No Exceptions from Tue 3 Nov to Thu 12 Nov.")
+}
+
+func TestAMealOutOverAPlannedSlotCountsInsteadOfItsPortion(t *testing.T) {
+	h, _ := startPlanning(t)
+	exceptions := openCycle(t, h, "2026-11-02", "").Path
+	approvePlan(t, h, lemonPlan(t, h))
+	logException(t, h, exceptions, "2026-11-07", "dinner", map[string]string{"exception": "meal-out"}, false)
+
+	// The Untracked Allowance and the Meal Out, not the frozen Lemon chicken
+	// with rice: 150 + 900 kcal, 5 + 35 g protein, 15 + 90 g carbs, 5 + 40 g
+	// fat.
+	if page, want := text(h.Get(t, "/plan").Body), "Sat 7 Nov 1050 kcal · 40 g protein · 105 g carbs · 45 g fat dinner Meal Out, not Lemon chicken with rice Sun 8 Nov"; !strings.Contains(page, want) {
+		t.Errorf("Plan page does not show %q:\n%s", want, page)
+	}
+}
+
+func TestWithNoCycleUpcomingThePlanningRunSeesTheCurrentOnesExceptions(t *testing.T) {
+	h, today, llm := planningRun(t)
+	logException(t, h, openCycle(t, h, "2026-11-02", "").Path, "2026-11-07", "lunch", map[string]string{"exception": "skipped"}, false)
+	// Its Delivery has arrived: the Cycle is current, and none is upcoming.
+	today.set(t, "2026-11-03")
+	seesExceptions(t, h, llm, "Exceptions from Tue 27 Oct to Thu 12 Nov: - lunch on Sat 7 Nov: skipped, counts nothing.")
 }

@@ -399,11 +399,6 @@ func calendarOf(c domain.PlanCheck) []CalendarDay {
 			}
 		}
 	}
-	for _, e := range c.Exceptions {
-		if c.Cycle.Contains(e.Slot) {
-			add(e.Slot, e.Kind.Describe())
-		}
-	}
 	kept := map[int64]string{}
 	for _, k := range c.Kept {
 		kept[k.ID] = k.Name
@@ -414,6 +409,20 @@ func calendarOf(c domain.PlanCheck) []CalendarDay {
 			name = fmt.Sprintf("Portion %d", k.PortionID)
 		}
 		add(k.Slot, name)
+	}
+	// An excepted Slot shows its Exception, and what the Plan puts there
+	// instead, uneaten.
+	for _, e := range c.Exceptions {
+		if !c.Cycle.Contains(e.Slot) {
+			continue
+		}
+		rows := slots[e.Slot.On.Format(dateLayout)]
+		i := slices.IndexFunc(rows, func(r SlotRow) bool { return r.Kind == string(e.Slot.Kind) })
+		if i < 0 {
+			add(e.Slot, e.Kind.Describe())
+			continue
+		}
+		rows[i].What = e.Kind.Describe() + ", not " + rows[i].What
 	}
 
 	var days []CalendarDay

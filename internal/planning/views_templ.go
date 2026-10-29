@@ -387,8 +387,8 @@ func Page(p PlanPage) templ.Component {
 }
 
 // betweenSection lists the Exceptions on days between Cycles, left by a
-// moved Delivery or a dropped Cycle, each still to come with a form to
-// remove it.
+// moved Delivery or a dropped Cycle; those still to come have a form to
+// remove them, and past ones stand as what happened.
 func betweenSection(number int, rows []BetweenRow) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

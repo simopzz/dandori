@@ -10,7 +10,6 @@ import (
 // ExceptionsPage is a Cycle's Slots, day by day, each logged ahead as a
 // Meal Out or skipped, or left to the Plan.
 type ExceptionsPage struct {
-	CycleID int64
 	Title   string // e.g. "For the Cycle delivered Mon 2 Nov 2026"
 	Problem string // why the user's change was refused, if it was
 	Days    []ExceptionDay

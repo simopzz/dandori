@@ -45,7 +45,6 @@ func (h Handlers) renderExceptions(w http.ResponseWriter, r *http.Request, id in
 		return
 	}
 	page := ExceptionsPage{
-		CycleID: id,
 		Title:   "For the Cycle delivered " + ce.Cycle.Delivery.On.Format(longDate),
 		Problem: problem,
 	}
@@ -205,8 +204,12 @@ func readException(form url.Values, slot domain.Slot) (*domain.Exception, map[st
 		if raw == "" {
 			continue
 		}
-		n, err := strconv.Atoi(raw)
+		// The estimate is stored as a 32-bit integer.
+		v, err := strconv.ParseInt(raw, 10, 32)
+		n := int(v)
 		switch {
+		case errors.Is(err, strconv.ErrRange):
+			problems[name] = "Too large"
 		case err != nil:
 			problems[name] = "Must be a whole number"
 		case n < 0:

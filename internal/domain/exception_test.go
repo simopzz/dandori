@@ -27,9 +27,10 @@ func TestExceptedSlotGetsNoPortionAndNoPrepSession(t *testing.T) {
 		},
 		{
 			// Wednesday's lunch is the meal prepared and eaten then.
+			// The lunch isn't eaten either: the week falls short of protein.
 			name:       "a Portion and its Prep Session on a skipped Slot",
 			exceptions: []domain.Exception{skipped("2026-11-04", domain.Lunch)},
-			want:       []domain.Rule{domain.RuleExceptedSlot, domain.RuleExceptedSlot},
+			want:       []domain.Rule{domain.RuleExceptedSlot, domain.RuleExceptedSlot, domain.RuleProtein},
 		},
 		{
 			// Thursday's breakfast is prepared then and eaten at the Meal
@@ -41,7 +42,8 @@ func TestExceptedSlotGetsNoPortionAndNoPrepSession(t *testing.T) {
 				s.Portions[0].EatAt = at("2026-11-05", domain.Snack)
 				p.PrepSessions[9] = s
 			},
-			want: []domain.Rule{domain.RuleExceptedSlot},
+			// Nor is the breakfast: short of protein.
+			want: []domain.Rule{domain.RuleExceptedSlot, domain.RuleProtein},
 		},
 		{
 			// Thursday's breakfast is still prepared at the Meal Out's
@@ -56,13 +58,15 @@ func TestExceptedSlotGetsNoPortionAndNoPrepSession(t *testing.T) {
 		{
 			name:       "a kept Portion on a Meal Out",
 			exceptions: []domain.Exception{mealOut("2026-11-08", domain.Snack)},
-			want:       []domain.Rule{domain.RuleExceptedSlot},
+			// Nor the kept Portion: short of calories and protein.
+			want: []domain.Rule{domain.RuleExceptedSlot, domain.RuleCalories, domain.RuleProtein},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := week(onTarget)
-			// The Meal Out counts nothing here, to leave the Targets out.
+			// The Meal Out counts nothing here, so only an uneaten Portion
+			// moves the Targets.
 			c.Profile.MealOut = domain.Nutrition{}
 			c.Exceptions = tt.exceptions
 			if tt.change != nil {
