@@ -58,6 +58,10 @@ var ErrNotUpcoming = errors.New("cycle is not upcoming")
 // longer be dropped.
 var ErrDeliveryOrdered = errors.New("delivery already ordered")
 
+// ErrNoPlanToOrder means the Cycle has no Plan yet, so its Delivery can't
+// be marked ordered: ordering fixes the Grocery List the Plan makes.
+var ErrNoPlanToOrder = errors.New("cycle has no plan to order for")
+
 // InvalidError means a Cycle breaks the domain rules. Fields is what is
 // wrong, keyed by field name as domain.Cycle.Validate gives it.
 type InvalidError struct{ Fields map[string]string }
@@ -357,12 +361,12 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 }
 
 // ChangeDelivery changes the Delivery of the upcoming Cycle with id to d,
-// keeping it ordered once it was; marking it ordered fixes its Grocery
-// List. A move shifts the Cycle's first Slot, and its end date when the
-// Delivery is later; it drops what the Plan has outside the moved Cycle,
-// rejects its pending Plan Proposals and marks its Plan as needing a new
-// one; so too the current Cycle's Plan, if it no longer reaches the
-// Delivery.
+// keeping it ordered once it was; marking it ordered, once the Cycle has
+// a Plan, fixes its Grocery List. A move shifts the Cycle's first Slot,
+// and its end date when the Delivery is later; it drops what the Plan has
+// outside the moved Cycle, rejects its pending Plan Proposals and marks
+// its Plan as needing a new one; so too the current Cycle's Plan, if it no
+// longer reaches the Delivery.
 func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Delivery) error {
 	if err := s.Arrive(ctx); err != nil {
 		return err
@@ -379,6 +383,15 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 			return ErrNotUpcoming
 		}
 		ordering := d.Ordered && !upcoming.Delivery.Ordered
+		if ordering {
+			planned, err := hasPlan(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			if !planned {
+				return ErrNoPlanToOrder
+			}
+		}
 		d.Ordered = d.Ordered || upcoming.Delivery.Ordered
 		moved, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return upcoming.MovedTo(d, times) })
 		if err != nil {

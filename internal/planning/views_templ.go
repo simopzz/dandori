@@ -1245,7 +1245,7 @@ func deliveryForm(c CycleView) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = web.Segmented("Ordered or tentative", "ordered", []web.Choice{{Value: "", Label: "Tentative"}, {Value: "yes", Label: "Ordered"}}, c.Change.Values["ordered"], "").Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = web.Segmented("Ordered or tentative", "ordered", []web.Choice{{Value: "", Label: "Tentative"}, {Value: "yes", Label: "Ordered"}}, c.Change.Values["ordered"], c.Change.Errors["ordered"]).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

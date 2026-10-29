@@ -128,3 +128,21 @@ func TestOrderingAMovedDeliveryFixesTheGroceryListOfTheMovedCycle(t *testing.T) 
 		t.Errorf("the Grocery List fixed on ordering is not the moved Cycle's:\n%s", list)
 	}
 }
+
+func TestDeliveryIsNotMarkedOrderedBeforeItsCycleHasAPlan(t *testing.T) {
+	h, _ := startGroceries(t)
+	openCycle(t, h, "2026-11-02", "")
+
+	res := changeDelivery(t, h, map[string]string{"ordered": "yes"})
+	if want := "Approve a Plan first: ordering fixes its Grocery List."; res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(text(res.Body), want) {
+		t.Fatalf("mark ordered without a Plan = %d, want 422 saying %q:\n%s", res.StatusCode, want, text(res.Body))
+	}
+	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "tentative") {
+		t.Errorf("the Delivery was marked ordered without a Plan:\n%s", page)
+	}
+
+	approvePlan(t, h, lemonPlan(t, h))
+	if res := changeDelivery(t, h, map[string]string{"ordered": "yes"}); res.StatusCode != http.StatusOK {
+		t.Errorf("mark ordered with a Plan = %d:\n%s", res.StatusCode, text(res.Body))
+	}
+}

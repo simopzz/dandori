@@ -161,6 +161,8 @@ func cycleProblems(err error, problems map[string]string) bool {
 		}
 	case errors.As(err, &overlap):
 		problems["delivery_on"] = "Must be after the current Cycle's delivery on " + overlap.Current.Format(longDate)
+	case errors.Is(err, ErrNoPlanToOrder):
+		problems["ordered"] = "Approve a Plan first: ordering fixes its Grocery List."
 	case err != nil:
 		return false
 	}

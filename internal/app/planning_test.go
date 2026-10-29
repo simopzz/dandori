@@ -719,6 +719,7 @@ func TestMovingADeliveryIsCheckedLikeOpeningIt(t *testing.T) {
 func TestDeliveryIsTentativeUntilMarkedOrdered(t *testing.T) {
 	h, _ := startPlanning(t)
 	openCycleIn(t, h, "2026-11-02", "18:00", "20:00", "")
+	approvePlan(t, h, lemonPlan(t, h))
 
 	res := changeDelivery(t, h, map[string]string{"ordered": "yes"})
 	page := text(res.Body)
@@ -766,6 +767,7 @@ func TestAnOrderedDeliverysCycleIsNotDropped(t *testing.T) {
 	h, _ := startPlanning(t)
 	openCycleIn(t, h, "2026-11-02", "18:00", "20:00", "")
 	drop := apptest.Form(t, h.Get(t, "/plan").Body, "drop")
+	approvePlan(t, h, lemonPlan(t, h))
 	changeDelivery(t, h, map[string]string{"ordered": "yes"})
 
 	if page := h.Get(t, "/plan").Body; strings.Contains(page, `id="drop"`) {

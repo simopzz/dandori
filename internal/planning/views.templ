@@ -309,7 +309,7 @@ templ deliveryForm(c CycleView) {
 						Ordered. Moving it leaves the Plan needing a new Plan Proposal, which makes do with what is ordered.
 					}
 				} else {
-					@web.Segmented("Ordered or tentative", "ordered", []web.Choice{{Value: "", Label: "Tentative"}, {Value: "yes", Label: "Ordered"}}, c.Change.Values["ordered"], "")
+					@web.Segmented("Ordered or tentative", "ordered", []web.Choice{{Value: "", Label: "Tentative"}, {Value: "yes", Label: "Ordered"}}, c.Change.Values["ordered"], c.Change.Errors["ordered"])
 					@web.Hint() {
 						Mark it ordered once you have checked out on the supermarket's site.
 					}
