@@ -4,7 +4,6 @@
 package planning
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -243,10 +242,12 @@ func (s *Service) cancelPlanning(ctx context.Context, q db.Querier, c *cancels, 
 // Stock Items, and the current one closes, early if it hadn't ended,
 // carrying what is left over as Portions without a Slot and rejecting its
 // pending Plan Proposals. Then every Prep Session whose day has come uses
-// up the Stock Items of its Ingredients, once. Every use case calls it
-// first, so what it shows and changes is as of now. A rule keyed on a Prep
-// Session's day leaves out those from the upcoming Cycle's start on: its
-// Delivery drops them when it arrives, possibly later that same day.
+// up the Stock Items of its Ingredients, once. The app settles every
+// request through it before any use case runs, so what they show and
+// change is as of now; use cases and agent tools never call it (ADR-0010).
+// A rule keyed on a Prep Session's day leaves out those from the upcoming
+// Cycle's start on: its Delivery drops them when it arrives, possibly
+// later that same day.
 func (s *Service) Arrive(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.arrive(ctx, tx); err != nil {
@@ -299,19 +300,63 @@ func (s *Service) arrive(ctx context.Context, tx pgx.Tx) error {
 	return setStatus(ctx, tx, upcoming.ID, "current")
 }
 
-// useUp has every Prep Session outside the upcoming Cycle whose day has
-// come, and hasn't used up its stock yet, use up the Stock Items of its
-// Ingredients, as part of q.
+// useUp has every Prep Session whose day has come, and hasn't used up its
+// stock yet, use up the Stock Items of its Ingredients, as part of q. A
+// concurrent use-up waits for this one's transaction, then finds them
+// used up.
 func (s *Service) useUp(ctx context.Context, q db.Querier) error {
-	ids, err := claimUseUp(ctx, q, s.today())
-	if err != nil || len(ids) == 0 {
+	using, err := s.usingUpBefore(ctx, q, domain.FirstSlotAfter(s.today()))
+	if err != nil || len(using) == 0 {
 		return err
 	}
-	sessions, err := loadPrepSessions(ctx, q, ids)
+	ids := make([]int64, len(using))
+	for i, ps := range using {
+		ids[i] = ps.ID
+	}
+	marked, err := markUsedUp(ctx, q, ids)
 	if err != nil {
 		return err
 	}
-	return s.stock.UseUp(ctx, q, inDayOrder(sessions))
+	using = slices.DeleteFunc(using, func(ps domain.PrepSession) bool { return !slices.Contains(marked, ps.ID) })
+	return s.stock.UseUp(ctx, q, using)
+}
+
+// usingUpBefore loads the Prep Sessions that haven't used up their stock
+// yet and do before the Slot until, through q, in the order of their days.
+func (s *Service) usingUpBefore(ctx context.Context, q db.Querier, until domain.Slot) ([]domain.PrepSession, error) {
+	ids, err := notUsedUp(ctx, q)
+	if err != nil || len(ids) == 0 {
+		return nil, err
+	}
+	sessions, err := loadPrepSessions(ctx, q, ids)
+	if err != nil {
+		return nil, err
+	}
+	upcoming, err := loadCycleWith(ctx, q, "upcoming")
+	if err != nil {
+		return nil, err
+	}
+	var upcomingStart *domain.Slot
+	if upcoming != nil {
+		upcomingStart = &upcoming.Start
+	}
+	return domain.UsingUpBefore(inDayOrder(sessions), until, upcomingStart), nil
+}
+
+// stockAt loads, through q, the Stock Items the kitchen will hold at the
+// Slot at: those left once the Prep Sessions before it have used theirs
+// up.
+func (s *Service) stockAt(ctx context.Context, q db.Querier, at domain.Slot) ([]domain.StockItem, error) {
+	stock, err := s.stock.ItemsIn(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	using, err := s.usingUpBefore(ctx, q, at)
+	if err != nil {
+		return nil, err
+	}
+	left, _ := domain.UseUp(using, stock)
+	return left, nil
 }
 
 // inDayOrder is sessions in the order of the Slots they are prepared at.
@@ -320,24 +365,13 @@ func inDayOrder(sessions map[int64]*domain.PrepSession) []domain.PrepSession {
 	for _, ps := range sessions {
 		list = append(list, *ps)
 	}
-	slices.SortFunc(list, func(a, b domain.PrepSession) int {
-		switch {
-		case a.At.Before(b.At):
-			return -1
-		case b.At.Before(a.At):
-			return 1
-		}
-		return cmp.Compare(a.ID, b.ID)
-	})
+	domain.SortInDayOrder(list)
 	return list
 }
 
 // Overview loads the current and upcoming Cycles with their Plans and Plan
 // Proposals.
 func (s *Service) Overview(ctx context.Context) (Overview, error) {
-	if err := s.Arrive(ctx); err != nil {
-		return Overview{}, err
-	}
 	p, _, err := s.profile.Get(ctx)
 	if err != nil {
 		return Overview{}, err
@@ -425,9 +459,6 @@ func (s *Service) newCycle(ctx context.Context, build func(domain.SlotTimes) dom
 // the upcoming Cycle, returning its id. The current Cycle is left as it is
 // until the Delivery arrives.
 func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.Time) (int64, error) {
-	if err := s.Arrive(ctx); err != nil {
-		return 0, err
-	}
 	c, err := s.newCycle(ctx, func(times domain.SlotTimes) domain.Cycle { return domain.NewCycle(d, endsOn, times) })
 	if err != nil {
 		return 0, err
@@ -467,9 +498,6 @@ func (s *Service) OpenCycle(ctx context.Context, d domain.Delivery, endsOn time.
 // Delivery. It replaces the pending Plan Proposal and cancels the planning
 // Run going, of either Cycle.
 func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Delivery) error {
-	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
 	return s.write(ctx, func(tx pgx.Tx, cancelled *cancels) error {
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
@@ -552,9 +580,6 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 // with its Plan and Plan Proposals, cancelling its planning Run going. Its
 // days become days between Cycles.
 func (s *Service) Drop(ctx context.Context, id int64) error {
-	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
 	return s.write(ctx, func(tx pgx.Tx, cancelled *cancels) error {
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
@@ -616,9 +641,6 @@ func (s *Service) checkProposal(ctx context.Context, q db.Querier, stored stored
 // Proposal loads the Plan Proposal with id and checks its Plan.
 func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 	var p Proposal
-	if err := s.Arrive(ctx); err != nil {
-		return p, err
-	}
 	err := pgx.BeginTxFunc(ctx, s.pool, snapshot, func(tx pgx.Tx) error {
 		stored, err := loadProposal(ctx, tx, id, false)
 		if err != nil {
@@ -654,9 +676,6 @@ func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 // current Plan approved that changes what will carry over leaves the
 // upcoming Cycle's Plan needing a new Plan Proposal.
 func (s *Service) Approve(ctx context.Context, id int64) error {
-	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// Serialises approvals with each other, with the Delivery that
 		// closes the Cycle and with what replaces Plan Proposals. The
@@ -802,9 +821,6 @@ func (s *Service) acceptDrafts(ctx context.Context, q db.Querier, p *proposedPla
 // all, and its id is returned; 0 when none started. waits is whether none
 // started because another Cycle's turn comes first.
 func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64, waits bool, err error) {
-	if err := s.Arrive(ctx); err != nil {
-		return 0, false, err
-	}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// The Cycles are locked before the Plan Proposal, as Approve does.
 		if err := lockCycles(ctx, tx); err != nil {

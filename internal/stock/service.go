@@ -39,34 +39,28 @@ type Item struct {
 	domain.StockItem
 }
 
-// Service is the stock's use cases.
+// Service is the stock's use cases. What they show is as stored: the app
+// has a Delivery whose window has ended, and the Prep Sessions whose day
+// has come, change the stock before any of them runs (ADR-0010).
 type Service struct {
-	pool   *pgxpool.Pool
-	today  func() time.Time
-	arrive func(context.Context) error
+	pool  *pgxpool.Pool
+	today func() time.Time
 }
 
 // New creates the Service; today is the day it is, which decides what the
-// Plan has cooked and eaten so far, and arrive takes a Delivery whose
-// window has ended as arrived, carrying over what is left of the Cycle it
-// closes.
-func New(pool *pgxpool.Pool, today func() time.Time, arrive func(context.Context) error) *Service {
-	return &Service{pool: pool, today: today, arrive: arrive}
+// Plan has cooked and eaten so far.
+func New(pool *pgxpool.Pool, today func() time.Time) *Service {
+	return &Service{pool: pool, today: today}
 }
 
 // Items loads every Stock Item, by Ingredient name, with its Ingredient's
-// name and unit, once a Delivery whose window has ended has brought its
-// Grocery List in.
+// name and unit.
 func (s *Service) Items(ctx context.Context) ([]Item, error) {
-	if err := s.arrive(ctx); err != nil {
-		return nil, err
-	}
 	return loadItems(ctx, s.pool)
 }
 
 // ItemsIn loads every Stock Item through q, so a caller's transaction can
-// read them with what else it reads. Unlike Items, it takes no Delivery as
-// arrived first: Arrive itself reads them.
+// read them with what else it reads.
 func (s *Service) ItemsIn(ctx context.Context, q db.Querier) ([]domain.StockItem, error) {
 	items, err := loadItems(ctx, q)
 	stock := make([]domain.StockItem, len(items))
@@ -165,9 +159,6 @@ type Portion struct {
 // to happen as dated: a Prep Session is cooked from its day on, and a
 // Portion is eaten once the day of its Slot is past.
 func (s *Service) Portions(ctx context.Context) ([]Portion, error) {
-	if err := s.arrive(ctx); err != nil {
-		return nil, err
-	}
 	return loadPortions(ctx, s.pool, s.today())
 }
 

@@ -78,6 +78,24 @@ type StockUse struct {
 	Shortfall map[string]float64
 }
 
+// UsingUpBefore is the Prep Sessions of sessions that use up their stock
+// before the Slot until, in the order of their days: those prepared at a
+// Slot before it, and before upcomingStart, the upcoming Cycle's first
+// Slot, when there is an upcoming Cycle, since its Delivery drops the rest
+// when it arrives. That also leaves out the upcoming Cycle's own Prep
+// Sessions: each lies within its Cycle's Slots, and Cycles never overlap.
+// A Prep Session from before planning has no day and uses up nothing.
+func UsingUpBefore(sessions []PrepSession, until Slot, upcomingStart *Slot) []PrepSession {
+	var using []PrepSession
+	for _, ps := range sessions {
+		if !ps.At.On.IsZero() && ps.At.Before(until) && (upcomingStart == nil || ps.At.Before(*upcomingStart)) {
+			using = append(using, ps)
+		}
+	}
+	SortInDayOrder(using)
+	return using
+}
+
 // UseUp has sessions, in the order of their days, use up the Ingredients
 // they use from stock, in the order it was recorded, and returns the Stock
 // Items left, in that order, and what each Prep Session used, in its

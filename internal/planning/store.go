@@ -247,22 +247,21 @@ func loadIngredients(ctx context.Context, q db.Querier, names []string) (map[str
 	return known, err
 }
 
-// claimUseUp marks the Prep Sessions outside the upcoming Cycle prepared on
-// or before today as having used up their stock, and returns those that
-// hadn't. Those from the upcoming Cycle's start on are left: its Delivery
-// drops them when it arrives, and stockAtDelivery leaves them out alike. A
-// concurrent claim waits for this one's
-// transaction, then finds them claimed.
-func claimUseUp(ctx context.Context, q db.Querier, today time.Time) ([]int64, error) {
+// notUsedUp loads the ids of the Prep Sessions that haven't used up their
+// stock yet.
+func notUsedUp(ctx context.Context, q db.Querier) ([]int64, error) {
+	rows, _ := q.Query(ctx, `SELECT id FROM prep_session WHERE NOT used_up`)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// markUsedUp marks the Prep Sessions with ids as having used up their
+// stock, and returns those that hadn't. A concurrent mark waits for this
+// one's transaction, then finds them marked.
+func markUsedUp(ctx context.Context, q db.Querier, ids []int64) ([]int64, error) {
 	rows, _ := q.Query(ctx, `
-		UPDATE prep_session ps SET used_up = true
-		FROM cycle c
-		WHERE c.id = ps.cycle_id AND c.status <> 'upcoming'
-		  AND NOT ps.used_up AND ps.prepared_on <= $1
-		  AND NOT EXISTS (
-		    SELECT FROM cycle u WHERE u.status = 'upcoming'
-		      AND (ps.prepared_on, `+order("ps.prepared_for")+`) >= (u.starts_on, `+order("u.starts_with")+`))
-		RETURNING ps.id`, today)
+		UPDATE prep_session SET used_up = true
+		WHERE id = ANY($1) AND NOT used_up
+		RETURNING id`, ids)
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 

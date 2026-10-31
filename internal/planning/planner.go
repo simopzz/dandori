@@ -84,9 +84,6 @@ func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool,
 // StartPlanning starts a planning Run for the Cycle with id, returning the
 // Run's id. The Run submits the Cycle's initial Plan Proposal.
 func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
-	if err := s.Arrive(ctx); err != nil {
-		return 0, err
-	}
 	var run int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
@@ -207,19 +204,22 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []s
 	}
 }
 
-// kitchenTool lists what the kitchen holds that a Plan of the Cycle with
-// id from the Slot from on can use.
+// kitchenTool lists what the kitchen will hold that a Plan of the Cycle
+// with id from the Slot from on can use: the Portions it may put in Slots,
+// and the Stock Items left at its first Slot not yet prepared once the Prep
+// Sessions before it have used theirs up.
 func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 	return agent.Tool{
 		Name:        "list_kitchen",
-		Description: "List what the kitchen holds: the Portions without a Slot the Plan may put in Slots (kept), by id, and the Stock Items, each with its Storage Location and expiry date.",
+		Description: "List what the kitchen will hold when the Plan starts: the Portions without a Slot the Plan may put in Slots (kept), by id, and the Stock Items left once the Prep Sessions before it have used theirs up, each with its Storage Location and expiry date.",
 		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
 		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
-			kept, err := loadKept(ctx, s.pool, id, from, domain.FirstUnprepared(from, s.today()))
+			prepared := domain.FirstUnprepared(from, s.today())
+			kept, err := loadKept(ctx, s.pool, id, from, prepared)
 			if err != nil {
 				return "", err
 			}
-			items, err := s.stock.Items(ctx)
+			items, err := s.stockAt(ctx, s.pool, prepared)
 			if err != nil {
 				return "", err
 			}
@@ -358,9 +358,6 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 	plan["from"] = start
 	raw, err := json.Marshal(plan)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.Arrive(ctx); err != nil {
 		return nil, err
 	}
 	var problems []string

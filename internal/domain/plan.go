@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"cmp"
 	"slices"
 	"time"
 )
@@ -29,10 +30,15 @@ type Slot struct {
 // today, may prepare a Prep Session at: from, but never today, since a
 // Prep Session is taken as prepared from its day on.
 func FirstUnprepared(from Slot, today time.Time) Slot {
-	if tomorrow := (Slot{On: today.AddDate(0, 0, 1), Kind: SlotKinds[0]}); from.Before(tomorrow) {
+	if tomorrow := FirstSlotAfter(today); from.Before(tomorrow) {
 		return tomorrow
 	}
 	return from
+}
+
+// FirstSlotAfter is the first Slot of the day after day.
+func FirstSlotAfter(day time.Time) Slot {
+	return Slot{On: day.AddDate(0, 0, 1), Kind: SlotKinds[0]}
 }
 
 // Before reports whether s comes earlier than o.
@@ -61,6 +67,20 @@ type PrepSession struct {
 	// all its Portions together.
 	Ingredients []RecipeIngredient
 	Portions    []PlannedPortion
+}
+
+// SortInDayOrder sorts sessions in the order of the Slots they are
+// prepared at, then of their ids.
+func SortInDayOrder(sessions []PrepSession) {
+	slices.SortFunc(sessions, func(a, b PrepSession) int {
+		switch {
+		case a.At.Before(b.At):
+			return -1
+		case b.At.Before(a.At):
+			return 1
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 }
 
 // PlannedPortion is a Portion a Prep Session yields, with its planned
