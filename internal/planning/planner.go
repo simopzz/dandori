@@ -42,7 +42,7 @@ func (e *CannotPlanError) Is(target error) bool { return target == ErrCannotPlan
 // Plan Proposal is pending nor planning Run going for any Cycle, since one
 // is planned at a time. A Cycle with a Plan changes through a Plan
 // Proposal of its own.
-func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) error {
+func (s *Service) plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) error {
 	if c.Status == "closed" {
 		return &CannotPlanError{Reason: "the next Delivery has arrived, so it is closed"}
 	}
@@ -61,7 +61,11 @@ func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) err
 	if !c.Contains(from) {
 		return &CannotPlanError{Reason: "it has no Slots left to plan"}
 	}
-	if run, id, status, err := goingPlanningRun(ctx, q); err != nil {
+	going, err := s.runs.Going(ctx, q, planningKind)
+	if err != nil {
+		return err
+	}
+	if run, id, status, err := goingPlanningRun(ctx, q, going); err != nil {
 		return err
 	} else if id == c.ID {
 		return &CannotPlanError{Reason: "it is being planned", RunID: run}
@@ -74,7 +78,7 @@ func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) err
 // canPlan reports whether a planning Run can start for c now, and waits,
 // why not when another Cycle's turn comes first.
 func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool, waits string, err error) {
-	err = plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
+	err = s.plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
 	if errors.Is(err, ErrCannotPlan) {
 		return false, waitsTurn(err), nil
 	}
@@ -84,50 +88,54 @@ func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool,
 // StartPlanning starts a planning Run for the Cycle with id, returning the
 // Run's id. The Run submits the Cycle's initial Plan Proposal.
 func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
-	var run int64
+	var run runs.Recorded
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
 		run, err = s.startPlanningIn(ctx, tx, id, 0)
 		return err
 	})
-	return run, err
-}
-
-// startPlanningIn starts a planning Run for the Cycle with id as part of
-// tx, after the rejection of the Plan Proposal with id after when it isn't
-// 0, and returns the Run's id.
-func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int64) (int64, error) {
-	// Serialises with another start on either Cycle, with the planner
-	// submitting, and with what replaces Plan Proposals.
-	if err := lockCycles(ctx, tx); err != nil {
-		return 0, err
-	}
-	c, err := findCycle(ctx, tx, id)
 	if err != nil {
 		return 0, err
 	}
+	s.runs.Launch(run)
+	return run.ID, nil
+}
+
+// startPlanningIn records a planning Run for the Cycle with id as part of
+// tx, after the rejection of the Plan Proposal with id after when it isn't
+// 0, for the caller to launch once tx commits.
+func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int64) (runs.Recorded, error) {
+	// Serialises with another start on either Cycle, with the planner
+	// submitting, and with what replaces Plan Proposals.
+	if err := lockCycles(ctx, tx); err != nil {
+		return runs.Recorded{}, err
+	}
+	c, err := findCycle(ctx, tx, id)
+	if err != nil {
+		return runs.Recorded{}, err
+	}
 	if c == nil {
-		return 0, ErrNoCycle
+		return runs.Recorded{}, ErrNoCycle
 	}
 	// What is prepared today is taken as done: a Cycle whose first day has
 	// come is planned from tomorrow.
 	from := domain.FirstUnprepared(c.Start, s.today())
-	if err := plannable(ctx, tx, *c, from); err != nil {
-		return 0, err
+	if err := s.plannable(ctx, tx, *c, from); err != nil {
+		return runs.Recorded{}, err
 	}
 	notes, err := loadNotes(ctx, tx, id)
 	if err != nil {
-		return 0, err
+		return runs.Recorded{}, err
 	}
 	brief, err := s.profile.Brief(ctx)
 	if err != nil {
-		return 0, err
+		return runs.Recorded{}, err
 	}
-	run, err := s.runs.Start(ctx, planningKind, s.planningJob(*c, from, brief, notes))
+	run, err := s.runs.Record(ctx, tx, planningKind, s.planningJob(*c, from, brief, notes))
 	if err != nil {
-		return 0, err
+		return runs.Recorded{}, err
 	}
-	return run, insertPlanningRun(ctx, tx, run, id, after)
+	return run, insertPlanningRun(ctx, tx, run.ID, id, after)
 }
 
 // lastSlot is the Cycle's last Slot.
@@ -373,7 +381,7 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 			return agent.Stop(errors.New("the Cycle was dropped"))
 		}
 		// The user may have planned it another way meanwhile, or it closed.
-		if err := stillPlannable(ctx, tx, *c, from, run); err != nil {
+		if err := s.stillPlannable(ctx, tx, *c, from, run); err != nil {
 			return agent.Stop(err)
 		}
 		ch, err := s.checkProposal(ctx, tx, storedProposal{CycleID: id, RunID: run, Plan: raw})
@@ -398,8 +406,8 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 // stillPlannable checks the Cycle c can still get an initial Plan from
 // the planning Run with run, going for it: not cancelled since, by what
 // replaced its Plan Proposal.
-func stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
-	err := plannable(ctx, q, c, from)
+func (s *Service) stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
+	err := s.plannable(ctx, q, c, from)
 	if going := (*CannotPlanError)(nil); errors.As(err, &going) && going.RunID == run {
 		return nil
 	}
@@ -407,7 +415,7 @@ func stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot
 		return err
 	}
 	// Plannable, yet not because run is going: run was cancelled.
-	status, err := runStatus(ctx, q, run)
+	status, err := s.runs.Status(ctx, q, run)
 	if err != nil {
 		return err
 	}
@@ -431,8 +439,8 @@ func (s *Service) planning(ctx context.Context, q db.Querier, c Cycle) (Planning
 	if p.CanPlan, p.Waits, err = s.canPlan(ctx, q, c); err != nil {
 		return p, err
 	}
-	id, status, err := latestPlanningRun(ctx, q, c.ID)
-	if err != nil || status == "" {
+	id, found, err := latestPlanningRun(ctx, q, c.ID)
+	if err != nil || !found {
 		return p, err
 	}
 	run, found, err := s.runs.Get(ctx, id)

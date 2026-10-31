@@ -31,6 +31,19 @@ func setCancelled(ctx context.Context, q db.Querier, ids []int64, cause string) 
 	return err
 }
 
+// runningOf is the ids of the Runs of kind still running.
+func runningOf(ctx context.Context, q db.Querier, kind string) ([]int64, error) {
+	rows, _ := q.Query(ctx, `SELECT id FROM run WHERE kind = $1 AND status = 'running' ORDER BY id`, kind)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// loadStatus is the status of the Run with id.
+func loadStatus(ctx context.Context, q db.Querier, id int64) (string, error) {
+	var st string
+	err := q.QueryRow(ctx, `SELECT status FROM run WHERE id = $1`, id).Scan(&st)
+	return st, err
+}
+
 func insertEvent(ctx context.Context, q db.Querier, runID int64, ev TraceEvent) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO trace_event (run_id, seq, at, kind, summary, detail)

@@ -226,7 +226,11 @@ func (s *Service) replace(ctx context.Context, q db.Querier, c *cancels, ids []i
 // its Plan Proposal is left to end: that Plan Proposal is what is
 // replaced.
 func (s *Service) cancelPlanning(ctx context.Context, q db.Querier, c *cancels, ids []int64, cause string) error {
-	going, err := planningRunsGoing(ctx, q, ids)
+	running, err := s.runs.Going(ctx, q, planningKind)
+	if err != nil {
+		return err
+	}
+	going, err := planningRunsGoing(ctx, q, running, ids)
 	if err != nil {
 		return err
 	}
@@ -821,6 +825,7 @@ func (s *Service) acceptDrafts(ctx context.Context, q db.Querier, p *proposedPla
 // all, and its id is returned; 0 when none started. waits is whether none
 // started because another Cycle's turn comes first.
 func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64, waits bool, err error) {
+	var started runs.Recorded
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// The Cycles are locked before the Plan Proposal, as Approve does.
 		if err := lockCycles(ctx, tx); err != nil {
@@ -833,13 +838,17 @@ func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64,
 		if err := decideProposal(ctx, tx, id, "rejected", note); err != nil || note == "" {
 			return err
 		}
-		run, err = s.startPlanningIn(ctx, tx, stored.CycleID, id)
+		started, err = s.startPlanningIn(ctx, tx, stored.CycleID, id)
 		if errors.Is(err, ErrCannotPlan) {
-			run, waits, err = 0, waitsTurn(err) != "", nil
+			started, waits, err = runs.Recorded{}, waitsTurn(err) != "", nil
 		}
 		return err
 	})
-	return run, waits, err
+	if err != nil || started.ID == 0 {
+		return 0, waits, err
+	}
+	s.runs.Launch(started)
+	return started.ID, waits, nil
 }
 
 // WaitsFor is why the Cycle with id can't be planned now because another

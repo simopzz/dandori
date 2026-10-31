@@ -629,34 +629,26 @@ func pendingFor(ctx context.Context, q db.Querier) (id int64, status string, err
 	return id, status, err
 }
 
-// goingPlanningRun is the planning Run going, the Cycle it plans and that
-// Cycle's status; run is 0 when none is going.
-func goingPlanningRun(ctx context.Context, q db.Querier) (run, id int64, status string, err error) {
+// goingPlanningRun is the planning Run among the Runs going, the Cycle it
+// plans and that Cycle's status; run is 0 when none is going.
+func goingPlanningRun(ctx context.Context, q db.Querier, going []int64) (run, id int64, status string, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT p.run_id, c.id, c.status FROM planning_run p
-		JOIN run r ON r.id = p.run_id JOIN cycle c ON c.id = p.cycle_id
-		WHERE r.status = 'running' ORDER BY p.run_id LIMIT 1`).Scan(&run, &id, &status)
+		SELECT p.run_id, c.id, c.status FROM planning_run p JOIN cycle c ON c.id = p.cycle_id
+		WHERE p.run_id = ANY($1) ORDER BY p.run_id LIMIT 1`, going).Scan(&run, &id, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, 0, "", nil
 	}
 	return run, id, status, err
 }
 
-// planningRunsGoing are the planning Runs going for the Cycles with ids
-// that have yet to store their Plan Proposal.
-func planningRunsGoing(ctx context.Context, q db.Querier, ids []int64) ([]int64, error) {
+// planningRunsGoing are the planning Runs among the Runs going for the
+// Cycles with ids that have yet to store their Plan Proposal.
+func planningRunsGoing(ctx context.Context, q db.Querier, going, ids []int64) ([]int64, error) {
 	rows, _ := q.Query(ctx, `
-		SELECT p.run_id FROM planning_run p JOIN run r ON r.id = p.run_id
-		WHERE p.cycle_id = ANY($1) AND r.status = 'running'
-			AND NOT EXISTS (SELECT FROM plan_proposal pp WHERE pp.run_id = p.run_id)`, ids)
+		SELECT p.run_id FROM planning_run p
+		WHERE p.run_id = ANY($1) AND p.cycle_id = ANY($2)
+			AND NOT EXISTS (SELECT FROM plan_proposal pp WHERE pp.run_id = p.run_id)`, going, ids)
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
-}
-
-// runStatus is the status of the Run with id.
-func runStatus(ctx context.Context, q db.Querier, id int64) (string, error) {
-	var status string
-	err := q.QueryRow(ctx, `SELECT status FROM run WHERE id = $1`, id).Scan(&status)
-	return status, err
 }
 
 // openCycleIDs are the ids of the current and the upcoming Cycle, those
@@ -666,16 +658,15 @@ func openCycleIDs(ctx context.Context, q db.Querier) ([]int64, error) {
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
-// latestPlanningRun is the last planning Run of the Cycle with id and its
-// status; status is empty when it has had none.
-func latestPlanningRun(ctx context.Context, q db.Querier, id int64) (run int64, status string, err error) {
+// latestPlanningRun is the last planning Run of the Cycle with id; found
+// is false when it has had none.
+func latestPlanningRun(ctx context.Context, q db.Querier, id int64) (run int64, found bool, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT p.run_id, r.status FROM planning_run p JOIN run r ON r.id = p.run_id
-		WHERE p.cycle_id = $1 ORDER BY p.run_id DESC LIMIT 1`, id).Scan(&run, &status)
+		SELECT run_id FROM planning_run WHERE cycle_id = $1 ORDER BY run_id DESC LIMIT 1`, id).Scan(&run)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, "", nil
+		return 0, false, nil
 	}
-	return run, status, err
+	return run, err == nil, err
 }
 
 // planningRunAfter is the planning Run the rejection of the Plan Proposal
