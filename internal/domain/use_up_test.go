@@ -146,3 +146,43 @@ func TestPrepSessionsUseUpTheStockItemsOfTheirIngredients(t *testing.T) {
 		})
 	}
 }
+
+func TestPrepSessionsUsingUpTheirStockBeforeASlot(t *testing.T) {
+	nov2, nov3, nov4 := day("2026-11-02"), day("2026-11-03"), day("2026-11-04")
+	at := func(id int64, on time.Time, kind domain.SlotKind) domain.PrepSession {
+		return domain.PrepSession{ID: id, At: domain.Slot{On: on, Kind: kind}}
+	}
+	// Out of the order of their days, as they are stored.
+	sessions := []domain.PrepSession{
+		at(4, nov4, domain.Lunch),
+		at(2, nov3, domain.Lunch),
+		at(1, nov2, domain.Dinner),
+		at(3, nov3, domain.Dinner),
+		at(5, nov2, domain.Dinner),
+		// From before planning: no day.
+		{ID: 6},
+	}
+	dinnerNov3 := domain.Slot{On: nov3, Kind: domain.Dinner}
+	tests := []struct {
+		name  string
+		until domain.Slot
+		next  *domain.Slot
+		want  []int64
+	}{
+		{name: "every day of today, until the first Slot of the next", until: domain.FirstSlotAfter(nov3), want: []int64{1, 5, 2, 3}},
+		{name: "those before a Slot, not at it", until: dinnerNov3, want: []int64{1, 5, 2}},
+		{name: "none before the first Slot", until: domain.Slot{On: nov2, Kind: domain.Breakfast}, want: nil},
+		{name: "none from the upcoming Cycle's first Slot on, which its Delivery drops", until: domain.FirstSlotAfter(nov4), next: &dinnerNov3, want: []int64{1, 5, 2}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got []int64
+			for _, ps := range domain.UsingUpBefore(sessions, tt.until, tt.next) {
+				got = append(got, ps.ID)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("UsingUpBefore(%v) = %v, want %v", tt.until, got, tt.want)
+			}
+		})
+	}
+}

@@ -1,11 +1,13 @@
 package app_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
 )
@@ -16,7 +18,14 @@ import (
 // the clock.
 func startGroceries(t *testing.T) (*apptest.Harness, *clock) {
 	t.Helper()
-	h, _ := seededWithIngredients(t)
+	h, today, _ := startGroceriesWith(t)
+	return h, today
+}
+
+// startGroceriesWith is startGroceries, returning the fake LLM too.
+func startGroceriesWith(t *testing.T) (*apptest.Harness, *clock, *fakellm.LLM) {
+	t.Helper()
+	h, llm := seededWithIngredients(t)
 	today := &clock{}
 	today.set(t, "2026-11-01")
 	h.Restart(t, apptest.WithConfig(func(c *app.Config) { c.Now = func() time.Time { return today.now } }))
@@ -29,7 +38,7 @@ func startGroceries(t *testing.T) (*apptest.Harness, *clock) {
 		t.Fatalf("map chicken breast = %d:\n%s", res.StatusCode, text(res.Body))
 	}
 	addStockItem(t, h, "olive oil", "500", "pantry", "")
-	return h, today
+	return h, today, llm
 }
 
 // groceryList follows the Plan page's first link to a Grocery List.
@@ -227,6 +236,37 @@ func TestUpcomingGroceryListBuysWhatTheCurrentCyclesPrepSessionsWillUseUp(t *tes
 	approvePlan(t, h, lemonChicken("2026-11-11", "2026-11-13", "2026-11-16"))
 	if list := text(h.Get(t, lastCyclePath(t, h, "groceries")).Body); !strings.Contains(list, "chicken breast 560 g needed · 640 g bought 2 × "+pettoDiPollo.Name) {
 		t.Errorf("the upcoming Grocery List does not buy the chicken breast the current Cycle will use up:\n%s", list)
+	}
+}
+
+func TestPlannerIsToldTheStockTheUpcomingGroceryListCountsOn(t *testing.T) {
+	h, today, llm := startGroceriesWith(t)
+	recipe := recipeID(t, h)
+	openCycle(t, h, "2026-11-02", "2026-11-10")
+	approvePlan(t, h, planOf(cooks(recipe, "2026-11-05", "dinner",
+		eat("fridge", "2026-11-05", "dinner"), eat("fridge", "2026-11-07", "lunch"), eat("freezer", "2026-11-09", "dinner"))))
+	today.setAt(t, "2026-11-02 08:00")
+	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "chicken breast 640 g fridge") {
+		t.Fatalf("Stock does not show the chicken breast delivered:\n%s", stock)
+	}
+
+	// Of the 640 g of chicken breast in the kitchen on the 3rd, the Lemon
+	// chicken on the 5th will leave 40 g by the next Delivery: what its
+	// Grocery List counts on, and so what the planner may use.
+	today.set(t, "2026-11-03")
+	exceptions := openCycleIn(t, h, "2026-11-10", "18:00", "20:00", "2026-11-20").Path
+	llm.Script(
+		fakellm.CallTool("list_kitchen", map[string]any{}),
+		fakellm.Reply("Nothing to plan with."),
+	)
+	planCycle(t, h, exceptions)
+	asked := plannerRequests(llm)
+	if len(asked) < 2 {
+		t.Fatalf("the planner sent %d requests, want the kitchen's answer in the second", len(asked))
+	}
+	kitchen := fmt.Sprint(asked[1].Messages)
+	if !strings.Contains(kitchen, "40 g chicken breast") || strings.Contains(kitchen, "640 g chicken breast") {
+		t.Errorf("the planner is not told the 40 g of chicken breast the next Delivery finds:\n%s", kitchen)
 	}
 }
 

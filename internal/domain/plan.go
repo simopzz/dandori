@@ -29,10 +29,15 @@ type Slot struct {
 // today, may prepare a Prep Session at: from, but never today, since a
 // Prep Session is taken as prepared from its day on.
 func FirstUnprepared(from Slot, today time.Time) Slot {
-	if tomorrow := (Slot{On: today.AddDate(0, 0, 1), Kind: SlotKinds[0]}); from.Before(tomorrow) {
+	if tomorrow := FirstSlotAfter(today); from.Before(tomorrow) {
 		return tomorrow
 	}
 	return from
+}
+
+// FirstSlotAfter is the first Slot of the day after day.
+func FirstSlotAfter(day time.Time) Slot {
+	return Slot{On: day.AddDate(0, 0, 1), Kind: SlotKinds[0]}
 }
 
 // Before reports whether s comes earlier than o.

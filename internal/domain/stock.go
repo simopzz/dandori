@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"cmp"
 	"math"
 	"slices"
 	"time"
@@ -76,6 +77,37 @@ type StockUse struct {
 	// Shortfall is what it needed of each Ingredient beyond the stock it
 	// found, by Ingredient name, or nil when stock held enough.
 	Shortfall map[string]float64
+}
+
+// UsingUpBefore is the Prep Sessions of sessions that use up their stock
+// before the Slot until, in the order of their days: those prepared at a
+// Slot before it, and before next, the upcoming Cycle's first Slot, when
+// there is an upcoming Cycle, since its Delivery drops the rest when it
+// arrives. A Prep Session from before planning has no day and uses up
+// nothing.
+func UsingUpBefore(sessions []PrepSession, until Slot, next *Slot) []PrepSession {
+	var using []PrepSession
+	for _, ps := range sessions {
+		if !ps.At.On.IsZero() && ps.At.Before(until) && (next == nil || ps.At.Before(*next)) {
+			using = append(using, ps)
+		}
+	}
+	SortInDayOrder(using)
+	return using
+}
+
+// SortInDayOrder sorts sessions in the order of the Slots they are
+// prepared at, then of their ids.
+func SortInDayOrder(sessions []PrepSession) {
+	slices.SortFunc(sessions, func(a, b PrepSession) int {
+		switch {
+		case a.At.Before(b.At):
+			return -1
+		case b.At.Before(a.At):
+			return 1
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 }
 
 // UseUp has sessions, in the order of their days, use up the Ingredients

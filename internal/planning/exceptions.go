@@ -47,9 +47,6 @@ type ExceptionSlot struct {
 // their Exceptions.
 func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, error) {
 	var ce CycleExceptions
-	if err := s.Arrive(ctx); err != nil {
-		return ce, err
-	}
 	p, _, err := s.profile.Get(ctx)
 	if err != nil {
 		return ce, err
@@ -104,9 +101,6 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 // alone for one of its Slots, else of either, since what the current
 // Cycle eats changes what carries over.
 func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, e *domain.Exception) error {
-	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
 	return s.write(ctx, func(tx pgx.Tx, cancelled *cancels) error {
 		// Serialises with the arrival, move or drop of the Cycle.
 		if err := lockCycles(ctx, tx); err != nil {
@@ -182,9 +176,6 @@ func (s *Service) between(ctx context.Context, q db.Querier, first time.Time) ([
 // RemoveExceptionBetweenCycles removes the Exception of slot, a Slot no
 // Cycle holds; one a Cycle holds is changed on its Exceptions page.
 func (s *Service) RemoveExceptionBetweenCycles(ctx context.Context, slot domain.Slot) error {
-	if err := s.Arrive(ctx); err != nil {
-		return err
-	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// Serialises with the opening, move or drop of a Cycle.
 		if err := lockCycles(ctx, tx); err != nil {
@@ -253,9 +244,6 @@ func (s *Service) ExceptionsTool() agent.Tool {
 func (s *Service) exceptionDays(ctx context.Context, from, to string) (time.Time, time.Time, error) {
 	var first, last time.Time
 	if from == "" || to == "" {
-		if err := s.Arrive(ctx); err != nil {
-			return first, last, err
-		}
 		c, err := loadCycleWith(ctx, s.pool, "upcoming")
 		if err == nil && c == nil {
 			c, err = loadCycleWith(ctx, s.pool, "current")

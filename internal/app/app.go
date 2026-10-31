@@ -157,9 +157,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	}, log)
 	a.profile = profile.New(pool)
 	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
-	// Portions are what the Plan has cooked and not eaten as of the
-	// latest arrival, which planning takes in.
-	a.stock = stock.New(pool, today, func(ctx context.Context) error { return a.plan.Arrive(ctx) })
+	a.stock = stock.New(pool, today)
 	a.recipes = recipes.New(pool, recipes.Config{
 		Runs:     a.runs,
 		Language: a.cfg.ContentLanguage,
@@ -273,50 +271,50 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
-	mux.Handle("GET /{$}", a.needsDatabase(templ.Handler(web.Home())))
-	mux.Handle("GET /plan", a.needsDatabase(http.HandlerFunc(plan.Show)))
-	mux.Handle("POST /cycles", a.needsDatabase(http.HandlerFunc(plan.OpenCycle)))
-	mux.Handle("POST /cycles/{id}/delivery", a.needsDatabase(http.HandlerFunc(plan.ChangeDelivery)))
-	mux.Handle("POST /cycles/{id}/drop", a.needsDatabase(http.HandlerFunc(plan.Drop)))
-	mux.Handle("POST /cycles/{id}/plan", a.needsDatabase(http.HandlerFunc(plan.Plan)))
-	mux.Handle("GET /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.ShowExceptions)))
-	mux.Handle("POST /cycles/{id}/exceptions", a.needsDatabase(http.HandlerFunc(plan.LogException)))
-	mux.Handle("GET /cycles/{id}/groceries", a.needsDatabase(http.HandlerFunc(plan.ShowGroceries)))
-	mux.Handle("POST /exceptions/remove", a.needsDatabase(http.HandlerFunc(plan.RemoveExceptionBetweenCycles)))
-	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(http.HandlerFunc(plan.ShowProposal)))
-	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(http.HandlerFunc(plan.Approve)))
-	mux.Handle("POST /plan-proposals/{id}/reject", a.needsDatabase(http.HandlerFunc(plan.Reject)))
-	mux.Handle("GET /plan-proposals/{proposal}/recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.ShowPlannedDraft)))
-	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.AcceptPlannedDraft)))
-	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}/discard", a.needsDatabase(http.HandlerFunc(recipes.DiscardPlannedDraft)))
-	mux.Handle("GET /profile", a.needsDatabase(http.HandlerFunc(profile.Show)))
-	mux.Handle("POST /profile", a.needsDatabase(http.HandlerFunc(profile.Save)))
-	mux.Handle("POST /profile/brief", a.needsDatabase(http.HandlerFunc(profile.SaveBrief)))
-	mux.Handle("GET /recipes", a.needsDatabase(http.HandlerFunc(recipes.Library)))
-	mux.Handle("POST /recipes/parse", a.needsDatabase(http.HandlerFunc(recipes.Parse)))
-	mux.Handle("GET /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.ShowDraft)))
-	mux.Handle("POST /recipe-drafts/{id}", a.needsDatabase(http.HandlerFunc(recipes.AcceptDraft)))
-	mux.Handle("POST /recipe-drafts/{id}/discard", a.needsDatabase(http.HandlerFunc(recipes.DiscardDraft)))
-	mux.Handle("GET /recipes/{id}", a.needsDatabase(http.HandlerFunc(recipes.Show)))
-	mux.Handle("POST /recipes/{id}", a.needsDatabase(http.HandlerFunc(recipes.Update)))
-	mux.Handle("GET /recipes/{id}/edit", a.needsDatabase(http.HandlerFunc(recipes.Edit)))
-	mux.Handle("POST /recipes/{id}/delete", a.needsDatabase(http.HandlerFunc(recipes.Delete)))
-	mux.Handle("GET /stock", a.needsDatabase(http.HandlerFunc(stock.Show)))
-	mux.Handle("POST /stock-items", a.needsDatabase(http.HandlerFunc(stock.Add)))
-	mux.Handle("POST /stock-items/{id}", a.needsDatabase(http.HandlerFunc(stock.Update)))
-	mux.Handle("POST /stock-items/{id}/delete", a.needsDatabase(http.HandlerFunc(stock.Remove)))
-	mux.Handle("POST /portions/{id}/move", a.needsDatabase(http.HandlerFunc(stock.MovePortion)))
-	mux.Handle("GET /catalog", a.needsDatabase(http.HandlerFunc(catalog.Show)))
-	mux.Handle("GET /catalog/runs/{id}", a.needsDatabase(http.HandlerFunc(catalog.ShowRun)))
-	mux.Handle("POST /catalog/seed", a.needsDatabase(http.HandlerFunc(catalog.Seed)))
-	mux.Handle("POST /catalog/refresh", a.needsDatabase(http.HandlerFunc(catalog.Refresh)))
-	mux.Handle("POST /catalog/propose-mappings", a.needsDatabase(http.HandlerFunc(catalog.Propose)))
-	mux.Handle("POST /product-mappings/{id}", a.needsDatabase(http.HandlerFunc(catalog.SetMapping)))
-	mux.Handle("GET /runs", a.needsDatabase(http.HandlerFunc(runs.List)))
-	mux.Handle("POST /runs", a.needsDatabase(http.HandlerFunc(runs.Start)))
-	mux.Handle("GET /runs/{id}", a.needsDatabase(http.HandlerFunc(runs.Show)))
-	mux.Handle("GET /runs/{id}/events", a.needsDatabase(http.HandlerFunc(runs.Stream)))
-	mux.Handle("POST /runs/{id}/cancel", a.needsDatabase(http.HandlerFunc(runs.Cancel)))
+	mux.Handle("GET /{$}", a.needsDatabase(a.settles(templ.Handler(web.Home()))))
+	mux.Handle("GET /plan", a.needsDatabase(a.settles(http.HandlerFunc(plan.Show))))
+	mux.Handle("POST /cycles", a.needsDatabase(a.settles(http.HandlerFunc(plan.OpenCycle))))
+	mux.Handle("POST /cycles/{id}/delivery", a.needsDatabase(a.settles(http.HandlerFunc(plan.ChangeDelivery))))
+	mux.Handle("POST /cycles/{id}/drop", a.needsDatabase(a.settles(http.HandlerFunc(plan.Drop))))
+	mux.Handle("POST /cycles/{id}/plan", a.needsDatabase(a.settles(http.HandlerFunc(plan.Plan))))
+	mux.Handle("GET /cycles/{id}/exceptions", a.needsDatabase(a.settles(http.HandlerFunc(plan.ShowExceptions))))
+	mux.Handle("POST /cycles/{id}/exceptions", a.needsDatabase(a.settles(http.HandlerFunc(plan.LogException))))
+	mux.Handle("GET /cycles/{id}/groceries", a.needsDatabase(a.settles(http.HandlerFunc(plan.ShowGroceries))))
+	mux.Handle("POST /exceptions/remove", a.needsDatabase(a.settles(http.HandlerFunc(plan.RemoveExceptionBetweenCycles))))
+	mux.Handle("GET /plan-proposals/{id}", a.needsDatabase(a.settles(http.HandlerFunc(plan.ShowProposal))))
+	mux.Handle("POST /plan-proposals/{id}/approve", a.needsDatabase(a.settles(http.HandlerFunc(plan.Approve))))
+	mux.Handle("POST /plan-proposals/{id}/reject", a.needsDatabase(a.settles(http.HandlerFunc(plan.Reject))))
+	mux.Handle("GET /plan-proposals/{proposal}/recipe-drafts/{id}", a.needsDatabase(a.settles(http.HandlerFunc(recipes.ShowPlannedDraft))))
+	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}", a.needsDatabase(a.settles(http.HandlerFunc(recipes.AcceptPlannedDraft))))
+	mux.Handle("POST /plan-proposals/{proposal}/recipe-drafts/{id}/discard", a.needsDatabase(a.settles(http.HandlerFunc(recipes.DiscardPlannedDraft))))
+	mux.Handle("GET /profile", a.needsDatabase(a.settles(http.HandlerFunc(profile.Show))))
+	mux.Handle("POST /profile", a.needsDatabase(a.settles(http.HandlerFunc(profile.Save))))
+	mux.Handle("POST /profile/brief", a.needsDatabase(a.settles(http.HandlerFunc(profile.SaveBrief))))
+	mux.Handle("GET /recipes", a.needsDatabase(a.settles(http.HandlerFunc(recipes.Library))))
+	mux.Handle("POST /recipes/parse", a.needsDatabase(a.settles(http.HandlerFunc(recipes.Parse))))
+	mux.Handle("GET /recipe-drafts/{id}", a.needsDatabase(a.settles(http.HandlerFunc(recipes.ShowDraft))))
+	mux.Handle("POST /recipe-drafts/{id}", a.needsDatabase(a.settles(http.HandlerFunc(recipes.AcceptDraft))))
+	mux.Handle("POST /recipe-drafts/{id}/discard", a.needsDatabase(a.settles(http.HandlerFunc(recipes.DiscardDraft))))
+	mux.Handle("GET /recipes/{id}", a.needsDatabase(a.settles(http.HandlerFunc(recipes.Show))))
+	mux.Handle("POST /recipes/{id}", a.needsDatabase(a.settles(http.HandlerFunc(recipes.Update))))
+	mux.Handle("GET /recipes/{id}/edit", a.needsDatabase(a.settles(http.HandlerFunc(recipes.Edit))))
+	mux.Handle("POST /recipes/{id}/delete", a.needsDatabase(a.settles(http.HandlerFunc(recipes.Delete))))
+	mux.Handle("GET /stock", a.needsDatabase(a.settles(http.HandlerFunc(stock.Show))))
+	mux.Handle("POST /stock-items", a.needsDatabase(a.settles(http.HandlerFunc(stock.Add))))
+	mux.Handle("POST /stock-items/{id}", a.needsDatabase(a.settles(http.HandlerFunc(stock.Update))))
+	mux.Handle("POST /stock-items/{id}/delete", a.needsDatabase(a.settles(http.HandlerFunc(stock.Remove))))
+	mux.Handle("POST /portions/{id}/move", a.needsDatabase(a.settles(http.HandlerFunc(stock.MovePortion))))
+	mux.Handle("GET /catalog", a.needsDatabase(a.settles(http.HandlerFunc(catalog.Show))))
+	mux.Handle("GET /catalog/runs/{id}", a.needsDatabase(a.settles(http.HandlerFunc(catalog.ShowRun))))
+	mux.Handle("POST /catalog/seed", a.needsDatabase(a.settles(http.HandlerFunc(catalog.Seed))))
+	mux.Handle("POST /catalog/refresh", a.needsDatabase(a.settles(http.HandlerFunc(catalog.Refresh))))
+	mux.Handle("POST /catalog/propose-mappings", a.needsDatabase(a.settles(http.HandlerFunc(catalog.Propose))))
+	mux.Handle("POST /product-mappings/{id}", a.needsDatabase(a.settles(http.HandlerFunc(catalog.SetMapping))))
+	mux.Handle("GET /runs", a.needsDatabase(a.settles(http.HandlerFunc(runs.List))))
+	mux.Handle("POST /runs", a.needsDatabase(a.settles(http.HandlerFunc(runs.Start))))
+	mux.Handle("GET /runs/{id}", a.needsDatabase(a.settles(http.HandlerFunc(runs.Show))))
+	mux.Handle("GET /runs/{id}/events", a.needsDatabase(a.settles(http.HandlerFunc(runs.Stream))))
+	mux.Handle("POST /runs/{id}/cancel", a.needsDatabase(a.settles(http.HandlerFunc(runs.Cancel))))
 	return mux
 }
 
@@ -344,6 +342,20 @@ func (a *App) needsDatabase(next http.Handler) http.Handler {
 			// Reachable but not usable, e.g. a failing migration: a bug, not a pause.
 			a.log.Error("database not ready", "err", err)
 			http.Error(w, "Dandori could not prepare its database; see the server log.", http.StatusInternalServerError)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// settles takes a Delivery whose window has ended as arrived, and has the
+// Prep Sessions whose day has come use up their stock, before next serves,
+// so what it shows and changes is as of now. Every route needing the
+// database settles, after needsDatabase; use cases never do (ADR-0010).
+func (a *App) settles(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := a.plan.Arrive(r.Context()); err != nil {
+			httpx.ServerError(w, a.log, "settle the kitchen", err)
 			return
 		}
 		next.ServeHTTP(w, r)
