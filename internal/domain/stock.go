@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"cmp"
 	"math"
 	"slices"
 	"time"
@@ -81,33 +80,20 @@ type StockUse struct {
 
 // UsingUpBefore is the Prep Sessions of sessions that use up their stock
 // before the Slot until, in the order of their days: those prepared at a
-// Slot before it, and before next, the upcoming Cycle's first Slot, when
-// there is an upcoming Cycle, since its Delivery drops the rest when it
-// arrives. A Prep Session from before planning has no day and uses up
-// nothing.
-func UsingUpBefore(sessions []PrepSession, until Slot, next *Slot) []PrepSession {
+// Slot before it, and before upcomingStart, the upcoming Cycle's first
+// Slot, when there is an upcoming Cycle, since its Delivery drops the rest
+// when it arrives. That also leaves out the upcoming Cycle's own Prep
+// Sessions: each lies within its Cycle's Slots, and Cycles never overlap.
+// A Prep Session from before planning has no day and uses up nothing.
+func UsingUpBefore(sessions []PrepSession, until Slot, upcomingStart *Slot) []PrepSession {
 	var using []PrepSession
 	for _, ps := range sessions {
-		if !ps.At.On.IsZero() && ps.At.Before(until) && (next == nil || ps.At.Before(*next)) {
+		if !ps.At.On.IsZero() && ps.At.Before(until) && (upcomingStart == nil || ps.At.Before(*upcomingStart)) {
 			using = append(using, ps)
 		}
 	}
 	SortInDayOrder(using)
 	return using
-}
-
-// SortInDayOrder sorts sessions in the order of the Slots they are
-// prepared at, then of their ids.
-func SortInDayOrder(sessions []PrepSession) {
-	slices.SortFunc(sessions, func(a, b PrepSession) int {
-		switch {
-		case a.At.Before(b.At):
-			return -1
-		case b.At.Before(a.At):
-			return 1
-		}
-		return cmp.Compare(a.ID, b.ID)
-	})
 }
 
 // UseUp has sessions, in the order of their days, use up the Ingredients

@@ -336,11 +336,11 @@ func (s *Service) usingUpBefore(ctx context.Context, q db.Querier, until domain.
 	if err != nil {
 		return nil, err
 	}
-	var next *domain.Slot
+	var upcomingStart *domain.Slot
 	if upcoming != nil {
-		next = &upcoming.Start
+		upcomingStart = &upcoming.Start
 	}
-	return domain.UsingUpBefore(inDayOrder(sessions), until, next), nil
+	return domain.UsingUpBefore(inDayOrder(sessions), until, upcomingStart), nil
 }
 
 // stockAt loads, through q, the Stock Items the kitchen will hold at the

@@ -164,20 +164,22 @@ func TestPrepSessionsUsingUpTheirStockBeforeASlot(t *testing.T) {
 	}
 	dinnerNov3 := domain.Slot{On: nov3, Kind: domain.Dinner}
 	tests := []struct {
-		name  string
-		until domain.Slot
-		next  *domain.Slot
-		want  []int64
+		name          string
+		until         domain.Slot
+		upcomingStart *domain.Slot
+		want          []int64
 	}{
 		{name: "every day of today, until the first Slot of the next", until: domain.FirstSlotAfter(nov3), want: []int64{1, 5, 2, 3}},
 		{name: "those before a Slot, not at it", until: dinnerNov3, want: []int64{1, 5, 2}},
 		{name: "none before the first Slot", until: domain.Slot{On: nov2, Kind: domain.Breakfast}, want: nil},
-		{name: "none from the upcoming Cycle's first Slot on, which its Delivery drops", until: domain.FirstSlotAfter(nov4), next: &dinnerNov3, want: []int64{1, 5, 2}},
+		// The upcoming Cycle starts at dinner on the 3rd: 3 and 4 are its
+		// own, or the current Cycle's its Delivery drops.
+		{name: "none from the upcoming Cycle's first Slot on", until: domain.FirstSlotAfter(nov4), upcomingStart: &dinnerNov3, want: []int64{1, 5, 2}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var got []int64
-			for _, ps := range domain.UsingUpBefore(sessions, tt.until, tt.next) {
+			for _, ps := range domain.UsingUpBefore(sessions, tt.until, tt.upcomingStart) {
 				got = append(got, ps.ID)
 			}
 			if !reflect.DeepEqual(got, tt.want) {

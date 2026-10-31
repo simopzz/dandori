@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"cmp"
 	"slices"
 	"time"
 )
@@ -66,6 +67,20 @@ type PrepSession struct {
 	// all its Portions together.
 	Ingredients []RecipeIngredient
 	Portions    []PlannedPortion
+}
+
+// SortInDayOrder sorts sessions in the order of the Slots they are
+// prepared at, then of their ids.
+func SortInDayOrder(sessions []PrepSession) {
+	slices.SortFunc(sessions, func(a, b PrepSession) int {
+		switch {
+		case a.At.Before(b.At):
+			return -1
+		case b.At.Before(a.At):
+			return 1
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 }
 
 // PlannedPortion is a Portion a Prep Session yields, with its planned
