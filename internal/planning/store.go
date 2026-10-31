@@ -247,6 +247,20 @@ func loadIngredients(ctx context.Context, q db.Querier, names []string) (map[str
 	return known, err
 }
 
+// claimUseUp marks the Prep Sessions outside the upcoming Cycle prepared on
+// or before today as having used up their stock, and returns those that
+// hadn't. A concurrent claim waits for this one's transaction, then finds
+// them claimed.
+func claimUseUp(ctx context.Context, q db.Querier, today time.Time) ([]int64, error) {
+	rows, _ := q.Query(ctx, `
+		UPDATE prep_session ps SET used_up = true
+		FROM cycle c
+		WHERE c.id = ps.cycle_id AND c.status <> 'upcoming'
+		  AND NOT ps.used_up AND ps.prepared_on <= $1
+		RETURNING ps.id`, today)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
 // loadPrepSessions loads the Prep Sessions with ids, by id, with what they
 // prepare and every Portion they yield, each eaten at its Slot if it has
 // one.

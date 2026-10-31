@@ -46,8 +46,8 @@ func (s *Service) GroceryList(ctx context.Context, id int64) (Groceries, error) 
 }
 
 // groceryListOf is c's Grocery List, and whether it is fixed: as stored once
-// fixed, and computed from its Plan, the Stock Items and the Product
-// Mappings until then.
+// fixed, and computed from its Plan, the stock the kitchen will hold when
+// its Delivery arrives and the Product Mappings until then.
 func (s *Service) groceryListOf(ctx context.Context, q db.Querier, c Cycle) (domain.GroceryList, bool, error) {
 	fixed, err := groceryListFixed(ctx, q, c.ID)
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *Service) groceryListOf(ctx context.Context, q db.Querier, c Cycle) (dom
 	if err != nil {
 		return nil, false, err
 	}
-	stock, err := s.stock.ItemsIn(ctx, q)
+	stock, err := s.stockAtDelivery(ctx, q)
 	if err != nil {
 		return nil, false, err
 	}
@@ -80,4 +80,31 @@ func (s *Service) fixGroceryList(ctx context.Context, q db.Querier, c Cycle) (do
 		return list, err
 	}
 	return list, storeGroceryList(ctx, q, c.ID, list)
+}
+
+// stockAtDelivery is the stock the kitchen will hold when the upcoming
+// Delivery arrives: the Stock Items left once the current Cycle's Prep
+// Sessions not yet prepared have used theirs up.
+func (s *Service) stockAtDelivery(ctx context.Context, q db.Querier) ([]domain.StockItem, error) {
+	stock, err := s.stock.ItemsIn(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	current, err := loadCycleWith(ctx, q, "current")
+	if err != nil || current == nil {
+		return stock, err
+	}
+	plan, _, err := loadPlan(ctx, q, current.ID)
+	if err != nil {
+		return nil, err
+	}
+	// Arrive has had those whose day has come use up their stock already.
+	var ahead []domain.PrepSession
+	for _, ps := range plan.PrepSessions {
+		if ps.At.On.After(s.today()) {
+			ahead = append(ahead, ps)
+		}
+	}
+	left, _ := domain.UseUp(inDayOrder(ahead), stock)
+	return left, nil
 }

@@ -59,6 +59,100 @@ func (s StockItem) Expired(today time.Time) bool {
 	return s.ExpiresOn != nil && s.ExpiresOn.Before(today)
 }
 
+// Taking is what a Prep Session took of one Stock Item: how much, with the
+// Stock Item's Ingredient, Storage Location and expiry date, so it can be
+// given back as it was.
+type Taking struct {
+	StockItem
+	// From is the index of the Stock Item in the stock it was taken from.
+	From int
+	// Leaves is what the Stock Item holds after it: 0 once it is used up.
+	Leaves float64
+}
+
+// StockUse is what a Prep Session used up of stock.
+type StockUse struct {
+	Taken []Taking
+	// Shortfall is what it needed of each Ingredient beyond the stock it
+	// found, by Ingredient name, or nil when stock held enough.
+	Shortfall map[string]float64
+}
+
+// UseUp has sessions, in the order of their days, use up the Ingredients
+// they use from stock, in the order it was recorded, and returns the Stock
+// Items left, in that order, and what each Prep Session used, in its
+// order. Each Ingredient comes from its Stock Items with the earliest
+// expiry first, those without one last, then the oldest, skipping any
+// expired on the Prep Session's day, whatever their Storage Location. A
+// Stock Item used up leaves the kitchen; stock that falls short is used up
+// as far as it goes. A Prep Session from before planning has no day and
+// uses nothing.
+func UseUp(sessions []PrepSession, stock []StockItem) ([]StockItem, []StockUse) {
+	held := slices.Clone(stock)
+	uses := make([]StockUse, len(sessions))
+	for i, ps := range sessions {
+		if ps.At.On.IsZero() {
+			continue
+		}
+		for _, ri := range ps.uses() {
+			need := ri.Quantity
+			for _, j := range drawOrder(held, ri.Ingredient.Name, ps.At.On) {
+				if need <= tolerance {
+					break
+				}
+				take := min(need, held[j].Quantity)
+				if held[j].Quantity-take <= tolerance {
+					take = held[j].Quantity
+				}
+				held[j].Quantity -= take
+				need -= take
+				t := Taking{StockItem: stock[j], From: j, Leaves: held[j].Quantity}
+				t.Quantity = take
+				uses[i].Taken = append(uses[i].Taken, t)
+			}
+			if need > tolerance {
+				if uses[i].Shortfall == nil {
+					uses[i].Shortfall = map[string]float64{}
+				}
+				uses[i].Shortfall[ri.Ingredient.Name] += need
+			}
+		}
+	}
+	var left []StockItem
+	for _, s := range held {
+		if s.Quantity > 0 {
+			left = append(left, s)
+		}
+	}
+	return left, uses
+}
+
+// drawOrder is the indexes of the Stock Items of the Ingredient named name
+// in held that still hold some and aren't expired on day, in the order they
+// are used up: the earliest expiry first, those without one last, then the
+// oldest.
+func drawOrder(held []StockItem, name string, day time.Time) []int {
+	var order []int
+	for j, s := range held {
+		if s.Ingredient.Name == name && s.Quantity > 0 && !s.Expired(day) {
+			order = append(order, j)
+		}
+	}
+	slices.SortStableFunc(order, func(a, b int) int {
+		ea, eb := held[a].ExpiresOn, held[b].ExpiresOn
+		switch {
+		case ea == nil && eb == nil:
+			return 0
+		case ea == nil:
+			return 1
+		case eb == nil:
+			return -1
+		}
+		return ea.Compare(*eb)
+	})
+	return order
+}
+
 // MissingFrom names the Recipe's Ingredients, in its order, that stock
 // doesn't cover on today: those whose unexpired Stock Items, across every
 // Storage Location, add up to less than the Recipe's quantity as written.

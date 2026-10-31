@@ -90,6 +90,34 @@ func (s *Service) Receive(ctx context.Context, q db.Querier, items []domain.Stoc
 	return nil
 }
 
+// UseUp has sessions, Prep Sessions whose day has come, in the order of
+// their days, use up the Stock Items of their Ingredients through q, in a
+// caller's transaction, recording what each took. The caller sees to it
+// that each Prep Session uses up its stock only once.
+func (s *Service) UseUp(ctx context.Context, q db.Querier, sessions []domain.PrepSession) error {
+	items, err := lockItems(ctx, q)
+	if err != nil {
+		return err
+	}
+	stock := make([]domain.StockItem, len(items))
+	for i, it := range items {
+		stock[i] = it.StockItem
+	}
+	_, uses := domain.UseUp(sessions, stock)
+	for i, use := range uses {
+		for _, t := range use.Taken {
+			id := items[t.From].ID
+			if err := insertTaken(ctx, q, sessions[i].ID, id, t); err != nil {
+				return err
+			}
+			if err := setQuantity(ctx, q, id, t.Leaves); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // Ingredients loads the name and unit of every known Ingredient, by name:
 // those a Stock Item can be recorded for.
 func (s *Service) Ingredients(ctx context.Context) ([]domain.Ingredient, error) {
