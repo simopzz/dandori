@@ -249,14 +249,18 @@ func loadIngredients(ctx context.Context, q db.Querier, names []string) (map[str
 
 // claimUseUp marks the Prep Sessions outside the upcoming Cycle prepared on
 // or before today as having used up their stock, and returns those that
-// hadn't. A concurrent claim waits for this one's transaction, then finds
-// them claimed.
+// hadn't. Those from the upcoming Cycle's start on are left: its Delivery
+// drops them when it arrives. A concurrent claim waits for this one's
+// transaction, then finds them claimed.
 func claimUseUp(ctx context.Context, q db.Querier, today time.Time) ([]int64, error) {
 	rows, _ := q.Query(ctx, `
 		UPDATE prep_session ps SET used_up = true
 		FROM cycle c
 		WHERE c.id = ps.cycle_id AND c.status <> 'upcoming'
 		  AND NOT ps.used_up AND ps.prepared_on <= $1
+		  AND NOT EXISTS (
+		    SELECT FROM cycle u WHERE u.status = 'upcoming'
+		      AND (ps.prepared_on, `+order("ps.prepared_for")+`) >= (u.starts_on, `+order("u.starts_with")+`))
 		RETURNING ps.id`, today)
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
@@ -385,18 +389,7 @@ func loadPlan(ctx context.Context, q db.Querier, id int64) (domain.Plan, []domai
 	if err != nil {
 		return plan, nil, err
 	}
-	for _, ps := range sessions {
-		plan.PrepSessions = append(plan.PrepSessions, *ps)
-	}
-	slices.SortFunc(plan.PrepSessions, func(a, b domain.PrepSession) int {
-		switch {
-		case a.At.Before(b.At):
-			return -1
-		case b.At.Before(a.At):
-			return 1
-		}
-		return int(a.ID - b.ID)
-	})
+	plan.PrepSessions = inDayOrder(sessions)
 
 	refs, err := loadPortionRefs(ctx, q, `
 		SELECT p.id, p.prep_session_id, s.day, s.kind

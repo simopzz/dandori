@@ -61,7 +61,7 @@ func (s *Service) groceryListOf(ctx context.Context, q db.Querier, c Cycle) (dom
 	if err != nil {
 		return nil, false, err
 	}
-	stock, err := s.stockAtDelivery(ctx, q)
+	stock, err := s.stockAtDelivery(ctx, q, c)
 	if err != nil {
 		return nil, false, err
 	}
@@ -82,10 +82,11 @@ func (s *Service) fixGroceryList(ctx context.Context, q db.Querier, c Cycle) (do
 	return list, storeGroceryList(ctx, q, c.ID, list)
 }
 
-// stockAtDelivery is the stock the kitchen will hold when the upcoming
-// Delivery arrives: the Stock Items left once the current Cycle's Prep
-// Sessions not yet prepared have used theirs up.
-func (s *Service) stockAtDelivery(ctx context.Context, q db.Querier) ([]domain.StockItem, error) {
+// stockAtDelivery is the stock the kitchen will hold when the Delivery of
+// c, the upcoming Cycle, arrives: the Stock Items left once the current
+// Cycle's Prep Sessions not yet prepared, and before c starts, have used
+// theirs up.
+func (s *Service) stockAtDelivery(ctx context.Context, q db.Querier, c Cycle) ([]domain.StockItem, error) {
 	stock, err := s.stock.ItemsIn(ctx, q)
 	if err != nil {
 		return nil, err
@@ -98,13 +99,14 @@ func (s *Service) stockAtDelivery(ctx context.Context, q db.Querier) ([]domain.S
 	if err != nil {
 		return nil, err
 	}
-	// Arrive has had those whose day has come use up their stock already.
+	// Arrive has had those whose day has come use up their stock already;
+	// c's Delivery drops those from its start on.
 	var ahead []domain.PrepSession
 	for _, ps := range plan.PrepSessions {
-		if ps.At.On.After(s.today()) {
+		if ps.At.On.After(s.today()) && ps.At.Before(c.Start) {
 			ahead = append(ahead, ps)
 		}
 	}
-	left, _ := domain.UseUp(inDayOrder(ahead), stock)
+	left, _ := domain.UseUp(ahead, stock)
 	return left, nil
 }

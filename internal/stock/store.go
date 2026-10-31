@@ -84,13 +84,13 @@ func setQuantity(ctx context.Context, q db.Querier, id int64, quantity float64) 
 	return err
 }
 
-// insertTaken records that the Prep Session with id took t of the Stock
-// Item with stockItem.
-func insertTaken(ctx context.Context, q db.Querier, id, stockItem int64, t domain.Taking) error {
+// insertTaken records that the Prep Session with prepSessionID took t of
+// the Stock Item with stockItemID.
+func insertTaken(ctx context.Context, q db.Querier, prepSessionID, stockItemID int64, t domain.Taking) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO stock_taken (prep_session_id, stock_item_id, ingredient_id, quantity, location, expires_on)
 		SELECT $1, $2, id, $4, $5, $6 FROM ingredient WHERE name = $3`,
-		id, stockItem, t.Ingredient.Name, t.Quantity, t.Location, t.ExpiresOn)
+		prepSessionID, stockItemID, t.Ingredient.Name, t.Quantity, t.Location, t.ExpiresOn)
 	return err
 }
 

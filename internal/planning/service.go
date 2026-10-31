@@ -309,17 +309,16 @@ func (s *Service) useUp(ctx context.Context, q db.Querier) error {
 	if err != nil {
 		return err
 	}
+	return s.stock.UseUp(ctx, q, inDayOrder(sessions))
+}
+
+// inDayOrder is sessions in the order of the Slots they are prepared at.
+func inDayOrder(sessions map[int64]*domain.PrepSession) []domain.PrepSession {
 	var list []domain.PrepSession
 	for _, ps := range sessions {
 		list = append(list, *ps)
 	}
-	return s.stock.UseUp(ctx, q, inDayOrder(list))
-}
-
-// inDayOrder sorts sessions in the order of the Slots they are prepared at,
-// and returns them.
-func inDayOrder(sessions []domain.PrepSession) []domain.PrepSession {
-	slices.SortFunc(sessions, func(a, b domain.PrepSession) int {
+	slices.SortFunc(list, func(a, b domain.PrepSession) int {
 		switch {
 		case a.At.Before(b.At):
 			return -1
@@ -328,7 +327,7 @@ func inDayOrder(sessions []domain.PrepSession) []domain.PrepSession {
 		}
 		return cmp.Compare(a.ID, b.ID)
 	})
-	return sessions
+	return list
 }
 
 // Overview loads the current and upcoming Cycles with their Plans and Plan

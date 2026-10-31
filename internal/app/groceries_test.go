@@ -233,3 +233,38 @@ func TestUpcomingGroceryListBuysWhatTheCurrentCyclesPrepSessionsWillUseUp(t *tes
 		t.Errorf("the upcoming Grocery List does not buy the chicken breast the current Cycle will use up:\n%s", list)
 	}
 }
+
+func TestPrepSessionTheNextDeliveryDropsUsesUpNothing(t *testing.T) {
+	h, today := startGroceries(t)
+	lemonFor := func(day, kind string) string {
+		return fmt.Sprintf(`{"prep_sessions": [
+			{"on": %[1]q, "kind": %[2]q, "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+				{"location": "fridge", "eat_on": %[1]q, "eat_kind": %[2]q}]}
+		]}`, day, kind)
+	}
+	openCycle(t, h, "2026-11-02", "2026-11-10")
+	approvePlan(t, h, lemonFor("2026-11-05", "dinner"))
+	today.setAt(t, "2026-11-02 08:00")
+	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "lemon 1 piece pantry") {
+		t.Fatalf("Stock does not show the lemon delivered:\n%s", stock)
+	}
+
+	// The next Delivery, in the evening of the 5th, closes the Cycle early:
+	// the next Cycle starts at dinner that day, and the lemon set out for
+	// it is dropped. The next Cycle's Grocery List counts on that lemon.
+	today.set(t, "2026-11-03")
+	openCycleIn(t, h, "2026-11-05", "18:00", "20:00", "2026-11-15")
+	approvePlan(t, h, lemonFor("2026-11-06", "snack"))
+	page := h.Get(t, "/plan").Body
+	page = page[strings.LastIndex(page, "Exceptions</a>"):]
+	if list := text(h.Get(t, apptest.Link(t, page, "Grocery List")).Body); strings.Contains(list, "lemon") {
+		t.Errorf("the upcoming Grocery List buys a lemon for a Prep Session its Delivery drops:\n%s", list)
+	}
+
+	for _, moment := range []string{"2026-11-05 12:00", "2026-11-05 20:30"} {
+		today.setAt(t, moment)
+		if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "lemon 1 piece pantry") {
+			t.Errorf("at %s, Stock does not keep the lemon of the dropped Prep Session:\n%s", moment, stock)
+		}
+	}
+}
