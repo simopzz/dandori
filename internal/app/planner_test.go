@@ -480,3 +480,113 @@ func TestAPlanPreparesOnlyTheRecipeDraftsOfItsOwnRun(t *testing.T) {
 		t.Errorf("another Run's Recipe Draft was accepted:\n%s", library)
 	}
 }
+
+// twoCycles opens the Cycle delivered on 2026-11-02, current from the 4th,
+// and the one delivered on the 8th, upcoming, returning their Exceptions
+// pages.
+func twoCycles(t *testing.T, h *apptest.Harness, today *clock) (current, upcoming string) {
+	t.Helper()
+	current = openCycle(t, h, "2026-11-02", "").Path
+	today.set(t, "2026-11-04")
+	return current, openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "").Path
+}
+
+// planAction is where the Cycle whose Exceptions page is at exceptions is
+// planned.
+func planAction(exceptions string) string {
+	return strings.TrimSuffix(exceptions, "/exceptions") + "/plan"
+}
+
+// planningRunsGoing is how many planning Runs the Runs page lists running.
+func planningRunsGoing(t *testing.T, h *apptest.Harness) int {
+	t.Helper()
+	return strings.Count(text(h.Get(t, "/runs").Body), "planning Running")
+}
+
+func TestPlanningWaitsForTheOtherCyclesPlanProposalOrPlanningRun(t *testing.T) {
+	h, today, llm := startPlanningWith(t)
+	current, upcoming := twoCycles(t, h, today)
+	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+
+	waits := "Planning waits its turn, since a Plan Proposal for the current Cycle is pending: approve or reject it."
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Plan this Cycle") || !strings.Contains(page, "Upcoming Plan No Plan yet. "+waits) {
+		t.Errorf("planning is offered while a Plan Proposal is pending, or the wait goes unsaid:\n%s", page)
+	}
+	if page := text(h.Get(t, upcoming).Body); !strings.Contains(page, waits) || strings.Contains(page, "no Exceptions are known") {
+		t.Errorf("the upcoming Cycle's Exceptions page does not say planning waits its turn:\n%s", page)
+	}
+	res := h.PostForm(t, planAction(upcoming), nil)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "That Cycle can't be planned: a Plan Proposal for the current Cycle is pending: approve or reject it.") {
+		t.Errorf("plan the upcoming Cycle while the current one's Plan Proposal is pending = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if n := planningRunsGoing(t, h); n != 0 {
+		t.Errorf("%d planning Runs started while a Plan Proposal is pending", n)
+	}
+
+	rejectWith(t, h, proposal, "")
+	llm.Script(fakellm.Hang())
+	if res := h.PostForm(t, planAction(current), nil); !strings.HasPrefix(res.Path, "/runs/") {
+		t.Fatalf("plan the current Cycle = %d at %s, want its planning Run:\n%s", res.StatusCode, res.Path, text(res.Body))
+	}
+	res = h.PostForm(t, planAction(upcoming), nil)
+	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "That Cycle can't be planned: the current Cycle is being planned.") {
+		t.Errorf("plan the upcoming Cycle while the current one is being planned = %d, want 409 saying why:\n%s", res.StatusCode, text(res.Body))
+	}
+	if n := planningRunsGoing(t, h); n != 1 {
+		t.Errorf("%d planning Runs are going, want the current Cycle's alone", n)
+	}
+}
+
+func TestAnExceptionCancelsThePlanningRunGoingAndItProposesNothing(t *testing.T) {
+	h, today, llm := startPlanningWith(t)
+	exceptions := openCycle(t, h, "2026-11-02", "2026-11-04").Path
+	today.setAt(t, "2026-11-02 08:00")
+	thinking := make(chan struct{})
+	llm.Script(
+		fakellm.CallTool("submit_plan", shortCyclePlan(dinnerOf(map[string]any{"recipe_id": recipeID(t, h)}))).After(thinking),
+		fakellm.Reply("Planned."),
+	)
+	run := h.PostForm(t, planAction(exceptions), nil).Path
+
+	// The planner submits once the Exception has replaced what it plans.
+	logException(t, h, exceptions, "2026-11-03", "dinner", map[string]string{"exception": "meal-out"}, false)
+	close(thinking)
+	h.Stream(t, run+"/events", "").Rest(t)
+
+	if page := text(h.Get(t, run).Body); !strings.Contains(page, "Cancelled") || !strings.Contains(page, "Cancelled: Replaced by the Exception on Tue 3 Nov, dinner") {
+		t.Errorf("the planning Run is not cancelled by the Exception, saying so:\n%s", page)
+	}
+	if paths := proposalPaths(t, h); len(paths) != 0 {
+		t.Errorf("the cancelled planning Run stored a Plan Proposal: %v", paths)
+	}
+}
+
+func TestDroppingAnUpcomingCycleCancelsItsPlanningRun(t *testing.T) {
+	h, today, llm := startPlanningWith(t)
+	_, upcoming := twoCycles(t, h, today)
+	llm.Script(fakellm.Hang())
+	run := h.PostForm(t, planAction(upcoming), nil).Path
+
+	drop := apptest.Form(t, h.Get(t, "/plan").Body, "drop")
+	h.PostForm(t, drop.Action, drop.Values)
+	h.Stream(t, run+"/events", "").Rest(t)
+	if page := text(h.Get(t, run).Body); !strings.Contains(page, "Cancelled: Its Cycle was dropped") {
+		t.Errorf("dropping the Cycle did not cancel its planning Run, saying so:\n%s", page)
+	}
+}
+
+func TestRejectingWithANoteSaysWhyNoPlanningRunStartedWhileTheOtherCycleWaits(t *testing.T) {
+	h, today, _ := startPlanningWith(t)
+	twoCycles(t, h, today)
+	// Both pending, as before one Plan Proposal was pending at a time.
+	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+	proposePlanFor(t, h, "2026-11-08", `{"prep_sessions": []}`)
+
+	page := text(rejectWith(t, h, proposal, "more fish").Body)
+	if !strings.Contains(page, "Note: more fish") || !strings.Contains(page, "No planning Run started for the note, since a Plan Proposal for the upcoming Cycle is pending: approve or reject it.") {
+		t.Errorf("the rejection does not say why no planning Run started:\n%s", page)
+	}
+	if n := planningRunsGoing(t, h); n != 0 {
+		t.Errorf("%d planning Runs started while the upcoming Cycle's Plan Proposal is pending", n)
+	}
+}

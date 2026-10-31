@@ -47,6 +47,7 @@ func (h Handlers) renderExceptions(w http.ResponseWriter, r *http.Request, id in
 	page := ExceptionsPage{
 		Title:   "For the Cycle delivered " + ce.Cycle.Delivery.On.Format(longDate),
 		Problem: problem,
+		Waits:   ce.Waits,
 	}
 	if ce.CanPlan {
 		page.PlanAction = planURL(id)

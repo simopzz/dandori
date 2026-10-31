@@ -154,6 +154,62 @@ func TestArrivalOfTheNextDelivery(t *testing.T) {
 	}
 }
 
+// recipePlan is currentPlan with its Prep Sessions preparing chicken and
+// soup, every id moved by shift, as a Plan rebuilt by an approval stores
+// them anew; the carried-over Portion keeps its id.
+func recipePlan(shift int64) domain.Plan {
+	plan := currentPlan()
+	recipes := []*domain.Recipe{{Name: "Chicken"}, {Name: "Soup"}}
+	for i := range plan.PrepSessions {
+		ps := &plan.PrepSessions[i]
+		ps.ID += shift
+		ps.Recipe = recipes[i]
+		for j := range ps.Portions {
+			ps.Portions[j].ID += shift
+		}
+	}
+	return plan
+}
+
+func TestCarryOverChangesWithThePortionsOfEachRecipeLeft(t *testing.T) {
+	current := delivered("2026-11-02", "07:00", "07:30", "2026-11-12")
+	// Its first Slot is lunch on the 8th: chicken for dinner on the 10th and
+	// the carried-over Portion, a stew, carry over.
+	next := delivered("2026-11-08", "08:00", "10:00", "2026-11-18")
+	kept := []domain.KeptPortion{{ID: 31, Name: "Stew"}}
+	tests := []struct {
+		name   string
+		change func(*domain.Plan)
+		want   bool
+	}{
+		{"the same Prep Sessions stored anew", func(*domain.Plan) {}, false},
+		{"only Slots before the next Cycle's first", func(p *domain.Plan) {
+			p.PrepSessions[0].Portions[1].EatAt = at("2026-11-06", domain.Lunch)
+		}, false},
+		{"one Portion fewer carried over", func(p *domain.Plan) {
+			p.PrepSessions[0].Portions[2].EatAt = at("2026-11-07", domain.Dinner)
+		}, true},
+		{"another Recipe carried over", func(p *domain.Plan) {
+			p.PrepSessions[0].Recipe = &domain.Recipe{Name: "Curry"}
+		}, true},
+		{"the carried-over Portion eaten before", func(p *domain.Plan) {
+			p.Kept[0].Slot = *at("2026-11-07", domain.Dinner)
+		}, true},
+		{"one Portion more, prepared before the next Cycle", func(p *domain.Plan) {
+			p.PrepSessions[0].Portions = append(p.PrepSessions[0].Portions, domain.PlannedPortion{ID: 114, EatAt: at("2026-11-11", domain.Dinner)})
+		}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			after := recipePlan(100)
+			tt.change(&after)
+			if got := domain.CarryOverChanged(current, recipePlan(0), after, kept, next); got != tt.want {
+				t.Errorf("CarryOverChanged() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestArrivalOfTheFirstDelivery(t *testing.T) {
 	next := delivered("2026-11-02", "07:00", "07:30", "2026-11-12")
 	got := domain.Arrive(nil, domain.Plan{}, next)

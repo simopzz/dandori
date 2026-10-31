@@ -101,6 +101,7 @@ func cycleView(cp CyclePlan, number int) *CycleView {
 	if cp.Planning.CanPlan {
 		v.PlanAction = planURL(c.ID)
 	}
+	v.Waits = cp.Planning.Waits
 	if run := cp.Planning.Run; run != nil {
 		switch {
 		case run.Running():
@@ -312,6 +313,11 @@ func (h Handlers) ShowProposal(w http.ResponseWriter, r *http.Request) {
 	h.renderProposal(w, r, id, "", http.StatusOK)
 }
 
+// waitsParam marks the Plan Proposal page reached by rejecting it with a
+// note when no planning Run could start for the note, waiting for another
+// Cycle's turn.
+const waitsParam = "waits"
+
 // renderProposal shows the Plan Proposal with id, with problem, why the
 // user's decision was refused, if there is one.
 func (h Handlers) renderProposal(w http.ResponseWriter, r *http.Request, id int64, problem string, status int) {
@@ -329,6 +335,7 @@ func (h Handlers) renderProposal(w http.ResponseWriter, r *http.Request, id int6
 		Title:      proposalTitle(p.Origin) + " for the Cycle delivered " + p.Cycle.Delivery.On.Format(longDate),
 		Status:     p.Status,
 		Note:       p.Note,
+		Cause:      p.Cause,
 		Unreadable: p.Unreadable,
 		Problem:    problem,
 	}
@@ -340,6 +347,11 @@ func (h Handlers) renderProposal(w http.ResponseWriter, r *http.Request, id int6
 	}
 	if p.ReplanID != 0 {
 		page.Replan = runURL(p.ReplanID)
+	} else if p.Note != "" && r.URL.Query().Has(waitsParam) {
+		if page.Waits, err = h.Service.WaitsFor(r.Context(), p.Cycle.ID); err != nil {
+			httpx.ServerError(w, h.Log, "load planning", err)
+			return
+		}
 	}
 	for _, d := range p.Drafts {
 		row := DraftRow{Name: d.Recipe.Name, Link: fmt.Sprintf("/plan-proposals/%d/recipe-drafts/%d", p.ID, d.ID)}
@@ -422,13 +434,16 @@ func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	switch _, err := h.Service.Reject(r.Context(), id, strings.TrimSpace(r.PostForm.Get("note"))); {
+	_, waits, err := h.Service.Reject(r.Context(), id, strings.TrimSpace(r.PostForm.Get("note")))
+	switch {
 	case errors.Is(err, ErrNotFound):
 		http.NotFound(w, r)
 	case errors.Is(err, ErrDecided):
 		h.renderProposal(w, r, id, "This Plan Proposal was already decided.", http.StatusConflict)
 	case err != nil:
 		httpx.ServerError(w, h.Log, "reject plan proposal", err)
+	case waits:
+		http.Redirect(w, r, fmt.Sprintf("/plan-proposals/%d?%s", id, waitsParam), http.StatusSeeOther)
 	default:
 		http.Redirect(w, r, fmt.Sprintf("/plan-proposals/%d", id), http.StatusSeeOther)
 	}

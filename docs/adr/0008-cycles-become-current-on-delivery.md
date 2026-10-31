@@ -2,7 +2,7 @@
 
 A Cycle is opened days before its Delivery so it can be planned, Cart Filled and ordered. It stays upcoming until the end of its Delivery window, and only then becomes current, closing the previous Cycle and carrying over what is left. Opening a Cycle used to close the current one at once. That froze the last days of the Cycle being lived: Exceptions logged before the bags arrived could not be repaired, and the carry-over was computed from a Plan that had not happened yet. The cost is that an upcoming Cycle is planned against a forecast of what the current one will leave over. Any approved change to the current Plan that changes that forecast leaves the upcoming Plan needing a new Plan Proposal.
 
-To keep that chain from forking, at most one Plan Proposal is pending at a time across all Cycles. A new trigger (an Exception, a Delivery report, a Cart Fill substitution) rejects the pending Plan Proposal with a note, and the next planning Run takes both into account. A current-Cycle Plan Proposal is always decided before the upcoming Cycle is replanned.
+To keep that chain from forking, at most one Plan Proposal is pending, or one planning Run going, at a time across all Cycles. Something that happened (an Exception, a Delivery report, a Cart Fill substitution, a moved Delivery) replaces the pending Plan Proposal and cancels the planning Run going, naming itself as the cause, and the next planning Run reads it for itself. A request to plan never replaces: it is refused until the pending Plan Proposal is decided, so a current-Cycle Plan Proposal is always decided before the upcoming Cycle is replanned.
 
 ## Considered Options
 

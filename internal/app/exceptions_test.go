@@ -171,10 +171,50 @@ func TestExceptionAPlanReliesOnNeedsANewPlanProposal(t *testing.T) {
 	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "An Exception changed: this Plan needs a new Plan Proposal.") {
 		t.Errorf("Plan page does not say the Plan needs a new Plan Proposal:\n%s", page)
 	}
-	// At most one Plan Proposal is pending: the one made without the
-	// Exception is rejected, saying why.
-	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: An Exception changed: dinner on Thu 5 Nov is now Meal Out.") {
-		t.Errorf("the pending Plan Proposal was not rejected with a note:\n%s", page)
+	// The one made without the Exception is replaced, saying by what.
+	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "replaced") || !strings.Contains(page, "Replaced by the Exception on Thu 5 Nov, dinner") {
+		t.Errorf("the pending Plan Proposal was not replaced by the Exception:\n%s", page)
+	}
+}
+
+func TestAnExceptionReplacesThePendingPlanProposalWithoutAPlanningNote(t *testing.T) {
+	h, today, llm := startPlanningWith(t)
+	exceptions := openCycle(t, h, "2026-11-02", "").Path
+	today.set(t, "2026-11-03")
+	// The Cycle is current and has no Plan yet.
+	proposal := proposePlan(t, h, lemonPlan(t, h))
+
+	logException(t, h, exceptions, "2026-11-06", "dinner", map[string]string{"exception": "meal-out"}, false)
+	page := text(h.Get(t, proposal).Body)
+	if !strings.Contains(page, "replaced") || !strings.Contains(page, "Replaced by the Exception on Fri 6 Nov, dinner") || strings.Contains(page, "Note:") {
+		t.Errorf("the pending Plan Proposal was not replaced by the Exception, apart from any Planning Note:\n%s", page)
+	}
+
+	llm.Script(fakellm.Reply("Stopping here."))
+	planCycle(t, h, exceptions)
+	if prompt := plannerRequests(llm)[0].Messages[0].Content[0].Text; strings.Contains(prompt, "Replaced") || strings.Contains(prompt, "notes") {
+		t.Errorf("the next planning Run is told the replacement as a Planning Note:\n%s", prompt)
+	}
+}
+
+func TestAnExceptionOnTheCurrentCycleReplacesEitherOnesPlanProposal(t *testing.T) {
+	h, today := startPlanning(t)
+	current := openCycle(t, h, "2026-11-02", "").Path
+	today.set(t, "2026-11-04")
+	upcoming := openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "").Path
+
+	// What the current Cycle eats changes what carries over to the next.
+	proposal := proposePlanFor(t, h, "2026-11-08", `{"prep_sessions": []}`)
+	logException(t, h, current, "2026-11-05", "dinner", map[string]string{"exception": "meal-out"}, false)
+	if page := text(h.Get(t, proposal).Body); !strings.Contains(page, "Replaced by the Exception on Thu 5 Nov, dinner") {
+		t.Errorf("an Exception on the current Cycle did not replace the upcoming one's Plan Proposal:\n%s", page)
+	}
+
+	// What the upcoming Cycle eats changes nothing of the current one.
+	proposal = proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+	logException(t, h, upcoming, "2026-11-10", "lunch", map[string]string{"exception": "skipped"}, false)
+	if page := h.Get(t, proposal).Body; !strings.Contains(text(page), "pending") || !strings.Contains(page, `id="approve"`) {
+		t.Errorf("an Exception on the upcoming Cycle replaced the current one's Plan Proposal:\n%s", text(page))
 	}
 }
 
@@ -197,8 +237,8 @@ func TestAPastSlotIsCorrectedAfterItHappenedAndThePlanReplanned(t *testing.T) {
 	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "An Exception changed: this Plan needs a new Plan Proposal.") {
 		t.Errorf("Plan page does not say the Plan needs a new Plan Proposal:\n%s", page)
 	}
-	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "Note: An Exception changed: dinner on Fri 6 Nov is now from the Plan.") {
-		t.Errorf("the pending Plan Proposal was not rejected with a note:\n%s", page)
+	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "Replaced by the Exception on Fri 6 Nov, dinner") {
+		t.Errorf("the pending Plan Proposal was not replaced by the Exception:\n%s", page)
 	}
 }
 
@@ -303,10 +343,9 @@ func TestAnExceptedSlotBeforeAPlanProposalCountsOnlyItsException(t *testing.T) {
 func TestPlanProposalFillingAnExceptedSlotIsNotApproved(t *testing.T) {
 	h, _ := startPlanning(t)
 	exceptions := openCycle(t, h, "2026-11-02", "").Path
-	proposal := proposePlan(t, h, lemonPlan(t, h))
-	// Made before the snack was skipped; no Plan relies on it, so the
-	// Plan Proposal stays pending.
 	logException(t, h, exceptions, "2026-11-03", "snack", map[string]string{"exception": "skipped"}, false)
+	// Stored without the planner, which would have seen the skipped snack.
+	proposal := proposePlan(t, h, lemonPlan(t, h))
 
 	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
 	res := h.PostForm(t, approve.Action, approve.Values)

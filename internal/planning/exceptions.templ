@@ -16,6 +16,8 @@ type ExceptionsPage struct {
 	// PlanAction starts a planning Run for the Cycle; empty when one can't
 	// start.
 	PlanAction string
+	// Waits is why it can't, when another Cycle's turn comes first.
+	Waits string
 }
 
 // ExceptionDay is one day of a Cycle and its Slots.
@@ -96,8 +98,14 @@ templ ExceptionsView(p ExceptionsPage) {
 				}
 				@planForm(p.PlanAction)
 			} else {
-				@web.Hint() {
-					Nothing to log? Continue: no Exceptions are known.
+				if p.Waits != "" {
+					@web.Hint() {
+						Planning waits its turn, since { p.Waits }.
+					}
+				} else {
+					@web.Hint() {
+						Nothing to log? Continue: no Exceptions are known.
+					}
 				}
 				@web.Actions() {
 					@web.ButtonLink(templ.SafeURL("/plan")) {

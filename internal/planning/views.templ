@@ -49,6 +49,8 @@ type CycleView struct {
 	NeedsProposalBecause string
 	// PlanAction starts a planning Run for it; empty when one can't start.
 	PlanAction string
+	// Waits is why one can't, when another Cycle's turn comes first.
+	Waits string
 	// PlanningRun is its planning Run while it goes, or the last one when it
 	// failed, with why in PlanningFailed; empty otherwise.
 	PlanningRun    string
@@ -111,6 +113,10 @@ type ProposalPage struct {
 	Title      string
 	Status     string
 	Note       string
+	Cause      string
+	// Waits is why no planning Run started for its note: another Cycle's
+	// turn comes first.
+	Waits      string
 	Unreadable string // why its Plan can't be read; empty when it can
 	Problem    string // why the user's decision was refused, if it was
 	Violations []string
@@ -254,6 +260,13 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 			if c.PlanningRun != "" && c.PlanningFailed == "" {
 				@web.Notice() {
 					Being planned: <a href={ templ.SafeURL(c.PlanningRun) }>follow the planning Run</a>.
+				}
+			} else if c.Waits != "" {
+				@web.Empty() {
+					No Plan yet.
+				}
+				@web.Notice() {
+					Planning waits its turn, since { c.Waits }.
 				}
 			} else {
 				@web.Empty() {
@@ -420,9 +433,19 @@ templ ProposalView(p ProposalPage) {
 				{ p.Status }
 			}
 		</p>
+		if p.Cause != "" {
+			@web.Notice() {
+				{ p.Cause }
+			}
+		}
 		if p.Note != "" {
 			@web.Notice() {
 				Note: { p.Note }
+			}
+		}
+		if p.Waits != "" {
+			@web.Notice() {
+				No planning Run started for the note, since { p.Waits }.
 			}
 		}
 		if p.Replan != "" {

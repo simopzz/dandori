@@ -92,13 +92,6 @@ func lockCycles(ctx context.Context, q db.Querier) error {
 	return err
 }
 
-// lockCycleOf locks the Cycle of the Plan Proposal with id, if there is one.
-func lockCycleOf(ctx context.Context, q db.Querier, id int64) error {
-	_, err := q.Exec(ctx, `
-		SELECT FROM cycle WHERE id = (SELECT cycle_id FROM plan_proposal WHERE id = $1) FOR UPDATE`, id)
-	return err
-}
-
 // loadSince loads the first Cycle's first day.
 func loadSince(ctx context.Context, q db.Querier) (time.Time, error) {
 	var since time.Time
@@ -129,14 +122,11 @@ func updateDelivery(ctx context.Context, q db.Querier, id int64, c domain.Cycle)
 }
 
 // moveCycle marks the Plan of the Cycle with id, moved to c, as needing a
-// new Plan Proposal: it rejects the pending ones with note, and drops the
-// Prep Sessions and Slots now outside the Cycle. Its Delivery hasn't
-// arrived, so none of its Prep Sessions was prepared.
-func moveCycle(ctx context.Context, q db.Querier, id int64, c domain.Cycle, note string) error {
+// new Plan Proposal, and drops the Prep Sessions and Slots now outside the
+// Cycle. Its Delivery hasn't arrived, so none of its Prep Sessions was
+// prepared.
+func moveCycle(ctx context.Context, q db.Querier, id int64, c domain.Cycle) error {
 	if err := setNeedsProposal(ctx, q, id, deliveryMoved); err != nil {
-		return err
-	}
-	if err := rejectPending(ctx, q, id, note); err != nil {
 		return err
 	}
 	start, until := c.Start, c.Until()
@@ -159,6 +149,11 @@ const deliveryMoved = "A Delivery moved"
 // Exception changed one of its Slots.
 const exceptionChanged = "An Exception changed"
 
+// carryOverChanged is why the upcoming Cycle's Plan needs a new Plan
+// Proposal once one approved in the current Cycle changed what will carry
+// over.
+const carryOverChanged = "The current Cycle's Plan changed what carries over"
+
 // setNeedsProposal marks the Plan of the Cycle with id as needing a new
 // Plan Proposal, because of what because says, or, when it is empty, as
 // not needing one.
@@ -172,20 +167,21 @@ func setStatus(ctx context.Context, q db.Querier, id int64, status string) error
 	return err
 }
 
-// rejectPending rejects the Plan Proposals of the Cycle with id still
-// pending, with note.
-func rejectPending(ctx context.Context, q db.Querier, id int64, note string) error {
+// decidePending decides the Plan Proposals of the Cycles with ids still
+// pending as status, rejected or replaced, because of cause: not the
+// user's doing, so not a Planning Note.
+func decidePending(ctx context.Context, q db.Querier, ids []int64, status, cause string) error {
 	_, err := q.Exec(ctx, `
-		UPDATE plan_proposal SET status = 'rejected', note = $2, decided_at = now()
-		WHERE cycle_id = $1 AND status = 'pending'`, id, note)
+		UPDATE plan_proposal SET status = $2, cause = $3, decided_at = now()
+		WHERE cycle_id = ANY($1) AND status = 'pending'`, ids, status, cause)
 	return err
 }
 
 // closeCycle closes the Cycle with id as the next Delivery's arrival a
 // says, rejecting the Plan Proposals still pending, which can no longer
-// apply, with note. Closing early, it drops the Prep Sessions never
+// apply, because of cause. Closing early, it drops the Prep Sessions never
 // prepared and takes the Portions carried over out of their Slots.
-func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival, note string) error {
+func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival, cause string) error {
 	var closedOn *time.Time
 	var closedWith *domain.SlotKind
 	if c := a.Current.ClosedAt; c != nil {
@@ -194,7 +190,7 @@ func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival, n
 	if _, err := q.Exec(ctx, `UPDATE cycle SET status = 'closed', closed_on = $2, closed_with = $3 WHERE id = $1`, id, closedOn, closedWith); err != nil {
 		return err
 	}
-	if err := rejectPending(ctx, q, id, note); err != nil {
+	if err := decidePending(ctx, q, []int64{id}, "rejected", cause); err != nil {
 		return err
 	}
 	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, a.DroppedPrepSessions); err != nil {
@@ -520,6 +516,7 @@ type storedProposal struct {
 	Origin string
 	Status string
 	Note   string
+	Cause  string
 	Plan   []byte
 }
 
@@ -527,12 +524,12 @@ type storedProposal struct {
 // transaction ends when lock is set. It returns ErrNotFound when there is
 // none.
 func loadProposal(ctx context.Context, q db.Querier, id int64, lock bool) (storedProposal, error) {
-	sql := `SELECT id, cycle_id, coalesce(run_id, 0), origin, status, note, plan FROM plan_proposal WHERE id = $1`
+	sql := `SELECT id, cycle_id, coalesce(run_id, 0), origin, status, note, cause, plan FROM plan_proposal WHERE id = $1`
 	if lock {
 		sql += ` FOR UPDATE`
 	}
 	var p storedProposal
-	err := q.QueryRow(ctx, sql, id).Scan(&p.ID, &p.CycleID, &p.RunID, &p.Origin, &p.Status, &p.Note, &p.Plan)
+	err := q.QueryRow(ctx, sql, id).Scan(&p.ID, &p.CycleID, &p.RunID, &p.Origin, &p.Status, &p.Note, &p.Cause, &p.Plan)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNotFound
 	}
@@ -613,12 +610,53 @@ func lockCycle(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// hasPending reports whether a Plan Proposal of the Cycle with id is
-// pending.
-func hasPending(ctx context.Context, q db.Querier, id int64) (bool, error) {
-	var waiting bool
-	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT FROM plan_proposal WHERE cycle_id = $1 AND status = 'pending')`, id).Scan(&waiting)
-	return waiting, err
+// pendingFor is the Cycle a Plan Proposal is pending for, with its
+// status; 0 when none is pending.
+func pendingFor(ctx context.Context, q db.Querier) (id int64, status string, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT c.id, c.status FROM plan_proposal p JOIN cycle c ON c.id = p.cycle_id
+		WHERE p.status = 'pending' ORDER BY p.id LIMIT 1`).Scan(&id, &status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", nil
+	}
+	return id, status, err
+}
+
+// goingPlanningRun is the planning Run going, the Cycle it plans and that
+// Cycle's status; run is 0 when none is going.
+func goingPlanningRun(ctx context.Context, q db.Querier) (run, id int64, status string, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT p.run_id, c.id, c.status FROM planning_run p
+		JOIN run r ON r.id = p.run_id JOIN cycle c ON c.id = p.cycle_id
+		WHERE r.status = 'running' ORDER BY p.run_id LIMIT 1`).Scan(&run, &id, &status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, 0, "", nil
+	}
+	return run, id, status, err
+}
+
+// planningRunsGoing are the planning Runs going for the Cycles with ids
+// that have yet to store their Plan Proposal.
+func planningRunsGoing(ctx context.Context, q db.Querier, ids []int64) ([]int64, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT p.run_id FROM planning_run p JOIN run r ON r.id = p.run_id
+		WHERE p.cycle_id = ANY($1) AND r.status = 'running'
+			AND NOT EXISTS (SELECT FROM plan_proposal pp WHERE pp.run_id = p.run_id)`, ids)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// runStatus is the status of the Run with id.
+func runStatus(ctx context.Context, q db.Querier, id int64) (string, error) {
+	var status string
+	err := q.QueryRow(ctx, `SELECT status FROM run WHERE id = $1`, id).Scan(&status)
+	return status, err
+}
+
+// openCycleIDs are the ids of the current and the upcoming Cycle, those
+// there are.
+func openCycleIDs(ctx context.Context, q db.Querier) ([]int64, error) {
+	rows, _ := q.Query(ctx, `SELECT id FROM cycle WHERE status IN ('current', 'upcoming') ORDER BY delivery_on`)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
 // latestPlanningRun is the last planning Run of the Cycle with id and its

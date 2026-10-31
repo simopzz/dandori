@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 )
 
@@ -246,4 +247,32 @@ func Arrive(current *Cycle, plan Plan, next Cycle) Arrival {
 		}
 	}
 	return a
+}
+
+// CarryOverChanged reports whether next's arrival after current would
+// carry over other Portions with current's Plan changed from before to
+// after: how many of each Recipe, whatever their ids, since an approval
+// stores again the Prep Sessions it keeps. kept names the Portions without
+// a Slot either Plan puts in Slots.
+func CarryOverChanged(current Cycle, before, after Plan, kept []KeptPortion, next Cycle) bool {
+	return !maps.Equal(carriesOver(current, before, kept, next), carriesOver(current, after, kept, next))
+}
+
+// carriesOver is how many Portions of each Recipe, by name, next's
+// arrival after current with plan carries over.
+func carriesOver(current Cycle, plan Plan, kept []KeptPortion, next Cycle) map[string]int {
+	names := map[int64]string{}
+	for _, k := range kept {
+		names[k.ID] = k.Name
+	}
+	for _, ps := range plan.PrepSessions {
+		for _, p := range ps.Portions {
+			names[p.ID] = ps.Name()
+		}
+	}
+	counts := map[string]int{}
+	for _, id := range Arrive(&current, plan, next).CarriedOver {
+		counts[names[id]]++
+	}
+	return counts
 }

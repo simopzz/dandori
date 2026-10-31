@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/db"
 )
 
 // Config is how Runs use the model.
@@ -116,6 +117,14 @@ func (e *Engine) Cancel(id int64) bool {
 	}
 	r.cancel()
 	return true
+}
+
+// CancelIn records the Runs with ids still running as cancelled because
+// of cause, as part of q, so they stop as part of what q does: a Run
+// recorded cancelled stores nothing more. Once q commits, Cancel stops
+// them.
+func (e *Engine) CancelIn(ctx context.Context, q db.Querier, ids []int64, cause string) error {
+	return setCancelled(ctx, q, ids, cause)
 }
 
 // Get loads the Run with id, without its Trace.
