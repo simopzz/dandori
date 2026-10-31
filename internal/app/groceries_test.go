@@ -33,6 +33,18 @@ func startGroceries(t *testing.T) (*apptest.Harness, *clock) {
 	return h, today
 }
 
+// upcomingGroceryList is the Grocery List of the Cycle the Plan page shows
+// last: the upcoming one when there is one.
+func upcomingGroceryList(t *testing.T, h *apptest.Harness) string {
+	t.Helper()
+	page := h.Get(t, "/plan").Body
+	i := strings.LastIndex(page, `/groceries"`)
+	if i < 0 {
+		t.Fatalf("Plan page links no Grocery List:\n%s", text(page))
+	}
+	return text(h.Get(t, page[strings.LastIndex(page[:i], `"`)+1:i+len(`/groceries`)]).Body)
+}
+
 // groceryList follows the Plan page's first link to a Grocery List.
 func groceryList(t *testing.T, h *apptest.Harness) string {
 	t.Helper()
@@ -226,10 +238,7 @@ func TestUpcomingGroceryListBuysWhatTheCurrentCyclesPrepSessionsWillUseUp(t *tes
 	today.set(t, "2026-11-03")
 	openCycleIn(t, h, "2026-11-10", "18:00", "20:00", "2026-11-20")
 	approvePlan(t, h, lemonChicken("2026-11-11", "2026-11-13", "2026-11-16"))
-	// The upcoming Cycle's links come after the current one's.
-	page := h.Get(t, "/plan").Body
-	page = page[strings.LastIndex(page, "Exceptions</a>"):]
-	if list := text(h.Get(t, apptest.Link(t, page, "Grocery List")).Body); !strings.Contains(list, "chicken breast 560 g needed · 640 g bought 2 × "+pettoDiPollo.Name) {
+	if list := upcomingGroceryList(t, h); !strings.Contains(list, "chicken breast 560 g needed · 640 g bought 2 × "+pettoDiPollo.Name) {
 		t.Errorf("the upcoming Grocery List does not buy the chicken breast the current Cycle will use up:\n%s", list)
 	}
 }
@@ -255,9 +264,7 @@ func TestPrepSessionTheNextDeliveryDropsUsesUpNothing(t *testing.T) {
 	today.set(t, "2026-11-03")
 	openCycleIn(t, h, "2026-11-05", "18:00", "20:00", "2026-11-15")
 	approvePlan(t, h, lemonFor("2026-11-06", "snack"))
-	page := h.Get(t, "/plan").Body
-	page = page[strings.LastIndex(page, "Exceptions</a>"):]
-	if list := text(h.Get(t, apptest.Link(t, page, "Grocery List")).Body); strings.Contains(list, "lemon") {
+	if list := upcomingGroceryList(t, h); strings.Contains(list, "lemon") {
 		t.Errorf("the upcoming Grocery List buys a lemon for a Prep Session its Delivery drops:\n%s", list)
 	}
 

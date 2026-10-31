@@ -99,8 +99,9 @@ func (s *Service) stockAtDelivery(ctx context.Context, q db.Querier, c Cycle) ([
 	if err != nil {
 		return nil, err
 	}
-	// Arrive has had those whose day has come use up their stock already;
-	// c's Delivery drops those from its start on.
+	// Arrive has had those whose day has come use up their stock already,
+	// and claimUseUp leaves out, as here, those from c's start on, which
+	// c's Delivery drops.
 	var ahead []domain.PrepSession
 	for _, ps := range plan.PrepSessions {
 		if ps.At.On.After(s.today()) && ps.At.Before(c.Start) {

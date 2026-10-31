@@ -75,7 +75,8 @@ func updateItem(ctx context.Context, q db.Querier, id int64, item domain.StockIt
 }
 
 // setQuantity sets what the Stock Item with id holds to quantity, removing
-// it when that is 0.
+// it when that is 0: domain.UseUp leaves exactly 0 of a Stock Item it uses
+// up, however close to it float arithmetic came.
 func setQuantity(ctx context.Context, q db.Querier, id int64, quantity float64) error {
 	if quantity == 0 {
 		return deleteItem(ctx, q, id)

@@ -250,7 +250,8 @@ func loadIngredients(ctx context.Context, q db.Querier, names []string) (map[str
 // claimUseUp marks the Prep Sessions outside the upcoming Cycle prepared on
 // or before today as having used up their stock, and returns those that
 // hadn't. Those from the upcoming Cycle's start on are left: its Delivery
-// drops them when it arrives. A concurrent claim waits for this one's
+// drops them when it arrives, and stockAtDelivery leaves them out alike. A
+// concurrent claim waits for this one's
 // transaction, then finds them claimed.
 func claimUseUp(ctx context.Context, q db.Querier, today time.Time) ([]int64, error) {
 	rows, _ := q.Query(ctx, `
