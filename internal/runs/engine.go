@@ -194,8 +194,8 @@ func (e *Engine) Record(ctx context.Context, q db.Querier, kind string, job agen
 }
 
 // Launch runs rec in the background, once the transaction that recorded
-// it has committed. One Dandori can no longer run, as it is shutting down,
-// is recorded failed.
+// it has committed. A Run launched while Dandori is shutting down never
+// runs, and is recorded failed.
 func (e *Engine) Launch(rec Recorded) {
 	if err := e.launch(rec); err != nil {
 		e.log.Error("launch run", "run", rec.ID, "err", err)
@@ -229,13 +229,17 @@ func (e *Engine) execute(ctx context.Context, r *liveRun, kind string, job agent
 	}
 	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, model)})
 	// Recorded cancelled before it was live, when Cancel had nothing to
-	// stop: it stops now. Read once live, so no cancel falls between.
+	// stop: it ends without running its job. Read once live, so no cancel
+	// falls between.
 	if st, err := loadStatus(ctx, e.pool, r.id); err != nil {
 		e.log.Error("load run status", "run", r.id, "err", err)
 	} else if st != "running" {
 		r.cancel()
 	}
-	err := e.runJob(context.WithValue(ctx, idKey{}, r.id), r, job)
+	var err error
+	if ctx.Err() == nil {
+		err = e.runJob(context.WithValue(ctx, idKey{}, r.id), r, job)
+	}
 
 	status := "succeeded"
 	switch {

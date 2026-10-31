@@ -88,17 +88,17 @@ func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool,
 // StartPlanning starts a planning Run for the Cycle with id, returning the
 // Run's id. The Run submits the Cycle's initial Plan Proposal.
 func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
-	var run runs.Recorded
+	var started runs.Recorded
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
-		run, err = s.startPlanningIn(ctx, tx, id, 0)
+		started, err = s.startPlanningIn(ctx, tx, id, 0)
 		return err
 	})
 	if err != nil {
 		return 0, err
 	}
-	s.runs.Launch(run)
-	return run.ID, nil
+	s.runs.Launch(started)
+	return started.ID, nil
 }
 
 // startPlanningIn records a planning Run for the Cycle with id as part of
