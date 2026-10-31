@@ -153,7 +153,7 @@ func TestExceptionAPlanReliesOnNeedsANewPlanProposal(t *testing.T) {
 		t.Fatalf("an Exception before any Plan needs a new Plan Proposal:\n%s", page)
 	}
 	approvePlan(t, h, lemonPlan(t, h))
-	pending := proposePlan(t, h, `{"prep_sessions": []}`)
+	pending := proposePlan(t, h, planOf())
 
 	logException(t, h, exceptions, "2026-11-05", "dinner", map[string]string{"exception": "meal-out"}, false)
 	if page := text(h.Get(t, "/plan").Body); !strings.Contains(page, "An Exception changed: this Plan needs a new Plan Proposal.") {
@@ -192,14 +192,14 @@ func TestAnExceptionOnTheCurrentCycleReplacesEitherOnesPlanProposal(t *testing.T
 	upcoming := openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "").Path
 
 	// What the current Cycle eats changes what carries over to the next.
-	proposal := proposePlanFor(t, h, "2026-11-08", `{"prep_sessions": []}`)
+	proposal := proposePlanFor(t, h, "2026-11-08", planOf())
 	logException(t, h, current, "2026-11-05", "dinner", map[string]string{"exception": "meal-out"}, false)
 	if page := text(h.Get(t, proposal).Body); !strings.Contains(page, "Replaced by the Exception on Thu 5 Nov, dinner") {
 		t.Errorf("an Exception on the current Cycle did not replace the upcoming one's Plan Proposal:\n%s", page)
 	}
 
 	// What the upcoming Cycle eats changes nothing of the current one.
-	proposal = proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+	proposal = proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-05", "breakfast"))
 	logException(t, h, upcoming, "2026-11-10", "lunch", map[string]string{"exception": "skipped"}, false)
 	if page := h.Get(t, proposal).Body; !strings.Contains(text(page), "pending") || !strings.Contains(page, `id="approve"`) {
 		t.Errorf("an Exception on the upcoming Cycle replaced the current one's Plan Proposal:\n%s", text(page))
@@ -213,7 +213,7 @@ func TestAPastSlotIsCorrectedAfterItHappenedAndThePlanReplanned(t *testing.T) {
 	logException(t, h, exceptions, "2026-11-06", "dinner", map[string]string{"exception": "meal-out"}, false)
 	// Replanned around the Meal Out.
 	approvePlan(t, h, lemonPlan(t, h))
-	pending := proposePlan(t, h, `{"prep_sessions": []}`)
+	pending := proposePlan(t, h, planOf())
 
 	// The dinner out fell through: the morning after, it was eaten at home.
 	today.setAt(t, "2026-11-07 09:00")
@@ -255,7 +255,7 @@ func TestAClosedCyclesSlotIsCorrectedAndTheCurrentPlanReplanned(t *testing.T) {
 	openCycle(t, h, "2026-11-02", "")
 	today.set(t, "2026-11-04")
 	openCycle(t, h, "2026-11-07", "")
-	approvePlan(t, h, `{"prep_sessions": []}`)
+	approvePlan(t, h, planOf())
 	// Saturday's Delivery arrived, closing the Cycle that holds Friday.
 	today.setAt(t, "2026-11-07 09:00")
 
@@ -319,7 +319,7 @@ func TestAnExceptedSlotBeforeAPlanProposalCountsOnlyItsException(t *testing.T) {
 	logException(t, h, exceptions, "2026-11-04", "lunch", map[string]string{"exception": "skipped"}, false)
 
 	today.set(t, "2026-11-05")
-	page := text(h.Get(t, proposePlan(t, h, `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)).Body)
+	page := text(h.Get(t, proposePlan(t, h, planFrom("2026-11-05", "breakfast"))).Body)
 	// Seven Untracked Allowances, Monday's Lemon chicken with rice and
 	// Tuesday's lemon: 1050 + 589 + 20 kcal, 35 + 52 + 1 g protein. The
 	// skipped lunch's Portion counts nothing.

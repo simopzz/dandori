@@ -206,12 +206,12 @@ func TestPrepSessionUsesUpItsIngredientsStockOnceItsDayComes(t *testing.T) {
 
 func TestUpcomingGroceryListBuysWhatTheCurrentCyclesPrepSessionsWillUseUp(t *testing.T) {
 	h, today := startGroceries(t)
-	recipe := strings.TrimPrefix(libraryRecipe(t, h), "/recipes/")
+	recipe := recipeID(t, h)
 	// lemonChicken cooks Lemon chicken with rice for dinner on day, eaten
 	// then, at lunch on lunch and at dinner on dinner.
-	lemonChicken := func(day, lunch, dinner string) string {
+	lemonChicken := func(day, lunch, dinner string) map[string]any {
 		return planOf(cooks(recipe, day, "dinner",
-			eatAt{"fridge", day, "dinner"}, eatAt{"fridge", lunch, "lunch"}, eatAt{"freezer", dinner, "dinner"}))
+			eat("fridge", day, "dinner"), eat("fridge", lunch, "lunch"), eat("freezer", dinner, "dinner")))
 	}
 	openCycle(t, h, "2026-11-02", "2026-11-10")
 	approvePlan(t, h, lemonChicken("2026-11-05", "2026-11-07", "2026-11-09"))

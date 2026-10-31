@@ -1,7 +1,7 @@
 package app_test
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"slices"
@@ -82,36 +82,32 @@ func openCycleIn(t *testing.T, h *apptest.Harness, delivery, from, to, ends stri
 // with rice cooked for dinner that day, eaten then, at lunch on the 4th and
 // frozen for dinner on the 7th, and a lemon eaten as it is for a snack on
 // the 3rd.
-func lemonPlan(t *testing.T, h *apptest.Harness) string {
+func lemonPlan(t *testing.T, h *apptest.Harness) map[string]any {
 	t.Helper()
-	recipe := strings.TrimPrefix(libraryRecipe(t, h), "/recipes/")
-	return fmt.Sprintf(`{"prep_sessions": [
-		{"on": "2026-11-02", "kind": "dinner", "recipe_id": %s, "portions": [
-			{"location": "fridge", "eat_on": "2026-11-02", "eat_kind": "dinner"},
-			{"location": "fridge", "eat_on": "2026-11-04", "eat_kind": "lunch"},
-			{"location": "freezer", "eat_on": "2026-11-07", "eat_kind": "dinner"}]},
-		{"on": "2026-11-03", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-03", "eat_kind": "snack"}]}
-	]}`, recipe)
+	return planOf(dinnerOf(map[string]any{"recipe_id": recipeID(t, h)}), lemonAt("2026-11-03", "snack"))
 }
 
 // proposePlan stores plan as an initial Plan Proposal for the latest
 // Cycle, as the planner will, and returns the path of its page.
-func proposePlan(t *testing.T, h *apptest.Harness, plan string) string {
+func proposePlan(t *testing.T, h *apptest.Harness, plan map[string]any) string {
 	t.Helper()
 	return proposePlanFor(t, h, "", plan)
 }
 
 // proposePlanFor stores plan as an initial Plan Proposal for the Cycle
 // delivered on delivery, or the latest one when delivery is empty.
-func proposePlanFor(t *testing.T, h *apptest.Harness, delivery, plan string) string {
+func proposePlanFor(t *testing.T, h *apptest.Harness, delivery string, plan map[string]any) string {
 	t.Helper()
+	stored, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
 	before := proposalPaths(t, h)
 	h.Exec(t, `
 		INSERT INTO plan_proposal (cycle_id, origin, plan)
 		SELECT id, 'initial', $1 FROM cycle
 		WHERE $2 = '' OR delivery_on = $2::text::date
-		ORDER BY delivery_on DESC LIMIT 1`, plan, delivery)
+		ORDER BY delivery_on DESC LIMIT 1`, stored, delivery)
 	after := proposalPaths(t, h)
 	if len(after) != len(before)+1 {
 		t.Fatalf("the Plan page lists %d Plan Proposals, want %d", len(after), len(before)+1)
@@ -284,10 +280,7 @@ func TestApprovalReplacesThePlanAtomically(t *testing.T) {
 
 	// A Plan Proposal that can't be applied: it puts a Portion that isn't
 	// kept in a Slot, after a Prep Session that can.
-	broken := proposePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-05", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-05", "eat_kind": "snack"}]}],
-		"kept": [{"portion_id": 999999, "on": "2026-11-06", "kind": "lunch"}]}`)
+	broken := proposePlan(t, h, keeping(planOf(lemonAt("2026-11-05", "snack")), "999999", "2026-11-06", "lunch"))
 	if page := text(h.Get(t, broken).Body); !strings.Contains(page, "is not a Portion without a Slot") {
 		t.Errorf("Plan Proposal page does not show the unknown Portion:\n%s", page)
 	}
@@ -299,9 +292,7 @@ func TestApprovalReplacesThePlanAtomically(t *testing.T) {
 		t.Errorf("a failed approval changed the Plan:\n%s", plan)
 	}
 
-	second := proposePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-05", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-05", "eat_kind": "snack"}]}]}`)
+	second := proposePlan(t, h, planOf(lemonAt("2026-11-05", "snack")))
 	approve = apptest.Form(t, h.Get(t, second).Body, "approve")
 	plan := text(h.PostForm(t, approve.Action, approve.Values).Body)
 	if strings.Contains(plan, "Lemon chicken with rice") || !strings.Contains(plan, "Thu 5 Nov 170 kcal") {
@@ -405,18 +396,16 @@ func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
 
 // lemonsPlan is lemonPlan with two lemons set out for a snack on the 6th:
 // one eaten then, the other on the 14th, after the Cycle.
-func lemonsPlan(t *testing.T, h *apptest.Harness) string {
+func lemonsPlan(t *testing.T, h *apptest.Harness) map[string]any {
 	t.Helper()
-	return strings.Replace(lemonPlan(t, h), `]}
-	]}`, `]},
-		{"on": "2026-11-06", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 2}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "snack"},
-			{"location": "fridge", "eat_on": "2026-11-14", "eat_kind": "snack"}]}
-	]}`, 1)
+	plan := lemonPlan(t, h)
+	plan["prep_sessions"] = append(plan["prep_sessions"].([]session), setsOut("2026-11-06", "snack", "lemon", 2,
+		eat("fridge", "2026-11-06", "snack"), eat("fridge", "2026-11-14", "snack")))
+	return plan
 }
 
 // approvePlan proposes plan for the latest Cycle and approves it.
-func approvePlan(t *testing.T, h *apptest.Harness, plan string) {
+func approvePlan(t *testing.T, h *apptest.Harness, plan map[string]any) {
 	t.Helper()
 	approve := apptest.Form(t, h.Get(t, proposePlan(t, h, plan)).Body, "approve")
 	if res := h.PostForm(t, approve.Action, approve.Values); res.StatusCode != http.StatusOK {
@@ -492,11 +481,7 @@ func TestApprovalMidCycleKeepsWhatWasPrepared(t *testing.T) {
 
 	// From Thursday on: a lemon for a snack, and the Lemon chicken with rice
 	// already in the freezer moved from Saturday to Sunday.
-	proposal := proposePlan(t, h, fmt.Sprintf(`{"from": {"on": "2026-11-05", "kind": "breakfast"},
-		"prep_sessions": [
-			{"on": "2026-11-05", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-				{"location": "fridge", "eat_on": "2026-11-05", "eat_kind": "snack"}]}],
-		"kept": [{"portion_id": %s, "on": "2026-11-08", "kind": "dinner"}]}`, saturday))
+	proposal := proposePlan(t, h, keeping(planFrom("2026-11-05", "breakfast", lemonAt("2026-11-05", "snack")), saturday, "2026-11-08", "dinner"))
 	if page := text(h.Get(t, proposal).Body); strings.Contains(page, "left without a Slot") || strings.Contains(page, "before the Plan Proposal starts") || strings.Contains(page, "is not a Portion without a Slot") {
 		t.Errorf("Plan Proposal page does not offer the cooked Portion to the Plan Proposal:\n%s", page)
 	}
@@ -528,7 +513,7 @@ func TestApprovalStartingTodayKeepsTodaysPrepSessions(t *testing.T) {
 
 	// From tonight on, nothing: the Lemon chicken with rice cooked today
 	// stays, its Portions without a Slot; tomorrow's lemon is dropped.
-	approvePlan(t, h, `{"from": {"on": "2026-11-02", "kind": "dinner"}, "prep_sessions": []}`)
+	approvePlan(t, h, planFrom("2026-11-02", "dinner"))
 	stock := text(h.Get(t, "/stock").Body)
 	if n := strings.Count(stock, "Lemon chicken with rice"); n != 3 || !strings.Contains(stock, "No Portions waiting for their Slot.") {
 		t.Errorf("Stock page shows %d Portions of today's Prep Session, want 3 without a Slot:\n%s", n, stock)
@@ -577,9 +562,7 @@ func TestDecidedPlanProposalIsNotCheckedAgain(t *testing.T) {
 func TestUnreadablePlanProposalSaysWhyAndCanBeRejected(t *testing.T) {
 	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
-	proposal := proposePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-03", "kind": "snack", "ingredients": [{"name": "dragon fruit", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-03", "eat_kind": "snack"}]}]}`)
+	proposal := proposePlan(t, h, planOf(setsOut("2026-11-03", "snack", "dragon fruit", 1)))
 
 	res := h.Get(t, proposal)
 	if page := text(res.Body); res.StatusCode != http.StatusOK || !strings.Contains(page, `can't be read: there is no Ingredient "dragon fruit"`) {
@@ -597,9 +580,7 @@ func TestUnreadablePlanProposalSaysWhyAndCanBeRejected(t *testing.T) {
 func TestPlanProposalNamesIngredientsHoweverWritten(t *testing.T) {
 	h, _ := startPlanning(t)
 	openCycle(t, h, "2026-11-02", "")
-	approvePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-03", "kind": "snack", "ingredients": [{"name": " Lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-03", "eat_kind": "snack"}]}]}`)
+	approvePlan(t, h, planOf(setsOut("2026-11-03", "snack", " Lemon", 1)))
 	if plan := text(h.Get(t, "/plan").Body); !strings.Contains(plan, "snack lemon") {
 		t.Errorf("Plan page does not show the lemon:\n%s", plan)
 	}
@@ -627,10 +608,7 @@ func TestWhileACycleIsUpcomingTheCurrentPlanCanStillChange(t *testing.T) {
 	openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "")
 
 	// The user ate out on Thursday: from Friday on, a lemon for a snack.
-	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-06", "kind": "breakfast"},
-		"prep_sessions": [
-			{"on": "2026-11-06", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-				{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "snack"}]}]}`)
+	proposal := proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-06", "breakfast", lemonAt("2026-11-06", "snack")))
 	approve := apptest.Form(t, h.Get(t, proposal).Body, "approve")
 	res := h.PostForm(t, approve.Action, approve.Values)
 	if res.StatusCode != http.StatusOK {
@@ -657,10 +635,8 @@ func TestMovingAnUpcomingDeliveryNeedsANewPlanProposal(t *testing.T) {
 	approvePlan(t, h, lemonPlan(t, h))
 	today.set(t, "2026-11-07")
 	openCycleIn(t, h, "2026-11-10", "18:00", "20:00", "2026-11-20")
-	approvePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-10", "kind": "dinner", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-10", "eat_kind": "dinner"}]}]}`)
-	pending := proposePlan(t, h, `{"prep_sessions": []}`)
+	approvePlan(t, h, planOf(lemonAt("2026-11-10", "dinner")))
+	pending := proposePlan(t, h, planOf())
 	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "needs a new Plan Proposal") {
 		t.Fatalf("a Plan needs a new Plan Proposal before any move:\n%s", page)
 	}
@@ -688,9 +664,7 @@ func TestMovingAnUpcomingDeliveryNeedsANewPlanProposal(t *testing.T) {
 	}
 
 	// A new Plan Proposal for the moved Cycle clears it.
-	approvePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-11", "kind": "dinner", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-11", "eat_kind": "dinner"}]}]}`)
+	approvePlan(t, h, planOf(lemonAt("2026-11-11", "dinner")))
 	if page := text(h.Get(t, "/plan").Body); strings.Count(page, "needs a new Plan Proposal") != 1 {
 		t.Errorf("an approved Plan Proposal leaves its Plan needing one, or clears another's:\n%s", page)
 	}
@@ -744,9 +718,7 @@ func TestDroppingAnUpcomingCycle(t *testing.T) {
 	approvePlan(t, h, lemonPlan(t, h))
 	today.set(t, "2026-11-08")
 	openCycleIn(t, h, "2026-11-12", "18:00", "20:00", "")
-	proposal := proposePlan(t, h, `{"prep_sessions": [
-		{"on": "2026-11-13", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-			{"location": "fridge", "eat_on": "2026-11-13", "eat_kind": "snack"}]}]}`)
+	proposal := proposePlan(t, h, planOf(lemonAt("2026-11-13", "snack")))
 
 	drop := apptest.Form(t, h.Get(t, "/plan").Body, "drop")
 	res := h.PostForm(t, drop.Action, drop.Values)
@@ -810,7 +782,7 @@ func TestMovingADeliveryReplacesTheCurrentCyclesPlanProposal(t *testing.T) {
 	openCycle(t, h, "2026-11-02", "")
 	today.set(t, "2026-11-04")
 	openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "")
-	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+	proposal := proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-05", "breakfast"))
 
 	changeDelivery(t, h, map[string]string{"delivery_on": "2026-11-09"})
 	if page := text(h.Get(t, proposal).Body); !strings.Contains(page, "replaced") || !strings.Contains(page, "Replaced by the Delivery moved to Mon 9 Nov, 18:00–20:00") {
@@ -826,9 +798,9 @@ func TestApprovingACurrentPlanThatChangesWhatCarriesOverFlagsTheUpcomingPlan(t *
 	// Its first Slot is lunch on the 6th: the Lemon chicken with rice frozen
 	// for dinner on the 7th carries over.
 	openCycleIn(t, h, "2026-11-06", "10:00", "12:00", "")
-	approvePlan(t, h, `{"prep_sessions": []}`)
+	approvePlan(t, h, planOf())
 	frozen := portionFor(t, h, "dinner on Sat 7 Nov")
-	approveCurrent := func(plan string) string {
+	approveCurrent := func(plan map[string]any) string {
 		t.Helper()
 		approve := apptest.Form(t, h.Get(t, proposePlanFor(t, h, "2026-11-02", plan)).Body, "approve")
 		res := h.PostForm(t, approve.Action, approve.Values)
@@ -840,18 +812,13 @@ func TestApprovingACurrentPlanThatChangesWhatCarriesOverFlagsTheUpcomingPlan(t *
 
 	// A lemon for Thursday's snack, before the upcoming Cycle; the frozen
 	// Portion stays where it was.
-	page := approveCurrent(fmt.Sprintf(`{"from": {"on": "2026-11-05", "kind": "breakfast"},
-		"prep_sessions": [
-			{"on": "2026-11-05", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-				{"location": "fridge", "eat_on": "2026-11-05", "eat_kind": "snack"}]}],
-		"kept": [{"portion_id": %s, "on": "2026-11-07", "kind": "dinner"}]}`, frozen))
+	page := approveCurrent(keeping(planFrom("2026-11-05", "breakfast", lemonAt("2026-11-05", "snack")), frozen, "2026-11-07", "dinner"))
 	if strings.Contains(page, "needs a new Plan Proposal") {
 		t.Errorf("a current Plan carrying over the same flags the upcoming Plan:\n%s", page)
 	}
 
 	// The frozen Portion is eaten on Thursday instead: nothing carries over.
-	page = approveCurrent(fmt.Sprintf(`{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": [],
-		"kept": [{"portion_id": %s, "on": "2026-11-05", "kind": "dinner"}]}`, frozen))
+	page = approveCurrent(keeping(planFrom("2026-11-05", "breakfast"), frozen, "2026-11-05", "dinner"))
 	if want := "Starts lunch on Fri 6 Nov Ends Mon 16 Nov 2026 The current Cycle's Plan changed what carries over: this Plan needs a new Plan Proposal."; !strings.Contains(page, want) {
 		t.Errorf("Plan page does not show %q:\n%s", want, page)
 	}

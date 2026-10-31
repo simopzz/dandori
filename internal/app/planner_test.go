@@ -13,22 +13,6 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// session is a Prep Session as the planner submits it.
-type session = map[string]any
-
-// eat is a Portion kept in location and eaten at kind on the day on.
-func eat(location, on, kind string) map[string]any {
-	return map[string]any{"location": location, "eat_on": on, "eat_kind": kind}
-}
-
-// lemonAt is a lemon set out at kind on the day on, and eaten straight
-// away.
-func lemonAt(on, kind string) session {
-	return session{"on": on, "kind": kind,
-		"ingredients": []map[string]any{{"name": "lemon", "quantity": 1}},
-		"portions":    []map[string]any{eat("fridge", on, kind)}}
-}
-
 // shortCyclePlan is a Plan for the Cycle delivered on 2026-11-02 and
 // ending on the 4th that fills every one of its Slots: first, a Prep
 // Session cooked for dinner on the 2nd, eaten then and at lunch on the
@@ -44,7 +28,7 @@ func shortCyclePlan(first session) map[string]any {
 			sessions = append(sessions, lemonAt(on, kind))
 		}
 	}
-	return map[string]any{"prep_sessions": sessions}
+	return planOf(sessions...)
 }
 
 // dinnerOf is a Prep Session of what, a Recipe as {"recipe_id": …} or a
@@ -161,7 +145,7 @@ func withoutSlot(plan map[string]any, on, kind string) map[string]any {
 			kept = append(kept, s)
 		}
 	}
-	return map[string]any{"prep_sessions": kept}
+	return planOf(kept...)
 }
 
 func TestAPlanBreakingTheRulesGoesBackToThePlanner(t *testing.T) {
@@ -506,7 +490,7 @@ func planningRunsGoing(t *testing.T, h *apptest.Harness) int {
 func TestPlanningWaitsForTheOtherCyclesPlanProposalOrPlanningRun(t *testing.T) {
 	h, today, llm := startPlanningWith(t)
 	current, upcoming := twoCycles(t, h, today)
-	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+	proposal := proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-05", "breakfast"))
 
 	waits := "Planning waits its turn, since a Plan Proposal for the current Cycle is pending: approve or reject it."
 	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Plan this Cycle") || !strings.Contains(page, "Upcoming Plan No Plan yet. "+waits) {
@@ -579,8 +563,8 @@ func TestRejectingWithANoteSaysWhyNoPlanningRunStartedWhileTheOtherCycleWaits(t 
 	h, today, _ := startPlanningWith(t)
 	twoCycles(t, h, today)
 	// Both pending, as before one Plan Proposal was pending at a time.
-	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
-	proposePlanFor(t, h, "2026-11-08", `{"prep_sessions": []}`)
+	proposal := proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-05", "breakfast"))
+	proposePlanFor(t, h, "2026-11-08", planOf())
 
 	page := text(rejectWith(t, h, proposal, "more fish").Body)
 	if !strings.Contains(page, "Note: more fish") || !strings.Contains(page, "No planning Run started for the note, since a Plan Proposal for the upcoming Cycle is pending: approve or reject it.") {

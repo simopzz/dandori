@@ -1,7 +1,7 @@
 package app_test
 
 import (
-	"fmt"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -61,38 +61,53 @@ func lastCyclePath(t *testing.T, h *apptest.Harness, page string) string {
 	return plan[strings.LastIndex(plan[:i], `"`)+1 : i+len(end)-1]
 }
 
-// planOf is a Plan, as the planner submits it, of sessions, each one as
-// cooks or setsOut gives it.
-func planOf(sessions ...string) string {
-	return `{"prep_sessions": [` + strings.Join(sessions, ", ") + `]}`
+// session is a Prep Session as the planner submits it.
+type session = map[string]any
+
+// planOf is a Plan of sessions, as the planner submits it.
+func planOf(sessions ...session) map[string]any {
+	return map[string]any{"prep_sessions": append([]session{}, sessions...)}
 }
 
-// eatAt is a Portion kept in location and eaten at kind on day, as a Plan
-// gives it.
-type eatAt struct{ location, day, kind string }
-
-func (e eatAt) json() string {
-	return fmt.Sprintf(`{"location": %q, "eat_on": %q, "eat_kind": %q}`, e.location, e.day, e.kind)
+// planFrom is planOf for a Plan from the Slot kind on the day on.
+func planFrom(on, kind string, sessions ...session) map[string]any {
+	plan := planOf(sessions...)
+	plan["from"] = map[string]any{"on": on, "kind": kind}
+	return plan
 }
 
-func portionsJSON(portions []eatAt) string {
-	var list []string
-	for _, p := range portions {
-		list = append(list, p.json())
-	}
-	return strings.Join(list, ", ")
+// keeping is plan putting the Portion with id portion, cooked before it,
+// in the Slot kind on the day on.
+func keeping(plan map[string]any, portion, on, kind string) map[string]any {
+	kept, _ := plan["kept"].([]map[string]any)
+	plan["kept"] = append(kept, map[string]any{"portion_id": json.Number(portion), "on": on, "kind": kind})
+	return plan
 }
 
-// cooks is a Prep Session of the Recipe with id recipe, at kind on day,
-// yielding portions. Each Portion fills its own Slot: two in one Slot, or
-// the same Recipe in Slots back to back, break the Plan's rules.
-func cooks(recipe, day, kind string, portions ...eatAt) string {
-	return fmt.Sprintf(`{"on": %q, "kind": %q, "recipe_id": %s, "portions": [%s]}`, day, kind, recipe, portionsJSON(portions))
+// eat is a Portion kept in location and eaten at kind on the day on.
+func eat(location, on, kind string) map[string]any {
+	return map[string]any{"location": location, "eat_on": on, "eat_kind": kind}
+}
+
+// cooks is a Prep Session of the Recipe with id recipe at kind on the day
+// on, yielding portions. Each Portion fills its own Slot: two in one Slot,
+// or the same Recipe in Slots back to back, break the Plan's rules.
+func cooks(recipe int64, on, kind string, portions ...map[string]any) session {
+	return session{"on": on, "kind": kind, "recipe_id": recipe, "portions": portions}
 }
 
 // setsOut is a Prep Session setting out quantity of the Ingredient named
-// ingredient, as it is, at kind on day, eaten then from the fridge.
-func setsOut(day, kind, ingredient string, quantity float64) string {
-	return fmt.Sprintf(`{"on": %q, "kind": %q, "ingredients": [{"name": %q, "quantity": %v}], "portions": [%s]}`,
-		day, kind, ingredient, quantity, eatAt{"fridge", day, kind}.json())
+// ingredient, as it is, at kind on the day on, yielding portions: with
+// none given, one eaten straight away from the fridge.
+func setsOut(on, kind, ingredient string, quantity float64, portions ...map[string]any) session {
+	if len(portions) == 0 {
+		portions = []map[string]any{eat("fridge", on, kind)}
+	}
+	return session{"on": on, "kind": kind,
+		"ingredients": []map[string]any{{"name": ingredient, "quantity": quantity}},
+		"portions":    portions}
 }
+
+// lemonAt is a lemon set out at kind on the day on, and eaten straight
+// away.
+func lemonAt(on, kind string) session { return setsOut(on, kind, "lemon", 1) }
