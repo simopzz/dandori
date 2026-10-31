@@ -324,6 +324,8 @@ func TestRejectedPlanProposalKeepsTheNote(t *testing.T) {
 	if !strings.Contains(page, "rejected") || !strings.Contains(page, "less chicken, no oven on Tuesday") {
 		t.Errorf("rejected Plan Proposal does not show its note:\n%s", page)
 	}
+	// The note asks for another; with nothing scripted, its planning Run fails.
+	h.Stream(t, apptest.Link(t, res.Body, "follow it")+"/events", "").Rest(t)
 	approve := url.Values{}
 	if res := h.PostForm(t, proposal+"/approve", approve); res.StatusCode != http.StatusConflict {
 		t.Errorf("approve a rejected Plan Proposal = %d, want 409", res.StatusCode)
@@ -388,8 +390,9 @@ func TestPlanProposalOfAClosedCycleIsNotApproved(t *testing.T) {
 	openCycle(t, h, "2026-11-05", "")
 
 	page := text(h.Get(t, stale).Body)
-	if !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: Its Cycle closed: the next Delivery arrived on Thu 5 Nov.") {
-		t.Errorf("a closed Cycle's pending Plan Proposal was not rejected, saying why:\n%s", page)
+	// Not replaced: its Cycle closed.
+	if !strings.Contains(page, "rejected") || !strings.Contains(page, "Its Cycle closed when the Delivery on Thu 5 Nov arrived") || strings.Contains(page, "Note:") || strings.Contains(page, "Replaced") {
+		t.Errorf("a closed Cycle's pending Plan Proposal was not rejected, saying why apart from any Planning Note:\n%s", page)
 	}
 	res := h.PostForm(t, staleApprove.Action, staleApprove.Values)
 	if res.StatusCode != http.StatusConflict || !strings.Contains(res.Body, "already decided") {
@@ -680,8 +683,8 @@ func TestMovingAnUpcomingDeliveryNeedsANewPlanProposal(t *testing.T) {
 			t.Errorf("Plan page does not show %q:\n%s", want, page)
 		}
 	}
-	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "rejected") || !strings.Contains(page, "Note: Its Delivery moved to Wed 11 Nov, 09:00–11:00.") {
-		t.Errorf("the moved Cycle's pending Plan Proposal was not rejected, saying why:\n%s", page)
+	if page := text(h.Get(t, pending).Body); !strings.Contains(page, "replaced") || !strings.Contains(page, "Replaced by the Delivery moved to Wed 11 Nov, 09:00–11:00") {
+		t.Errorf("the moved Cycle's pending Plan Proposal was not replaced by the move:\n%s", page)
 	}
 
 	// A new Plan Proposal for the moved Cycle clears it.
@@ -799,5 +802,60 @@ func TestPlanTheNextCycleIsOfferedFromThreeDaysBeforeTheEndDate(t *testing.T) {
 	}
 	if page := h.Get(t, "/plan").Body; strings.Contains(page, `id="open-cycle"`) {
 		t.Errorf("a Cycle can be opened while one is upcoming")
+	}
+}
+
+func TestMovingADeliveryReplacesTheCurrentCyclesPlanProposal(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	today.set(t, "2026-11-04")
+	openCycleIn(t, h, "2026-11-08", "18:00", "20:00", "")
+	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
+
+	changeDelivery(t, h, map[string]string{"delivery_on": "2026-11-09"})
+	if page := text(h.Get(t, proposal).Body); !strings.Contains(page, "replaced") || !strings.Contains(page, "Replaced by the Delivery moved to Mon 9 Nov, 18:00–20:00") {
+		t.Errorf("moving the upcoming Delivery did not replace the current Cycle's Plan Proposal:\n%s", page)
+	}
+}
+
+func TestApprovingACurrentPlanThatChangesWhatCarriesOverFlagsTheUpcomingPlan(t *testing.T) {
+	h, today := startPlanning(t)
+	openCycle(t, h, "2026-11-02", "")
+	approvePlan(t, h, lemonPlan(t, h))
+	today.set(t, "2026-11-04")
+	// Its first Slot is lunch on the 6th: the Lemon chicken with rice frozen
+	// for dinner on the 7th carries over.
+	openCycleIn(t, h, "2026-11-06", "10:00", "12:00", "")
+	approvePlan(t, h, `{"prep_sessions": []}`)
+	frozen := portionFor(t, h, "dinner on Sat 7 Nov")
+	approveCurrent := func(plan string) string {
+		t.Helper()
+		approve := apptest.Form(t, h.Get(t, proposePlanFor(t, h, "2026-11-02", plan)).Body, "approve")
+		res := h.PostForm(t, approve.Action, approve.Values)
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("approve the current Plan Proposal = %d:\n%s", res.StatusCode, text(res.Body))
+		}
+		return text(res.Body)
+	}
+
+	// A lemon for Thursday's snack, before the upcoming Cycle; the frozen
+	// Portion stays where it was.
+	page := approveCurrent(fmt.Sprintf(`{"from": {"on": "2026-11-05", "kind": "breakfast"},
+		"prep_sessions": [
+			{"on": "2026-11-05", "kind": "snack", "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
+				{"location": "fridge", "eat_on": "2026-11-05", "eat_kind": "snack"}]}],
+		"kept": [{"portion_id": %s, "on": "2026-11-07", "kind": "dinner"}]}`, frozen))
+	if strings.Contains(page, "needs a new Plan Proposal") {
+		t.Errorf("a current Plan carrying over the same flags the upcoming Plan:\n%s", page)
+	}
+
+	// The frozen Portion is eaten on Thursday instead: nothing carries over.
+	page = approveCurrent(fmt.Sprintf(`{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": [],
+		"kept": [{"portion_id": %s, "on": "2026-11-05", "kind": "dinner"}]}`, frozen))
+	if want := "Starts lunch on Fri 6 Nov Ends Mon 16 Nov 2026 The current Cycle's Plan changed what carries over: this Plan needs a new Plan Proposal."; !strings.Contains(page, want) {
+		t.Errorf("Plan page does not show %q:\n%s", want, page)
+	}
+	if strings.Count(page, "needs a new Plan Proposal") != 1 || planningRunsGoing(t, h) != 0 {
+		t.Errorf("the flag reached the current Plan, or started a planning Run:\n%s", page)
 	}
 }

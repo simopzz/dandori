@@ -96,13 +96,16 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 // correction of what happened. While no Plan relies on it, it is input to
 // the next planning Run. Once the Cycle's Plan does, or, when the Cycle
 // has closed, the current one's, which took over what was left of it,
-// that Plan needs a new Plan Proposal, and the one pending is rejected:
-// what was eaten instead may have been meant for a Slot still to come.
+// that Plan needs a new Plan Proposal: what was eaten instead may have
+// been meant for a Slot still to come. Either way it replaces the pending
+// Plan Proposal and cancels the planning Run going: of the upcoming Cycle
+// alone for one of its Slots, else of either, since what the current
+// Cycle eats changes what carries over.
 func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, e *domain.Exception) error {
 	if err := s.Arrive(ctx); err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	return s.write(ctx, func(tx pgx.Tx, cancelled *cancels) error {
 		// Serialises with the arrival, move or drop of the Cycle.
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
@@ -132,6 +135,15 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 		if err := saveException(ctx, tx, slot, e); err != nil {
 			return err
 		}
+		replaced := []int64{c.ID}
+		if c.Status != "upcoming" {
+			if replaced, err = openCycleIDs(ctx, tx); err != nil {
+				return err
+			}
+		}
+		if err := s.replace(ctx, tx, cancelled, replaced, "Replaced by the Exception on "+slot.On.Format(shortDate)+", "+string(slot.Kind)); err != nil {
+			return err
+		}
 		if c.Status == "closed" {
 			if c, err = loadCycleWith(ctx, tx, "current"); err != nil || c == nil {
 				return err
@@ -141,10 +153,7 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 		if err != nil || !relied {
 			return err
 		}
-		if err := setNeedsProposal(ctx, tx, c.ID, exceptionChanged); err != nil {
-			return err
-		}
-		return rejectPending(ctx, tx, c.ID, exceptionChanged+": "+slot.String()+" is now "+describeSlotState(e)+".")
+		return setNeedsProposal(ctx, tx, c.ID, exceptionChanged)
 	})
 }
 
@@ -202,14 +211,6 @@ func sameException(a, b *domain.Exception) bool {
 	same := func(x, y *int) bool { return x == nil && y == nil || x != nil && y != nil && *x == *y }
 	ea, eb := a.Estimate, b.Estimate
 	return a.Kind == b.Kind && same(ea.Kcal, eb.Kcal) && same(ea.ProteinG, eb.ProteinG) && same(ea.CarbsG, eb.CarbsG) && same(ea.FatG, eb.FatG)
-}
-
-// describeSlotState is what fills a Slot with Exception e, or with none.
-func describeSlotState(e *domain.Exception) string {
-	if e == nil {
-		return "from the Plan"
-	}
-	return e.Kind.Describe()
 }
 
 // ExceptionsTool lists the Exceptions over a stretch of days as an agent

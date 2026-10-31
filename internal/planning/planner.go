@@ -26,19 +26,22 @@ var ErrCannotPlan = errors.New("cycle can't be planned")
 
 // CannotPlanError means the Cycle can't be planned now. Reason says why,
 // for the user; RunID is the planning Run already going for it, if that is
-// why.
+// why. WaitsTurn is whether another Cycle's pending Plan Proposal or
+// planning Run is why: planning waits its turn.
 type CannotPlanError struct {
-	Reason string
-	RunID  int64
+	Reason    string
+	RunID     int64
+	WaitsTurn bool
 }
 
 func (e *CannotPlanError) Error() string        { return ErrCannotPlan.Error() + ": " + e.Reason }
 func (e *CannotPlanError) Is(target error) bool { return target == ErrCannotPlan }
 
 // plannable checks the Cycle c can get an initial Plan, planned from the
-// Slot from on: it is open, has no Plan and no Plan Proposal pending, it
-// has Slots left to plan, and no planning Run is going for it. A Cycle with
-// a Plan changes through a Plan Proposal of its own.
+// Slot from on: it is open, has no Plan, it has Slots left to plan, and no
+// Plan Proposal is pending nor planning Run going for any Cycle, since one
+// is planned at a time. A Cycle with a Plan changes through a Plan
+// Proposal of its own.
 func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) error {
 	if c.Status == "closed" {
 		return &CannotPlanError{Reason: "the next Delivery has arrived, so it is closed"}
@@ -48,18 +51,22 @@ func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) err
 	} else if planned {
 		return &CannotPlanError{Reason: "it already has a Plan"}
 	}
-	if waiting, err := hasPending(ctx, q, c.ID); err != nil {
+	if id, status, err := pendingFor(ctx, q); err != nil {
 		return err
-	} else if waiting {
+	} else if id == c.ID {
 		return &CannotPlanError{Reason: "a Plan Proposal for it is pending: approve or reject it"}
+	} else if id != 0 {
+		return &CannotPlanError{Reason: "a Plan Proposal for the " + status + " Cycle is pending: approve or reject it", WaitsTurn: true}
 	}
 	if !c.Contains(from) {
 		return &CannotPlanError{Reason: "it has no Slots left to plan"}
 	}
-	if run, status, err := latestPlanningRun(ctx, q, c.ID); err != nil {
+	if run, id, status, err := goingPlanningRun(ctx, q); err != nil {
 		return err
-	} else if status == "running" {
+	} else if id == c.ID {
 		return &CannotPlanError{Reason: "it is being planned", RunID: run}
+	} else if run != 0 {
+		return &CannotPlanError{Reason: "the " + status + " Cycle is being planned", WaitsTurn: true}
 	}
 	return nil
 }
@@ -92,8 +99,9 @@ func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
 // tx, after the rejection of the Plan Proposal with id after when it isn't
 // 0, and returns the Run's id.
 func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int64) (int64, error) {
-	// Serialises with another start, and with the planner submitting.
-	if err := lockCycle(ctx, tx, id); err != nil {
+	// Serialises with another start on either Cycle, with the planner
+	// submitting, and with what replaces Plan Proposals.
+	if err := lockCycles(ctx, tx); err != nil {
 		return 0, err
 	}
 	c, err := findCycle(ctx, tx, id)
@@ -390,13 +398,22 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 }
 
 // stillPlannable checks the Cycle c can still get an initial Plan from
-// the planning Run with run, going for it.
+// the planning Run with run, going for it: not cancelled since, by what
+// replaced its Plan Proposal.
 func stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
 	err := plannable(ctx, q, c, from)
 	if going := (*CannotPlanError)(nil); errors.As(err, &going) && going.RunID == run {
 		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	// Plannable, yet not because run is going: run was cancelled.
+	status, err := runStatus(ctx, q, run)
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("the planning Run is %s", status)
 }
 
 // Planning is how planning a Cycle without a Plan stands.

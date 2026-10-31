@@ -15,8 +15,19 @@ func insertRun(ctx context.Context, q db.Querier, kind string) (int64, error) {
 	return id, err
 }
 
+// setStatus stores how the running Run with id ended, unless it was
+// already recorded cancelled.
 func setStatus(ctx context.Context, q db.Querier, id int64, status string) error {
-	_, err := q.Exec(ctx, `UPDATE run SET status = $2, finished_at = now() WHERE id = $1`, id, status)
+	_, err := q.Exec(ctx, `UPDATE run SET status = $2, finished_at = now() WHERE id = $1 AND status = 'running'`, id, status)
+	return err
+}
+
+// setCancelled records the Runs with ids still running as cancelled
+// because of cause.
+func setCancelled(ctx context.Context, q db.Querier, ids []int64, cause string) error {
+	_, err := q.Exec(ctx, `
+		UPDATE run SET status = 'cancelled', cancelled_because = $2, finished_at = now()
+		WHERE id = ANY($1) AND status = 'running'`, ids, cause)
 	return err
 }
 
@@ -30,8 +41,8 @@ func insertEvent(ctx context.Context, q db.Querier, runID int64, ev TraceEvent) 
 
 func loadRun(ctx context.Context, q db.Querier, id int64) (Run, bool, error) {
 	run := Run{ID: id}
-	err := q.QueryRow(ctx, `SELECT kind, status, started_at FROM run WHERE id = $1`, id).
-		Scan(&run.Kind, &run.Status, &run.StartedAt)
+	err := q.QueryRow(ctx, `SELECT kind, status, cancelled_because, started_at FROM run WHERE id = $1`, id).
+		Scan(&run.Kind, &run.Status, &run.CancelledBecause, &run.StartedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Run{}, false, nil
 	}

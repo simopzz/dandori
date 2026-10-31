@@ -111,6 +111,10 @@ type ProposalPage struct {
 	Title      string
 	Status     string
 	Note       string
+	Cause      string
+	// Waits is why no planning Run started for its note: another Cycle's
+	// turn comes first.
+	Waits      string
 	Unreadable string // why its Plan can't be read; empty when it can
 	Problem    string // why the user's decision was refused, if it was
 	Violations []string
@@ -420,9 +424,19 @@ templ ProposalView(p ProposalPage) {
 				{ p.Status }
 			}
 		</p>
+		if p.Cause != "" {
+			@web.Notice() {
+				{ p.Cause }
+			}
+		}
 		if p.Note != "" {
 			@web.Notice() {
 				Note: { p.Note }
+			}
+		}
+		if p.Waits != "" {
+			@web.Notice() {
+				No planning Run started for the note: { p.Waits }.
 			}
 		}
 		if p.Replan != "" {

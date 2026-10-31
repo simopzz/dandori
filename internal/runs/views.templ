@@ -10,11 +10,14 @@ import (
 
 // Run is a Run as its pages show it.
 type Run struct {
-	ID        int64
-	Kind      string
-	Status    string // running, succeeded, failed or cancelled
-	StartedAt time.Time
-	Events    []TraceEvent
+	ID     int64
+	Kind   string
+	Status string // running, succeeded, failed or cancelled
+	// CancelledBecause is why it was cancelled, when the user didn't: what
+	// replaced the Plan Proposal a planning Run was making, say.
+	CancelledBecause string
+	StartedAt        time.Time
+	Events           []TraceEvent
 }
 
 // TraceEvent is one step of a Run.
@@ -151,6 +154,11 @@ templ RunPage(r Run) {
 				{ " started " }
 				@timestamp(r.StartedAt, "2006-01-02 15:04:05")
 			</p>
+		}
+		if r.CancelledBecause != "" {
+			@web.Notice() {
+				Cancelled: { r.CancelledBecause }
+			}
 		}
 		@TracePanel(r, string(runURL(r.ID)))
 	}
