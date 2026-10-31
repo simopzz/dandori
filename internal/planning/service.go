@@ -643,9 +643,13 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if err := s.acceptDrafts(ctx, tx, &ch.proposed); err != nil {
 			return err
 		}
-		before, keptBefore, err := loadPlan(ctx, tx, ch.cycle.ID)
-		if err != nil {
-			return err
+		// What the current Plan carried over before, to compare with after.
+		var before domain.Plan
+		var keptBefore []domain.KeptPortion
+		if ch.cycle.Status == "current" {
+			if before, keptBefore, err = loadPlan(ctx, tx, ch.cycle.ID); err != nil {
+				return err
+			}
 		}
 		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
 		// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
@@ -780,11 +784,8 @@ func (s *Service) WaitsFor(ctx context.Context, id int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = plannable(ctx, s.pool, c, domain.FirstUnprepared(c.Start, s.today()))
-	if errors.Is(err, ErrCannotPlan) {
-		return waitsTurn(err), nil
-	}
-	return "", err
+	_, waits, err := s.canPlan(ctx, s.pool, c)
+	return waits, err
 }
 
 // waitsTurn is why err refuses planning when another Cycle's turn comes

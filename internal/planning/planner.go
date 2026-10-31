@@ -71,13 +71,14 @@ func plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) err
 	return nil
 }
 
-// canPlan reports whether a planning Run can start for c now.
-func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (bool, error) {
-	err := plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
+// canPlan reports whether a planning Run can start for c now, and waits,
+// why not when another Cycle's turn comes first.
+func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool, waits string, err error) {
+	err = plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
 	if errors.Is(err, ErrCannotPlan) {
-		return false, nil
+		return false, waitsTurn(err), nil
 	}
-	return err == nil, err
+	return err == nil, "", err
 }
 
 // StartPlanning starts a planning Run for the Cycle with id, returning the
@@ -418,8 +419,10 @@ func stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot
 
 // Planning is how planning a Cycle without a Plan stands.
 type Planning struct {
-	// CanPlan is whether a planning Run can start for it now.
+	// CanPlan is whether a planning Run can start for it now; Waits why
+	// not, when another Cycle's turn comes first.
 	CanPlan bool
+	Waits   string
 	// Run is its last planning Run, with its Trace; nil when it had none.
 	Run *runs.Run
 }
@@ -428,7 +431,7 @@ type Planning struct {
 func (s *Service) planning(ctx context.Context, q db.Querier, c Cycle) (Planning, error) {
 	var p Planning
 	var err error
-	if p.CanPlan, err = s.canPlan(ctx, q, c); err != nil {
+	if p.CanPlan, p.Waits, err = s.canPlan(ctx, q, c); err != nil {
 		return p, err
 	}
 	id, status, err := latestPlanningRun(ctx, q, c.ID)

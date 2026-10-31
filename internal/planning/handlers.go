@@ -101,6 +101,7 @@ func cycleView(cp CyclePlan, number int) *CycleView {
 	if cp.Planning.CanPlan {
 		v.PlanAction = planURL(c.ID)
 	}
+	v.Waits = cp.Planning.Waits
 	if run := cp.Planning.Run; run != nil {
 		switch {
 		case run.Running():

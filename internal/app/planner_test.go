@@ -508,8 +508,12 @@ func TestPlanningWaitsForTheOtherCyclesPlanProposalOrPlanningRun(t *testing.T) {
 	current, upcoming := twoCycles(t, h, today)
 	proposal := proposePlanFor(t, h, "2026-11-02", `{"from": {"on": "2026-11-05", "kind": "breakfast"}, "prep_sessions": []}`)
 
-	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Plan this Cycle") {
-		t.Errorf("planning is offered while a Plan Proposal is pending:\n%s", page)
+	waits := "Planning waits its turn, since a Plan Proposal for the current Cycle is pending: approve or reject it."
+	if page := text(h.Get(t, "/plan").Body); strings.Contains(page, "Plan this Cycle") || !strings.Contains(page, "Upcoming Plan No Plan yet. "+waits) {
+		t.Errorf("planning is offered while a Plan Proposal is pending, or the wait goes unsaid:\n%s", page)
+	}
+	if page := text(h.Get(t, upcoming).Body); !strings.Contains(page, waits) || strings.Contains(page, "no Exceptions are known") {
+		t.Errorf("the upcoming Cycle's Exceptions page does not say planning waits its turn:\n%s", page)
 	}
 	res := h.PostForm(t, planAction(upcoming), nil)
 	if res.StatusCode != http.StatusConflict || !strings.Contains(text(res.Body), "That Cycle can't be planned: a Plan Proposal for the current Cycle is pending: approve or reject it.") {
@@ -579,7 +583,7 @@ func TestRejectingWithANoteSaysWhyNoPlanningRunStartedWhileTheOtherCycleWaits(t 
 	proposePlanFor(t, h, "2026-11-08", `{"prep_sessions": []}`)
 
 	page := text(rejectWith(t, h, proposal, "more fish").Body)
-	if !strings.Contains(page, "Note: more fish") || !strings.Contains(page, "No planning Run started for the note: a Plan Proposal for the upcoming Cycle is pending: approve or reject it.") {
+	if !strings.Contains(page, "Note: more fish") || !strings.Contains(page, "No planning Run started for the note, since a Plan Proposal for the upcoming Cycle is pending: approve or reject it.") {
 		t.Errorf("the rejection does not say why no planning Run started:\n%s", page)
 	}
 	if n := planningRunsGoing(t, h); n != 0 {
