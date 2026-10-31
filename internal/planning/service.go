@@ -244,7 +244,9 @@ func (s *Service) cancelPlanning(ctx context.Context, q db.Querier, c *cancels, 
 // carrying what is left over as Portions without a Slot and rejecting its
 // pending Plan Proposals. Then every Prep Session whose day has come uses
 // up the Stock Items of its Ingredients, once. Every use case calls it
-// first, so what it shows and changes is as of now.
+// first, so what it shows and changes is as of now. A rule keyed on a Prep
+// Session's day leaves out those from the upcoming Cycle's start on: its
+// Delivery drops them when it arrives, possibly later that same day.
 func (s *Service) Arrive(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.arrive(ctx, tx); err != nil {

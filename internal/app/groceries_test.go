@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -31,18 +30,6 @@ func startGroceries(t *testing.T) (*apptest.Harness, *clock) {
 	}
 	addStockItem(t, h, "olive oil", "500", "pantry", "")
 	return h, today
-}
-
-// upcomingGroceryList is the Grocery List of the Cycle the Plan page shows
-// last: the upcoming one when there is one.
-func upcomingGroceryList(t *testing.T, h *apptest.Harness) string {
-	t.Helper()
-	page := h.Get(t, "/plan").Body
-	i := strings.LastIndex(page, `/groceries"`)
-	if i < 0 {
-		t.Fatalf("Plan page links no Grocery List:\n%s", text(page))
-	}
-	return text(h.Get(t, page[strings.LastIndex(page[:i], `"`)+1:i+len(`/groceries`)]).Body)
 }
 
 // groceryList follows the Plan page's first link to a Grocery List.
@@ -185,14 +172,18 @@ func TestPrepSessionUsesUpItsIngredientsStockOnceItsDayComes(t *testing.T) {
 	// the snack on the 3rd.
 	today.setAt(t, "2026-11-02 07:30")
 	for range 2 {
-		stock := text(h.Get(t, "/stock").Body)
+		items := section(t, h.Get(t, "/stock").Body, "Stock Items")
+		var missing []string
 		for _, want := range []string{"chicken breast 40 g fridge", "lemon 1 piece pantry", "olive oil 470 ml pantry"} {
-			if !strings.Contains(stock, want) {
-				t.Errorf("once the Lemon chicken's day comes, Stock does not show %q:\n%s", want, stock)
+			if !strings.Contains(items, want) {
+				missing = append(missing, want)
 			}
 		}
-		if strings.Contains(stock, "basmati rice 240 g pantry") {
-			t.Errorf("Stock still lists the basmati rice the Lemon chicken used up:\n%s", stock)
+		if len(missing) > 0 {
+			t.Errorf("once the Lemon chicken's day comes, Stock Items do not show %q:\n%s", missing, items)
+		}
+		if strings.Contains(items, "basmati rice") {
+			t.Errorf("Stock Items still list the basmati rice the Lemon chicken used up:\n%s", items)
 		}
 	}
 
@@ -204,12 +195,12 @@ func TestPrepSessionUsesUpItsIngredientsStockOnceItsDayComes(t *testing.T) {
 		t.Fatalf("correct chicken breast = %d:\n%s", res.StatusCode, text(res.Body))
 	}
 	today.set(t, "2026-11-03")
-	stock := text(h.Get(t, "/stock").Body)
-	if !strings.Contains(stock, "chicken breast 300 g fridge") {
-		t.Errorf("Stock does not keep the corrected chicken breast:\n%s", stock)
+	items := section(t, h.Get(t, "/stock").Body, "Stock Items")
+	if !strings.Contains(items, "chicken breast 300 g fridge") {
+		t.Errorf("Stock Items do not keep the corrected chicken breast:\n%s", items)
 	}
-	if strings.Contains(stock, "lemon 1 piece pantry") {
-		t.Errorf("Stock still lists the lemon set out for the snack on the 3rd:\n%s", stock)
+	if strings.Contains(items, "lemon") {
+		t.Errorf("Stock Items still list the lemon set out for the snack on the 3rd:\n%s", items)
 	}
 }
 
@@ -219,12 +210,8 @@ func TestUpcomingGroceryListBuysWhatTheCurrentCyclesPrepSessionsWillUseUp(t *tes
 	// lemonChicken cooks Lemon chicken with rice for dinner on day, eaten
 	// then, at lunch on lunch and at dinner on dinner.
 	lemonChicken := func(day, lunch, dinner string) string {
-		return fmt.Sprintf(`{"prep_sessions": [
-			{"on": %[1]q, "kind": "dinner", "recipe_id": %[2]s, "portions": [
-				{"location": "fridge", "eat_on": %[1]q, "eat_kind": "dinner"},
-				{"location": "fridge", "eat_on": %[3]q, "eat_kind": "lunch"},
-				{"location": "freezer", "eat_on": %[4]q, "eat_kind": "dinner"}]}
-		]}`, day, recipe, lunch, dinner)
+		return planOf(cooks(recipe, day, "dinner",
+			eatAt{"fridge", day, "dinner"}, eatAt{"fridge", lunch, "lunch"}, eatAt{"freezer", dinner, "dinner"}))
 	}
 	openCycle(t, h, "2026-11-02", "2026-11-10")
 	approvePlan(t, h, lemonChicken("2026-11-05", "2026-11-07", "2026-11-09"))
@@ -238,21 +225,15 @@ func TestUpcomingGroceryListBuysWhatTheCurrentCyclesPrepSessionsWillUseUp(t *tes
 	today.set(t, "2026-11-03")
 	openCycleIn(t, h, "2026-11-10", "18:00", "20:00", "2026-11-20")
 	approvePlan(t, h, lemonChicken("2026-11-11", "2026-11-13", "2026-11-16"))
-	if list := upcomingGroceryList(t, h); !strings.Contains(list, "chicken breast 560 g needed · 640 g bought 2 × "+pettoDiPollo.Name) {
+	if list := text(h.Get(t, lastCyclePath(t, h, "groceries")).Body); !strings.Contains(list, "chicken breast 560 g needed · 640 g bought 2 × "+pettoDiPollo.Name) {
 		t.Errorf("the upcoming Grocery List does not buy the chicken breast the current Cycle will use up:\n%s", list)
 	}
 }
 
 func TestPrepSessionTheNextDeliveryDropsUsesUpNothing(t *testing.T) {
 	h, today := startGroceries(t)
-	lemonFor := func(day, kind string) string {
-		return fmt.Sprintf(`{"prep_sessions": [
-			{"on": %[1]q, "kind": %[2]q, "ingredients": [{"name": "lemon", "quantity": 1}], "portions": [
-				{"location": "fridge", "eat_on": %[1]q, "eat_kind": %[2]q}]}
-		]}`, day, kind)
-	}
 	openCycle(t, h, "2026-11-02", "2026-11-10")
-	approvePlan(t, h, lemonFor("2026-11-05", "dinner"))
+	approvePlan(t, h, planOf(setsOut("2026-11-05", "dinner", "lemon", 1)))
 	today.setAt(t, "2026-11-02 08:00")
 	if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "lemon 1 piece pantry") {
 		t.Fatalf("Stock does not show the lemon delivered:\n%s", stock)
@@ -263,15 +244,15 @@ func TestPrepSessionTheNextDeliveryDropsUsesUpNothing(t *testing.T) {
 	// it is dropped. The next Cycle's Grocery List counts on that lemon.
 	today.set(t, "2026-11-03")
 	openCycleIn(t, h, "2026-11-05", "18:00", "20:00", "2026-11-15")
-	approvePlan(t, h, lemonFor("2026-11-06", "snack"))
-	if list := upcomingGroceryList(t, h); strings.Contains(list, "lemon") {
+	approvePlan(t, h, planOf(setsOut("2026-11-06", "snack", "lemon", 1)))
+	if list := text(h.Get(t, lastCyclePath(t, h, "groceries")).Body); strings.Contains(list, "lemon") {
 		t.Errorf("the upcoming Grocery List buys a lemon for a Prep Session its Delivery drops:\n%s", list)
 	}
 
 	for _, moment := range []string{"2026-11-05 12:00", "2026-11-05 20:30"} {
 		today.setAt(t, moment)
-		if stock := text(h.Get(t, "/stock").Body); !strings.Contains(stock, "lemon 1 piece pantry") {
-			t.Errorf("at %s, Stock does not keep the lemon of the dropped Prep Session:\n%s", moment, stock)
+		if items := section(t, h.Get(t, "/stock").Body, "Stock Items"); !strings.Contains(items, "lemon 1 piece pantry") {
+			t.Errorf("at %s, Stock Items do not keep the lemon of the dropped Prep Session:\n%s", moment, items)
 		}
 	}
 }

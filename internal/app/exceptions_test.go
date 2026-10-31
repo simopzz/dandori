@@ -11,18 +11,6 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// exceptionsPath is the path of the Exceptions page of the Cycle the Plan
-// page shows last: the upcoming one when there is one.
-func exceptionsPath(t *testing.T, h *apptest.Harness) string {
-	t.Helper()
-	page := h.Get(t, "/plan").Body
-	i := strings.LastIndex(page, `/exceptions"`)
-	if i < 0 {
-		t.Fatalf("Plan page links no Exceptions page:\n%s", text(page))
-	}
-	return page[strings.LastIndex(page[:i], `"`)+1 : i+len(`/exceptions`)]
-}
-
 // logException fills the form of the Slot kind on day, as YYYY-MM-DD, on
 // the Exceptions page at path with fields and posts it, as htmx when
 // htmx is set.
@@ -131,7 +119,7 @@ func TestExceptionOutlivesAMovedDeliveryAndADroppedCycle(t *testing.T) {
 		t.Fatalf("move Delivery = %d:\n%s", res.StatusCode, text(res.Body))
 	}
 	// The Plan page links the moved Cycle's Exceptions.
-	if page := text(h.Get(t, exceptionsPath(t, h)).Body); !strings.Contains(page, "lunch Meal Out · 900 kcal") {
+	if page := text(h.Get(t, lastCyclePath(t, h, "exceptions")).Body); !strings.Contains(page, "lunch Meal Out · 900 kcal") {
 		t.Errorf("the Meal Out did not outlive moving the Delivery:\n%s", page)
 	}
 

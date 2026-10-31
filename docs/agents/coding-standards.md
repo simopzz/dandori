@@ -65,3 +65,9 @@ Rules code review checks against. Each says what it protects.
   vendored next to `htmx.min.js`; a JS island is for what htmx can't do
   (Cooking Mode's Wake Lock and timers). *Protects: one way to talk to the
   server, and less hand-rolled code to maintain.*
+
+## Tests
+
+- **A test helper's lookup fails with `t.Fatalf` naming what is missing**,
+  never by indexing with an unchecked `strings.Index` result. *Protects: a
+  changed page fails the test that reads it, instead of panicking it.*
