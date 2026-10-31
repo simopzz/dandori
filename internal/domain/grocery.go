@@ -48,8 +48,9 @@ func (l GroceryLine) Aisle() string {
 	return l.Mapping.Product.Aisle
 }
 
-// GroceryList is what a Cycle's Plan needs minus current stock, rounded up
-// to whole Catalog Products, by Ingredient name.
+// GroceryList is what a Cycle's Plan needs minus the stock the kitchen will
+// hold when its Delivery arrives, rounded up to whole Catalog Products, by
+// Ingredient name.
 type GroceryList []GroceryLine
 
 // tolerance absorbs float error in quantities scaled from Recipes, so 300 g

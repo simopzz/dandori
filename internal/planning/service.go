@@ -4,6 +4,7 @@
 package planning
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -241,45 +242,94 @@ func (s *Service) cancelPlanning(ctx context.Context, q db.Querier, c *cancels, 
 // ended: the Cycle becomes current, everything on its Grocery List becomes
 // Stock Items, and the current one closes, early if it hadn't ended,
 // carrying what is left over as Portions without a Slot and rejecting its
-// pending Plan Proposals. Every use case calls it first,
-// so what it shows and changes is as of now.
+// pending Plan Proposals. Then every Prep Session whose day has come uses
+// up the Stock Items of its Ingredients, once. Every use case calls it
+// first, so what it shows and changes is as of now. A rule keyed on a Prep
+// Session's day leaves out those from the upcoming Cycle's start on: its
+// Delivery drops them when it arrives, possibly later that same day.
 func (s *Service) Arrive(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		upcoming, err := loadCycleWith(ctx, tx, "upcoming")
-		if err != nil || upcoming == nil || !upcoming.Arrived(s.now()) {
+		if err := s.arrive(ctx, tx); err != nil {
 			return err
 		}
-		// Serialises arrivals with each other and with changes to Cycles.
-		if err := lockCycles(ctx, tx); err != nil {
-			return err
-		}
-		if upcoming, err = loadCycleWith(ctx, tx, "upcoming"); err != nil || upcoming == nil {
-			return err
-		}
-		current, err := loadCycleWith(ctx, tx, "current")
-		if err != nil {
-			return err
-		}
-		if current != nil {
-			plan, _, err := loadPlan(ctx, tx, current.ID)
-			if err != nil {
-				return err
-			}
-			arrival := domain.Arrive(&current.Cycle, plan, upcoming.Cycle)
-			cause := "Its Cycle closed when the Delivery on " + upcoming.Delivery.On.Format(shortDate) + " arrived"
-			if err := closeCycle(ctx, tx, current.ID, arrival, cause); err != nil {
-				return err
-			}
-		}
-		list, err := s.fixGroceryList(ctx, tx, *upcoming)
-		if err != nil {
-			return err
-		}
-		if err := s.stock.Receive(ctx, tx, list.StockItems()); err != nil {
-			return err
-		}
-		return setStatus(ctx, tx, upcoming.ID, "current")
+		return s.useUp(ctx, tx)
 	})
+}
+
+// arrive takes the upcoming Cycle's Delivery as arrived through tx, once
+// its window has ended. The Prep Sessions of the Cycle it closes whose day
+// has come use up their stock before what it brings is received.
+func (s *Service) arrive(ctx context.Context, tx pgx.Tx) error {
+	upcoming, err := loadCycleWith(ctx, tx, "upcoming")
+	if err != nil || upcoming == nil || !upcoming.Arrived(s.now()) {
+		return err
+	}
+	// Serialises arrivals with each other and with changes to Cycles.
+	if err := lockCycles(ctx, tx); err != nil {
+		return err
+	}
+	if upcoming, err = loadCycleWith(ctx, tx, "upcoming"); err != nil || upcoming == nil {
+		return err
+	}
+	current, err := loadCycleWith(ctx, tx, "current")
+	if err != nil {
+		return err
+	}
+	if current != nil {
+		plan, _, err := loadPlan(ctx, tx, current.ID)
+		if err != nil {
+			return err
+		}
+		arrival := domain.Arrive(&current.Cycle, plan, upcoming.Cycle)
+		cause := "Its Cycle closed when the Delivery on " + upcoming.Delivery.On.Format(shortDate) + " arrived"
+		if err := closeCycle(ctx, tx, current.ID, arrival, cause); err != nil {
+			return err
+		}
+		if err := s.useUp(ctx, tx); err != nil {
+			return err
+		}
+	}
+	list, err := s.fixGroceryList(ctx, tx, *upcoming)
+	if err != nil {
+		return err
+	}
+	if err := s.stock.Receive(ctx, tx, list.StockItems()); err != nil {
+		return err
+	}
+	return setStatus(ctx, tx, upcoming.ID, "current")
+}
+
+// useUp has every Prep Session outside the upcoming Cycle whose day has
+// come, and hasn't used up its stock yet, use up the Stock Items of its
+// Ingredients, as part of q.
+func (s *Service) useUp(ctx context.Context, q db.Querier) error {
+	ids, err := claimUseUp(ctx, q, s.today())
+	if err != nil || len(ids) == 0 {
+		return err
+	}
+	sessions, err := loadPrepSessions(ctx, q, ids)
+	if err != nil {
+		return err
+	}
+	return s.stock.UseUp(ctx, q, inDayOrder(sessions))
+}
+
+// inDayOrder is sessions in the order of the Slots they are prepared at.
+func inDayOrder(sessions map[int64]*domain.PrepSession) []domain.PrepSession {
+	var list []domain.PrepSession
+	for _, ps := range sessions {
+		list = append(list, *ps)
+	}
+	slices.SortFunc(list, func(a, b domain.PrepSession) int {
+		switch {
+		case a.At.Before(b.At):
+			return -1
+		case b.At.Before(a.At):
+			return 1
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+	return list
 }
 
 // Overview loads the current and upcoming Cycles with their Plans and Plan

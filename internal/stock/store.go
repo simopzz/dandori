@@ -10,11 +10,25 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
+// itemsQuery selects every Stock Item by Ingredient name, then in the order
+// they were recorded.
+const itemsQuery = `
+	SELECT s.id, s.quantity, s.location, s.expires_on, i.name, i.unit
+	FROM stock_item s JOIN ingredient i ON i.id = s.ingredient_id
+	ORDER BY i.name, s.id`
+
 func loadItems(ctx context.Context, q db.Querier) ([]Item, error) {
-	rows, _ := q.Query(ctx, `
-		SELECT s.id, s.quantity, s.location, s.expires_on, i.name, i.unit
-		FROM stock_item s JOIN ingredient i ON i.id = s.ingredient_id
-		ORDER BY i.name, s.id`)
+	return queryItems(ctx, q, itemsQuery)
+}
+
+// lockItems loads every Stock Item as loadItems does, locking them until
+// q's transaction ends, so a change the user makes meanwhile waits for it.
+func lockItems(ctx context.Context, q db.Querier) ([]Item, error) {
+	return queryItems(ctx, q, itemsQuery+` FOR UPDATE OF s`)
+}
+
+func queryItems(ctx context.Context, q db.Querier, sql string) ([]Item, error) {
+	rows, _ := q.Query(ctx, sql)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Item, error) {
 		var it Item
 		err := row.Scan(&it.ID, &it.Quantity, &it.Location, &it.ExpiresOn, &it.Ingredient.Name, &it.Ingredient.Unit)
@@ -58,6 +72,27 @@ func updateItem(ctx context.Context, q db.Querier, id int64, item domain.StockIt
 		return ErrNotFound
 	}
 	return nil
+}
+
+// setQuantity sets what the Stock Item with id holds to quantity, removing
+// it when that is 0: domain.UseUp leaves exactly 0 of a Stock Item it uses
+// up, however close to it float arithmetic came.
+func setQuantity(ctx context.Context, q db.Querier, id int64, quantity float64) error {
+	if quantity == 0 {
+		return deleteItem(ctx, q, id)
+	}
+	_, err := q.Exec(ctx, `UPDATE stock_item SET quantity = $2 WHERE id = $1`, id, quantity)
+	return err
+}
+
+// insertTaken records that the Prep Session with prepSessionID took t of
+// the Stock Item with stockItemID.
+func insertTaken(ctx context.Context, q db.Querier, prepSessionID, stockItemID int64, t domain.Taking) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO stock_taken (prep_session_id, stock_item_id, ingredient_id, quantity, location, expires_on)
+		SELECT $1, $2, id, $4, $5, $6 FROM ingredient WHERE name = $3`,
+		prepSessionID, stockItemID, t.Ingredient.Name, t.Quantity, t.Location, t.ExpiresOn)
+	return err
 }
 
 func deleteItem(ctx context.Context, q db.Querier, id int64) error {

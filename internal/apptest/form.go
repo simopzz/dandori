@@ -33,7 +33,13 @@ func Form(t testing.TB, page, id string) FormData {
 		}
 	}
 	if form == nil {
-		t.Fatalf("page has no form with id %q:\n%s", id, page)
+		var ids []string
+		for n := range doc.Descendants() {
+			if n.Type == html.ElementNode && n.Data == "form" {
+				ids = append(ids, attr(n, "id"))
+			}
+		}
+		t.Fatalf("page has no form with id %q; its forms have ids %q", id, ids)
 	}
 
 	f := FormData{Action: attr(form, "action"), Values: url.Values{}}
