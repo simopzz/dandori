@@ -565,9 +565,11 @@ func (s *Service) Drop(ctx context.Context, id int64) error {
 type checked struct {
 	cycle    Cycle
 	proposed proposedPlan
-	// from is the first Slot it replaces, prepared the first Prep Session.
-	from, prepared domain.Slot
-	check          domain.PlanCheck
+	// from is the first Slot it replaces; replacing what it replaces and
+	// keeps of the Plan.
+	from      domain.Slot
+	replacing domain.Replacement
+	check     domain.PlanCheck
 }
 
 // checkProposal reads stored's Plan, with its Recipes and Ingredients, and
@@ -589,12 +591,10 @@ func (s *Service) checkProposal(ctx context.Context, q db.Querier, stored stored
 	if err != nil {
 		return ch, err
 	}
-	ch.prepared = domain.FirstUnprepared(ch.from, s.today())
-	kept, err := loadKept(ctx, q, ch.cycle.ID, ch.from, ch.prepared)
-	if err != nil {
+	if ch.replacing, err = loadReplacement(ctx, q, ch.cycle, ch.from, s.today()); err != nil {
 		return ch, err
 	}
-	ch.check, err = s.check(ctx, q, ch.cycle, ch.from, plan, kept)
+	ch.check, err = s.check(ctx, q, ch.cycle, ch.from, plan, ch.replacing.Kept)
 	return ch, err
 }
 
@@ -658,7 +658,7 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 					return err
 				}
 			}
-			err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
+			err = replacePlan(ctx, tx, ch.cycle, ch.replacing, ch.proposed)
 			// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
 			// Portion taken twice.
 			var pgErr *pgconn.PgError

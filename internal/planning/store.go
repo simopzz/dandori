@@ -354,22 +354,37 @@ func order(kind string) string {
 
 func slotOrder(s domain.Slot) int { return slices.Index(domain.SlotKinds, s.Kind) + 1 }
 
-// loadKept loads the Portions a Plan of the Cycle with id from the Slot
-// from on may put in Slots: those of Prep Sessions before prepared, which
-// stay, not eaten before from, either without a Slot or in one of the
-// Cycle's from from on, which the Plan replaces.
-func loadKept(ctx context.Context, q db.Querier, id int64, from, prepared domain.Slot) ([]domain.KeptPortion, error) {
-	refs, err := loadPortionRefs(ctx, q, `
-		SELECT p.id, p.prep_session_id, NULL::date, NULL::text
-		FROM portion p JOIN prep_session ps ON ps.id = p.prep_session_id
-		LEFT JOIN slot s ON s.portion_id = p.id
-		WHERE (ps.cycle_id IS DISTINCT FROM $1 OR (ps.prepared_on, `+order("ps.prepared_for")+`) < ($4::date, $5))
-		  AND (s.id IS NULL OR (s.cycle_id = $1 AND (s.day, `+order("s.kind")+`) >= ($2::date, $3)))
-		ORDER BY p.id`, id, from.On, slotOrder(from), prepared.On, slotOrder(prepared))
+// loadReplacement loads what a Plan Proposal of c from the Slot from on,
+// decided on today, replaces of c's Plan and keeps, as domain.Replace
+// decides it: over c's Prep Sessions, and those of other Cycles and from
+// before planning with a Portion without a Slot or in one of c's.
+func loadReplacement(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, today time.Time) (domain.Replacement, error) {
+	rows, _ := q.Query(ctx, `SELECT id FROM prep_session WHERE cycle_id = $1`, c.ID)
+	own, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
-		return nil, err
+		return domain.Replacement{}, err
 	}
-	return keptPortions(ctx, q, refs)
+	rows, _ = q.Query(ctx, `
+		SELECT DISTINCT ps.id
+		FROM prep_session ps JOIN portion p ON p.prep_session_id = ps.id
+		LEFT JOIN slot s ON s.portion_id = p.id
+		WHERE ps.cycle_id IS DISTINCT FROM $1 AND (s.id IS NULL OR s.cycle_id = $1)`, c.ID)
+	others, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return domain.Replacement{}, err
+	}
+	sessions, err := loadPrepSessions(ctx, q, append(own, others...))
+	if err != nil {
+		return domain.Replacement{}, err
+	}
+	of := func(ids []int64) []domain.PrepSession {
+		var list []domain.PrepSession
+		for _, id := range ids {
+			list = append(list, *sessions[id])
+		}
+		return list
+	}
+	return domain.Replace(c.Cycle, from, today, of(own), of(others)), nil
 }
 
 // loadEarlier loads what the Slots before from eat, from six days before
@@ -397,21 +412,16 @@ func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) (
 	return days, nil
 }
 
-// replacePlan replaces the Plan of c from the Slot from on with plan: its
-// Prep Sessions, their Portions, and the Slots they and the kept Portions
-// fill. Prep Sessions before prepared stay, with their Portions; those not
-// eaten before from lose their Slot, for plan to fill again.
-func replacePlan(ctx context.Context, q db.Querier, c Cycle, from, prepared domain.Slot, plan proposedPlan) error {
-	if _, err := q.Exec(ctx, `
-		DELETE FROM slot WHERE cycle_id = $1 AND (day, `+order("kind")+`) >= ($2::date, $3)`,
-		c.ID, from.On, slotOrder(from)); err != nil {
+// replacePlan replaces the Plan of c as r says with plan: its Prep
+// Sessions, their Portions, and the Slots they and the kept Portions fill.
+func replacePlan(ctx context.Context, q db.Querier, c Cycle, r domain.Replacement, plan proposedPlan) error {
+	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, r.Dropped); err != nil {
 		return err
 	}
-	if _, err := q.Exec(ctx, `
-		DELETE FROM prep_session WHERE cycle_id = $1 AND (prepared_on, `+order("prepared_for")+`) >= ($2::date, $3)`,
-		c.ID, prepared.On, slotOrder(prepared)); err != nil {
+	if _, err := q.Exec(ctx, `DELETE FROM slot WHERE portion_id = ANY($1)`, r.Freed); err != nil {
 		return err
 	}
+	from := r.From
 	// Slots before from are what stays; validation flags a Plan filling them.
 	inPlan := func(s domain.Slot) bool { return !s.Before(from) && c.Contains(s) }
 	fill := func(portion int64, s domain.Slot) error {
