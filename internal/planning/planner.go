@@ -184,12 +184,16 @@ func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 		Description: "List what the kitchen will hold when the Plan starts: the Portions without a Slot the Plan may put in Slots (kept), by id, and the Stock Items left once the Prep Sessions before it have used theirs up, each with its Storage Location and expiry date.",
 		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
 		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
-			prepared := domain.FirstUnprepared(from, s.today())
-			kept, err := loadKept(ctx, s.pool, id, from, prepared)
+			c, err := loadCycle(ctx, s.pool, id)
 			if err != nil {
 				return "", err
 			}
-			items, err := s.stockAt(ctx, s.pool, prepared)
+			r, err := loadReplacement(ctx, s.pool, c, from, s.today())
+			if err != nil {
+				return "", err
+			}
+			kept := r.Kept
+			items, err := s.stockAt(ctx, s.pool, r.Prepared)
 			if err != nil {
 				return "", err
 			}
