@@ -3,7 +3,6 @@ package domain
 import (
 	"math"
 	"slices"
-	"time"
 )
 
 // StorageLocation is where a Portion or Stock Item is kept.
@@ -33,8 +32,6 @@ type StockItem struct {
 	Ingredient Ingredient
 	Quantity   float64
 	Location   StorageLocation
-	// ExpiresOn is the expiry date, or nil when there is none.
-	ExpiresOn *time.Time
 }
 
 // Validate returns what is wrong with the Stock Item, keyed by field name
@@ -53,15 +50,9 @@ func (s StockItem) Validate() map[string]string {
 	return problems
 }
 
-// Expired reports whether the Stock Item is past its expiry date on today.
-// An expired Stock Item stays in the kitchen, but no Plan uses it.
-func (s StockItem) Expired(today time.Time) bool {
-	return s.ExpiresOn != nil && s.ExpiresOn.Before(today)
-}
-
 // Taking is what a Prep Session took of one Stock Item: how much, with the
-// Stock Item's Ingredient, Storage Location and expiry date, so it can be
-// given back as it was.
+// Stock Item's Ingredient and Storage Location, so it can be given back as
+// it was.
 type Taking struct {
 	StockItem
 	// From is the index of the Stock Item in the stock it was taken from.
@@ -99,12 +90,10 @@ func UsingUpBefore(sessions []PrepSession, until Slot, upcomingStart *Slot) []Pr
 // UseUp has sessions, in the order of their days, use up the Ingredients
 // they use from stock, in the order it was recorded, and returns the Stock
 // Items left, in that order, and what each Prep Session used, in its
-// order. Each Ingredient comes from its Stock Items with the earliest
-// expiry first, those without one last, then the oldest, skipping any
-// expired on the Prep Session's day, whatever their Storage Location. A
-// Stock Item used up leaves the kitchen; stock that falls short is used up
-// as far as it goes. A Prep Session from before planning has no day and
-// uses nothing.
+// order. Each Ingredient comes from its Stock Items the oldest first,
+// whatever their Storage Location. A Stock Item used up leaves the
+// kitchen; stock that falls short is used up as far as it goes. A Prep
+// Session from before planning has no day and uses nothing.
 func UseUp(sessions []PrepSession, stock []StockItem) ([]StockItem, []StockUse) {
 	held := slices.Clone(stock)
 	uses := make([]StockUse, len(sessions))
@@ -114,7 +103,7 @@ func UseUp(sessions []PrepSession, stock []StockItem) ([]StockItem, []StockUse) 
 		}
 		for _, ri := range ps.uses() {
 			need := ri.Quantity
-			for _, j := range drawOrder(held, ri.Ingredient.Name, ps.At.On) {
+			for _, j := range drawOrder(held, ri.Ingredient.Name) {
 				if need <= tolerance {
 					break
 				}
@@ -146,41 +135,26 @@ func UseUp(sessions []PrepSession, stock []StockItem) ([]StockItem, []StockUse) 
 }
 
 // drawOrder is the indexes of the Stock Items of the Ingredient named name
-// in held that still hold some and aren't expired on day, in the order they
-// are used up: the earliest expiry first, those without one last, then the
-// oldest.
-func drawOrder(held []StockItem, name string, day time.Time) []int {
+// in held that still hold some, in the order they are used up: the oldest
+// first.
+func drawOrder(held []StockItem, name string) []int {
 	var order []int
 	for j, s := range held {
-		if s.Ingredient.Name == name && s.Quantity > 0 && !s.Expired(day) {
+		if s.Ingredient.Name == name && s.Quantity > 0 {
 			order = append(order, j)
 		}
 	}
-	slices.SortStableFunc(order, func(a, b int) int {
-		ea, eb := held[a].ExpiresOn, held[b].ExpiresOn
-		switch {
-		case ea == nil && eb == nil:
-			return 0
-		case ea == nil:
-			return 1
-		case eb == nil:
-			return -1
-		}
-		return ea.Compare(*eb)
-	})
 	return order
 }
 
 // MissingFrom names the Recipe's Ingredients, in its order, that stock
-// doesn't cover on today: those whose unexpired Stock Items, across every
-// Storage Location, add up to less than the Recipe's quantity as written.
-// A Recipe with none missing is covered by stock.
-func (r Recipe) MissingFrom(stock []StockItem, today time.Time) []string {
+// doesn't cover: those whose Stock Items, across every Storage Location,
+// add up to less than the Recipe's quantity as written. A Recipe with none
+// missing is covered by stock.
+func (r Recipe) MissingFrom(stock []StockItem) []string {
 	held := map[string]float64{}
 	for _, s := range stock {
-		if !s.Expired(today) {
-			held[s.Ingredient.Name] += s.Quantity
-		}
+		held[s.Ingredient.Name] += s.Quantity
 	}
 	var missing []string
 	for _, ri := range r.Ingredients {

@@ -18,22 +18,22 @@ func TestPrepSessionsUseUpTheStockItemsOfTheirIngredients(t *testing.T) {
 		{Ingredient: chicken, Quantity: 800},
 		{Ingredient: rice, Quantity: 320},
 	}}
-	nov2, nov3, nov4, nov5 := day("2026-11-02"), day("2026-11-03"), day("2026-11-04"), day("2026-11-05")
+	nov2, nov3, nov4 := day("2026-11-02"), day("2026-11-03"), day("2026-11-04")
 	cooks := func(on time.Time, portions int) domain.PrepSession {
 		return domain.PrepSession{At: domain.Slot{On: on, Kind: domain.Dinner}, Recipe: lemonChicken, Portions: make([]domain.PlannedPortion, portions)}
 	}
 	setsOut := func(on time.Time, ing domain.Ingredient, quantity float64) domain.PrepSession {
 		return domain.PrepSession{At: domain.Slot{On: on, Kind: domain.Snack}, Ingredients: []domain.RecipeIngredient{{Ingredient: ing, Quantity: quantity}}, Portions: make([]domain.PlannedPortion, 1)}
 	}
-	item := func(ing domain.Ingredient, quantity float64, loc domain.StorageLocation, expires *time.Time) domain.StockItem {
-		return domain.StockItem{Ingredient: ing, Quantity: quantity, Location: loc, ExpiresOn: expires}
+	item := func(ing domain.Ingredient, quantity float64, loc domain.StorageLocation) domain.StockItem {
+		return domain.StockItem{Ingredient: ing, Quantity: quantity, Location: loc}
 	}
 	took := func(from int, s domain.StockItem, quantity, leaves float64) domain.Taking {
 		s.Quantity = quantity
 		return domain.Taking{StockItem: s, From: from, Leaves: leaves}
 	}
-	chickenFridge := item(chicken, 640, domain.Fridge, &nov4)
-	riceJar := item(rice, 1000, domain.Pantry, nil)
+	chickenFridge := item(chicken, 640, domain.Fridge)
+	riceJar := item(rice, 1000, domain.Pantry)
 	tests := []struct {
 		name      string
 		sessions  []domain.PrepSession
@@ -46,55 +46,48 @@ func TestPrepSessionsUseUpTheStockItemsOfTheirIngredients(t *testing.T) {
 			name:     "a Recipe scaled to its Portions",
 			sessions: []domain.PrepSession{cooks(nov2, 2)},
 			stock:    []domain.StockItem{chickenFridge, riceJar},
-			left:     []domain.StockItem{item(chicken, 240, domain.Fridge, &nov4), item(rice, 840, domain.Pantry, nil)},
+			left:     []domain.StockItem{item(chicken, 240, domain.Fridge), item(rice, 840, domain.Pantry)},
 			taken:    [][]domain.Taking{{took(0, chickenFridge, 400, 240), took(1, riceJar, 160, 840)}},
 		},
 		{
 			name:     "a Prep Session with no Recipe uses what it sets out",
 			sessions: []domain.PrepSession{setsOut(nov2, lemon, 1)},
-			stock:    []domain.StockItem{item(lemon, 3, domain.Pantry, nil)},
-			left:     []domain.StockItem{item(lemon, 2, domain.Pantry, nil)},
-			taken:    [][]domain.Taking{{took(0, item(lemon, 3, domain.Pantry, nil), 1, 2)}},
+			stock:    []domain.StockItem{item(lemon, 3, domain.Pantry)},
+			left:     []domain.StockItem{item(lemon, 2, domain.Pantry)},
+			taken:    [][]domain.Taking{{took(0, item(lemon, 3, domain.Pantry), 1, 2)}},
 		},
 		{
-			name:     "one Ingredient split across Stock Items, earliest expiry first, none last, then oldest",
+			name:     "one Ingredient split across Stock Items, the oldest first, whatever their Storage Location",
 			sessions: []domain.PrepSession{setsOut(nov2, chicken, 450)},
 			stock: []domain.StockItem{
-				item(chicken, 300, domain.Freezer, nil),
-				item(chicken, 100, domain.Fridge, &nov5),
-				item(chicken, 150, domain.Freezer, nil),
-				item(chicken, 100, domain.Fridge, &nov3),
+				item(chicken, 300, domain.Freezer),
+				item(chicken, 100, domain.Fridge),
+				item(rice, 500, domain.Pantry),
+				item(chicken, 150, domain.Freezer),
 			},
-			left: []domain.StockItem{item(chicken, 50, domain.Freezer, nil), item(chicken, 150, domain.Freezer, nil)},
+			left: []domain.StockItem{item(rice, 500, domain.Pantry), item(chicken, 100, domain.Freezer)},
 			taken: [][]domain.Taking{{
-				took(3, item(chicken, 100, domain.Fridge, &nov3), 100, 0),
-				took(1, item(chicken, 100, domain.Fridge, &nov5), 100, 0),
-				took(0, item(chicken, 300, domain.Freezer, nil), 250, 50),
+				took(0, item(chicken, 300, domain.Freezer), 300, 0),
+				took(1, item(chicken, 100, domain.Fridge), 100, 0),
+				took(3, item(chicken, 150, domain.Freezer), 50, 100),
 			}},
-		},
-		{
-			name:     "Stock Items expired on its day are skipped and left as they are",
-			sessions: []domain.PrepSession{setsOut(nov4, chicken, 100)},
-			stock:    []domain.StockItem{item(chicken, 200, domain.Fridge, &nov3), item(chicken, 200, domain.Freezer, nil)},
-			left:     []domain.StockItem{item(chicken, 200, domain.Fridge, &nov3), item(chicken, 100, domain.Freezer, nil)},
-			taken:    [][]domain.Taking{{took(1, item(chicken, 200, domain.Freezer, nil), 100, 100)}},
 		},
 		{
 			name:     "a Stock Item used up exactly leaves the kitchen",
 			sessions: []domain.PrepSession{cooks(nov2, 3)},
-			stock:    []domain.StockItem{item(chicken, 600, domain.Fridge, nil), item(rice, 240, domain.Pantry, nil)},
+			stock:    []domain.StockItem{item(chicken, 600, domain.Fridge), item(rice, 240, domain.Pantry)},
 			left:     nil,
 			taken: [][]domain.Taking{{
-				took(0, item(chicken, 600, domain.Fridge, nil), 600, 0),
-				took(1, item(rice, 240, domain.Pantry, nil), 240, 0),
+				took(0, item(chicken, 600, domain.Fridge), 600, 0),
+				took(1, item(rice, 240, domain.Pantry), 240, 0),
 			}},
 		},
 		{
 			name:      "stock that runs short is used up as far as it goes",
 			sessions:  []domain.PrepSession{cooks(nov2, 2)},
-			stock:     []domain.StockItem{item(chicken, 150, domain.Fridge, nil), item(chicken, 100, domain.Fridge, &nov2)},
+			stock:     []domain.StockItem{item(chicken, 150, domain.Fridge), item(chicken, 100, domain.Fridge)},
 			left:      nil,
-			taken:     [][]domain.Taking{{took(1, item(chicken, 100, domain.Fridge, &nov2), 100, 0), took(0, item(chicken, 150, domain.Fridge, nil), 150, 0)}},
+			taken:     [][]domain.Taking{{took(0, item(chicken, 150, domain.Fridge), 150, 0), took(1, item(chicken, 100, domain.Fridge), 100, 0)}},
 			shortfall: []map[string]float64{{"chicken breast": 150, "basmati rice": 160}},
 		},
 		{
@@ -105,11 +98,10 @@ func TestPrepSessionsUseUpTheStockItemsOfTheirIngredients(t *testing.T) {
 				cooks(nov4, 1),
 			},
 			stock: []domain.StockItem{chickenFridge, riceJar},
-			left:  []domain.StockItem{item(rice, 760, domain.Pantry, nil)},
+			left:  []domain.StockItem{item(rice, 760, domain.Pantry)},
 			taken: [][]domain.Taking{
 				{took(0, chickenFridge, 400, 240), took(1, riceJar, 160, 840)},
 				{took(0, chickenFridge, 200, 40)},
-				// On the 4th the chicken still holds: it expires that day.
 				{took(0, chickenFridge, 40, 0), took(1, riceJar, 80, 760)},
 			},
 			shortfall: []map[string]float64{nil, nil, {"chicken breast": 160}},

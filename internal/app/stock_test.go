@@ -19,36 +19,35 @@ func startStock(t *testing.T) *apptest.Harness {
 }
 
 // addStockItem records a Stock Item through the Stock page's form.
-func addStockItem(t *testing.T, h *apptest.Harness, ingredient, quantity, location, expires string) apptest.Response {
+func addStockItem(t *testing.T, h *apptest.Harness, ingredient, quantity, location string) apptest.Response {
 	t.Helper()
 	form := apptest.Form(t, h.Get(t, "/stock").Body, "add-stock-item")
 	form.Values.Set("ingredient", ingredient)
 	form.Values.Set("quantity", quantity)
 	form.Values.Set("location", location)
-	form.Values.Set("expires_on", expires)
 	return h.PostForm(t, form.Action, form.Values)
 }
 
-func TestStockItemsAreRecordedWithAnOptionalExpiryDate(t *testing.T) {
+func TestStockItemsAreRecordedWithNoExpiryDate(t *testing.T) {
 	h := startStock(t)
+	if form := apptest.Form(t, h.Get(t, "/stock").Body, "add-stock-item"); form.Values.Has("expires_on") {
+		t.Errorf("add form asks for an expiry date: %v", form.Values)
+	}
 
-	res := addStockItem(t, h, "chicken breast", "450", "fridge", "2026-11-02")
+	res := addStockItem(t, h, "chicken breast", "450", "fridge")
 	if res.StatusCode != http.StatusOK || res.Path != "/stock" || res.Method != http.MethodGet {
 		t.Fatalf("add Stock Item = %d %s %s, want the Stock page after a redirect:\n%s", res.StatusCode, res.Method, res.Path, text(res.Body))
 	}
-	addStockItem(t, h, "basmati rice", "1000", "pantry", "")
+	addStockItem(t, h, "basmati rice", "1000", "pantry")
 
 	stock := text(h.Get(t, "/stock").Body)
 	for _, want := range []string{
-		"chicken breast 450 g fridge expires 2026-11-02",
+		"chicken breast 450 g fridge",
 		"basmati rice 1000 g pantry",
 	} {
 		if !strings.Contains(stock, want) {
 			t.Errorf("Stock page does not show %q:\n%s", want, stock)
 		}
-	}
-	if strings.Contains(stock, "basmati rice 1000 g pantry expires") {
-		t.Errorf("a Stock Item without an expiry date shows one:\n%s", stock)
 	}
 }
 
@@ -61,7 +60,6 @@ func TestInvalidStockItemIsRejectedAndNothingIsRecorded(t *testing.T) {
 		{"zero quantity", "quantity", "0", "Must be more than 0"},
 		{"infinite quantity", "quantity", "Inf", "Must be a number"},
 		{"unknown Storage Location", "location", "garage", "Must be pantry, fridge or freezer"},
-		{"expiry not a date", "expires_on", "next week", "Must be a date"},
 		{"Ingredient the Recipe Library doesn't know", "ingredient", "saffron", "Not a known Ingredient"},
 	}
 	for _, tt := range tests {
@@ -104,29 +102,22 @@ func stockItemID(t *testing.T, h *apptest.Harness) string {
 
 func TestStockItemIsAdjustedAndMoved(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "chicken breast", "600", "fridge", "2026-11-02")
+	addStockItem(t, h, "chicken breast", "600", "fridge")
 	id := stockItemID(t, h)
 
 	form := apptest.Form(t, h.Get(t, "/stock").Body, "stock-item-"+id)
-	if form.Get("quantity") != "600" || form.Get("location") != "fridge" || form.Get("expires_on") != "2026-11-02" {
+	if form.Get("quantity") != "600" || form.Get("location") != "fridge" || form.Values.Has("expires_on") {
 		t.Fatalf("change form does not show the Stock Item: %v", form.Values)
 	}
 	// Half was cooked; the rest goes into the freezer, where it keeps longer.
 	form.Values.Set("quantity", "300")
 	form.Values.Set("location", "freezer")
-	form.Values.Set("expires_on", "2027-01-15")
 	res := h.PostForm(t, form.Action, form.Values)
 	if res.StatusCode != http.StatusOK || res.Path != "/stock" || res.Method != http.MethodGet {
 		t.Fatalf("change Stock Item = %d %s %s, want the Stock page after a redirect:\n%s", res.StatusCode, res.Method, res.Path, text(res.Body))
 	}
-	if stock := text(res.Body); !strings.Contains(stock, "chicken breast 300 g freezer expires 2027-01-15") {
+	if stock := text(res.Body); !strings.Contains(stock, "chicken breast 300 g freezer") {
 		t.Errorf("Stock page does not show the adjusted and moved Stock Item:\n%s", stock)
-	}
-
-	// Clearing the expiry date removes it.
-	form.Values.Set("expires_on", "")
-	if stock := text(h.PostForm(t, form.Action, form.Values).Body); !strings.Contains(stock, "chicken breast 300 g freezer") || strings.Contains(stock, "expires") {
-		t.Errorf("Stock Item keeps a cleared expiry date:\n%s", stock)
 	}
 
 	form.Values.Set("quantity", "-5")
@@ -144,7 +135,7 @@ func TestStockItemIsAdjustedAndMoved(t *testing.T) {
 
 func TestStockItemIsRemoved(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "lemon", "2", "fridge", "")
+	addStockItem(t, h, "lemon", "2", "fridge")
 	id := stockItemID(t, h)
 
 	remove := apptest.Form(t, h.Get(t, "/stock").Body, "remove-stock-item-"+id)
@@ -159,7 +150,7 @@ func TestStockItemIsRemoved(t *testing.T) {
 
 func TestChangingAStockItemThatIsGoneIsNotFound(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "lemon", "2", "fridge", "")
+	addStockItem(t, h, "lemon", "2", "fridge")
 	id := stockItemID(t, h)
 	form := apptest.Form(t, h.Get(t, "/stock").Body, "stock-item-"+id)
 	h.PostForm(t, "/stock-items/"+id+"/delete", nil)
@@ -290,7 +281,7 @@ func isRow(body string) bool {
 // a long Stock page. See ADR 0009.
 func TestStockItemChangesInPlaceUnderHTMX(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "chicken breast", "600", "fridge", "2026-11-02")
+	addStockItem(t, h, "chicken breast", "600", "fridge")
 	id := stockItemID(t, h)
 	form := apptest.Form(t, h.Get(t, "/stock").Body, "stock-item-"+id)
 
@@ -300,7 +291,7 @@ func TestStockItemChangesInPlaceUnderHTMX(t *testing.T) {
 	if res.StatusCode != http.StatusOK || res.Method != http.MethodPost || !isRow(res.Body) {
 		t.Fatalf("HTMX change Stock Item = %d %s, want 200 and its row alone:\n%s", res.StatusCode, res.Method, res.Body)
 	}
-	if row := text(res.Body); !strings.Contains(row, "chicken breast 300 g freezer expires 2026-11-02") {
+	if row := text(res.Body); !strings.Contains(row, "chicken breast 300 g freezer") {
 		t.Errorf("row does not show the changed Stock Item:\n%s", row)
 	}
 
@@ -316,8 +307,8 @@ func TestStockItemChangesInPlaceUnderHTMX(t *testing.T) {
 
 func TestStockItemIsRemovedInPlaceUnderHTMX(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "lemon", "2", "fridge", "")
-	addStockItem(t, h, "olive oil", "500", "pantry", "")
+	addStockItem(t, h, "lemon", "2", "fridge")
+	addStockItem(t, h, "olive oil", "500", "pantry")
 	page := h.Get(t, "/stock").Body
 	lemon := apptest.Form(t, page, "remove-stock-item-"+stockItemID(t, h))
 
@@ -362,7 +353,7 @@ func TestPortionIsMovedInPlaceUnderHTMX(t *testing.T) {
 // is taken away.
 func TestChangingARowThatIsGoneUnderHTMXTakesItAway(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "lemon", "2", "fridge", "")
+	addStockItem(t, h, "lemon", "2", "fridge")
 	id := stockItemID(t, h)
 	form := apptest.Form(t, h.Get(t, "/stock").Body, "stock-item-"+id)
 	h.PostForm(t, "/stock-items/"+id+"/delete", nil)
@@ -388,7 +379,7 @@ func TestChangingARowThatIsGoneUnderHTMXTakesItAway(t *testing.T) {
 // action without it.
 func TestStockRowFormsSwapOnlyTheirRow(t *testing.T) {
 	h := startStock(t)
-	addStockItem(t, h, "lemon", "2", "fridge", "")
+	addStockItem(t, h, "lemon", "2", "fridge")
 	seedPortions(t, h)
 	page := h.Get(t, "/stock").Body
 

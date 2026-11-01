@@ -157,7 +157,7 @@ A Plan is Prep Sessions, each preparing food at one Slot (an eating occasion: br
 - A Prep Session prepares a Recipe (recipe_id), a Recipe Draft you drafted (draft_id), or Ingredients eaten as they are (ingredients, by their exact names, quantities in the Ingredient's unit for all its Portions together), never more than one of them. A Recipe is scaled to the Portions the Prep Session yields.
 - Never yield more Portions than there is eating planned for. A Portion whose eating falls after the Cycle is still given its eat_on and eat_kind: it stays without a Slot and carries over to the next Cycle.
 - Give each Portion a Storage Location (pantry, fridge or freezer) that fits what it is and how long it must keep.
-- Put every Portion without a Slot in a Slot (kept) before scheduling new Prep Sessions, and use Stock Items first, perishable ones and those near expiry early in the Cycle. A Stock Item past its expiry date is never used.
+- Put every Portion without a Slot in a Slot (kept) before scheduling new Prep Sessions, and use Stock Items first, those that would spoil first, judged from the Ingredient and its Storage Location, early in the Cycle.
 - Design Prep Sessions around whole packs of the Known Catalog, so little is left over.
 - Keep the Targets over every trailing seven days, the Untracked Allowance included, and never use an Ingredient the user excludes or is allergic to.
 - When the Recipe Library has nothing that fits, draft a new Recipe with draft_recipe; the user accepts it into the Recipe Library.
@@ -290,7 +290,7 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []s
 func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 	return agent.Tool{
 		Name:        "list_kitchen",
-		Description: "List what the kitchen will hold when the Plan starts: the Portions without a Slot the Plan may put in Slots (kept), by id, the Stock Items left once the Prep Sessions before it have used theirs up, each with its Storage Location and expiry date, and what an ordered Delivery still to arrive brings.",
+		Description: "List what the kitchen will hold when the Plan starts: the Portions without a Slot the Plan may put in Slots (kept), by id, the Stock Items left once the Prep Sessions before it have used theirs up, each with its Storage Location, and what an ordered Delivery still to arrive brings.",
 		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
 		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
 			c, err := loadCycle(ctx, s.pool, id)
@@ -334,14 +334,7 @@ func (s *Service) describeStock(b *strings.Builder, items []domain.StockItem) {
 		b.WriteString("(none)\n")
 	}
 	for _, it := range items {
-		fmt.Fprintf(b, "- %g %s %s in the %s", it.Quantity, it.Ingredient.Unit, it.Ingredient.Name, it.Location)
-		switch {
-		case it.Expired(s.today()):
-			fmt.Fprintf(b, ", expired on %s: never use it", it.ExpiresOn.Format(longDate))
-		case it.ExpiresOn != nil:
-			fmt.Fprintf(b, ", expires on %s", it.ExpiresOn.Format(longDate))
-		}
-		b.WriteString("\n")
+		fmt.Fprintf(b, "- %g %s %s in the %s\n", it.Quantity, it.Ingredient.Unit, it.Ingredient.Name, it.Location)
 	}
 }
 

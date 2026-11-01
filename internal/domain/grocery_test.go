@@ -5,13 +5,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
 )
 
 func TestGroceryListRoundsWhatThePlanNeedsUpToWholePacks(t *testing.T) {
-	delivery := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
 	oats := domain.Ingredient{Name: "rolled oats", Unit: domain.Grams}
 	milk := domain.Ingredient{Name: "milk", Unit: domain.Millilitres}
 	eggs := domain.Ingredient{Name: "egg", Unit: domain.Pieces}
@@ -29,10 +27,9 @@ func TestGroceryListRoundsWhatThePlanNeedsUpToWholePacks(t *testing.T) {
 	milkPack := domain.ProductMapping{Product: product("Latte 1 l", 1000, domain.Millilitres, "Latte e latticini › Latte")}
 	eggBox := domain.ProductMapping{Product: product("Uova x6", 6, domain.Pieces, "Latte e latticini › Uova"), Proposed: true}
 	everyMapping := map[string]domain.ProductMapping{"rolled oats": oatsPack, "milk": milkPack, "egg": eggBox}
-	item := func(ing domain.Ingredient, quantity float64, expires *time.Time) domain.StockItem {
-		return domain.StockItem{Ingredient: ing, Quantity: quantity, Location: domain.Pantry, ExpiresOn: expires}
+	item := func(ing domain.Ingredient, quantity float64) domain.StockItem {
+		return domain.StockItem{Ingredient: ing, Quantity: quantity, Location: domain.Pantry}
 	}
-	before := delivery.AddDate(0, 0, -1)
 
 	type line struct {
 		ingredient              string
@@ -77,16 +74,9 @@ func TestGroceryListRoundsWhatThePlanNeedsUpToWholePacks(t *testing.T) {
 		{
 			name:     "stock partly covering an Ingredient leaves the rest to buy",
 			plan:     domain.Plan{PrepSessions: []domain.PrepSession{session(porridge, 2)}},
-			stock:    []domain.StockItem{item(oats, 100, nil), item(oats, 20, nil), item(milk, 600, nil)},
+			stock:    []domain.StockItem{item(oats, 100), item(oats, 20), item(milk, 600)},
 			mappings: everyMapping,
 			want:     []line{{ingredient: "rolled oats", needed: 40, packs: 1, bought: 500, surplus: 460, product: "Fiocchi d'avena 500 g"}},
-		},
-		{
-			name:     "stock expired by the Delivery day doesn't count",
-			plan:     domain.Plan{PrepSessions: []domain.PrepSession{session(porridge, 2)}},
-			stock:    []domain.StockItem{item(oats, 500, &before), item(milk, 500, &delivery)},
-			mappings: everyMapping,
-			want:     []line{{ingredient: "rolled oats", needed: 160, packs: 1, bought: 500, surplus: 340, product: "Fiocchi d'avena 500 g"}},
 		},
 		{
 			name:     "an unmapped Ingredient is listed at what is needed",
@@ -115,7 +105,7 @@ func TestGroceryListRoundsWhatThePlanNeedsUpToWholePacks(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := domain.NewGroceryList(tt.plan, tt.stock, tt.mappings, delivery)
+			got := domain.NewGroceryList(tt.plan, tt.stock, tt.mappings)
 			if len(got) != len(tt.want) {
 				t.Fatalf("got %d lines, want %d: %+v", len(got), len(tt.want), got)
 			}
@@ -201,7 +191,7 @@ func TestGroceryListBecomesStockItemsOfWhatItBrings(t *testing.T) {
 	}
 	for i := range want {
 		g, w := got[i], want[i]
-		if g.Ingredient.Name != w.Ingredient.Name || g.Quantity != w.Quantity || g.Location != w.Location || g.ExpiresOn != nil {
+		if g.Ingredient.Name != w.Ingredient.Name || g.Quantity != w.Quantity || g.Location != w.Location {
 			t.Errorf("StockItems[%d] = %+v, want %+v", i, g, w)
 		}
 	}

@@ -38,7 +38,6 @@ type ItemRow struct {
 	Ingredient string
 	Quantity   string // e.g. "450 g"
 	Location   string
-	ExpiresOn  string // empty when there is no expiry date
 	Form       ItemForm
 }
 
@@ -170,9 +169,6 @@ templ itemSummary(it ItemRow) {
 	<span class="row-figure">{ it.Quantity }</span>
 	<span class="row-meta">
 		<span>{ it.Location }</span>
-		if it.ExpiresOn != "" {
-			<span>expires { it.ExpiresOn }</span>
-		}
 	</span>
 }
 
@@ -226,12 +222,5 @@ templ itemFields(f ItemForm) {
 				<option value={ string(loc) } selected?={ f.Values["location"] == string(loc) }>{ string(loc) }</option>
 			}
 		</select>
-	}
-	@web.Field("Expires", "optional", f.Errors["expires_on"]) {
-		<input type="date" name="expires_on" value={ f.Values["expires_on"] }
-			if f.Errors["expires_on"] != "" {
-				aria-invalid="true"
-			}
-		/>
 	}
 }

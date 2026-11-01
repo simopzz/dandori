@@ -134,7 +134,7 @@ func TestSearchIsFilteredToRecipesStockCovers(t *testing.T) {
 	h, llm, _ := startSearch(t)
 	library(t, h, llm)
 	for _, item := range [][2]string{{"chickpeas", "500"}, {"olive oil", "200"}, {"paprika", "3"}, {"paprika", "3"}, {"chicken breast", "200"}} {
-		if res := addStockItem(t, h, item[0], item[1], "pantry", ""); res.StatusCode != http.StatusOK {
+		if res := addStockItem(t, h, item[0], item[1], "pantry"); res.StatusCode != http.StatusOK {
 			t.Fatalf("add %s = %d:\n%s", item[0], res.StatusCode, text(res.Body))
 		}
 	}
@@ -248,7 +248,7 @@ func TestAgentSearchesTheRecipeLibrary(t *testing.T) {
 		}),
 	)
 	library(t, h, llm)
-	if res := addStockItem(t, h, "chickpeas", "500", "pantry", ""); res.StatusCode != http.StatusOK {
+	if res := addStockItem(t, h, "chickpeas", "500", "pantry"); res.StatusCode != http.StatusOK {
 		t.Fatalf("add chickpeas = %d:\n%s", res.StatusCode, text(res.Body))
 	}
 

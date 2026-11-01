@@ -86,17 +86,13 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, rej rejection, 
 }
 
 func newItemRow(it Item) ItemRow {
-	row := ItemRow{
+	return ItemRow{
 		ID:         it.ID,
 		Ingredient: it.Ingredient.Name,
 		Quantity:   formatAmount(it.Quantity) + " " + string(it.Ingredient.Unit),
 		Location:   string(it.Location),
 		Form:       ItemForm{Values: itemValues(it)},
 	}
-	if it.ExpiresOn != nil {
-		row.ExpiresOn = it.ExpiresOn.Format(dateLayout)
-	}
-	return row
 }
 
 func newPortionRow(portion Portion) PortionRow {

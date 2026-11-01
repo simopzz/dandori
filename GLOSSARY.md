@@ -39,7 +39,7 @@ The user's lasting wishes for how their meals are planned (variety, effort, what
 _Avoid_: Preferences, settings
 
 **Exception**:
-A logged deviation from what Dandori takes to happen: for a Slot, a Meal Out, skipped, or swapped (something else was eaten instead: another Portion or Stock Items); for a Prep Session, not prepared; for a Portion or Stock Item, discarded (expired, spoiled, lost). It records what happened, or, for a future Slot, what the user knows will happen (only a Meal Out or a skipped Slot can be logged ahead); when the Plan relied on it, the Plan Proposal that follows repairs the rest of the Plan.
+A logged deviation from what Dandori takes to happen: for a Slot, a Meal Out, skipped, or swapped (something else was eaten instead: another Portion or Stock Items); for a Prep Session, not prepared; for a Portion, discarded (spoiled, lost). Stock Items have none: spoiled stock is corrected on the Stock Item, and what that leaves short is a Shortfall. It records what happened, or, for a future Slot, what the user knows will happen (only a Meal Out or a skipped Slot can be logged ahead); when the Plan relied on it, the Plan Proposal that follows repairs the rest of the Plan.
 _Avoid_: Event, interruption
 
 **Meal Out**:
@@ -73,15 +73,15 @@ A food as such (chicken breast, rolled oats), measured in one unit (grams, milli
 _Avoid_: Pantry item, product
 
 **Kitchen Check**:
-The user's confirmation, before an upcoming Cycle is planned, of the Portions and expiring Stock Items Dandori believes the kitchen holds, correcting what has drifted.
+The user's confirmation, before an upcoming Cycle is planned, of every Portion and Stock Item Dandori believes the kitchen holds today, correcting what has drifted. Skipping it counts as confirming.
 _Avoid_: Stocktake, inventory count
 
 **Stock Item**:
-A quantity of one Ingredient held in a Storage Location, with an optional expiry date.
+A quantity of one Ingredient held in a Storage Location. It has no expiry date: the user watches for spoiled food and corrects the Stock Item.
 _Avoid_: Inventory, pantry item
 
 **Shortfall**:
-What a Prep Session needs of an Ingredient beyond the Stock Items the kitchen will hold on its day, once the Prep Sessions before it have used theirs up. Dandori finds it, nobody logs it: it follows stock and the Plan, and goes once the stock is there. A discarded Stock Item, a correction or a short Delivery can cause one. It is not an Exception, and never leads to a Plan Proposal unless the user asks for one.
+What a Prep Session of the current Cycle needs of an Ingredient beyond the Stock Items the kitchen will hold on its day, once the Prep Sessions before it have used theirs up, when its Plan counted on them being there: something unexpected took them away (spoiled food, a correction, a short Delivery). Dandori finds it, nobody logs it: it follows stock and the Plan, and goes once the stock is there. An upcoming Cycle has none: what its Plan needs beyond the stock is what its Grocery List buys. It is not an Exception, and never leads to a Plan Proposal unless the user asks for one.
 _Avoid_: Missing stock, deficit, stock Exception
 
 **Storage Location**:
@@ -164,8 +164,8 @@ _Avoid_: Log entry, step
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.
 - An Exception logged ahead is input to the planning Run when the Plan doesn't rely on it yet, and leads to a Plan Proposal like any other when it does. Its Slot gets no Portion and no Prep Session; when cooking is impossible on a day without one, the user says so in a note. A Meal Out counts toward the Targets with the Profile's default estimate unless the Exception gives its own; a skipped Slot counts as nothing. Changing or removing it works the same way. It belongs to its day and Slot kind, not to a Cycle: it outlives a moved Delivery or a dropped Cycle, and counts toward the Targets even if its day ends up between Cycles. Once its day is past it stands as what happened, unless the user changes it.
-- A Stock Item past its expiry date stays in the kitchen until the user logs it discarded, but no Plan uses it.
-- A Prep Session uses up its Ingredients once, from the Stock Items holding each: the earliest expiry first, those without one last, then the oldest; it skips any expired on its day, whatever their Storage Location. A Stock Item used up leaves the kitchen. Stock that falls short is used up as far as it goes, never below nothing. A correction the user makes to a Stock Item afterwards stands: it is never used up again. A Prep Session logged not prepared gives back what it used up, as it was.
+- A Plan uses first the Stock Items that would spoil first, judging by what they are and their Storage Location (fresh fish in the fridge before rice in the pantry). Dandori records no expiry dates.
+- A Prep Session uses up its Ingredients once, from the Stock Items holding each, the oldest first, whatever their Storage Location. A Stock Item used up leaves the kitchen. Stock that falls short is used up as far as it goes, never below nothing. A correction the user makes to a Stock Item afterwards stands: it is never used up again. A Prep Session logged not prepared gives back what it used up, as it was.
 - The Plan is taken to happen as dated until an Exception says otherwise: a Prep Session is prepared from its day on, using up the Stock Items of its Ingredients, and a Portion is eaten once the day of its Slot is past. Prepared Portions not yet eaten, and Stock Items, are what the kitchen holds.
 - At most one Plan Proposal is pending, or one planning Run going, at a time, across all Cycles. Asking to plan waits its turn: it is refused while either is, and an upcoming Cycle is planned only once the current Cycle's pending Plan Proposal is decided. Something that happened replaces instead: an Exception on the current Cycle, or a moved Delivery, replaces the pending Plan Proposal and cancels the planning Run going on either Cycle; an Exception on the upcoming Cycle does so only for the upcoming Cycle; one between Cycles, for neither. The next planning Run reads what happened for itself.
 - A Plan Proposal approved in the current Cycle changes what will carry over when it changes how many Portions of each Recipe the upcoming Delivery would carry over.

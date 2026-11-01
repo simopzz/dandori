@@ -4,7 +4,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"time"
 )
 
 // ProductMapping is the Catalog Product preferred for buying an
@@ -58,13 +57,13 @@ type GroceryList []GroceryLine
 // a gram left over make a line.
 const tolerance = 1e-6
 
-// NewGroceryList is what plan needs of each Ingredient, less the Stock
-// Items not expired on the Delivery day, rounded up to whole packs of its
-// Product Mapping in mappings, keyed by Ingredient name: at least one, if
-// anything is needed. A Prep Session of a Recipe scales it to the Portions
-// it yields. A Product Mapping to a Catalog Product no longer sold in the
-// Ingredient's unit counts as none.
-func NewGroceryList(plan Plan, stock []StockItem, mappings map[string]ProductMapping, delivery time.Time) GroceryList {
+// NewGroceryList is what plan needs of each Ingredient, less its Stock
+// Items, rounded up to whole packs of its Product Mapping in mappings,
+// keyed by Ingredient name: at least one, if anything is needed. A Prep
+// Session of a Recipe scales it to the Portions it yields. A Product
+// Mapping to a Catalog Product no longer sold in the Ingredient's unit
+// counts as none.
+func NewGroceryList(plan Plan, stock []StockItem, mappings map[string]ProductMapping) GroceryList {
 	needs := map[string]*GroceryLine{}
 	for _, ps := range plan.PrepSessions {
 		for _, ri := range ps.uses() {
@@ -75,7 +74,7 @@ func NewGroceryList(plan Plan, stock []StockItem, mappings map[string]ProductMap
 		}
 	}
 	for _, s := range stock {
-		if l := needs[s.Ingredient.Name]; l != nil && !s.Expired(delivery) {
+		if l := needs[s.Ingredient.Name]; l != nil {
 			l.Needed -= s.Quantity
 		}
 	}
@@ -150,7 +149,7 @@ func (g GroceryList) ByAisle() []AisleGroup {
 
 // StockItems are what the list brings once its Delivery arrives: a Stock
 // Item of each line's Ingredient, of all it bought, kept where its aisle
-// says, with no expiry date.
+// says.
 func (g GroceryList) StockItems() []StockItem {
 	var items []StockItem
 	for _, l := range g {
