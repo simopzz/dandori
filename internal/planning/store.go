@@ -12,17 +12,8 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/recipes"
 )
-
-// ingredientColumns are an Ingredient i's columns, as scanIngredient reads
-// them, with the terms it falls under.
-const ingredientColumns = `i.name, i.unit, i.kcal, i.protein_g, i.carbs_g, i.fat_g,
-	coalesce((SELECT array_agg(f.term ORDER BY f.term) FROM ingredient_falls_under f WHERE f.ingredient_id = i.id), '{}')`
-
-func ingredientFields(ing *domain.Ingredient) []any {
-	n := &ing.Nutrition
-	return []any{&ing.Name, &ing.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG, &ing.FallsUnder}
-}
 
 // cycleColumns are a Cycle's columns, as scanCycle reads them.
 var cycleColumns = `id, delivery_on, ` + db.Minutes("window_from") + `, ` + db.Minutes("window_to") + `, ordered,
@@ -196,43 +187,6 @@ func deleteCycle(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// loadRecipes loads the Recipes with ids, with their Ingredients.
-func loadRecipes(ctx context.Context, q db.Querier, ids []int64) (map[int64]*domain.Recipe, error) {
-	rows, _ := q.Query(ctx, `SELECT id, name, portions FROM recipe WHERE id = ANY($1)`, ids)
-	recipes := map[int64]*domain.Recipe{}
-	var id int64
-	var r domain.Recipe
-	if _, err := pgx.ForEachRow(rows, []any{&id, &r.Name, &r.Portions}, func() error {
-		rec := r
-		recipes[id] = &rec
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	rows, _ = q.Query(ctx, `
-		SELECT ri.recipe_id, ri.quantity, `+ingredientColumns+`
-		FROM recipe_ingredient ri JOIN ingredient i ON i.id = ri.ingredient_id
-		WHERE ri.recipe_id = ANY($1) ORDER BY ri.recipe_id, ri.position`, ids)
-	var ri domain.RecipeIngredient
-	_, err := pgx.ForEachRow(rows, append([]any{&id, &ri.Quantity}, ingredientFields(&ri.Ingredient)...), func() error {
-		recipes[id].Ingredients = append(recipes[id].Ingredients, ri)
-		return nil
-	})
-	return recipes, err
-}
-
-// loadIngredients loads the Ingredients named names, by name.
-func loadIngredients(ctx context.Context, q db.Querier, names []string) (map[string]domain.Ingredient, error) {
-	rows, _ := q.Query(ctx, `SELECT `+ingredientColumns+` FROM ingredient i WHERE i.name = ANY($1)`, names)
-	known := map[string]domain.Ingredient{}
-	var ing domain.Ingredient
-	_, err := pgx.ForEachRow(rows, ingredientFields(&ing), func() error {
-		known[ing.Name] = ing
-		return nil
-	})
-	return known, err
-}
-
 // notUsedUp loads the ids of the Prep Sessions that haven't used up their
 // stock yet.
 func notUsedUp(ctx context.Context, q db.Querier) ([]int64, error) {
@@ -282,21 +236,21 @@ func loadPrepSessions(ctx context.Context, q db.Querier, ids []int64) (map[int64
 	for _, id := range recipeOf {
 		recipeIDs = append(recipeIDs, id)
 	}
-	recipes, err := loadRecipes(ctx, q, recipeIDs)
+	byID, err := recipes.LoadRecipes(ctx, q, recipeIDs)
 	if err != nil {
 		return nil, err
 	}
 	for session, recipe := range recipeOf {
-		sessions[session].Recipe = recipes[recipe]
+		sessions[session].Recipe = byID[recipe]
 	}
 
 	rows, _ = q.Query(ctx, `
-		SELECT psi.prep_session_id, psi.quantity, `+ingredientColumns+`
+		SELECT psi.prep_session_id, psi.quantity, `+recipes.IngredientColumns+`
 		FROM prep_session_ingredient psi JOIN ingredient i ON i.id = psi.ingredient_id
 		WHERE psi.prep_session_id = ANY($1) ORDER BY psi.prep_session_id, psi.position`, ids)
 	var id int64
 	var ri domain.RecipeIngredient
-	if _, err := pgx.ForEachRow(rows, append([]any{&id, &ri.Quantity}, ingredientFields(&ri.Ingredient)...), func() error {
+	if _, err := pgx.ForEachRow(rows, append([]any{&id, &ri.Quantity}, recipes.IngredientFields(&ri.Ingredient)...), func() error {
 		sessions[id].Ingredients = append(sessions[id].Ingredients, ri)
 		return nil
 	}); err != nil {
@@ -687,7 +641,7 @@ func groceryListFixed(ctx context.Context, q db.Querier, id int64) (bool, error)
 // Ingredient name.
 func loadGroceryList(ctx context.Context, q db.Querier, id int64) (domain.GroceryList, error) {
 	rows, _ := q.Query(ctx, `
-		SELECT g.needed, g.product_code, g.product_name, g.pack_quantity, g.aisle, g.proposed, g.packs, `+ingredientColumns+`
+		SELECT g.needed, g.product_code, g.product_name, g.pack_quantity, g.aisle, g.proposed, g.packs, `+recipes.IngredientColumns+`
 		FROM grocery_line g JOIN ingredient i ON i.id = g.ingredient_id
 		WHERE g.cycle_id = $1 ORDER BY i.name`, id)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.GroceryLine, error) {
@@ -696,7 +650,7 @@ func loadGroceryList(ctx context.Context, q db.Querier, id int64) (domain.Grocer
 		var pack *float64
 		var proposed *bool
 		var packs *int
-		err := row.Scan(append([]any{&l.Needed, &code, &name, &pack, &aisle, &proposed, &packs}, ingredientFields(&l.Ingredient)...)...)
+		err := row.Scan(append([]any{&l.Needed, &code, &name, &pack, &aisle, &proposed, &packs}, recipes.IngredientFields(&l.Ingredient)...)...)
 		if code != nil {
 			l.Mapping = &domain.ProductMapping{
 				Product:  domain.CatalogProduct{Code: *code, Name: *name, PackQuantity: *pack, Unit: l.Ingredient.Unit, Aisle: *aisle},

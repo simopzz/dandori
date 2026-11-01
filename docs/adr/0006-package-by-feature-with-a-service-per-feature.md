@@ -11,4 +11,5 @@ One `app` package holding every feature's HTTP handlers, SQL and LLM prompts sto
 ## Consequences
 
 - Stores are concrete and not behind interfaces; tests hit a real Postgres through `apptest`. Interfaces are kept for external, non-deterministic dependencies (`agent.LLM`, the Playwright MCP client).
-- Features may import `runs` and other features' services, but dependencies must stay one-way: if two features need each other, the shared part moves into `domain` or a new package.
+- Features may import `runs` and other features' services, but dependencies must stay one-way: if two features need each other, the shared part moves into `domain` or a new package. A feature that only needs to read something a feature depending on it owns takes a function for it, which `app` wires: `stock` lists the Recipe Library's Ingredients that way, so Ingredients keep one loader, in `recipes`.
+- A feature whose rows another feature's store functions read exports its loaders for them beside its `Service`, taking a `db.Querier` so the caller's transaction spans them, rather than the reader writing its own: `planning` loads Recipes and Ingredients through `recipes.LoadRecipes` and `recipes.LoadIngredients`, and its queries joining `ingredient` select `recipes.IngredientColumns`.
