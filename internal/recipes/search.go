@@ -95,13 +95,12 @@ func (s *Service) Search(ctx context.Context, f Search) (Results, error) {
 	if err != nil {
 		return Results{}, err
 	}
-	today := s.today()
 	for _, id := range ids {
 		i := slices.IndexFunc(recipes, func(r Stored) bool { return r.ID == id })
 		if i < 0 {
 			continue
 		}
-		found := Found{Stored: recipes[i], Missing: recipes[i].MissingFrom(items, today)}
+		found := Found{Stored: recipes[i], Missing: recipes[i].MissingFrom(items)}
 		if f.InStock && len(found.Missing) > 0 {
 			continue
 		}
@@ -206,7 +205,7 @@ var searchRecipesSchema = json.RawMessage(`{
     "query": {"type": "string", "description": "What you are after, in natural language, in the Content Language. Leave out to filter only."},
     "appliance": {"type": "string", "description": "An appliance the Recipes must need."},
     "max_prep_minutes": {"type": "integer", "minimum": 1, "description": "The longest prep time; Recipes whose prep time isn't given are left out."},
-    "in_stock": {"type": "boolean", "description": "Only Recipes whose Ingredients current Stock Items cover, unexpired."}
+    "in_stock": {"type": "boolean", "description": "Only Recipes whose Ingredients current Stock Items cover."}
   }
 }`)
 

@@ -67,7 +67,7 @@ func (s *Service) groceryListOf(ctx context.Context, q db.Querier, c Cycle) (dom
 	if err != nil {
 		return nil, false, err
 	}
-	return domain.NewGroceryList(plan, stock, mappings, c.Delivery.On), false, nil
+	return domain.NewGroceryList(plan, stock, mappings), false, nil
 }
 
 // fixGroceryList stores c's Grocery List as it stands, unless it is fixed

@@ -5,13 +5,9 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
 )
-
-// dateLayout is how an expiry date is typed and shown.
-const dateLayout = "2006-01-02"
 
 // formFields maps domain.StockItem field names to form field names.
 var formFields = map[string]string{"Quantity": "quantity", "Location": "location"}
@@ -34,13 +30,6 @@ func readStockItem(form url.Values) (domain.StockItem, map[string]string) {
 	} else {
 		item.Quantity = v
 	}
-	if raw := get("expires_on"); raw != "" {
-		if d, err := time.Parse(dateLayout, raw); err != nil {
-			problems["expires_on"] = "Must be a date"
-		} else {
-			item.ExpiresOn = &d
-		}
-	}
 
 	for field, msg := range item.Validate() {
 		if name := formFields[field]; problems[name] == "" {
@@ -60,14 +49,10 @@ func typed(form url.Values) map[string]string {
 }
 
 func itemValues(it Item) map[string]string {
-	values := map[string]string{
+	return map[string]string{
 		"quantity": formatAmount(it.Quantity),
 		"location": string(it.Location),
 	}
-	if it.ExpiresOn != nil {
-		values["expires_on"] = it.ExpiresOn.Format(dateLayout)
-	}
-	return values
 }
 
 func formatAmount(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }

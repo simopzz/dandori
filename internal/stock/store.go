@@ -13,7 +13,7 @@ import (
 // itemsQuery selects every Stock Item by Ingredient name, then in the order
 // they were recorded.
 const itemsQuery = `
-	SELECT s.id, s.quantity, s.location, s.expires_on, i.name, i.unit
+	SELECT s.id, s.quantity, s.location, i.name, i.unit
 	FROM stock_item s JOIN ingredient i ON i.id = s.ingredient_id
 	ORDER BY i.name, s.id`
 
@@ -31,7 +31,7 @@ func queryItems(ctx context.Context, q db.Querier, sql string) ([]Item, error) {
 	rows, _ := q.Query(ctx, sql)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Item, error) {
 		var it Item
-		err := row.Scan(&it.ID, &it.Quantity, &it.Location, &it.ExpiresOn, &it.Ingredient.Name, &it.Ingredient.Unit)
+		err := row.Scan(&it.ID, &it.Quantity, &it.Location, &it.Ingredient.Name, &it.Ingredient.Unit)
 		return it, err
 	})
 }
@@ -40,9 +40,9 @@ func queryItems(ctx context.Context, q db.Querier, sql string) ([]Item, error) {
 // Ingredient isn't known.
 func insertItem(ctx context.Context, q db.Querier, item domain.StockItem) error {
 	tag, err := q.Exec(ctx, `
-		INSERT INTO stock_item (ingredient_id, quantity, location, expires_on)
-		SELECT id, $2, $3, $4 FROM ingredient WHERE name = $1`,
-		item.Ingredient.Name, item.Quantity, item.Location, item.ExpiresOn)
+		INSERT INTO stock_item (ingredient_id, quantity, location)
+		SELECT id, $2, $3 FROM ingredient WHERE name = $1`,
+		item.Ingredient.Name, item.Quantity, item.Location)
 	if err != nil {
 		return err
 	}
@@ -54,8 +54,8 @@ func insertItem(ctx context.Context, q db.Querier, item domain.StockItem) error 
 
 func updateItem(ctx context.Context, q db.Querier, id int64, item domain.StockItem) error {
 	tag, err := q.Exec(ctx, `
-		UPDATE stock_item SET quantity = $2, location = $3, expires_on = $4 WHERE id = $1`,
-		id, item.Quantity, item.Location, item.ExpiresOn)
+		UPDATE stock_item SET quantity = $2, location = $3 WHERE id = $1`,
+		id, item.Quantity, item.Location)
 	if err != nil {
 		return err
 	}
@@ -80,9 +80,9 @@ func setQuantity(ctx context.Context, q db.Querier, id int64, quantity float64) 
 // the Stock Item with stockItemID.
 func insertTaken(ctx context.Context, q db.Querier, prepSessionID, stockItemID int64, t domain.Taking) error {
 	_, err := q.Exec(ctx, `
-		INSERT INTO stock_taken (prep_session_id, stock_item_id, ingredient_id, quantity, location, expires_on)
-		SELECT $1, $2, id, $4, $5, $6 FROM ingredient WHERE name = $3`,
-		prepSessionID, stockItemID, t.Ingredient.Name, t.Quantity, t.Location, t.ExpiresOn)
+		INSERT INTO stock_taken (prep_session_id, stock_item_id, ingredient_id, quantity, location)
+		SELECT $1, $2, id, $4, $5 FROM ingredient WHERE name = $3`,
+		prepSessionID, stockItemID, t.Ingredient.Name, t.Quantity, t.Location)
 	return err
 }
 

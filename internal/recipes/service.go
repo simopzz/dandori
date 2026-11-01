@@ -57,7 +57,6 @@ type Service struct {
 	language domain.ContentLanguage
 	embedder embedding.Embedder
 	stock    *stock.Service
-	today    func() time.Time
 	matcher  IngredientMatcher
 }
 
@@ -72,8 +71,6 @@ type Config struct {
 	Embedder embedding.Embedder
 	// Stock is the Stock Items that decide whether stock covers a Recipe.
 	Stock *stock.Service
-	// Today is the day it is, before which a Stock Item has expired.
-	Today func() time.Time
 	// Matcher suggests the known Ingredient a new one's name was meant to
 	// be; TrigramMatcher when nil.
 	Matcher IngredientMatcher
@@ -85,7 +82,7 @@ func New(pool *pgxpool.Pool, cfg Config) *Service {
 	if matcher == nil {
 		matcher = TrigramMatcher{}
 	}
-	return &Service{pool: pool, runs: cfg.Runs, language: cfg.Language, embedder: cfg.Embedder, stock: cfg.Stock, today: cfg.Today, matcher: matcher}
+	return &Service{pool: pool, runs: cfg.Runs, language: cfg.Language, embedder: cfg.Embedder, stock: cfg.Stock, matcher: matcher}
 }
 
 // snapshot reads several queries as of one moment, so a Recipe saved or

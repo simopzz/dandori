@@ -166,7 +166,6 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Language: a.cfg.ContentLanguage,
 		Embedder: ports.Embedder,
 		Stock:    a.stock,
-		Today:    today,
 	})
 	a.catalog = catalog.New(pool, a.runs, catalog.Config{
 		Store:    esselunga.Throttle(ports.Store, a.cfg.StoreThrottle),

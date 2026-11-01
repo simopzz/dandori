@@ -128,8 +128,8 @@ func (s *Service) Add(ctx context.Context, item domain.StockItem) error {
 	return insertItem(ctx, s.pool, item)
 }
 
-// Update adjusts the quantity, Storage Location and expiry date of the
-// Stock Item with id to those of item; it keeps its Ingredient.
+// Update adjusts the quantity and Storage Location of the Stock Item with
+// id to those of item; it keeps its Ingredient.
 func (s *Service) Update(ctx context.Context, id int64, item domain.StockItem) error {
 	if err := validate(item); err != nil {
 		return err

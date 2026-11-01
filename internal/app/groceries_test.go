@@ -37,7 +37,7 @@ func startGroceriesWith(t *testing.T) (*apptest.Harness, *clock, *fakellm.LLM) {
 	if res := h.PostForm(t, form.Action, form.Values); res.StatusCode != http.StatusOK {
 		t.Fatalf("map chicken breast = %d:\n%s", res.StatusCode, text(res.Body))
 	}
-	addStockItem(t, h, "olive oil", "500", "pantry", "")
+	addStockItem(t, h, "olive oil", "500", "pantry")
 	return h, today, llm
 }
 
