@@ -715,7 +715,7 @@ func (s *Service) drafts(ctx context.Context, q db.Querier, p proposedPlan) ([]r
 	for _, d := range drafted {
 		recipeIDs = append(recipeIDs, d.RecipeID)
 	}
-	accepted, err := loadRecipes(ctx, q, recipeIDs)
+	accepted, err := recipes.LoadRecipes(ctx, q, recipeIDs)
 	if err != nil {
 		return nil, err
 	}

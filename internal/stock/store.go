@@ -36,15 +36,6 @@ func queryItems(ctx context.Context, q db.Querier, sql string) ([]Item, error) {
 	})
 }
 
-func loadIngredients(ctx context.Context, q db.Querier) ([]domain.Ingredient, error) {
-	rows, _ := q.Query(ctx, `SELECT name, unit FROM ingredient ORDER BY name`)
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) {
-		var ing domain.Ingredient
-		err := row.Scan(&ing.Name, &ing.Unit)
-		return ing, err
-	})
-}
-
 // insertItem stores item, returning ErrUnknownIngredient when its
 // Ingredient isn't known.
 func insertItem(ctx context.Context, q db.Querier, item domain.StockItem) error {

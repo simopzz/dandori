@@ -108,7 +108,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Stored, error) {
 	var recipes []Stored
 	err := pgx.BeginTxFunc(ctx, s.pool, snapshot, func(tx pgx.Tx) error {
 		var err error
-		recipes, err = loadRecipes(ctx, tx, &id)
+		recipes, err = loadRecipes(ctx, tx, []int64{id})
 		return err
 	})
 	if err != nil {
@@ -122,7 +122,12 @@ func (s *Service) Get(ctx context.Context, id int64) (Stored, error) {
 
 // KnownIngredients loads every Ingredient in the Recipe Library, by name.
 func (s *Service) KnownIngredients(ctx context.Context) (map[string]domain.Ingredient, error) {
-	return loadIngredients(ctx, s.pool)
+	return loadKnown(ctx, s.pool, nil)
+}
+
+// Ingredients loads every Ingredient in the Recipe Library, in name order.
+func (s *Service) Ingredients(ctx context.Context) ([]domain.Ingredient, error) {
+	return loadIngredients(ctx, s.pool, nil)
 }
 
 // ClosestIngredient is the known Ingredient name, of those in known, that
@@ -168,7 +173,7 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 // StartParse starts a Run parsing the pasted text into a Recipe Draft. The
 // draft takes the Run's id.
 func (s *Service) StartParse(ctx context.Context, text string) (int64, error) {
-	known, err := loadIngredients(ctx, s.pool)
+	known, err := loadKnown(ctx, s.pool, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -210,7 +215,7 @@ func (s *Service) DraftByID(ctx context.Context, id int64) (rec domain.Recipe, f
 	if err != nil || !found {
 		return domain.Recipe{}, false, err
 	}
-	known, err := loadIngredients(ctx, s.pool)
+	known, err := loadKnown(ctx, s.pool, nil)
 	if err != nil {
 		return domain.Recipe{}, false, err
 	}
@@ -308,7 +313,7 @@ func (s *Service) DraftsByID(ctx context.Context, q db.Querier, ids []int64) (ma
 	if err != nil {
 		return nil, err
 	}
-	known, err := loadIngredients(ctx, q)
+	known, err := loadKnown(ctx, q, nil)
 	if err != nil {
 		return nil, err
 	}

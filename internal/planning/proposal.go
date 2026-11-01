@@ -200,11 +200,11 @@ func (s *Service) resolve(ctx context.Context, q db.Querier, p proposedPlan) (do
 			recipeIDs = append(recipeIDs, d.RecipeID)
 		}
 	}
-	recipes, err := loadRecipes(ctx, q, recipeIDs)
+	byID, err := recipes.LoadRecipes(ctx, q, recipeIDs)
 	if err != nil {
 		return domain.Plan{}, err
 	}
-	ingredients, err := loadIngredients(ctx, q, names)
+	ingredients, err := recipes.LoadIngredients(ctx, q, names)
 	if err != nil {
 		return domain.Plan{}, err
 	}
@@ -213,7 +213,7 @@ func (s *Service) resolve(ctx context.Context, q db.Querier, p proposedPlan) (do
 	for _, ps := range p.PrepSessions {
 		session := domain.PrepSession{At: ps.at}
 		if ps.RecipeID != nil {
-			if session.Recipe = recipes[*ps.RecipeID]; session.Recipe == nil {
+			if session.Recipe = byID[*ps.RecipeID]; session.Recipe == nil {
 				return plan, unreadable("there is no Recipe %d", *ps.RecipeID)
 			}
 		}
@@ -223,7 +223,7 @@ func (s *Service) resolve(ctx context.Context, q db.Querier, p proposedPlan) (do
 			case !ok:
 				return plan, unreadable("there is no Recipe Draft %d of the planning Run that proposed it: it was discarded, or never drafted there", *ps.DraftID)
 			case d.RecipeID != 0:
-				if session.Recipe = recipes[d.RecipeID]; session.Recipe == nil {
+				if session.Recipe = byID[d.RecipeID]; session.Recipe == nil {
 					return plan, unreadable("there is no Recipe %d", d.RecipeID)
 				}
 			default:

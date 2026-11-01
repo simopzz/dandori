@@ -15,13 +15,48 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// loadRecipes loads the Recipe with id, or every Recipe when id is nil,
+// IngredientColumns are an Ingredient i's columns, as IngredientFields
+// scans them, with the terms it falls under: a query joining ingredient i
+// selects them to read its Ingredients as the Recipe Library stores them.
+const IngredientColumns = `i.name, i.unit, i.kcal, i.protein_g, i.carbs_g, i.fat_g,
+	coalesce((SELECT array_agg(f.term ORDER BY f.term) FROM ingredient_falls_under f WHERE f.ingredient_id = i.id), '{}')`
+
+// IngredientFields are where a row's IngredientColumns are scanned into ing.
+func IngredientFields(ing *domain.Ingredient) []any {
+	n := &ing.Nutrition
+	return []any{&ing.Name, &ing.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG, &ing.FallsUnder}
+}
+
+// LoadRecipes loads the Recipes with ids, by id, with their Ingredients,
+// through q, so a caller's transaction spans it.
+func LoadRecipes(ctx context.Context, q db.Querier, ids []int64) (map[int64]*domain.Recipe, error) {
+	recipes := map[int64]*domain.Recipe{}
+	if len(ids) == 0 {
+		return recipes, nil
+	}
+	stored, err := loadRecipes(ctx, q, ids)
+	for i := range stored {
+		recipes[stored[i].ID] = &stored[i].Recipe
+	}
+	return recipes, err
+}
+
+// LoadIngredients loads the Ingredients named names, by name, through q, so
+// a caller's transaction spans it.
+func LoadIngredients(ctx context.Context, q db.Querier, names []string) (map[string]domain.Ingredient, error) {
+	if len(names) == 0 {
+		return map[string]domain.Ingredient{}, nil
+	}
+	return loadKnown(ctx, q, names)
+}
+
+// loadRecipes loads the Recipes with ids, or every Recipe when ids is nil,
 // newest first, with their Ingredients. Call it in a snapshot transaction,
 // so both queries see the same Recipes.
-func loadRecipes(ctx context.Context, q db.Querier, id *int64) ([]Stored, error) {
+func loadRecipes(ctx context.Context, q db.Querier, ids []int64) ([]Stored, error) {
 	rows, _ := q.Query(ctx, `
 		SELECT id, name, portions, prep_minutes, appliances, steps, updated_at FROM recipe
-		WHERE $1::bigint IS NULL OR id = $1 ORDER BY id DESC`, id)
+		WHERE $1::bigint[] IS NULL OR id = ANY($1) ORDER BY id DESC`, ids)
 	recipes, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Stored, error) {
 		var r Stored
 		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.PrepMinutes, &r.Appliances, &r.Steps, &r.version)
@@ -35,14 +70,13 @@ func loadRecipes(ctx context.Context, q db.Querier, id *int64) ([]Stored, error)
 		byID[recipes[i].ID] = &recipes[i]
 	}
 	rows, _ = q.Query(ctx, `
-		SELECT ri.recipe_id, ri.quantity, i.name, i.unit, i.kcal, i.protein_g, i.carbs_g, i.fat_g
+		SELECT ri.recipe_id, ri.quantity, `+IngredientColumns+`
 		FROM recipe_ingredient ri JOIN ingredient i ON i.id = ri.ingredient_id
-		WHERE $1::bigint IS NULL OR ri.recipe_id = $1
-		ORDER BY ri.recipe_id, ri.position`, id)
+		WHERE $1::bigint[] IS NULL OR ri.recipe_id = ANY($1)
+		ORDER BY ri.recipe_id, ri.position`, ids)
 	var recipeID int64
 	var ri domain.RecipeIngredient
-	n := &ri.Ingredient.Nutrition
-	_, err = pgx.ForEachRow(rows, []any{&recipeID, &ri.Quantity, &ri.Ingredient.Name, &ri.Ingredient.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG}, func() error {
+	_, err = pgx.ForEachRow(rows, append([]any{&recipeID, &ri.Quantity}, IngredientFields(&ri.Ingredient)...), func() error {
 		r := byID[recipeID]
 		r.Ingredients = append(r.Ingredients, ri)
 		return nil
@@ -50,16 +84,26 @@ func loadRecipes(ctx context.Context, q db.Querier, id *int64) ([]Stored, error)
 	return recipes, err
 }
 
-// loadIngredients loads every Ingredient, by name.
-func loadIngredients(ctx context.Context, q db.Querier) (map[string]domain.Ingredient, error) {
-	rows, _ := q.Query(ctx, `SELECT name, unit, kcal, protein_g, carbs_g, fat_g FROM ingredient`)
-	known := map[string]domain.Ingredient{}
-	var ing domain.Ingredient
-	n := &ing.Nutrition
-	_, err := pgx.ForEachRow(rows, []any{&ing.Name, &ing.Unit, &n.Kcal, &n.ProteinG, &n.CarbsG, &n.FatG}, func() error {
-		known[ing.Name] = ing
-		return nil
+// loadIngredients loads the Ingredients named names, or every Ingredient
+// when names is nil, in name order.
+func loadIngredients(ctx context.Context, q db.Querier, names []string) ([]domain.Ingredient, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT `+IngredientColumns+` FROM ingredient i
+		WHERE $1::text[] IS NULL OR i.name = ANY($1) ORDER BY i.name`, names)
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) {
+		var ing domain.Ingredient
+		err := row.Scan(IngredientFields(&ing)...)
+		return ing, err
 	})
+}
+
+// loadKnown loads the Ingredients as loadIngredients does, by name.
+func loadKnown(ctx context.Context, q db.Querier, names []string) (map[string]domain.Ingredient, error) {
+	ings, err := loadIngredients(ctx, q, names)
+	known := map[string]domain.Ingredient{}
+	for _, ing := range ings {
+		known[ing.Name] = ing
+	}
 	return known, err
 }
 

@@ -208,7 +208,7 @@ func (s *Service) DraftTool() agent.Tool {
 			if err := json.Unmarshal(input, &p); err != nil {
 				return "", fmt.Errorf("the Recipe does not match the schema: %w", err)
 			}
-			known, err := loadIngredients(ctx, s.pool)
+			known, err := loadKnown(ctx, s.pool, nil)
 			if err != nil {
 				return "", err
 			}

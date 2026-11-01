@@ -157,7 +157,10 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 	}, log)
 	a.profile = profile.New(pool)
 	today := func() time.Time { return domain.DayOf(a.cfg.Now()) }
-	a.stock = stock.New(pool, today)
+	// The Recipe Library is created after the stock, which it searches by.
+	a.stock = stock.New(pool, today, func(ctx context.Context) ([]domain.Ingredient, error) {
+		return a.recipes.Ingredients(ctx)
+	})
 	a.recipes = recipes.New(pool, recipes.Config{
 		Runs:     a.runs,
 		Language: a.cfg.ContentLanguage,

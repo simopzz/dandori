@@ -43,14 +43,16 @@ type Item struct {
 // has a Delivery whose window has ended, and the Prep Sessions whose day
 // has come, change the stock before any of them runs (ADR-0010).
 type Service struct {
-	pool  *pgxpool.Pool
-	today func() time.Time
+	pool        *pgxpool.Pool
+	today       func() time.Time
+	ingredients func(context.Context) ([]domain.Ingredient, error)
 }
 
 // New creates the Service; today is the day it is, which decides what the
-// Plan has cooked and eaten so far.
-func New(pool *pgxpool.Pool, today func() time.Time) *Service {
-	return &Service{pool: pool, today: today}
+// Plan has cooked and eaten so far, and ingredients loads every Ingredient
+// the Recipe Library knows, in name order.
+func New(pool *pgxpool.Pool, today func() time.Time, ingredients func(context.Context) ([]domain.Ingredient, error)) *Service {
+	return &Service{pool: pool, today: today, ingredients: ingredients}
 }
 
 // Items loads every Stock Item, by Ingredient name, with its Ingredient's
@@ -112,10 +114,10 @@ func (s *Service) UseUp(ctx context.Context, q db.Querier, sessions []domain.Pre
 	return nil
 }
 
-// Ingredients loads the name and unit of every known Ingredient, by name:
-// those a Stock Item can be recorded for.
+// Ingredients loads every Ingredient the Recipe Library knows, in name
+// order: those a Stock Item can be recorded for.
 func (s *Service) Ingredients(ctx context.Context) ([]domain.Ingredient, error) {
-	return loadIngredients(ctx, s.pool)
+	return s.ingredients(ctx)
 }
 
 // Add records item, a quantity of a known Ingredient.
