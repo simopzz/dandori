@@ -7,4 +7,5 @@ WHERE status = 'pending' AND id > (SELECT min(id) FROM plan_proposal WHERE statu
 CREATE UNIQUE INDEX plan_proposal_one_pending ON plan_proposal ((true)) WHERE status = 'pending';
 
 -- +goose Down
+-- The Plan Proposals replaced stay replaced.
 DROP INDEX plan_proposal_one_pending;

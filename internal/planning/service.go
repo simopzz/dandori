@@ -192,29 +192,13 @@ func (s *Service) today() time.Time { return domain.DayOf(s.now()) }
 // snapshot reads several queries as of one moment.
 var snapshot = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
 
-// cancels are the planning Runs a transaction recorded cancelled, to stop
-// once it commits.
-type cancels []int64
-
-// write runs f in a transaction, and stops the planning Runs f cancelled
-// once it has committed.
-func (s *Service) write(ctx context.Context, f func(tx pgx.Tx, c *cancels) error) error {
-	var c cancels
-	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return f(tx, &c) }); err != nil {
-		return err
-	}
-	for _, id := range c {
-		s.runs.Cancel(id)
-	}
-	return nil
-}
-
 // Arrive takes the upcoming Cycle's Delivery as arrived once its window has
 // ended: the Cycle becomes current, everything on its Grocery List becomes
 // Stock Items, and the current one closes, early if it hadn't ended,
 // carrying what is left over as Portions without a Slot, rejecting its
-// pending Plan Proposal and cancelling its planning Run going. Then every Prep Session whose day has come uses
-// up the Stock Items of its Ingredients, once. The app settles every
+// pending Plan Proposal and cancelling its planning Run going. Then every
+// Prep Session whose day has come uses up the Stock Items of its
+// Ingredients, once. The app settles every
 // request through it before any use case runs, so what they show and
 // change is as of now; use cases and agent tools never call it (ADR-0010).
 // A rule keyed on a Prep Session's day leaves out those from the upcoming
@@ -230,9 +214,10 @@ func (s *Service) Arrive(ctx context.Context) error {
 }
 
 // arrive takes the upcoming Cycle's Delivery as arrived through tx, once
-// its window has ended, adding the planning Run it cancels to c. The Prep Sessions of the Cycle it closes whose day
-// has come use up their stock before what it brings is received.
-func (s *Service) arrive(ctx context.Context, tx pgx.Tx, c *cancels) error {
+// its window has ended, adding the planning Run it cancels to cancelled.
+// The Prep Sessions of the Cycle it closes whose day has come use up their
+// stock before what it brings is received.
+func (s *Service) arrive(ctx context.Context, tx pgx.Tx, cancelled *cancels) error {
 	upcoming, err := loadCycleWith(ctx, tx, "upcoming")
 	if err != nil || upcoming == nil || !upcoming.Arrived(s.now()) {
 		return err
@@ -258,7 +243,7 @@ func (s *Service) arrive(ctx context.Context, tx pgx.Tx, c *cancels) error {
 		if err := closeCycle(ctx, tx, current.ID, arrival); err != nil {
 			return err
 		}
-		if err := s.end(ctx, tx, c, []int64{current.ID}, endClosed, cause); err != nil {
+		if err := s.end(ctx, tx, cancelled, []int64{current.ID}, endClosed, cause); err != nil {
 			return err
 		}
 		if err := s.useUp(ctx, tx); err != nil {

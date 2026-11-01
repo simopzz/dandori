@@ -168,8 +168,8 @@ func setStatus(ctx context.Context, q db.Querier, id int64, status string) error
 }
 
 // closeCycle closes the Cycle with id as the next Delivery's arrival a
-// says. Closing early, it drops the Prep Sessions never
-// prepared and takes the Portions carried over out of their Slots.
+// says. Closing early, it drops the Prep Sessions never prepared and takes
+// the Portions carried over out of their Slots.
 func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival) error {
 	var closedOn *time.Time
 	var closedWith *domain.SlotKind

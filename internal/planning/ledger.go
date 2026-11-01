@@ -16,7 +16,25 @@ import (
 // planning Run going: whose turn it is to be planned (turn), a planning Run
 // storing its Plan Proposal (submit), the user deciding on it (decide), and
 // something that happened ending it (end). Nothing else writes a Plan
-// Proposal's status or cancels a planning Run.
+// Proposal's status or cancels a planning Run: a transaction records the
+// Runs it cancels, and write stops them once it commits.
+
+// cancels are the planning Runs a transaction recorded cancelled, to stop
+// once it commits.
+type cancels []int64
+
+// write runs f in a transaction, and stops the planning Runs f cancelled
+// once it has committed.
+func (s *Service) write(ctx context.Context, f func(tx pgx.Tx, c *cancels) error) error {
+	var c cancels
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return f(tx, &c) }); err != nil {
+		return err
+	}
+	for _, id := range c {
+		s.runs.Cancel(id)
+	}
+	return nil
+}
 
 // ProposalStatus is how a Plan Proposal stands, as stored.
 type ProposalStatus string
@@ -193,11 +211,19 @@ const (
 
 // end ends the Plan Proposal pending for any of the Cycles with ids, as
 // how says, and cancels the planning Run going for any of them, because
-// of cause, what happened, as part of q, adding the Run to c: the next
-// planning Run reads what happened for itself, so cause is never a
+// of cause, what happened, as part of q, adding the Run to cancelled: the
+// next planning Run reads what happened for itself, so cause is never a
 // Planning Note.
-func (s *Service) end(ctx context.Context, q db.Querier, c *cancels, ids []int64, how ending, cause string) error {
-	status := map[ending]ProposalStatus{endReplaced: ProposalReplaced, endClosed: ProposalRejected}[how]
+func (s *Service) end(ctx context.Context, q db.Querier, cancelled *cancels, ids []int64, how ending, cause string) error {
+	var status ProposalStatus
+	switch how {
+	case endReplaced:
+		status = ProposalReplaced
+	case endClosed:
+		status = ProposalRejected
+	case endDropped:
+		// Deleting its Cycle deletes it.
+	}
 	if status != "" {
 		if _, err := q.Exec(ctx, `
 			UPDATE plan_proposal SET status = $2, cause = $3, decided_at = $4
@@ -218,6 +244,6 @@ func (s *Service) end(ctx context.Context, q db.Querier, c *cancels, ids []int64
 	if err := s.runs.CancelIn(ctx, q, going, cause); err != nil {
 		return err
 	}
-	*c = append(*c, going...)
+	*cancelled = append(*cancelled, going...)
 	return nil
 }
