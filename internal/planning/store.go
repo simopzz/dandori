@@ -619,10 +619,36 @@ func planningRunAfter(ctx context.Context, q db.Querier, id int64) (int64, error
 
 // insertPlanningRun records run as a planning Run of the Cycle with id,
 // started by rejecting the Plan Proposal with id after, or by the user
-// when after is 0.
-func insertPlanningRun(ctx context.Context, q db.Querier, run, id, after int64) error {
-	_, err := q.Exec(ctx, `INSERT INTO planning_run (run_id, cycle_id, after_proposal) VALUES ($1, $2, nullif($3, 0))`, run, id, after)
+// when after is 0, replanning around missing, what Esselunga is out of,
+// when Cart Fill started it.
+func insertPlanningRun(ctx context.Context, q db.Querier, run, id, after int64, missing string) error {
+	_, err := q.Exec(ctx, `INSERT INTO planning_run (run_id, cycle_id, after_proposal, missing) VALUES ($1, $2, nullif($3, 0), $4)`, run, id, after, missing)
 	return err
+}
+
+// substitutes is whether the planning Run run replans around what
+// Esselunga is out of.
+func substitutes(ctx context.Context, q db.Querier, run int64) (bool, error) {
+	var missing bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT FROM planning_run WHERE run_id = $1 AND missing <> '')`, run).Scan(&missing)
+	return missing, err
+}
+
+// insertCartFillRun records run as a Cart Fill Run of the Cycle with id.
+func insertCartFillRun(ctx context.Context, q db.Querier, run, id int64) error {
+	_, err := q.Exec(ctx, `INSERT INTO cart_fill_run (run_id, cycle_id) VALUES ($1, $2)`, run, id)
+	return err
+}
+
+// latestCartFillRun is the last Cart Fill Run of the Cycle with id; found
+// is false when it has had none.
+func latestCartFillRun(ctx context.Context, q db.Querier, id int64) (run int64, found bool, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT run_id FROM cart_fill_run WHERE cycle_id = $1 ORDER BY run_id DESC LIMIT 1`, id).Scan(&run)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	return run, err == nil, err
 }
 
 // loadNotes loads the Planning Notes of the Cycle with id, newest first.

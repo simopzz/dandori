@@ -48,6 +48,13 @@ func (s *Store) LogOut() {
 	s.loggedOut = true
 }
 
+// LogIn logs the session back in, as the user does after it expires.
+func (s *Store) LogIn() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loggedOut = false
+}
+
 // Sell makes the store sell p under its code, as Esselunga shows it now:
 // a new product, or a changed pack, label or availability.
 func (s *Store) Sell(p esselunga.Product) {

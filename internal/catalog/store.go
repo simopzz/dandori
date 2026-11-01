@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -56,6 +57,13 @@ func saveProduct(ctx context.Context, q db.Querier, p domain.CatalogProduct) err
 			aisle = EXCLUDED.aisle, price = EXCLUDED.price,
 			available = EXCLUDED.available, availability_seen_at = EXCLUDED.availability_seen_at`,
 		p.Code, p.Name, p.PackQuantity, p.Unit, kcal, protein, carbs, fat, p.Aisle, p.Price, p.Available, p.AvailabilitySeen)
+	return err
+}
+
+// seeAvailability records whether the Catalog Product with code was
+// available at seen.
+func seeAvailability(ctx context.Context, q db.Querier, code string, available bool, seen time.Time) error {
+	_, err := q.Exec(ctx, `UPDATE catalog_product SET available = $2, availability_seen_at = $3 WHERE code = $1`, code, available, seen)
 	return err
 }
 

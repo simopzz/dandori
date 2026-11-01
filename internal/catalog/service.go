@@ -153,6 +153,13 @@ func (s *Service) LastRun(ctx context.Context) (runs.Run, bool, error) {
 	return s.runs.Latest(ctx, seedKind, refreshKind, proposalKind)
 }
 
+// SeeAvailability records that the Catalog Product with code was seen
+// available or not just now, as Cart Fill sees it; an Unlisted one counts
+// as unavailable. A code the Known Catalog doesn't have is left alone.
+func (s *Service) SeeAvailability(ctx context.Context, code string, available bool) error {
+	return seeAvailability(ctx, s.pool, code, available, s.cfg.Now())
+}
+
 // ProductMappings loads the Product Mapping of every Ingredient with one,
 // keyed by Ingredient name, through q, so a caller's transaction can read
 // them with what else it reads.

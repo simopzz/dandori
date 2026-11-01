@@ -14,6 +14,17 @@ type GroceriesPage struct {
 	// proposed and the user hasn't saved.
 	AnyProposed bool
 	Aisles []GroceryAisle
+	// Problem is why what the user asked for didn't happen, if it didn't.
+	Problem string
+	// FillAction is where Cart Fill starts; empty when it can't now.
+	FillAction string
+	// FillRun is the last Cart Fill Run's page, empty before the first;
+	// FillRunning whether it is still going, FillSummary what the agent
+	// summed up once it succeeded and FillFailed why it failed.
+	FillRun     string
+	FillRunning bool
+	FillSummary string
+	FillFailed  string
 }
 
 // GroceryAisle is the lines of one aisle, or of the Ingredients with no
@@ -38,11 +49,17 @@ templ GroceriesView(p GroceriesPage) {
 		@web.PageHeader("買物", "Grocery List") {
 			<p class="lede">{ p.Title }</p>
 		}
+		if p.Problem != "" {
+			@web.Alert() {
+				{ p.Problem }
+			}
+		}
 		if p.FixedBecause != "" {
 			@web.Notice() {
 				{ p.FixedBecause }
 			}
 		}
+
 		if p.AnyProposed {
 			@web.Hint() {
 				Lines marked proposed use a Product Mapping the agent proposed: check it and save it on the <a href="/catalog">Known Catalog</a>.
@@ -93,6 +110,42 @@ templ GroceriesView(p GroceriesPage) {
 					}
 				}
 			}
+		}
+		if p.FillAction != "" || p.FillRun != "" {
+			@cartFillSection(p)
+		}
+	}
+}
+
+// cartFillSection offers Cart Fill and shows how the last one went.
+templ cartFillSection(p GroceriesPage) {
+	@web.Section(max(len(p.Aisles), 1)+1, "Cart Fill") {
+		switch {
+			case p.FillRunning:
+				@web.Notice() {
+					Filling the cart: <a href={ templ.SafeURL(p.FillRun) }>follow Cart Fill</a>.
+				}
+			case p.FillFailed != "":
+				@web.Alert() {
+					The last <a href={ templ.SafeURL(p.FillRun) }>Cart Fill</a> failed: { p.FillFailed }
+				}
+			case p.FillSummary != "":
+				@web.Markdown(p.FillSummary)
+				@web.Hint() {
+					From the last <a href={ templ.SafeURL(p.FillRun) }>Cart Fill</a>.
+				}
+		}
+		if p.FillAction != "" {
+			<form id="cart-fill" method="post" action={ templ.SafeURL(p.FillAction) }>
+				@web.Hint() {
+					Puts the Catalog Products this Grocery List buys in your Esselunga cart, checking each is in stock. It never checks out: review the cart and pay on Esselunga.
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						Fill the cart
+					}
+				}
+			</form>
 		}
 	}
 }

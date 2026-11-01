@@ -14,12 +14,21 @@ import (
 
 func groceriesURL(id int64) string { return fmt.Sprintf("/cycles/%d/groceries", id) }
 
+// cartFillURL is where Cart Fill is started for a Cycle.
+func cartFillURL(id int64) string { return fmt.Sprintf("/cycles/%d/cart-fill", id) }
+
 // ShowGroceries shows a Cycle's Grocery List page.
 func (h Handlers) ShowGroceries(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return
 	}
+	h.renderGroceries(w, r, id, "", http.StatusOK)
+}
+
+// renderGroceries shows the Grocery List page of the Cycle with id, with
+// problem, why what the user asked for didn't happen, if it didn't.
+func (h Handlers) renderGroceries(w http.ResponseWriter, r *http.Request, id int64, problem string, status int) {
 	g, err := h.Service.GroceryList(r.Context(), id)
 	switch {
 	case errors.Is(err, ErrNoCycle):
@@ -29,7 +38,16 @@ func (h Handlers) ShowGroceries(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, h.Log, "load grocery list", err)
 		return
 	}
-	page := GroceriesPage{Title: "For the Cycle delivered " + g.Cycle.Delivery.On.Format(longDate)}
+	page := GroceriesPage{Title: "For the Cycle delivered " + g.Cycle.Delivery.On.Format(longDate), Problem: problem}
+	if g.CartFill.CanFill {
+		page.FillAction = cartFillURL(id)
+	}
+	if run := g.CartFill.Run; run != nil {
+		page.FillRun = runURL(run.ID)
+		page.FillRunning = run.Running()
+		page.FillSummary = run.Notes()
+		page.FillFailed = run.Failure()
+	}
 	switch {
 	case g.Fixed && g.Cycle.Status == "upcoming":
 		page.FixedBecause = "Fixed when its Delivery was marked ordered."
@@ -66,7 +84,30 @@ func (h Handlers) ShowGroceries(w http.ResponseWriter, r *http.Request) {
 		}
 		page.Aisles = append(page.Aisles, aisle)
 	}
-	templ.Handler(GroceriesView(page)).ServeHTTP(w, r)
+	templ.Handler(GroceriesView(page), templ.WithStatus(status)).ServeHTTP(w, r)
+}
+
+// FillCart starts Cart Fill for a Cycle, and sends the user to its Run.
+func (h Handlers) FillCart(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	run, err := h.Service.StartCartFill(r.Context(), id)
+	var cannot *CannotFillError
+	switch {
+	case errors.Is(err, ErrNoCycle):
+		http.NotFound(w, r)
+	case errors.As(err, &cannot) && cannot.RunID != 0:
+		// Started twice, as by a double tap: follow the Run already going.
+		http.Redirect(w, r, runURL(cannot.RunID), http.StatusSeeOther)
+	case errors.As(err, &cannot):
+		h.renderGroceries(w, r, id, "The cart can't be filled: "+cannot.Reason+".", http.StatusConflict)
+	case err != nil:
+		httpx.ServerError(w, h.Log, "start cart fill", err)
+	default:
+		http.Redirect(w, r, runURL(run), http.StatusSeeOther)
+	}
 }
 
 // formatQuantity is a quantity to one decimal, without trailing zeros: a

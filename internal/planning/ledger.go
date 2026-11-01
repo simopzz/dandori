@@ -151,6 +151,11 @@ func (s *Service) submit(ctx context.Context, tx pgx.Tx, c Cycle, from domain.Sl
 	} else if planned {
 		origin = "changes"
 	}
+	if substitution, err := substitutes(ctx, tx, run); err != nil {
+		return nil, err
+	} else if substitution {
+		origin = "substitution"
+	}
 	_, err = tx.Exec(ctx, `INSERT INTO plan_proposal (cycle_id, origin, plan, run_id) VALUES ($1, $2, $3, $4)`, c.ID, origin, raw, run)
 	return nil, err
 }

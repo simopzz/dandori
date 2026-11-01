@@ -58,7 +58,7 @@ func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
 	var started runs.Recorded
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
-		started, err = s.startPlanningIn(ctx, tx, id, askPlan, 0, "")
+		started, err = s.startPlanningIn(ctx, tx, id, askPlan, 0, "", "")
 		return err
 	})
 	if err != nil {
@@ -79,7 +79,7 @@ func (s *Service) AskForChanges(ctx context.Context, id int64, note string) (int
 	var started runs.Recorded
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
-		started, err = s.startPlanningIn(ctx, tx, id, askChanges, 0, note)
+		started, err = s.startPlanningIn(ctx, tx, id, askChanges, 0, note, "")
 		return err
 	})
 	if err != nil {
@@ -93,8 +93,9 @@ func (s *Service) AskForChanges(ctx context.Context, id int64, note string) (int
 // ask says, as part of tx, after the rejection of the Plan Proposal with
 // id after when it isn't 0, for the caller to launch once tx commits.
 // note, when given, joins the Cycle's Planning Notes once the Run can
-// start.
-func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id int64, ask asking, after int64, note string) (runs.Recorded, error) {
+// start. missing, when given, is what Esselunga is out of, which Cart Fill
+// asks it to replan around: its Plan Proposal is a substitution.
+func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id int64, ask asking, after int64, note, missing string) (runs.Recorded, error) {
 	// Serialises with another start on either Cycle, with the planner
 	// submitting, and with what replaces Plan Proposals.
 	if err := lockCycles(ctx, tx); err != nil {
@@ -130,11 +131,11 @@ func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id int64, ask 
 	if err != nil {
 		return runs.Recorded{}, err
 	}
-	run, err := s.runs.Record(ctx, tx, planningKind, s.planningJob(*c, from, brief, notes, replacing))
+	run, err := s.runs.Record(ctx, tx, planningKind, s.planningJob(*c, from, brief, notes, replacing, missing))
 	if err != nil {
 		return runs.Recorded{}, err
 	}
-	return run, insertPlanningRun(ctx, tx, run.ID, id, after)
+	return run, insertPlanningRun(ctx, tx, run.ID, id, after, missing)
 }
 
 // lastSlot is the Cycle's last Slot.
@@ -235,9 +236,10 @@ func (s *Service) describeReplaced(ctx context.Context, q db.Querier, c Cycle, f
 }
 
 // planningJob is the planning Run of c from the Slot from on, told the
-// Planning Brief, notes, the Planning Notes of c, newest first, and
-// replacing, what of c's Plan it replaces, if c has one.
-func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []string, replacing string) agent.Job {
+// Planning Brief, notes, the Planning Notes of c, newest first,
+// replacing, what of c's Plan it replaces, if c has one, and missing, what
+// Esselunga is out of, if Cart Fill found anything.
+func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []string, replacing, missing string) agent.Job {
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt, "Plan the Cycle delivered on %s. Its Slots run from %s to %s.\n",
 		describeDelivery(c.Delivery, longDate), c.Start, lastSlot(c.Cycle))
@@ -255,6 +257,9 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []s
 	}
 	if replacing != "" {
 		prompt.WriteString("\n" + replacing + "\n")
+	}
+	if missing != "" {
+		prompt.WriteString("\nFilling the cart for its Delivery, Esselunga is out of these, so the Delivery can't bring them. Plan around them with Catalog Products available or what the kitchen holds, and change only what that needs:\n" + missing + "\n")
 	}
 
 	submitted := false
