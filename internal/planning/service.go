@@ -89,7 +89,7 @@ type Cycle struct {
 type ProposalSummary struct {
 	ID     int64
 	Origin string
-	Status string
+	Status ProposalStatus
 }
 
 // CyclePlan is a Cycle, its Plan, its Plan Proposals, and how planning
@@ -126,7 +126,7 @@ type Proposal struct {
 	ID     int64
 	Cycle  Cycle
 	Origin string
-	Status string
+	Status ProposalStatus
 	Note   string
 	// Cause is why it was replaced, or rejected without the user: what
 	// happened, never a Planning Note.
@@ -192,69 +192,21 @@ func (s *Service) today() time.Time { return domain.DayOf(s.now()) }
 // snapshot reads several queries as of one moment.
 var snapshot = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
 
-// cancels are the planning Runs a transaction recorded cancelled, to stop
-// once it commits.
-type cancels []int64
-
-// write runs f in a transaction, and stops the planning Runs f cancelled
-// once it has committed.
-func (s *Service) write(ctx context.Context, f func(tx pgx.Tx, c *cancels) error) error {
-	var c cancels
-	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return f(tx, &c) }); err != nil {
-		return err
-	}
-	for _, id := range c {
-		s.runs.Cancel(id)
-	}
-	return nil
-}
-
-// replace replaces the Plan Proposal pending for any of the Cycles with
-// ids, and cancels the planning Run going for any of them, because of
-// cause, what happened, as part of q: the next planning Run reads what
-// happened for itself, so cause is never a Planning Note. Whatever would
-// lead to a new Plan Proposal replaces through it.
-func (s *Service) replace(ctx context.Context, q db.Querier, c *cancels, ids []int64, cause string) error {
-	if err := decidePending(ctx, q, ids, "replaced", cause); err != nil {
-		return err
-	}
-	return s.cancelPlanning(ctx, q, c, ids, cause)
-}
-
-// cancelPlanning cancels the planning Run going for any of the Cycles with
-// ids because of cause, as part of q, adding it to c. One that has stored
-// its Plan Proposal is left to end: that Plan Proposal is what is
-// replaced.
-func (s *Service) cancelPlanning(ctx context.Context, q db.Querier, c *cancels, ids []int64, cause string) error {
-	running, err := s.runs.Going(ctx, q, planningKind)
-	if err != nil {
-		return err
-	}
-	going, err := planningRunsGoing(ctx, q, running, ids)
-	if err != nil {
-		return err
-	}
-	if err := s.runs.CancelIn(ctx, q, going, cause); err != nil {
-		return err
-	}
-	*c = append(*c, going...)
-	return nil
-}
-
 // Arrive takes the upcoming Cycle's Delivery as arrived once its window has
 // ended: the Cycle becomes current, everything on its Grocery List becomes
 // Stock Items, and the current one closes, early if it hadn't ended,
-// carrying what is left over as Portions without a Slot and rejecting its
-// pending Plan Proposals. Then every Prep Session whose day has come uses
-// up the Stock Items of its Ingredients, once. The app settles every
+// carrying what is left over as Portions without a Slot, rejecting its
+// pending Plan Proposal and cancelling its planning Run going. Then every
+// Prep Session whose day has come uses up the Stock Items of its
+// Ingredients, once. The app settles every
 // request through it before any use case runs, so what they show and
 // change is as of now; use cases and agent tools never call it (ADR-0010).
 // A rule keyed on a Prep Session's day leaves out those from the upcoming
 // Cycle's start on: its Delivery drops them when it arrives, possibly
 // later that same day.
 func (s *Service) Arrive(ctx context.Context) error {
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := s.arrive(ctx, tx); err != nil {
+	return s.write(ctx, func(tx pgx.Tx, cancelled *cancels) error {
+		if err := s.arrive(ctx, tx, cancelled); err != nil {
 			return err
 		}
 		return s.useUp(ctx, tx)
@@ -262,9 +214,10 @@ func (s *Service) Arrive(ctx context.Context) error {
 }
 
 // arrive takes the upcoming Cycle's Delivery as arrived through tx, once
-// its window has ended. The Prep Sessions of the Cycle it closes whose day
-// has come use up their stock before what it brings is received.
-func (s *Service) arrive(ctx context.Context, tx pgx.Tx) error {
+// its window has ended, adding the planning Run it cancels to cancelled.
+// The Prep Sessions of the Cycle it closes whose day has come use up their
+// stock before what it brings is received.
+func (s *Service) arrive(ctx context.Context, tx pgx.Tx, cancelled *cancels) error {
 	upcoming, err := loadCycleWith(ctx, tx, "upcoming")
 	if err != nil || upcoming == nil || !upcoming.Arrived(s.now()) {
 		return err
@@ -287,7 +240,10 @@ func (s *Service) arrive(ctx context.Context, tx pgx.Tx) error {
 		}
 		arrival := domain.Arrive(&current.Cycle, plan, upcoming.Cycle)
 		cause := "Its Cycle closed when the Delivery on " + upcoming.Delivery.On.Format(shortDate) + " arrived"
-		if err := closeCycle(ctx, tx, current.ID, arrival, cause); err != nil {
+		if err := closeCycle(ctx, tx, current.ID, arrival); err != nil {
+			return err
+		}
+		if err := s.end(ctx, tx, cancelled, []int64{current.ID}, endClosed, cause); err != nil {
 			return err
 		}
 		if err := s.useUp(ctx, tx); err != nil {
@@ -567,7 +523,7 @@ func (s *Service) ChangeDelivery(ctx context.Context, id int64, d domain.Deliver
 		if err != nil {
 			return err
 		}
-		if err := s.replace(ctx, tx, cancelled, open, "Replaced by the Delivery moved to "+describeDelivery(d, shortDate)); err != nil {
+		if err := s.end(ctx, tx, cancelled, open, endReplaced, "Replaced by the Delivery moved to "+describeDelivery(d, shortDate)); err != nil {
 			return err
 		}
 		if err := fixGroceries(); err != nil {
@@ -598,7 +554,7 @@ func (s *Service) Drop(ctx context.Context, id int64) error {
 		if errors.Is(upcoming.Drop(), domain.ErrDeliveryOrdered) {
 			return ErrDeliveryOrdered
 		}
-		if err := s.cancelPlanning(ctx, tx, cancelled, []int64{id}, "Its Cycle was dropped"); err != nil {
+		if err := s.end(ctx, tx, cancelled, []int64{id}, endDropped, "Its Cycle was dropped"); err != nil {
 			return err
 		}
 		return deleteCycle(ctx, tx, id)
@@ -666,7 +622,7 @@ func (s *Service) Proposal(ctx context.Context, id int64) (Proposal, error) {
 			return checkErr
 		}
 		// A decided Plan Proposal's rules were for the day it was decided.
-		if stored.Status == "pending" {
+		if stored.Status == ProposalPending {
 			p.Violations = domain.ValidatePlan(p.Check)
 		}
 		return nil
@@ -688,61 +644,39 @@ func (s *Service) Approve(ctx context.Context, id int64) error {
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
 		}
-		stored, err := pending(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		ch, err := s.checkProposal(ctx, tx, stored)
-		if err != nil {
-			return err
-		}
-		// Its days and what is left of them now belong to the next Cycle.
-		if ch.cycle.Status == "closed" {
-			return ErrCycleClosed
-		}
-		// What was prepared and eaten since its start can't be replaced.
-		violations := domain.ValidatePlan(ch.check)
-		breaks := func(rule domain.Rule) bool {
-			return slices.ContainsFunc(violations, func(v domain.Violation) bool { return v.Rule == rule })
-		}
-		if breaks(domain.RuleStartsInPast) {
-			return ErrStartsInPast
-		}
-		// It would eat what the user won't, or cook for nobody.
-		if breaks(domain.RuleExceptedSlot) {
-			return ErrFillsExceptedSlot
-		}
-		// Approving it accepts the Recipe Drafts it prepares, as drafted.
-		if err := s.acceptDrafts(ctx, tx, &ch.proposed); err != nil {
-			return err
-		}
-		// What the current Plan carried over before, to compare with after.
-		var before domain.Plan
-		var keptBefore []domain.KeptPortion
-		if ch.cycle.Status == "current" {
-			if before, keptBefore, err = loadPlan(ctx, tx, ch.cycle.ID); err != nil {
+		_, err := s.decide(ctx, tx, id, ProposalApproved, "", func(ch checked) error {
+			// Approving it accepts the Recipe Drafts it prepares, as drafted.
+			if err := s.acceptDrafts(ctx, tx, &ch.proposed); err != nil {
 				return err
 			}
-		}
-		err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
-		// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
-		// Portion taken twice.
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && (pgErr.Code == "23503" || pgErr.Code == "23505") {
-			return ErrInapplicable
-		}
-		if err != nil {
-			return err
-		}
-		if err := setNeedsProposal(ctx, tx, ch.cycle.ID, ""); err != nil {
-			return err
-		}
-		if ch.cycle.Status == "current" {
-			if err := flagCarryOver(ctx, tx, ch.cycle, before, keptBefore); err != nil {
+			// What the current Plan carried over before, to compare with after.
+			var before domain.Plan
+			var keptBefore []domain.KeptPortion
+			var err error
+			if ch.cycle.Status == "current" {
+				if before, keptBefore, err = loadPlan(ctx, tx, ch.cycle.ID); err != nil {
+					return err
+				}
+			}
+			err = replacePlan(ctx, tx, ch.cycle, ch.from, ch.prepared, ch.proposed)
+			// 23503 and 23505: a Slot for a Portion that is gone, or a Slot or
+			// Portion taken twice.
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && (pgErr.Code == "23503" || pgErr.Code == "23505") {
+				return ErrInapplicable
+			}
+			if err != nil {
 				return err
 			}
-		}
-		return decideProposal(ctx, tx, id, "approved", "")
+			if err := setNeedsProposal(ctx, tx, ch.cycle.ID, ""); err != nil {
+				return err
+			}
+			if ch.cycle.Status == "current" {
+				return flagCarryOver(ctx, tx, ch.cycle, before, keptBefore)
+			}
+			return nil
+		})
+		return err
 	})
 }
 
@@ -831,11 +765,8 @@ func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64,
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
 		}
-		stored, err := pending(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if err := decideProposal(ctx, tx, id, "rejected", note); err != nil || note == "" {
+		stored, err := s.decide(ctx, tx, id, ProposalRejected, note, nil)
+		if err != nil || note == "" {
 			return err
 		}
 		started, err = s.startPlanningIn(ctx, tx, stored.CycleID, id)
@@ -876,7 +807,7 @@ func waitsTurn(err error) string {
 // decided.
 func pending(ctx context.Context, tx pgx.Tx, id int64) (storedProposal, error) {
 	stored, err := loadProposal(ctx, tx, id, true)
-	if err == nil && stored.Status != "pending" {
+	if err == nil && stored.Status != ProposalPending {
 		err = ErrDecided
 	}
 	return stored, err

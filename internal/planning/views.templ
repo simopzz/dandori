@@ -102,7 +102,7 @@ type PrepSessionRow struct {
 type ProposalRow struct {
 	ID     int64
 	Title  string // e.g. "Initial Plan Proposal"
-	Status string
+	Status ProposalStatus
 }
 
 // ProposalPage is a Plan Proposal: its Plan as a calendar of Slots and a
@@ -111,7 +111,7 @@ type ProposalRow struct {
 type ProposalPage struct {
 	ID         int64
 	Title      string
-	Status     string
+	Status     ProposalStatus
 	Note       string
 	Cause      string
 	// Waits is why no planning Run started for its note: another Cycle's
@@ -295,8 +295,8 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 				for _, pr := range c.Proposals {
 					@web.Row() {
 						<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d", pr.ID)) }>{ pr.Title }</a>
-						@web.Tag(pr.Status == "pending", "") {
-							{ pr.Status }
+						@web.Tag(pr.Status == ProposalPending, "") {
+							{ string(pr.Status) }
 						}
 					}
 				}
@@ -429,8 +429,8 @@ templ ProposalView(p ProposalPage) {
 			}
 		}
 		<p>
-			@web.Tag(p.Status == "pending", "") {
-				{ p.Status }
+			@web.Tag(p.Status == ProposalPending, "") {
+				{ string(p.Status) }
 			}
 		</p>
 		if p.Cause != "" {
@@ -472,7 +472,7 @@ templ ProposalView(p ProposalPage) {
 			@web.Alert() {
 				This Plan Proposal can't be read: { p.Unreadable }.
 			}
-			if p.Status == "pending" {
+			if p.Status == ProposalPending {
 				@web.Section(1, "Decide") {
 					@rejectForm(p.ID)
 				}
@@ -524,7 +524,7 @@ templ ProposalView(p ProposalPage) {
 					}
 				}
 			}
-			if p.Status == "pending" {
+			if p.Status == ProposalPending {
 				@web.Section(p.decideNumber(), "Decide") {
 					<form id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan-proposals/%d/approve", p.ID)) }>
 						@web.Actions() {

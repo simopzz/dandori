@@ -559,18 +559,16 @@ func TestDroppingAnUpcomingCycleCancelsItsPlanningRun(t *testing.T) {
 	}
 }
 
-func TestRejectingWithANoteSaysWhyNoPlanningRunStartedWhileTheOtherCycleWaits(t *testing.T) {
-	h, today, _ := startPlanningWith(t)
-	twoCycles(t, h, today)
-	// Both pending, as before one Plan Proposal was pending at a time.
-	proposal := proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-05", "breakfast"))
-	proposePlanFor(t, h, "2026-11-08", planOf())
+func TestADeliveryArrivingCancelsThePlanningRunOfTheCycleItCloses(t *testing.T) {
+	h, today, llm := startPlanningWith(t)
+	current, _ := twoCycles(t, h, today)
+	llm.Script(fakellm.Hang())
+	run := h.PostForm(t, planAction(current), nil).Path
 
-	page := text(rejectWith(t, h, proposal, "more fish").Body)
-	if !strings.Contains(page, "Note: more fish") || !strings.Contains(page, "No planning Run started for the note, since a Plan Proposal for the upcoming Cycle is pending: approve or reject it.") {
-		t.Errorf("the rejection does not say why no planning Run started:\n%s", page)
-	}
-	if n := planningRunsGoing(t, h); n != 0 {
-		t.Errorf("%d planning Runs started while the upcoming Cycle's Plan Proposal is pending", n)
+	today.setAt(t, "2026-11-08 20:00")
+	h.Get(t, "/plan")
+	h.Stream(t, run+"/events", "").Rest(t)
+	if page := text(h.Get(t, run).Body); !strings.Contains(page, "Cancelled: Its Cycle closed when the Delivery on Sun 8 Nov arrived") {
+		t.Errorf("the Delivery arriving did not cancel the closed Cycle's planning Run, naming the Delivery:\n%s", page)
 	}
 }

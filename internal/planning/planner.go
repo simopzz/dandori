@@ -37,48 +37,10 @@ type CannotPlanError struct {
 func (e *CannotPlanError) Error() string        { return ErrCannotPlan.Error() + ": " + e.Reason }
 func (e *CannotPlanError) Is(target error) bool { return target == ErrCannotPlan }
 
-// plannable checks the Cycle c can get an initial Plan, planned from the
-// Slot from on: it is open, has no Plan, it has Slots left to plan, and no
-// Plan Proposal is pending nor planning Run going for any Cycle, since one
-// is planned at a time. A Cycle with a Plan changes through a Plan
-// Proposal of its own.
-func (s *Service) plannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) error {
-	if c.Status == "closed" {
-		return &CannotPlanError{Reason: "the next Delivery has arrived, so it is closed"}
-	}
-	if planned, err := hasPlan(ctx, q, c.ID); err != nil {
-		return err
-	} else if planned {
-		return &CannotPlanError{Reason: "it already has a Plan"}
-	}
-	if id, status, err := pendingFor(ctx, q); err != nil {
-		return err
-	} else if id == c.ID {
-		return &CannotPlanError{Reason: "a Plan Proposal for it is pending: approve or reject it"}
-	} else if id != 0 {
-		return &CannotPlanError{Reason: "a Plan Proposal for the " + status + " Cycle is pending: approve or reject it", WaitsTurn: true}
-	}
-	if !c.Contains(from) {
-		return &CannotPlanError{Reason: "it has no Slots left to plan"}
-	}
-	going, err := s.runs.Going(ctx, q, planningKind)
-	if err != nil {
-		return err
-	}
-	if run, id, status, err := goingPlanningRun(ctx, q, going); err != nil {
-		return err
-	} else if id == c.ID {
-		return &CannotPlanError{Reason: "it is being planned", RunID: run}
-	} else if run != 0 {
-		return &CannotPlanError{Reason: "the " + status + " Cycle is being planned", WaitsTurn: true}
-	}
-	return nil
-}
-
 // canPlan reports whether a planning Run can start for c now, and waits,
 // why not when another Cycle's turn comes first.
 func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool, waits string, err error) {
-	err = s.plannable(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
+	err = s.turn(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
 	if errors.Is(err, ErrCannotPlan) {
 		return false, waitsTurn(err), nil
 	}
@@ -120,7 +82,7 @@ func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int6
 	// What is prepared today is taken as done: a Cycle whose first day has
 	// come is planned from tomorrow.
 	from := domain.FirstUnprepared(c.Start, s.today())
-	if err := s.plannable(ctx, tx, *c, from); err != nil {
+	if err := s.turn(ctx, tx, *c, from); err != nil {
 		return runs.Recorded{}, err
 	}
 	notes, err := loadNotes(ctx, tx, id)
@@ -380,46 +342,10 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 		if c == nil {
 			return agent.Stop(errors.New("the Cycle was dropped"))
 		}
-		// The user may have planned it another way meanwhile, or it closed.
-		if err := s.stillPlannable(ctx, tx, *c, from, run); err != nil {
-			return agent.Stop(err)
-		}
-		ch, err := s.checkProposal(ctx, tx, storedProposal{CycleID: id, RunID: run, Plan: raw})
-		if unreadable := (*UnreadableError)(nil); errors.As(err, &unreadable) {
-			problems = append(problems, "the Plan can't be read: "+unreadable.Reason)
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		for _, v := range domain.ValidatePlan(ch.check) {
-			problems = append(problems, v.String())
-		}
-		if len(problems) > 0 {
-			return nil
-		}
-		return insertProposal(ctx, tx, id, run, raw)
+		problems, err = s.submit(ctx, tx, *c, from, run, raw)
+		return err
 	})
 	return problems, err
-}
-
-// stillPlannable checks the Cycle c can still get an initial Plan from
-// the planning Run with run, going for it: not cancelled since, by what
-// replaced its Plan Proposal.
-func (s *Service) stillPlannable(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
-	err := s.plannable(ctx, q, c, from)
-	if going := (*CannotPlanError)(nil); errors.As(err, &going) && going.RunID == run {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	// Plannable, yet not because run is going: run was cancelled.
-	status, err := s.runs.Status(ctx, q, run)
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("the planning Run is %s", status)
 }
 
 // Planning is how planning a Cycle without a Plan stands.
