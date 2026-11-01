@@ -387,29 +387,24 @@ func loadReplacement(ctx context.Context, q db.Querier, c Cycle, from domain.Slo
 	return domain.Replace(c.Cycle, from, today, of(own), of(others)), nil
 }
 
-// loadEarlier loads what the Slots before from eat, from six days before
-// c's first day on: all a trailing seven days of c can reach. They
-// are earlier Cycles' Slots, and c's own that a Plan from from on keeps;
-// an excepted Slot's Portion isn't eaten, and only its Exception counts.
-func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) ([]domain.DayNutrition, error) {
-	refs, err := loadPortionRefs(ctx, q, `
-		SELECT p.id, p.prep_session_id, s.day, s.kind
+// loadEarlier loads what the Slots before from eat that a trailing seven
+// days of c can reach, as domain.Earlier decides it with exceptions: over
+// the Prep Sessions with a Portion in a Slot from six days before c's first
+// day to from's day.
+func loadEarlier(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, exceptions []domain.Exception) ([]domain.DayNutrition, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT DISTINCT p.prep_session_id
 		FROM slot s JOIN portion p ON p.id = s.portion_id
-		WHERE s.day >= $1::date - 6 AND (s.day, `+order("s.kind")+`) < ($2::date, $3)
-			AND NOT EXISTS (SELECT FROM slot_exception e WHERE e.day = s.day AND e.kind = s.kind)`,
-		c.Start.On, from.On, slotOrder(from))
+		WHERE s.day BETWEEN $1::date - 6 AND $2`, c.Start.On, from.On)
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return nil, err
 	}
-	kept, err := keptPortions(ctx, q, refs)
+	sessions, err := loadPrepSessions(ctx, q, ids)
 	if err != nil {
 		return nil, err
 	}
-	var days []domain.DayNutrition
-	for i, r := range refs {
-		days = append(days, domain.DayNutrition{On: r.slot.On, Nutrition: kept[i].Nutrition})
-	}
-	return days, nil
+	return domain.Earlier(c.Cycle, from, inDayOrder(sessions), exceptions), nil
 }
 
 // replacePlan replaces the Plan of c as r says with plan: its Prep
