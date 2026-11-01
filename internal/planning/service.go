@@ -754,10 +754,11 @@ func (s *Service) acceptDrafts(ctx context.Context, q db.Querier, p *proposedPla
 }
 
 // Reject rejects the Plan Proposal with id, with the user's note. A note
-// asks for another: while the Cycle has no Plan, a new planning Run that
-// takes it into account starts with the rejection, all at once or not at
-// all, and its id is returned; 0 when none started. waits is whether none
-// started because another Cycle's turn comes first.
+// joins the Cycle's Planning Notes and asks for another, whether or not the
+// Cycle has a Plan: a new planning Run that takes it into account starts
+// with the rejection, all at once or not at all, and its id is returned; 0
+// when none started. waits is whether none started because another
+// Cycle's turn comes first.
 func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64, waits bool, err error) {
 	var started runs.Recorded
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -769,7 +770,10 @@ func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64,
 		if err != nil || note == "" {
 			return err
 		}
-		started, err = s.startPlanningIn(ctx, tx, stored.CycleID, id)
+		if err := insertNote(ctx, tx, stored.CycleID, note); err != nil {
+			return err
+		}
+		started, err = s.startPlanningIn(ctx, tx, stored.CycleID, askAny, id, "")
 		if errors.Is(err, ErrCannotPlan) {
 			started, waits, err = runs.Recorded{}, waitsTurn(err) != "", nil
 		}
@@ -790,7 +794,7 @@ func (s *Service) WaitsFor(ctx context.Context, id int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_, waits, err := s.canPlan(ctx, s.pool, c)
+	_, waits, err := s.canPlan(ctx, s.pool, c, askAny)
 	return waits, err
 }
 

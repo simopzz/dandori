@@ -1,6 +1,7 @@
 package planning
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -37,10 +38,14 @@ type CannotPlanError struct {
 func (e *CannotPlanError) Error() string        { return ErrCannotPlan.Error() + ": " + e.Reason }
 func (e *CannotPlanError) Is(target error) bool { return target == ErrCannotPlan }
 
-// canPlan reports whether a planning Run can start for c now, and waits,
-// why not when another Cycle's turn comes first.
-func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle) (can bool, waits string, err error) {
-	err = s.turn(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()))
+// ErrNoteRequired means changes to a Plan were asked for without a
+// Planning Note saying what to change.
+var ErrNoteRequired = errors.New("asking for changes needs a planning note")
+
+// canPlan reports whether a planning Run can start for c now, for what ask
+// says, and waits, why not when another Cycle's turn comes first.
+func (s *Service) canPlan(ctx context.Context, q db.Querier, c Cycle, ask asking) (can bool, waits string, err error) {
+	err = s.turn(ctx, q, c, domain.FirstUnprepared(c.Start, s.today()), ask)
 	if errors.Is(err, ErrCannotPlan) {
 		return false, waitsTurn(err), nil
 	}
@@ -53,7 +58,7 @@ func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
 	var started runs.Recorded
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
-		started, err = s.startPlanningIn(ctx, tx, id, 0)
+		started, err = s.startPlanningIn(ctx, tx, id, askPlan, 0, "")
 		return err
 	})
 	if err != nil {
@@ -63,10 +68,33 @@ func (s *Service) StartPlanning(ctx context.Context, id int64) (int64, error) {
 	return started.ID, nil
 }
 
-// startPlanningIn records a planning Run for the Cycle with id as part of
-// tx, after the rejection of the Plan Proposal with id after when it isn't
-// 0, for the caller to launch once tx commits.
-func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int64) (runs.Recorded, error) {
+// AskForChanges starts a planning Run for changes to the Plan of the
+// Cycle with id, told note, the Planning Note saying what to change, and
+// returns the Run's id. It plans from the first Slot not yet prepared; the
+// Plan stays as it is until its Plan Proposal is approved.
+func (s *Service) AskForChanges(ctx context.Context, id int64, note string) (int64, error) {
+	if note == "" {
+		return 0, ErrNoteRequired
+	}
+	var started runs.Recorded
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		started, err = s.startPlanningIn(ctx, tx, id, askChanges, 0, note)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	s.runs.Launch(started)
+	return started.ID, nil
+}
+
+// startPlanningIn records a planning Run for the Cycle with id, for what
+// ask says, as part of tx, after the rejection of the Plan Proposal with
+// id after when it isn't 0, for the caller to launch once tx commits.
+// note, when given, joins the Cycle's Planning Notes once the Run can
+// start.
+func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id int64, ask asking, after int64, note string) (runs.Recorded, error) {
 	// Serialises with another start on either Cycle, with the planner
 	// submitting, and with what replaces Plan Proposals.
 	if err := lockCycles(ctx, tx); err != nil {
@@ -82,8 +110,13 @@ func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int6
 	// What is prepared today is taken as done: a Cycle whose first day has
 	// come is planned from tomorrow.
 	from := domain.FirstUnprepared(c.Start, s.today())
-	if err := s.turn(ctx, tx, *c, from); err != nil {
+	if err := s.turn(ctx, tx, *c, from, ask); err != nil {
 		return runs.Recorded{}, err
+	}
+	if note != "" {
+		if err := insertNote(ctx, tx, id, note); err != nil {
+			return runs.Recorded{}, err
+		}
 	}
 	notes, err := loadNotes(ctx, tx, id)
 	if err != nil {
@@ -93,7 +126,11 @@ func (s *Service) startPlanningIn(ctx context.Context, tx pgx.Tx, id, after int6
 	if err != nil {
 		return runs.Recorded{}, err
 	}
-	run, err := s.runs.Record(ctx, tx, planningKind, s.planningJob(*c, from, brief, notes))
+	replacing, err := s.describeReplaced(ctx, tx, *c, from)
+	if err != nil {
+		return runs.Recorded{}, err
+	}
+	run, err := s.runs.Record(ctx, tx, planningKind, s.planningJob(*c, from, brief, notes, replacing))
 	if err != nil {
 		return runs.Recorded{}, err
 	}
@@ -129,10 +166,78 @@ Write every food term in %[1]s.
 
 Read the Profile, the Exceptions, the kitchen, the Recipe Library and the Known Catalog with your tools, then call submit_plan once with the whole Plan. If it breaks rules, you are told which: fix them and submit again. After %[2]d Plans that break rules the Run fails. Once a Plan is stored, end your turn with a short summary of it for the user.`
 
+// describeReplaced is what of c's Plan a Plan Proposal from the Slot from
+// on replaces, for the planner: empty while c has no Plan.
+func (s *Service) describeReplaced(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) (string, error) {
+	if planned, err := hasPlan(ctx, q, c.ID); err != nil || !planned {
+		return "", err
+	}
+	plan, _, err := loadPlan(ctx, q, c.ID)
+	if err != nil {
+		return "", err
+	}
+	r, err := loadReplacement(ctx, q, c, from, s.today())
+	if err != nil {
+		return "", err
+	}
+	// Where each Portion freed is eaten now.
+	slotOf := map[int64]domain.Slot{}
+	for _, ps := range plan.PrepSessions {
+		for _, p := range ps.Portions {
+			if p.EatAt != nil {
+				slotOf[p.ID] = *p.EatAt
+			}
+		}
+	}
+	for _, k := range plan.Kept {
+		slotOf[k.PortionID] = k.Slot
+	}
+	freed := slices.Clone(r.Kept)
+	freed = slices.DeleteFunc(freed, func(k domain.KeptPortion) bool { return !slices.Contains(r.Freed, k.ID) })
+	slices.SortFunc(freed, func(a, b domain.KeptPortion) int {
+		switch {
+		case slotOf[a.ID].Before(slotOf[b.ID]):
+			return -1
+		case slotOf[b.ID].Before(slotOf[a.ID]):
+			return 1
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "The Cycle already has a Plan. Yours replaces it from %s on; what comes before stays.\n", from)
+	if len(freed) > 0 {
+		b.WriteString("From then on, these Portions already prepared fill its Slots; they are yours to put in Slots again (list_kitchen lists them):\n")
+		for _, k := range freed {
+			fmt.Fprintf(&b, "- %s: Portion %d, %s\n", slotOf[k.ID], k.ID, k.Name)
+		}
+	}
+	var dropped []string
+	for _, ps := range plan.PrepSessions {
+		if !slices.Contains(r.Dropped, ps.ID) {
+			continue
+		}
+		var eaten []string
+		for _, p := range ps.Portions {
+			if p.EatAt == nil {
+				eaten = append(eaten, "without a Slot")
+			} else {
+				eaten = append(eaten, p.EatAt.String())
+			}
+		}
+		dropped = append(dropped, fmt.Sprintf("- %s at %s, eaten at %s", ps.Name(), ps.At, strings.Join(eaten, ", ")))
+	}
+	if len(dropped) > 0 {
+		b.WriteString("And these Prep Sessions, which yours replaces:\n" + strings.Join(dropped, "\n") + "\n")
+	}
+	b.WriteString("Change only what the notes ask for, and keep the rest of it as it is where the rules allow.")
+	return b.String(), nil
+}
+
 // planningJob is the planning Run of c from the Slot from on, told the
-// Planning Brief and notes, why the user rejected earlier Plan Proposals
-// for it, newest first.
-func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []string) agent.Job {
+// Planning Brief, notes, the Planning Notes of c, newest first, and
+// replacing, what of c's Plan it replaces, if c has one.
+func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []string, replacing string) agent.Job {
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt, "Plan the Cycle delivered on %s. Its Slots run from %s to %s.\n",
 		describeDelivery(c.Delivery, longDate), c.Start, lastSlot(c.Cycle))
@@ -143,10 +248,13 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []s
 		fmt.Fprintf(&prompt, "\nThe user's Planning Brief, their lasting wishes for how their meals are planned. Follow it as far as the rules of the Plan allow; where one of this Cycle's notes disagrees with it, the note wins:\n%s\n", brief)
 	}
 	if len(notes) > 0 {
-		prompt.WriteString("\nThe user rejected earlier Plan Proposals for this Cycle with these notes, newest first. Take them into account; where two disagree, the newer one wins:\n")
+		prompt.WriteString("\nRejecting this Cycle's Plan Proposals or asking for changes to its Plan, the user gave these notes, newest first. Take them into account; where two disagree, the newer one wins:\n")
 		for _, n := range notes {
 			fmt.Fprintf(&prompt, "- %s\n", n)
 		}
+	}
+	if replacing != "" {
+		prompt.WriteString("\n" + replacing + "\n")
 	}
 
 	submitted := false
@@ -176,12 +284,13 @@ func (s *Service) planningJob(c Cycle, from domain.Slot, brief string, notes []s
 
 // kitchenTool lists what the kitchen will hold that a Plan of the Cycle
 // with id from the Slot from on can use: the Portions it may put in Slots,
-// and the Stock Items left at its first Slot not yet prepared once the Prep
-// Sessions before it have used theirs up.
+// the Stock Items left at its first Slot not yet prepared once the Prep
+// Sessions before it have used theirs up, and, once its Delivery is ordered
+// and until it arrives, what it brings: the Plan makes do with that.
 func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 	return agent.Tool{
 		Name:        "list_kitchen",
-		Description: "List what the kitchen will hold when the Plan starts: the Portions without a Slot the Plan may put in Slots (kept), by id, and the Stock Items left once the Prep Sessions before it have used theirs up, each with its Storage Location and expiry date.",
+		Description: "List what the kitchen will hold when the Plan starts: the Portions without a Slot the Plan may put in Slots (kept), by id, the Stock Items left once the Prep Sessions before it have used theirs up, each with its Storage Location and expiry date, and what an ordered Delivery still to arrive brings.",
 		InputSchema: json.RawMessage(`{"type": "object", "properties": {}}`),
 		Run: func(ctx context.Context, _ agent.Trace, _ json.RawMessage) (string, error) {
 			c, err := loadCycle(ctx, s.pool, id)
@@ -192,35 +301,47 @@ func (s *Service) kitchenTool(id int64, from domain.Slot) agent.Tool {
 			if err != nil {
 				return "", err
 			}
-			kept := r.Kept
 			items, err := s.stockAt(ctx, s.pool, r.Prepared)
 			if err != nil {
 				return "", err
 			}
 			var b strings.Builder
 			b.WriteString("Portions without a Slot:\n")
-			if len(kept) == 0 {
+			if len(r.Kept) == 0 {
 				b.WriteString("(none)\n")
 			}
-			for _, k := range kept {
+			for _, k := range r.Kept {
 				fmt.Fprintf(&b, "- Portion %d: %s, %s\n", k.ID, k.Name, k.Nutrition.Describe())
 			}
 			b.WriteString("\nStock Items:\n")
-			if len(items) == 0 {
-				b.WriteString("(none)\n")
-			}
-			for _, it := range items {
-				fmt.Fprintf(&b, "- %g %s %s in the %s", it.Quantity, it.Ingredient.Unit, it.Ingredient.Name, it.Location)
-				switch {
-				case it.Expired(s.today()):
-					fmt.Fprintf(&b, ", expired on %s: never use it", it.ExpiresOn.Format(longDate))
-				case it.ExpiresOn != nil:
-					fmt.Fprintf(&b, ", expires on %s", it.ExpiresOn.Format(longDate))
+			s.describeStock(&b, items)
+			if c.Status == "upcoming" && c.Delivery.Ordered {
+				list, _, err := s.groceryListOf(ctx, s.pool, c)
+				if err != nil {
+					return "", err
 				}
-				b.WriteString("\n")
+				fmt.Fprintf(&b, "\nOrdered, arriving with the Delivery on %s: buy nothing more for it.\n", c.Delivery.On.Format(longDate))
+				s.describeStock(&b, list.StockItems())
 			}
 			return strings.TrimSpace(b.String()), nil
 		},
+	}
+}
+
+// describeStock writes items to b, one a line, for the planner.
+func (s *Service) describeStock(b *strings.Builder, items []domain.StockItem) {
+	if len(items) == 0 {
+		b.WriteString("(none)\n")
+	}
+	for _, it := range items {
+		fmt.Fprintf(b, "- %g %s %s in the %s", it.Quantity, it.Ingredient.Unit, it.Ingredient.Name, it.Location)
+		switch {
+		case it.Expired(s.today()):
+			fmt.Fprintf(b, ", expired on %s: never use it", it.ExpiresOn.Format(longDate))
+		case it.ExpiresOn != nil:
+			fmt.Fprintf(b, ", expires on %s", it.ExpiresOn.Format(longDate))
+		}
+		b.WriteString("\n")
 	}
 }
 
@@ -352,21 +473,28 @@ func (s *Service) propose(ctx context.Context, id int64, from domain.Slot, run i
 	return problems, err
 }
 
-// Planning is how planning a Cycle without a Plan stands.
+// Planning is how planning a Cycle stands.
 type Planning struct {
-	// CanPlan is whether a planning Run can start for it now; Waits why
-	// not, when another Cycle's turn comes first.
+	// CanPlan is whether a planning Run can start for its initial Plan
+	// now; Waits why not, when another Cycle's turn comes first.
 	CanPlan bool
 	Waits   string
+	// CanAsk is whether changes to its Plan can be asked for now.
+	CanAsk bool
+	// From is the first Slot a planning Run starting now plans from.
+	From domain.Slot
 	// Run is its last planning Run, with its Trace; nil when it had none.
 	Run *runs.Run
 }
 
 // planning loads how planning c stands.
 func (s *Service) planning(ctx context.Context, q db.Querier, c Cycle) (Planning, error) {
-	var p Planning
+	p := Planning{From: domain.FirstUnprepared(c.Start, s.today())}
 	var err error
-	if p.CanPlan, p.Waits, err = s.canPlan(ctx, q, c); err != nil {
+	if p.CanPlan, p.Waits, err = s.canPlan(ctx, q, c, askPlan); err != nil {
+		return p, err
+	}
+	if p.CanAsk, _, err = s.canPlan(ctx, q, c, askChanges); err != nil {
 		return p, err
 	}
 	id, found, err := latestPlanningRun(ctx, q, c.ID)

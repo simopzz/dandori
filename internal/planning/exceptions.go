@@ -61,7 +61,7 @@ func (s *Service) Exceptions(ctx context.Context, id int64) (CycleExceptions, er
 			return ErrNoCycle
 		}
 		ce.Cycle = *c
-		if ce.CanPlan, ce.Waits, err = s.canPlan(ctx, tx, *c); err != nil {
+		if ce.CanPlan, ce.Waits, err = s.canPlan(ctx, tx, *c, askPlan); err != nil {
 			return err
 		}
 		exceptions, err := loadExceptions(ctx, tx, c.Start.On, c.LastDay())

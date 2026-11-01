@@ -283,6 +283,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /cycles/{id}/delivery", settled(http.HandlerFunc(plan.ChangeDelivery)))
 	mux.Handle("POST /cycles/{id}/drop", settled(http.HandlerFunc(plan.Drop)))
 	mux.Handle("POST /cycles/{id}/plan", settled(http.HandlerFunc(plan.Plan)))
+	mux.Handle("POST /cycles/{id}/changes", settled(http.HandlerFunc(plan.AskForChanges)))
 	mux.Handle("GET /cycles/{id}/exceptions", settled(http.HandlerFunc(plan.ShowExceptions)))
 	mux.Handle("POST /cycles/{id}/exceptions", settled(http.HandlerFunc(plan.LogException)))
 	mux.Handle("GET /cycles/{id}/groceries", settled(http.HandlerFunc(plan.ShowGroceries)))

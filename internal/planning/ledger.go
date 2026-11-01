@@ -46,19 +46,34 @@ const (
 	ProposalReplaced ProposalStatus = "replaced"
 )
 
-// turn checks the Cycle c can get an initial Plan, planned from the Slot
-// from on: it is open, has no Plan, it has Slots left to plan, and no Plan
+// asking is what a planning Run is started for.
+type asking int
+
+const (
+	// askPlan: a Cycle's initial Plan, while it has none.
+	askPlan asking = iota
+	// askChanges: changes to a Cycle's Plan, with a Planning Note.
+	askChanges
+	// askAny: a Plan Proposal whether or not the Cycle has a Plan, as
+	// after the user rejected one with a Planning Note.
+	askAny
+)
+
+// turn checks a planning Run can start for the Cycle c, planned from the
+// Slot from on, for what ask says: it is open, has no Plan for an initial
+// one and has one for changes, it has Slots left to plan, and no Plan
 // Proposal is pending nor planning Run going for any Cycle, since one is
-// planned at a time. A Cycle with a Plan changes through a Plan Proposal of
-// its own.
-func (s *Service) turn(ctx context.Context, q db.Querier, c Cycle, from domain.Slot) error {
+// planned at a time.
+func (s *Service) turn(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, ask asking) error {
 	if c.Status == "closed" {
 		return &CannotPlanError{Reason: "the next Delivery has arrived, so it is closed"}
 	}
 	if planned, err := hasPlan(ctx, q, c.ID); err != nil {
 		return err
-	} else if planned {
-		return &CannotPlanError{Reason: "it already has a Plan"}
+	} else if planned && ask == askPlan {
+		return &CannotPlanError{Reason: "it already has a Plan: ask for changes instead"}
+	} else if !planned && ask == askChanges {
+		return &CannotPlanError{Reason: "it has no Plan yet: plan it instead"}
 	}
 	if id, status, err := pendingFor(ctx, q); err != nil {
 		return err
@@ -84,11 +99,13 @@ func (s *Service) turn(ctx context.Context, q db.Querier, c Cycle, from domain.S
 	return nil
 }
 
-// stillTurn checks the Cycle c can still get an initial Plan from the
-// planning Run with run, going for it: not cancelled since, by what ended
-// its Plan Proposal.
+// stillTurn checks the planning Run with run, going for the Cycle c from
+// the Slot from on, can still store its Plan Proposal: not cancelled since,
+// by what ended its Plan Proposal.
 func (s *Service) stillTurn(ctx context.Context, q db.Querier, c Cycle, from domain.Slot, run int64) error {
-	err := s.turn(ctx, q, c, from)
+	// Nothing approves a Plan while it goes, so whether c has one is as
+	// when it started.
+	err := s.turn(ctx, q, c, from, askAny)
 	if going := (*CannotPlanError)(nil); errors.As(err, &going) && going.RunID == run {
 		return nil
 	}
@@ -104,8 +121,8 @@ func (s *Service) stillTurn(ctx context.Context, q db.Querier, c Cycle, from dom
 }
 
 // submit stores raw, the Plan the planning Run with run submitted for c
-// from the Slot from on, as c's initial Plan Proposal, as part of tx, if
-// it keeps every rule: every Violation blocks submitting. It returns the
+// from the Slot from on, as c's Plan Proposal, as part of tx, if it keeps
+// every rule: its initial one, or changes once c has a Plan: every Violation blocks submitting. It returns the
 // problems with it: why it can't be read, or the rules it breaks.
 func (s *Service) submit(ctx context.Context, tx pgx.Tx, c Cycle, from domain.Slot, run int64, raw []byte) ([]string, error) {
 	// The user may have planned it another way meanwhile, or it closed.
@@ -128,7 +145,13 @@ func (s *Service) submit(ctx context.Context, tx pgx.Tx, c Cycle, from domain.Sl
 	if len(problems) > 0 {
 		return problems, nil
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO plan_proposal (cycle_id, origin, plan, run_id) VALUES ($1, 'initial', $2, $3)`, c.ID, raw, run)
+	origin := "initial"
+	if planned, err := hasPlan(ctx, tx, c.ID); err != nil {
+		return nil, err
+	} else if planned {
+		origin = "changes"
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO plan_proposal (cycle_id, origin, plan, run_id) VALUES ($1, $2, $3, $4)`, c.ID, origin, raw, run)
 	return nil, err
 }
 

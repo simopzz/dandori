@@ -23,6 +23,15 @@ type PlanPage struct {
 	// numbered BetweenNumber.
 	Between       []BetweenRow
 	BetweenNumber int
+	// Ask is a rejected ask-for-changes form, to show back on its Cycle.
+	Ask AskForm
+}
+
+// AskForm is the ask-for-changes form of the Cycle with CycleID, and why
+// it was rejected: only an empty note is, so nothing typed is lost.
+type AskForm struct {
+	CycleID int64
+	Error   string
 }
 
 // BetweenRow is an Exception on a day between Cycles: a Cycle opened over
@@ -51,6 +60,12 @@ type CycleView struct {
 	PlanAction string
 	// Waits is why one can't, when another Cycle's turn comes first.
 	Waits string
+	// AskAction asks for changes to its Plan, planned from the Slot
+	// AskFrom on; empty when they can't be asked for. Ask is the form as
+	// last rejected.
+	AskAction string
+	AskFrom   string
+	Ask       AskForm
 	// PlanningRun is its planning Run while it goes, or the last one when it
 	// failed, with why in PlanningFailed; empty otherwise.
 	PlanningRun    string
@@ -256,33 +271,35 @@ templ cycleSections(c CycleView, cycle, plan, proposals string) {
 		}
 	}
 	@web.Section(c.Number+1, plan) {
-		if !c.HasPlan {
-			if c.PlanningRun != "" && c.PlanningFailed == "" {
-				@web.Notice() {
-					Being planned: <a href={ templ.SafeURL(c.PlanningRun) }>follow the planning Run</a>.
-				}
-			} else if c.Waits != "" {
-				@web.Empty() {
-					No Plan yet.
-				}
-				@web.Notice() {
-					Planning waits its turn, since { c.Waits }.
-				}
-			} else {
-				@web.Empty() {
-					No Plan yet: approve a Plan Proposal.
-				}
+		if c.PlanningRun != "" && c.PlanningFailed == "" {
+			@web.Notice() {
+				Being planned: <a href={ templ.SafeURL(c.PlanningRun) }>follow the planning Run</a>.
 			}
-			if c.PlanningFailed != "" {
-				@web.Alert() {
-					The last <a href={ templ.SafeURL(c.PlanningRun) }>planning Run</a> failed: { c.PlanningFailed }
-				}
-			}
-			if c.PlanAction != "" {
-				@planForm(c.PlanAction)
-			}
-		} else {
+		}
+		if c.HasPlan {
 			@calendar(c.Calendar)
+		} else if c.Waits != "" {
+			@web.Empty() {
+				No Plan yet.
+			}
+			@web.Notice() {
+				Planning waits its turn, since { c.Waits }.
+			}
+		} else if c.PlanningRun == "" || c.PlanningFailed != "" {
+			@web.Empty() {
+				No Plan yet: approve a Plan Proposal.
+			}
+		}
+		if c.PlanningFailed != "" {
+			@web.Alert() {
+				The last <a href={ templ.SafeURL(c.PlanningRun) }>planning Run</a> failed: { c.PlanningFailed }
+			}
+		}
+		if c.PlanAction != "" {
+			@planForm(c.PlanAction)
+		}
+		if c.AskAction != "" {
+			@askForm(c)
 		}
 	}
 	@web.Section(c.Number+2, proposals) {
@@ -551,6 +568,23 @@ templ rejectForm(id int64) {
 		@web.Actions() {
 			@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
 				Reject
+			}
+		}
+	</form>
+}
+
+// askForm asks for changes to a Cycle's Plan with a Planning Note.
+templ askForm(c CycleView) {
+	<form id="ask-for-changes" class="stack section" method="post" action={ templ.SafeURL(c.AskAction) }>
+		@web.Hint() {
+			Anything you'd change, even just "more variety at breakfast": a planning Run proposes changes from { c.AskFrom } on, and the Plan stays as it is until you approve them.
+		}
+		@web.Field("Planning Note", "required", c.Ask.Error) {
+			<textarea name="note" rows="3"></textarea>
+		}
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				Ask for changes
 			}
 		}
 	</form>
