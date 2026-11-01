@@ -47,9 +47,16 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 	if p.Upcoming != nil {
 		change = p.Upcoming.Change
 	}
+	// A rejected ask-for-changes form shows back on its Cycle.
+	ask := func(v *CycleView) {
+		if p.Ask.CycleID == v.ID {
+			v.Ask = p.Ask
+		}
+	}
 	n := 1
 	if o.Current != nil {
 		p.Current = cycleView(*o.Current, n)
+		ask(p.Current)
 		if o.Previous != nil {
 			p.Current.PreviousID = o.Previous.ID
 		}
@@ -61,6 +68,7 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, p PlanPage, sta
 	p.Upcoming = nil
 	if o.Upcoming != nil {
 		p.Upcoming = cycleView(*o.Upcoming, n)
+		ask(p.Upcoming)
 		p.Upcoming.Change = deliveryValues(o.Upcoming.Cycle.Delivery)
 		if change.Values != nil {
 			p.Upcoming.Change = change
@@ -101,12 +109,15 @@ func cycleView(cp CyclePlan, number int) *CycleView {
 	if cp.Planning.CanPlan {
 		v.PlanAction = planURL(c.ID)
 	}
+	if cp.Planning.CanAsk {
+		v.AskAction, v.AskFrom = changesURL(c.ID), cp.Planning.From.String()
+	}
 	v.Waits = cp.Planning.Waits
 	if run := cp.Planning.Run; run != nil {
 		switch {
 		case run.Running():
 			v.PlanningRun = runURL(run.ID)
-		case cp.Planning.CanPlan && run.Failure() != "":
+		case (cp.Planning.CanPlan || cp.Planning.CanAsk) && run.Failure() != "":
 			v.PlanningRun, v.PlanningFailed = runURL(run.ID), run.Failure()
 		}
 	}
@@ -418,6 +429,39 @@ func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AskForChanges starts a planning Run for changes to a Cycle's Plan, told
+// the user's Planning Note, and sends the user to it.
+func (h Handlers) AskForChanges(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	note := strings.TrimSpace(r.PostForm.Get("note"))
+	run, err := h.Service.AskForChanges(r.Context(), id, note)
+	var cannot *CannotPlanError
+	switch {
+	case errors.Is(err, ErrNoteRequired):
+		h.render(w, r, PlanPage{Ask: AskForm{CycleID: id, Error: "Required: say what you'd change"}}, http.StatusUnprocessableEntity)
+	case errors.Is(err, ErrNoCycle):
+		http.NotFound(w, r)
+	case errors.As(err, &cannot):
+		// Even with a Run going for the Cycle, say so: following it would
+		// drop the note unsaid.
+		h.render(w, r, PlanPage{Problem: "No changes can be asked for: " + cannot.Reason + "."}, http.StatusConflict)
+	case err != nil:
+		httpx.ServerError(w, h.Log, "ask for changes", err)
+	default:
+		http.Redirect(w, r, runURL(run), http.StatusSeeOther)
+	}
+}
+
+// changesURL is where changes to a Cycle's Plan are asked for.
+func changesURL(id int64) string { return fmt.Sprintf("/cycles/%d/changes", id) }
+
 // planURL is where a Cycle's planning Run is started.
 func planURL(id int64) string { return fmt.Sprintf("/cycles/%d/plan", id) }
 
@@ -450,8 +494,11 @@ func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 }
 
 func proposalTitle(origin string) string {
-	if origin == "substitution" {
+	switch origin {
+	case "substitution":
 		return "Substitution Plan Proposal"
+	case "changes":
+		return "Changes Plan Proposal"
 	}
 	return "Initial Plan Proposal"
 }

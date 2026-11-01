@@ -630,13 +630,17 @@ func insertPlanningRun(ctx context.Context, q db.Querier, run, id, after int64) 
 	return err
 }
 
-// loadNotes loads the notes of the Cycle with id's rejected Plan
-// Proposals, newest first.
+// loadNotes loads the Planning Notes of the Cycle with id, newest first.
 func loadNotes(ctx context.Context, q db.Querier, id int64) ([]string, error) {
-	rows, _ := q.Query(ctx, `
-		SELECT note FROM plan_proposal WHERE cycle_id = $1 AND status = 'rejected' AND note <> ''
-		ORDER BY decided_at DESC, id DESC`, id)
+	rows, _ := q.Query(ctx, `SELECT note FROM planning_note WHERE cycle_id = $1 ORDER BY id DESC`, id)
 	return pgx.CollectRows(rows, pgx.RowTo[string])
+}
+
+// insertNote adds note to the Planning Notes of the Cycle with id, as the
+// newest.
+func insertNote(ctx context.Context, q db.Querier, id int64, note string) error {
+	_, err := q.Exec(ctx, `INSERT INTO planning_note (cycle_id, note) VALUES ($1, $2)`, id, note)
+	return err
 }
 
 // groceryListFixed reports whether the Grocery List of the Cycle with id is
