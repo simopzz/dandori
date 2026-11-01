@@ -167,30 +167,16 @@ func setStatus(ctx context.Context, q db.Querier, id int64, status string) error
 	return err
 }
 
-// decidePending decides the Plan Proposals of the Cycles with ids still
-// pending as status, rejected or replaced, because of cause: not the
-// user's doing, so not a Planning Note.
-func decidePending(ctx context.Context, q db.Querier, ids []int64, status, cause string) error {
-	_, err := q.Exec(ctx, `
-		UPDATE plan_proposal SET status = $2, cause = $3, decided_at = now()
-		WHERE cycle_id = ANY($1) AND status = 'pending'`, ids, status, cause)
-	return err
-}
-
 // closeCycle closes the Cycle with id as the next Delivery's arrival a
-// says, rejecting the Plan Proposals still pending, which can no longer
-// apply, because of cause. Closing early, it drops the Prep Sessions never
+// says. Closing early, it drops the Prep Sessions never
 // prepared and takes the Portions carried over out of their Slots.
-func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival, cause string) error {
+func closeCycle(ctx context.Context, q db.Querier, id int64, a domain.Arrival) error {
 	var closedOn *time.Time
 	var closedWith *domain.SlotKind
 	if c := a.Current.ClosedAt; c != nil {
 		closedOn, closedWith = &c.On, &c.Kind
 	}
 	if _, err := q.Exec(ctx, `UPDATE cycle SET status = 'closed', closed_on = $2, closed_with = $3 WHERE id = $1`, id, closedOn, closedWith); err != nil {
-		return err
-	}
-	if err := decidePending(ctx, q, []int64{id}, "rejected", cause); err != nil {
 		return err
 	}
 	if _, err := q.Exec(ctx, `DELETE FROM prep_session WHERE id = ANY($1)`, a.DroppedPrepSessions); err != nil {
@@ -521,7 +507,7 @@ type storedProposal struct {
 	// RunID is the planning Run that submitted it; 0 when none did.
 	RunID  int64
 	Origin string
-	Status string
+	Status ProposalStatus
 	Note   string
 	Cause  string
 	Plan   []byte
@@ -554,11 +540,6 @@ func loadProposals(ctx context.Context, q db.Querier, id int64) ([]ProposalSumma
 		err := row.Scan(&p.ID, &p.Origin, &p.Status)
 		return p, err
 	})
-}
-
-func decideProposal(ctx context.Context, q db.Querier, id int64, status, note string) error {
-	_, err := q.Exec(ctx, `UPDATE plan_proposal SET status = $2, note = $3, decided_at = now() WHERE id = $1`, id, status, note)
-	return err
 }
 
 // hasPlan reports whether a Plan Proposal of the Cycle with id was approved.
@@ -692,13 +673,6 @@ func loadNotes(ctx context.Context, q db.Querier, id int64) ([]string, error) {
 		SELECT note FROM plan_proposal WHERE cycle_id = $1 AND status = 'rejected' AND note <> ''
 		ORDER BY decided_at DESC, id DESC`, id)
 	return pgx.CollectRows(rows, pgx.RowTo[string])
-}
-
-// insertProposal stores plan as the initial Plan Proposal of the Cycle
-// with id, submitted by the planning Run with run.
-func insertProposal(ctx context.Context, q db.Querier, id, run int64, plan []byte) error {
-	_, err := q.Exec(ctx, `INSERT INTO plan_proposal (cycle_id, origin, plan, run_id) VALUES ($1, 'initial', $2, $3)`, id, plan, run)
-	return err
 }
 
 // groceryListFixed reports whether the Grocery List of the Cycle with id is

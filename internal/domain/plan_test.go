@@ -516,3 +516,38 @@ func TestEverySlotIsFilledUnlessExcepted(t *testing.T) {
 		})
 	}
 }
+
+func TestWhichViolationsBlockAPlanProposalAtEachStage(t *testing.T) {
+	for _, tc := range []struct {
+		rule                  domain.Rule
+		submitting, approving bool
+	}{
+		{domain.RuleNoPortions, true, false},
+		{domain.RuleUnplannedPortion, true, false},
+		{domain.RuleStartsInPast, true, true},
+		{domain.RuleBeforeStart, true, false},
+		{domain.RuleAlreadyPrepared, true, false},
+		{domain.RulePrepSessionOutsideCycle, true, false},
+		{domain.RuleEatenOutsideCycle, true, false},
+		{domain.RuleEatenBeforePrepared, true, false},
+		{domain.RuleBackToBack, true, false},
+		{domain.RuleSlotFilledTwice, true, false},
+		{domain.RulePortionInTwoSlots, true, false},
+		{domain.RuleUnknownPortion, true, false},
+		{domain.RuleUnusedPortion, true, false},
+		{domain.RuleCalories, true, false},
+		{domain.RuleProtein, true, false},
+		{domain.RuleExcluded, true, false},
+		{domain.RuleAllergen, true, false},
+		{domain.RuleExceptedSlot, true, true},
+		{domain.RuleEmptySlot, true, false},
+	} {
+		v := domain.Violation{Rule: tc.rule}
+		if got := v.Blocks(domain.Submitting); got != tc.submitting {
+			t.Errorf("%s blocks submitting = %v, want %v", tc.rule, got, tc.submitting)
+		}
+		if got := v.Blocks(domain.Approving); got != tc.approving {
+			t.Errorf("%s blocks approving = %v, want %v", tc.rule, got, tc.approving)
+		}
+	}
+}

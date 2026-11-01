@@ -110,7 +110,7 @@ type PrepSessionRow struct {
 type ProposalRow struct {
 	ID     int64
 	Title  string // e.g. "Initial Plan Proposal"
-	Status string
+	Status ProposalStatus
 }
 
 // ProposalPage is a Plan Proposal: its Plan as a calendar of Slots and a
@@ -119,7 +119,7 @@ type ProposalRow struct {
 type ProposalPage struct {
 	ID     int64
 	Title  string
-	Status string
+	Status ProposalStatus
 	Note   string
 	Cause  string
 	// Waits is why no planning Run started for its note: another Cycle's
@@ -1155,9 +1155,9 @@ func cycleSections(c CycleView, cycle, plan, proposals string) templ.Component {
 								}
 								ctx = templ.InitializeContext(ctx)
 								var templ_7745c5c3_Var52 string
-								templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(pr.Status)
+								templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(string(pr.Status))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/views.templ`, Line: 299, Col: 18}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/views.templ`, Line: 299, Col: 26}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 								if templ_7745c5c3_Err != nil {
@@ -1165,7 +1165,7 @@ func cycleSections(c CycleView, cycle, plan, proposals string) templ.Component {
 								}
 								return nil
 							})
-							templ_7745c5c3_Err = web.Tag(pr.Status == "pending", "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var51), templ_7745c5c3_Buffer)
+							templ_7745c5c3_Err = web.Tag(pr.Status == ProposalPending, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var51), templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -2040,9 +2040,9 @@ func ProposalView(p ProposalPage) templ.Component {
 				}
 				ctx = templ.InitializeContext(ctx)
 				var templ_7745c5c3_Var93 string
-				templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(p.Status)
+				templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(string(p.Status))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/views.templ`, Line: 433, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/views.templ`, Line: 433, Col: 22}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 				if templ_7745c5c3_Err != nil {
@@ -2050,7 +2050,7 @@ func ProposalView(p ProposalPage) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Tag(p.Status == "pending", "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var92), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Tag(p.Status == ProposalPending, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var92), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2338,7 +2338,7 @@ func ProposalView(p ProposalPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if p.Status == "pending" {
+				if p.Status == ProposalPending {
 					templ_7745c5c3_Var108 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -2683,7 +2683,7 @@ func ProposalView(p ProposalPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if p.Status == "pending" {
+				if p.Status == ProposalPending {
 					templ_7745c5c3_Var126 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)

@@ -137,7 +137,7 @@ func (s *Service) LogException(ctx context.Context, id int64, slot domain.Slot, 
 				return err
 			}
 		}
-		if err := s.replace(ctx, tx, cancelled, replaced, "Replaced by the Exception on "+slot.On.Format(shortDate)+", "+string(slot.Kind)); err != nil {
+		if err := s.end(ctx, tx, cancelled, replaced, endReplaced, "Replaced by the Exception on "+slot.On.Format(shortDate)+", "+string(slot.Kind)); err != nil {
 			return err
 		}
 		if c.Status == "closed" {

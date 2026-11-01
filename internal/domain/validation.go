@@ -40,6 +40,27 @@ type Violation struct {
 
 func (v Violation) String() string { return string(v.Rule) + ": " + v.Message }
 
+// Stage is a step at which a Plan Proposal's Violations are weighed.
+type Stage int
+
+const (
+	// Submitting is a planning Run storing it.
+	Submitting Stage = iota
+	// Approving is the user making it the Plan.
+	Approving
+)
+
+// Blocks reports whether v stops a Plan Proposal at stage. Submitting,
+// every Violation does. Approving, only those it can't be applied with:
+// replacing what was prepared and eaten, or filling a Slot the user won't
+// eat at; the rest show while it is pending, for the user to weigh.
+func (v Violation) Blocks(stage Stage) bool {
+	if stage == Approving {
+		return v.Rule == RuleStartsInPast || v.Rule == RuleExceptedSlot
+	}
+	return true
+}
+
 // KeptPortion is a Portion without a Slot a Plan may put in one.
 type KeptPortion struct {
 	ID int64

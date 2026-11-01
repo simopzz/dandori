@@ -292,6 +292,8 @@ func TestApprovalReplacesThePlanAtomically(t *testing.T) {
 		t.Errorf("a failed approval changed the Plan:\n%s", plan)
 	}
 
+	// One Plan Proposal is pending at a time.
+	rejectWith(t, h, broken, "")
 	second := proposePlan(t, h, planOf(lemonAt("2026-11-05", "snack")))
 	approve = apptest.Form(t, h.Get(t, second).Body, "approve")
 	plan := text(h.PostForm(t, approve.Action, approve.Values).Body)
