@@ -156,24 +156,67 @@ func (e *Engine) List(ctx context.Context) ([]Run, error) {
 	return listRuns(ctx, e.pool)
 }
 
+// Going is the ids of the Runs of kind still running, as q sees them.
+func (e *Engine) Going(ctx context.Context, q db.Querier, kind string) ([]int64, error) {
+	return runningOf(ctx, q, kind)
+}
+
+// Status is the status of the Run with id, as q sees it.
+func (e *Engine) Status(ctx context.Context, q db.Querier, id int64) (string, error) {
+	return loadStatus(ctx, q, id)
+}
+
 // Start records a new Run of kind and runs job in the background.
 func (e *Engine) Start(ctx context.Context, kind string, job agent.Job) (int64, error) {
-	id, err := insertRun(ctx, e.pool, kind)
+	rec, err := e.Record(ctx, e.pool, kind, job)
 	if err != nil {
 		return 0, err
 	}
+	if err := e.launch(rec); err != nil {
+		return 0, err
+	}
+	return rec.ID, nil
+}
+
+// Recorded is a Run recorded as part of a transaction, for Launch to run
+// once it commits.
+type Recorded struct {
+	ID   int64
+	kind string
+	job  agent.Job
+}
+
+// Record records a new Run of kind as part of q, to run job once q
+// commits: a rollback leaves no Run. Launch runs it.
+func (e *Engine) Record(ctx context.Context, q db.Querier, kind string, job agent.Job) (Recorded, error) {
+	id, err := insertRun(ctx, q, kind)
+	return Recorded{ID: id, kind: kind, job: job}, err
+}
+
+// Launch runs rec in the background, once the transaction that recorded
+// it has committed. A Run launched while Dandori is shutting down never
+// runs, and is recorded failed.
+func (e *Engine) Launch(rec Recorded) {
+	if err := e.launch(rec); err != nil {
+		e.log.Error("launch run", "run", rec.ID, "err", err)
+	}
+}
+
+func (e *Engine) launch(rec Recorded) error {
 	runCtx, cancel := context.WithCancel(e.ctx)
-	r := &liveRun{id: id, cancel: cancel, q: e.pool, log: e.log, subs: map[chan TraceEvent]struct{}{}}
+	r := &liveRun{id: rec.ID, cancel: cancel, q: e.pool, log: e.log, subs: map[chan TraceEvent]struct{}{}}
 	if err := e.add(r); err != nil {
 		cancel()
 		// Never started, so it must not be left looking like it is running.
-		if uerr := setStatus(ctx, e.pool, id, "failed"); uerr != nil {
-			e.log.Error("store run status", "run", id, "err", uerr)
+		storeCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stop()
+		if uerr := setStatus(storeCtx, e.pool, rec.ID, "failed"); uerr != nil {
+			e.log.Error("store run status", "run", rec.ID, "err", uerr)
 		}
-		return 0, err
+		return err
 	}
-	go e.execute(runCtx, r, kind, job)
-	return id, nil
+	go e.execute(runCtx, r, rec.kind, rec.job)
+	return nil
 }
 
 func (e *Engine) execute(ctx context.Context, r *liveRun, kind string, job agent.Job) {
@@ -185,7 +228,18 @@ func (e *Engine) execute(ctx context.Context, r *liveRun, kind string, job agent
 		model = "a scripted model"
 	}
 	r.Emit(agent.Event{Kind: agent.EventStarted, Summary: fmt.Sprintf("%s run with %s", kind, model)})
-	err := e.runJob(context.WithValue(ctx, idKey{}, r.id), r, job)
+	// Recorded cancelled before it was live, when Cancel had nothing to
+	// stop: it ends without running its job. Read once live, so no cancel
+	// falls between.
+	if st, err := loadStatus(ctx, e.pool, r.id); err != nil {
+		e.log.Error("load run status", "run", r.id, "err", err)
+	} else if st != "running" {
+		r.cancel()
+	}
+	var err error
+	if ctx.Err() == nil {
+		err = e.runJob(context.WithValue(ctx, idKey{}, r.id), r, job)
+	}
 
 	status := "succeeded"
 	switch {
