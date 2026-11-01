@@ -394,10 +394,10 @@ func (s *Service) check(ctx context.Context, q db.Querier, c Cycle, from domain.
 		return domain.PlanCheck{}, err
 	}
 	check := domain.PlanCheck{Cycle: c.Cycle, Plan: plan, From: from, Today: s.today(), Profile: p, Kept: kept}
-	if check.Earlier, err = loadEarlier(ctx, q, c, from); err != nil {
+	if check.Exceptions, err = loadExceptions(ctx, q, c.Start.On.AddDate(0, 0, -6), c.LastDay()); err != nil {
 		return check, err
 	}
-	if check.Exceptions, err = loadExceptions(ctx, q, c.Start.On.AddDate(0, 0, -6), c.LastDay()); err != nil {
+	if check.Earlier, err = loadEarlier(ctx, q, c, from, check.Exceptions); err != nil {
 		return check, err
 	}
 	check.Since, err = loadSince(ctx, q)

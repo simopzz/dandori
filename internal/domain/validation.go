@@ -160,12 +160,15 @@ func (c PlanCheck) inPlan(s Slot) bool {
 }
 
 // excepted is the Exceptions by their Slot's key.
-func (c PlanCheck) excepted() map[string]Exception {
-	excepted := map[string]Exception{}
-	for _, e := range c.Exceptions {
-		excepted[e.Slot.key()] = e
+func (c PlanCheck) excepted() map[string]Exception { return excepted(c.Exceptions) }
+
+// excepted is exceptions by their Slot's key.
+func excepted(exceptions []Exception) map[string]Exception {
+	byKey := map[string]Exception{}
+	for _, e := range exceptions {
+		byKey[e.Slot.key()] = e
 	}
-	return excepted
+	return byKey
 }
 
 // Days is every day of the Cycle under the Plan, in order. An excepted
