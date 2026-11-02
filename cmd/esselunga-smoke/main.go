@@ -1,10 +1,11 @@
 // Command esselunga-smoke checks the Playwright store against the real
-// Esselunga site, by hand: it is not part of the automated suite. It only
-// reads (the session, the latest order and its first products) and never
-// touches the cart.
+// Esselunga site, by hand: it is not part of the automated suite. It reads
+// the session, the latest order and its first products. With -cart CODE it
+// also puts one more of that product in the cart, checks the cart page, and
+// sets it back to what the cart held.
 //
 //	DANDORI_PLAYWRIGHT_MCP="npx @playwright/mcp@0.0.83 --executable-path /usr/bin/brave --user-data-dir ~/.dandori/browser" \
-//	  go run ./cmd/esselunga-smoke
+//	  go run ./cmd/esselunga-smoke [-cart 310496]
 //
 // Without --executable-path it launches Google Chrome. When the session is
 // logged out, as the first time, it waits for you to log in to Esselunga in
@@ -19,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -51,6 +53,8 @@ func (printed) Emit(e agent.Event) {
 }
 
 func run() error {
+	cart := flag.String("cart", "", "the code of a product to put one more of in the cart, and take back out")
+	flag.Parse()
 	command := os.Getenv("DANDORI_PLAYWRIGHT_MCP")
 	if command == "" {
 		return errors.New("set DANDORI_PLAYWRIGHT_MCP to the command that runs the Playwright MCP server")
@@ -103,6 +107,48 @@ func run() error {
 		if p.Name == "" || p.Price <= 0 {
 			return fmt.Errorf("product %s came back without a name or price", line.Code)
 		}
+	}
+	if *cart != "" {
+		return checkCart(ctx, store, tr, *cart)
+	}
+	return nil
+}
+
+// checkCart puts one more of the product with code in the cart, checks the
+// cart page shows it, and sets it back to what the cart held.
+func checkCart(ctx context.Context, store *esselunga.Throttled, tr agent.Trace, code string) error {
+	held := func() (int, error) {
+		lines, err := store.Cart(ctx, tr)
+		if err != nil {
+			return 0, err
+		}
+		show("cart", lines)
+		for _, l := range lines {
+			if l.Code == code {
+				return l.Quantity, nil
+			}
+		}
+		return 0, nil
+	}
+	before, err := held()
+	if err != nil {
+		return err
+	}
+	if err := store.SetCartQuantity(ctx, tr, code, before+1); err != nil {
+		return fmt.Errorf("put %d of %s in the cart: %w", before+1, code, err)
+	}
+	if after, err := held(); err != nil {
+		return err
+	} else if after != before+1 {
+		return fmt.Errorf("the cart page shows %d of %s, want %d", after, code, before+1)
+	}
+	if err := store.SetCartQuantity(ctx, tr, code, before); err != nil {
+		return fmt.Errorf("set %s back to %d in the cart: %w", code, before, err)
+	}
+	if after, err := held(); err != nil {
+		return err
+	} else if after != before {
+		return fmt.Errorf("the cart page shows %d of %s, want it back to %d", after, code, before)
 	}
 	return nil
 }

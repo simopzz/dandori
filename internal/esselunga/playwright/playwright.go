@@ -2,9 +2,13 @@
 // drives the user's own logged-in browser, so Dandori never holds their
 // Esselunga credentials.
 //
-// Rather than click through pages, it calls the JSON API the Esselunga
-// site itself calls, from inside the site's page with the user's session.
-// Every request carries the session's XSRF token, since one without it ends
+// The cart is changed and read through the site's pages, as the user would
+// (ADR 0012): a product's page holds the quantity in the cart, which can be
+// typed in, and the cart page lists every line. Pages are found by their
+// addresses and their controls by their accessible labels. Looking up
+// products and reading the order history still call the JSON API the site
+// itself calls, from inside its page with the user's session (#106). Every
+// such request carries the session's XSRF token, since one without it ends
 // the session, and the page path header the site's own requests carry,
 // without which some answer 401. An expired session answers 401, and loading a page of the site
 // renews it through Esselunga's single sign-on; a 401 after that means the
@@ -201,13 +205,237 @@ func (s *Store) LookUpProduct(ctx context.Context, code string) (esselunga.Produ
 	return p, nil
 }
 
-// errNoCart is why the cart operations fail: Cart Fill (#14) will add them
-// once it is known how the site's cart API sets a quantity.
-var errNoCart = errors.New("the Playwright store can't use the cart yet")
+// settle is how long the site is given to save a quantity typed in: it
+// waits half a second for more typing, then saves it with a request that
+// leaving the page too soon cancels. pageLoad is how long a page is given to
+// show what is asked of it, and pagePoll how often it is checked meanwhile.
+const (
+	settle   = 2500 * time.Millisecond
+	pageLoad = 20 * time.Second
+	pagePoll = 500 * time.Millisecond
+)
 
-func (s *Store) SetCartQuantity(context.Context, string, int) error { return errNoCart }
+// productPage is how a product's page stands: State is "loading", "gone"
+// when the site no longer sells it, "logged out", or "ready", with the
+// Quantity of it in the cart and whether it is Available.
+type productPage struct {
+	State     string `json:"state"`
+	Quantity  int    `json:"quantity"`
+	Available bool   `json:"available"`
+}
 
-func (s *Store) Cart(context.Context) ([]esselunga.CartLine, error) { return nil, errNoCart }
+// productPageJS reads a product's page. The product's own controls are the
+// nearest to its title: the add button, or once it is in the cart the
+// quantity it holds, which the products suggested further down have too.
+const productPageJS = `() => {
+	if (location.pathname.endsWith('/prodotto-non-trovato')) return {state: 'gone'};
+	const title = [...document.querySelectorAll('h1')].find(h => h.innerText.trim() !== 'Esselunga Spesa Online');
+	if (!title) return {state: 'loading'};
+	let box = title;
+	while (box.parentElement && !box.querySelector('button.el-add-to-cart-btn-c, input[role="spinbutton"]')) box = box.parentElement;
+	const quantity = box.querySelector('input[role="spinbutton"]');
+	const add = box.querySelector('button.el-add-to-cart-btn-c');
+	if (!quantity && !add) return {state: 'loading'};
+	if (!document.querySelector('a[aria-label$="vai al profilo"]')) return {state: 'logged out'};
+	return {state: 'ready', quantity: quantity ? Number(quantity.value) || 0 : 0, available: !!quantity || !add.disabled};
+}`
+
+// addJS presses the product's own add button, which puts one in the cart.
+const addJS = `() => {
+	const title = [...document.querySelectorAll('h1')].find(h => h.innerText.trim() !== 'Esselunga Spesa Online');
+	let box = title;
+	while (box.parentElement && !box.querySelector('button.el-add-to-cart-btn-c')) box = box.parentElement;
+	box.querySelector('button.el-add-to-cart-btn-c').click();
+	return true;
+}`
+
+// typeQuantityJS types a quantity into the product's own quantity, as the
+// user would: 0 takes it out of the cart.
+const typeQuantityJS = `(n) => {
+	const title = [...document.querySelectorAll('h1')].find(h => h.innerText.trim() !== 'Esselunga Spesa Online');
+	let box = title;
+	while (box.parentElement && !box.querySelector('input[role="spinbutton"]')) box = box.parentElement;
+	const input = box.querySelector('input[role="spinbutton"]');
+	input.focus();
+	input.value = String(n);
+	input.dispatchEvent(new Event('input', {bubbles: true}));
+	input.dispatchEvent(new Event('change', {bubbles: true}));
+	input.blur();
+	return true;
+}`
+
+func productPath(code string) string {
+	// The site ignores the name that follows the code in a product's address.
+	return "/commerce/nav/supermercato/store/prodotto/" + code + "/p"
+}
+
+// SetCartQuantity types the quantity into the product's page, after adding
+// one when the cart holds none, and checks on the page loaded again that
+// the cart kept it.
+func (s *Store) SetCartQuantity(ctx context.Context, code string, quantity int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, err := s.productPage(ctx, code)
+	if err != nil {
+		return err
+	}
+	if p.Quantity == quantity {
+		return nil
+	}
+	if !p.Available {
+		return fmt.Errorf("Esselunga has product %s out of stock", code) //nolint:staticcheck // product name
+	}
+	if p.Quantity == 0 {
+		var ignored bool
+		if err := s.evaluate(ctx, addJS, &ignored); err != nil {
+			return err
+		}
+		// Loading until the cart holds one.
+		added := fmt.Sprintf("() => { const p = (%s)(); return p.state === 'ready' && p.quantity === 0 ? {state: 'loading'} : p; }", productPageJS)
+		if _, err := s.await(ctx, "one of product "+code+" in the cart", added, &p); err != nil {
+			return err
+		}
+	}
+	if quantity != 1 {
+		js := fmt.Sprintf("() => (%s)(%d)", typeQuantityJS, quantity)
+		var ignored bool
+		if err := s.evaluate(ctx, js, &ignored); err != nil {
+			return err
+		}
+	}
+	if err := pause(ctx, settle); err != nil {
+		return err
+	}
+	if p, err = s.productPage(ctx, code); err != nil {
+		return err
+	}
+	if p.Quantity != quantity {
+		return fmt.Errorf("the Esselunga cart holds %d of product %s, not the %d set", p.Quantity, code, quantity)
+	}
+	return nil
+}
+
+// productPage loads the page of the product with code and reads it.
+func (s *Store) productPage(ctx context.Context, code string) (productPage, error) {
+	var p productPage
+	if err := s.open(ctx, productPath(code), "the page of product "+code, productPageJS, &p); err != nil {
+		return p, err
+	}
+	if p.State == "gone" {
+		return p, esselunga.ErrNoSuchProduct
+	}
+	return p, nil
+}
+
+// cartPage is the cart page: its lines, once it shows them all.
+type cartPage struct {
+	State string               `json:"state"`
+	Lines []esselunga.CartLine `json:"lines"`
+}
+
+// cartPageJS reads the cart page. Each line shows the product's picture,
+// whose address and description name it, and a menu with the quantity in
+// it; the badge on the cart button counts what the cart holds, so an empty
+// cart is told from one still loading.
+const cartPageJS = `() => {
+	const badge = document.querySelector('button[aria-label="Anteprima Carrello"]');
+	if (!badge) return {state: 'loading'};
+	if (!document.querySelector('a[aria-label$="vai al profilo"]')) return {state: 'logged out'};
+	const menus = [...document.querySelectorAll('select[aria-label="Quantità"]')];
+	if (menus.length === 0 && badge.innerText.trim() !== '0') return {state: 'loading'};
+	const lines = [];
+	for (const menu of menus) {
+		let row = menu;
+		while (row.parentElement && !row.querySelector('img[alt^="Apri dettaglio"]')) row = row.parentElement;
+		const img = row.querySelector('img[alt^="Apri dettaglio"]');
+		const code = ((img && img.getAttribute('src') || '').match(/\/(\d+)\.\w+$/) || [])[1];
+		const quantity = Number((menu.value.match(/^number:(\d+)$/) || [])[1]);
+		if (!code || !quantity) return {state: 'unreadable'};
+		lines.push({Code: code, Name: img.alt.replace(/^Apri dettaglio /, '').replace(/\s+/g, ' ').trim(), Quantity: quantity});
+	}
+	return {state: 'ready', lines};
+}`
+
+// Cart reads the cart page.
+func (s *Store) Cart(ctx context.Context) ([]esselunga.CartLine, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var c cartPage
+	if err := s.open(ctx, "/commerce/nav/supermercato/checkout/trolley", "the cart page", cartPageJS, &c); err != nil {
+		return nil, err
+	}
+	if c.State == "unreadable" {
+		return nil, errors.New("a line of the Esselunga cart shows no product code or quantity")
+	}
+	return c.Lines, nil
+}
+
+// open loads the site's page at path, what, and waits until js, reading
+// it, answers a state other than "loading", decoding what it read into out.
+// A page showing the user logged out is loaded once more after renewing the
+// session, then is ErrLoggedOut. Call it with s.mu held.
+func (s *Store) open(ctx context.Context, path, what, js string, out any) error {
+	for attempt := 1; ; attempt++ {
+		if err := s.reach(ctx, attempt > 1); err != nil {
+			return err
+		}
+		if _, err := s.tool(ctx, "browser_navigate", map[string]any{"url": site + path}); err != nil {
+			return err
+		}
+		state, err := s.await(ctx, what, js, out)
+		switch {
+		case err != nil:
+			return err
+		case state == "logged out" && attempt == 1:
+			continue // the session may only have expired: renew it
+		case state == "logged out":
+			return esselunga.ErrLoggedOut
+		}
+		return nil
+	}
+}
+
+// await checks the page with js every pagePoll until it answers a state
+// other than "loading", decoding what it read into out, or pageLoad has
+// passed, and returns the state.
+func (s *Store) await(ctx context.Context, what, js string, out any) (string, error) {
+	deadline := time.Now().Add(pageLoad)
+	for {
+		var read json.RawMessage
+		err := s.evaluate(ctx, js, &read)
+		if s.client == nil {
+			return "", err // the browser is gone
+		}
+		if err == nil {
+			var page struct {
+				State string `json:"state"`
+			}
+			if err := json.Unmarshal(read, &page); err != nil {
+				return "", fmt.Errorf("read %s: %w", what, err)
+			}
+			if page.State != "loading" {
+				return page.State, json.Unmarshal(read, out)
+			}
+		}
+		// While the page loads it may fail to answer.
+		if time.Now().After(deadline) {
+			return "", fmt.Errorf("%s did not load on Esselunga", what) //nolint:staticcheck // product name
+		}
+		if err := pause(ctx, pagePoll); err != nil {
+			return "", err
+		}
+	}
+}
+
+// pause waits d, or until ctx ends.
+func pause(ctx context.Context, d time.Duration) error {
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
 // errAPI is a request the site answered with something other than 200.
 type errAPI struct {

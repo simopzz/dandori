@@ -16,7 +16,7 @@ Tests sit at two seams. Issues name them in their acceptance criteria. An adapte
 
 ## Not in the suite
 
-The Playwright store (`internal/esselunga/playwright`) is checked by hand against the real Esselunga site with `mise run smoke`, read-only, never in CI.
+The Playwright store (`internal/esselunga/playwright`) is checked by hand against the real Esselunga site with `mise run smoke`, never in CI: read-only, unless given `-cart CODE`, which puts one more of that product in the cart and sets it back.
 
 ## Guardrails
 

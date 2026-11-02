@@ -44,7 +44,7 @@ depends = ["generate"]
 run = "go run ./cmd/dandori serve"
 
 [tasks.smoke]
-description = "Check the Playwright store against real Esselunga, read-only (needs DANDORI_PLAYWRIGHT_MCP and a logged-in browser)"
+description = "Check the Playwright store against real Esselunga, read-only unless given -cart CODE (needs DANDORI_PLAYWRIGHT_MCP and a logged-in browser)"
 run = "go run ./cmd/esselunga-smoke"
 
 [tasks.lint]
