@@ -166,15 +166,6 @@ func (s *Service) proposalJob(b brief) agent.Job {
 	}
 }
 
-// storeFailure is how a tool reports a store error: one the agent can't
-// work around ends the Run.
-func storeFailure(err error) error {
-	if errors.Is(err, esselunga.ErrLoggedOut) || errors.Is(err, esselunga.ErrNoStore) {
-		return agent.Stop(err)
-	}
-	return err
-}
-
 // orderedProduct is one product of the order history, as the model sees it.
 type orderedProduct struct {
 	Code        string  `json:"code"`
@@ -192,14 +183,14 @@ func (s *Service) readOrderHistory() agent.Tool {
 		Run: func(ctx context.Context, tr agent.Trace, _ json.RawMessage) (string, error) {
 			orders, err := s.cfg.Store.OrderHistory(ctx, tr, s.cfg.Orders)
 			if err != nil {
-				return "", storeFailure(err)
+				return "", esselunga.ToolFailure(err)
 			}
 			var products []orderedProduct
 			index := map[string]int{} // of each product in products, by code
 			for _, o := range orders {
 				lines, err := s.cfg.Store.OrderLines(ctx, tr, o.ID)
 				if err != nil {
-					return "", storeFailure(err)
+					return "", esselunga.ToolFailure(err)
 				}
 				for _, l := range lines {
 					if i, ok := index[l.Code]; ok {
@@ -236,7 +227,7 @@ func (s *Service) lookUpProduct(looked map[string]lookedUp) agent.Tool {
 			}
 			p, err := s.cfg.Store.LookUpProduct(ctx, tr, in.Code)
 			if err != nil {
-				return "", storeFailure(err)
+				return "", esselunga.ToolFailure(err)
 			}
 			looked[p.Code] = lookedUp{Product: p, at: s.cfg.Now()}
 			out, err := json.Marshal(map[string]any{

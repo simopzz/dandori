@@ -45,7 +45,7 @@ func (h Handlers) renderGroceries(w http.ResponseWriter, r *http.Request, id int
 	if run := g.CartFill.Run; run != nil {
 		page.FillRun = runURL(run.ID)
 		page.FillRunning = run.Running()
-		page.FillSummary = run.Notes()
+		page.FillSummary = g.CartFill.Summary
 		page.FillFailed = run.Failure()
 	}
 	switch {

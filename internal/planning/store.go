@@ -640,15 +640,38 @@ func insertCartFillRun(ctx context.Context, q db.Querier, run, id int64) error {
 	return err
 }
 
-// latestCartFillRun is the last Cart Fill Run of the Cycle with id; found
-// is false when it has had none.
-func latestCartFillRun(ctx context.Context, q db.Querier, id int64) (run int64, found bool, err error) {
+// latestCartFillRun is the last Cart Fill Run of the Cycle with id, and
+// its summary; found is false when it has had none.
+func latestCartFillRun(ctx context.Context, q db.Querier, id int64) (run int64, summary string, found bool, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT run_id FROM cart_fill_run WHERE cycle_id = $1 ORDER BY run_id DESC LIMIT 1`, id).Scan(&run)
+		SELECT run_id, summary FROM cart_fill_run WHERE cycle_id = $1 ORDER BY run_id DESC LIMIT 1`, id).Scan(&run, &summary)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", false, nil
+	}
+	return run, summary, err == nil, err
+}
+
+// setCartFillSummary stores summary as what the Cart Fill Run run did.
+func setCartFillSummary(ctx context.Context, q db.Querier, run int64, summary string) error {
+	_, err := q.Exec(ctx, `UPDATE cart_fill_run SET summary = $2 WHERE run_id = $1`, run, summary)
+	return err
+}
+
+// substitutionUnderWay is the planning Run already replanning the Cycle
+// with id around missing, what Esselunga is out of: one among going yet
+// to submit, or one whose substitution Plan Proposal is pending, as
+// pending says. run is 0 when there is none.
+func substitutionUnderWay(ctx context.Context, q db.Querier, id int64, missing string, going []int64) (run int64, pending bool, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT p.run_id, pp.id IS NOT NULL FROM planning_run p
+		LEFT JOIN plan_proposal pp ON pp.run_id = p.run_id
+		WHERE p.cycle_id = $1 AND p.missing = $2
+			AND (pp.id IS NULL AND p.run_id = ANY($3) OR pp.status = 'pending')
+		ORDER BY p.run_id DESC LIMIT 1`, id, missing, going).Scan(&run, &pending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
-	return run, err == nil, err
+	return run, pending, err
 }
 
 // loadNotes loads the Planning Notes of the Cycle with id, newest first.

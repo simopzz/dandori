@@ -101,8 +101,7 @@ func (s *Service) StartCartFill(ctx context.Context, id int64) (int64, error) {
 	return started.ID, nil
 }
 
-// cartFillSystem is the Cart Fill Run's instructions; %[1]s is the name of
-// the Content Language.
+// cartFillSystem is the Cart Fill Run's instructions.
 const cartFillSystem = `You fill the user's Esselunga cart with their Grocery List, for a Delivery they check out and pay for themselves on Esselunga. You never check out or pay.
 
 1. Call look_up_product for each product on the Grocery List, to see whether Esselunga has it in stock now. Look up several in one turn.
@@ -110,7 +109,7 @@ const cartFillSystem = `You fill the user's Esselunga cart with their Grocery Li
 3. Leave a product out of stock, or one Esselunga no longer sells, out of the cart: once you end your turn, the planner replans around it in a substitution Plan Proposal for the user to approve.
 4. If the store fails on a product, you may try it again once; otherwise move on.
 
-End your turn with a short summary for the user, under these headings: Added (with the packs), Substituted (out of stock, sent to the planner), Skipped (no Product Mapping) and Failed (what the store refused: filling the cart again retries it). Say which products come from a proposed Product Mapping, so the user checks them in the cart. Write the summary in %[1]s; Catalog Product names are Esselunga's own, in Italian: keep them as they are.`
+End your turn once every product is looked up and those available are in the cart. Cart Fill then sums up for the user what it added, substituted, skipped and failed, so end with a single short line.`
 
 // cartLine is one product Cart Fill puts in the cart: the packs the
 // Grocery List buys of it, for its Ingredients, usually one.
@@ -141,17 +140,31 @@ func cartLines(list domain.GroceryList) []*cartLine {
 	return lines
 }
 
-// cartFill is how a Cart Fill Run stands: what Esselunga showed of each
+// fillState is how a Cart Fill Run stands: what Esselunga showed of each
 // product, and what is in the cart.
-type cartFill struct {
+type fillState struct {
 	lines []*cartLine
-	// seen is whether each product looked up, by code, is available; inCart
-	// whether it was set in the cart.
-	seen   map[string]bool
-	inCart map[string]bool
+	// skipped are the Ingredients without a Product Mapping.
+	skipped []string
+	// seen is whether each product looked up, by code, is available;
+	// unlisted whether Esselunga no longer sells it; inCart whether it was
+	// set in the cart.
+	seen     map[string]bool
+	unlisted map[string]bool
+	inCart   map[string]bool
 }
 
-func (f *cartFill) line(code string) (*cartLine, error) {
+func newFillState(list domain.GroceryList) *fillState {
+	f := &fillState{lines: cartLines(list), seen: map[string]bool{}, unlisted: map[string]bool{}, inCart: map[string]bool{}}
+	for _, l := range list {
+		if l.Mapping == nil {
+			f.skipped = append(f.skipped, l.Ingredient.Name)
+		}
+	}
+	return f
+}
+
+func (f *fillState) line(code string) (*cartLine, error) {
 	i := slices.IndexFunc(f.lines, func(l *cartLine) bool { return l.code == code })
 	if i < 0 {
 		return nil, fmt.Errorf("product %s is not on the Grocery List", code)
@@ -159,29 +172,62 @@ func (f *cartFill) line(code string) (*cartLine, error) {
 	return f.lines[i], nil
 }
 
+// missing is whether Esselunga showed l's product unavailable.
+func (f *fillState) missing(l *cartLine) bool {
+	available, seen := f.seen[l.code]
+	return seen && !available
+}
+
+// summary sums up for the user what the Run added, substituted, skipped
+// and failed, in Markdown; substituted says what became of the
+// substitution.
+func (f *fillState) summary(substituted string) string {
+	var added, out, failed []string
+	for _, l := range f.lines {
+		uses := strings.Join(l.ingredients, ", ")
+		switch {
+		case f.inCart[l.code]:
+			item := fmt.Sprintf("%d × %s, for %s", l.packs, l.name, uses)
+			if l.proposed {
+				item += " (from a proposed Product Mapping: check it in the cart)"
+			}
+			added = append(added, item)
+		case f.unlisted[l.code]:
+			out = append(out, fmt.Sprintf("%s, for %s: Esselunga no longer sells it", l.name, uses))
+		case f.missing(l):
+			out = append(out, fmt.Sprintf("%s, for %s: out of stock", l.name, uses))
+		default:
+			failed = append(failed, fmt.Sprintf("%s, for %s", l.name, uses))
+		}
+	}
+	var b strings.Builder
+	section := func(heading string, items []string) {
+		if len(items) == 0 {
+			return
+		}
+		fmt.Fprintf(&b, "**%s**\n\n", heading)
+		for _, item := range items {
+			fmt.Fprintf(&b, "- %s\n", item)
+		}
+		b.WriteString("\n")
+	}
+	section("Added", added)
+	section("Substituted: "+substituted, out)
+	section("Skipped, without a Product Mapping", f.skipped)
+	section("Failed: filling the cart again retries them", failed)
+	return strings.TrimSpace(b.String())
+}
+
 // cartFillJob is the Cart Fill Run of c, whose Grocery List is list.
 func (s *Service) cartFillJob(c Cycle, list domain.GroceryList) agent.Job {
-	fill := &cartFill{lines: cartLines(list), seen: map[string]bool{}, inCart: map[string]bool{}}
+	fill := newFillState(list)
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt, "The Grocery List for the Delivery on %s:\n", describeDelivery(c.Delivery, longDate))
 	for _, l := range fill.lines {
-		fmt.Fprintf(&prompt, "- %d × %s (product %s), for %s", l.packs, l.name, l.code, strings.Join(l.ingredients, ", "))
-		if l.proposed {
-			prompt.WriteString(", from a proposed Product Mapping")
-		}
-		prompt.WriteString("\n")
-	}
-	var unmapped []string
-	for _, l := range list {
-		if l.Mapping == nil {
-			unmapped = append(unmapped, l.Ingredient.Name)
-		}
-	}
-	if len(unmapped) > 0 {
-		fmt.Fprintf(&prompt, "\nWithout a Product Mapping, skipped: %s\n", strings.Join(unmapped, ", "))
+		fmt.Fprintf(&prompt, "- %d × %s (product %s), for %s\n", l.packs, l.name, l.code, strings.Join(l.ingredients, ", "))
 	}
 	return agent.Job{
-		System: fmt.Sprintf(cartFillSystem, s.language.Name()),
+		System: cartFillSystem,
 		Prompt: strings.TrimSpace(prompt.String()),
 		Start: func(ctx context.Context, tr agent.Trace) error {
 			return s.store.CheckSession(ctx, tr)
@@ -193,16 +239,7 @@ func (s *Service) cartFillJob(c Cycle, list domain.GroceryList) agent.Job {
 	}
 }
 
-// storeFailure is how a Cart Fill tool reports a store error: one the agent
-// can't work around ends the Run.
-func storeFailure(err error) error {
-	if errors.Is(err, esselunga.ErrLoggedOut) || errors.Is(err, esselunga.ErrNoStore) {
-		return agent.Stop(err)
-	}
-	return err
-}
-
-func (s *Service) cartLookUpTool(fill *cartFill) agent.Tool {
+func (s *Service) cartLookUpTool(fill *fillState) agent.Tool {
 	return agent.Tool{
 		Name:        "look_up_product",
 		Description: "Whether Esselunga has a product on the Grocery List in stock now. What it shows is recorded in the Known Catalog.",
@@ -221,9 +258,10 @@ func (s *Service) cartLookUpTool(fill *cartFill) agent.Tool {
 			p, err := s.store.LookUpProduct(ctx, tr, l.code)
 			unlisted := errors.Is(err, esselunga.ErrNoSuchProduct)
 			if err != nil && !unlisted {
-				return "", storeFailure(err)
+				return "", esselunga.ToolFailure(err)
 			}
 			fill.seen[l.code] = p.Available
+			fill.unlisted[l.code] = unlisted
 			if err := s.catalog.SeeAvailability(ctx, l.code, p.Available); err != nil {
 				return "", fmt.Errorf("record its availability: %w", err)
 			}
@@ -238,7 +276,7 @@ func (s *Service) cartLookUpTool(fill *cartFill) agent.Tool {
 	}
 }
 
-func (s *Service) setCartQuantityTool(fill *cartFill) agent.Tool {
+func (s *Service) setCartQuantityTool(fill *fillState) agent.Tool {
 	return agent.Tool{
 		Name:        "set_cart_quantity",
 		Description: "Put the packs the Grocery List buys of a product you looked up and found available in the Esselunga cart, whatever the cart held of it.",
@@ -264,7 +302,7 @@ func (s *Service) setCartQuantityTool(fill *cartFill) agent.Tool {
 				return "", fmt.Errorf("the Grocery List buys %d of %s, not %d", l.packs, l.name, in.Quantity)
 			}
 			if err := s.store.SetCartQuantity(ctx, tr, l.code, l.packs); err != nil {
-				return "", storeFailure(err)
+				return "", esselunga.ToolFailure(err)
 			}
 			fill.inCart[l.code] = true
 			return fmt.Sprintf("The cart holds %d × %s.", l.packs, l.name), nil
@@ -273,40 +311,46 @@ func (s *Service) setCartQuantityTool(fill *cartFill) agent.Tool {
 }
 
 // finishCartFill ends the Cart Fill Run of the Cycle with id: it has the
-// planner replan around what Esselunga is out of, and fails the Run if a
-// product is neither in the cart nor out of stock, so it is filled again.
-func (s *Service) finishCartFill(ctx context.Context, tr agent.Trace, id int64, fill *cartFill) error {
-	var missing, unfilled []*cartLine
+// planner replan around what Esselunga is out of, sums up the Run for the
+// user, and fails it if a product is neither in the cart nor out of stock,
+// so it is filled again.
+func (s *Service) finishCartFill(ctx context.Context, tr agent.Trace, id int64, fill *fillState) error {
+	var missing []*cartLine
+	var unfilled []string
 	for _, l := range fill.lines {
-		available, seen := fill.seen[l.code]
 		switch {
-		case seen && !available:
+		case fill.missing(l):
 			missing = append(missing, l)
 		case !fill.inCart[l.code]:
-			unfilled = append(unfilled, l)
+			unfilled = append(unfilled, l.name)
 		}
 	}
+	var substituted string
 	if len(missing) > 0 {
-		if err := s.substitute(ctx, tr, id, missing); err != nil {
+		var err error
+		if substituted, err = s.substitute(ctx, id, missing); err != nil {
 			return err
 		}
 	}
+	summary := fill.summary(substituted)
+	tr.Emit(agent.Event{Kind: agent.EventStep, Summary: summary})
+	if err := setCartFillSummary(ctx, s.pool, runs.IDFrom(ctx), summary); err != nil {
+		return err
+	}
 	if len(unfilled) > 0 {
-		var names []string
-		for _, l := range unfilled {
-			names = append(names, l.name)
-		}
-		return fmt.Errorf("these are not in the cart: %s. Fill the cart again to retry them", strings.Join(names, ", "))
+		return fmt.Errorf("these are not in the cart: %s. Fill the cart again to retry them", strings.Join(unfilled, ", "))
 	}
 	return nil
 }
 
 // substitute has a planning Run replan the Cycle with id around missing,
-// what Esselunga is out of. Like an Exception on the upcoming Cycle, it
-// replaces that Cycle's pending Plan Proposal and cancels its planning Run
-// going; while the current Cycle's turn comes first, it marks the Plan as
-// needing a new Plan Proposal instead.
-func (s *Service) substitute(ctx context.Context, tr agent.Trace, id int64, missing []*cartLine) error {
+// what Esselunga is out of, and says what became of it. Like an Exception
+// on the upcoming Cycle, it replaces that Cycle's pending Plan Proposal and
+// cancels its planning Run going; while the current Cycle's turn comes
+// first, it marks the Plan as needing a new Plan Proposal instead. It
+// changes nothing once the Delivery is ordered, or when the same
+// substitution is already under way, as when Cart Fill runs again.
+func (s *Service) substitute(ctx context.Context, id int64, missing []*cartLine) (string, error) {
 	var ingredients []string
 	var describe strings.Builder
 	for _, l := range missing {
@@ -314,40 +358,67 @@ func (s *Service) substitute(ctx context.Context, tr agent.Trace, id int64, miss
 		fmt.Fprintf(&describe, "- %s, bought as %s\n", strings.Join(l.ingredients, ", "), l.name)
 	}
 	out := strings.Join(ingredients, ", ")
+	described := strings.TrimSpace(describe.String())
 	var started runs.Recorded
-	var waits string
+	var outcome string
 	err := s.write(ctx, func(tx pgx.Tx, cancelled *cancels) error {
 		if err := lockCycles(ctx, tx); err != nil {
 			return err
 		}
 		c, err := findCycle(ctx, tx, id)
-		if err != nil || c == nil || c.Status != "upcoming" {
-			// Arrived or dropped meanwhile: there is no Plan to change.
+		switch {
+		case err != nil:
+			return err
+		case c == nil || c.Status != "upcoming":
+			outcome = "its Delivery has arrived, so its Plan stays as it is"
+			return nil
+		case c.Delivery.Ordered:
+			outcome = "its Delivery is ordered, so its Plan stays as it is"
+			return nil
+		}
+		going, err := s.runs.Going(ctx, tx, planningKind)
+		if err != nil {
+			return err
+		}
+		if run, pending, err := substitutionUnderWay(ctx, tx, id, described, going); err != nil {
+			return err
+		} else if pending {
+			outcome = fmt.Sprintf("their substitution Plan Proposal, from [planning Run %d](%s), is pending: approve or reject it", run, runURL(run))
+			return nil
+		} else if run != 0 {
+			outcome = fmt.Sprintf("[planning Run %d](%s) is already replanning around them", run, runURL(run))
+			return nil
+		}
+		// The upcoming Cycle's own Plan Proposal and planning Run make way;
+		// the current Cycle's don't.
+		var cannot *CannotPlanError
+		flag := func() error {
+			outcome = fmt.Sprintf("the planner can't replan now, since %s: the Plan needs a new Plan Proposal", cannot.Reason)
+			return setNeedsProposal(ctx, tx, id, "Esselunga is out of "+out)
+		}
+		from := domain.FirstUnprepared(c.Start, s.today())
+		if err := s.turn(ctx, tx, *c, from, askAny); errors.As(err, &cannot) && cannot.WaitsTurn {
+			return flag()
+		} else if err != nil && !errors.As(err, &cannot) {
 			return err
 		}
 		if err := s.end(ctx, tx, cancelled, []int64{id}, endReplaced, "Replaced by the Cart Fill substitution for "+out); err != nil {
 			return err
 		}
-		started, err = s.startPlanningIn(ctx, tx, id, askAny, 0, "", strings.TrimSpace(describe.String()))
-		var cannot *CannotPlanError
+		started, err = s.startPlanningIn(ctx, tx, id, askAny, 0, "", described)
 		if errors.As(err, &cannot) {
-			waits = cannot.Reason
-			return setNeedsProposal(ctx, tx, id, "Esselunga is out of "+out)
+			return flag()
 		}
 		return err
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
-	if started.ID == 0 {
-		if waits != "" {
-			tr.Emit(agent.Event{Kind: agent.EventStep, Summary: fmt.Sprintf("Esselunga is out of %s, but the planner can't replan now, since %s: the Plan needs a new Plan Proposal.", out, waits)})
-		}
-		return nil
+	if started.ID != 0 {
+		s.runs.Launch(started)
+		outcome = fmt.Sprintf("[planning Run %d](%s) replans around them in a substitution Plan Proposal", started.ID, runURL(started.ID))
 	}
-	s.runs.Launch(started)
-	tr.Emit(agent.Event{Kind: agent.EventStep, Summary: fmt.Sprintf("Esselunga is out of %s: planning Run %d replans around it", out, started.ID), Detail: runURL(started.ID)})
-	return nil
+	return outcome, nil
 }
 
 // CartFill is how filling the cart for a Cycle stands.
@@ -356,6 +427,9 @@ type CartFill struct {
 	CanFill bool
 	// Run is its last Cart Fill Run, with its Trace; nil when it had none.
 	Run *runs.Run
+	// Summary is what Run added, substituted, skipped and failed, in
+	// Markdown, once it finished.
+	Summary string
 }
 
 // cartFill loads how filling the cart for c, whose Grocery List is list,
@@ -367,10 +441,11 @@ func (s *Service) cartFill(ctx context.Context, q db.Querier, c Cycle, list doma
 		return f, err
 	}
 	f.CanFill = err == nil
-	id, found, err := latestCartFillRun(ctx, q, c.ID)
+	id, summary, found, err := latestCartFillRun(ctx, q, c.ID)
 	if err != nil || !found {
 		return f, err
 	}
+	f.Summary = summary
 	run, found, err := s.runs.Get(ctx, id)
 	if err != nil || !found {
 		return f, err

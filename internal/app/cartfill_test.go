@@ -79,7 +79,16 @@ func fillScript() []fakellm.Step {
 	return []fakellm.Step{
 		fakellm.CallTool("look_up_product", map[string]any{"code": pettoDiPollo.Code}),
 		fakellm.CallTool("set_cart_quantity", map[string]any{"code": pettoDiPollo.Code, "quantity": 2}),
-		fakellm.Reply("Added 2 × " + pettoDiPollo.Name + ". Skipped basmati rice and lemon: no Product Mapping."),
+		fakellm.Reply("Done."),
+	}
+}
+
+// outOfStockScript is the model looking up the chicken breast, out of
+// stock, and leaving it out of the cart.
+func outOfStockScript() []fakellm.Step {
+	return []fakellm.Step{
+		fakellm.CallTool("look_up_product", map[string]any{"code": pettoDiPollo.Code}),
+		fakellm.Reply("Done."),
 	}
 }
 
@@ -94,8 +103,14 @@ func TestCartFillPutsTheGroceryListInTheCart(t *testing.T) {
 	if cart := strings.Join(cartOf(t, store), ", "); cart != pettoDiPollo.Code+"×2" {
 		t.Errorf("the cart holds %q, want two packs of chicken breast", cart)
 	}
-	if list := groceryList(t, h); !strings.Contains(list, "Added 2 × "+pettoDiPollo.Name) {
-		t.Errorf("the Grocery List does not show the last Cart Fill's summary:\n%s", list)
+	list := groceryList(t, h)
+	for _, want := range []string{
+		"Added 2 × " + pettoDiPollo.Name + ", for chicken breast",
+		"Skipped, without a Product Mapping basmati rice lemon",
+	} {
+		if !strings.Contains(list, want) {
+			t.Errorf("the Grocery List does not sum up the last Cart Fill with %q:\n%s", want, list)
+		}
 	}
 }
 
@@ -124,14 +139,17 @@ func TestOutOfStockProductLeadsToASubstitutionPlanProposal(t *testing.T) {
 	store.SetAvailable(pettoDiPollo.Code, false)
 	replaced := proposePlan(t, h, planOf())
 
+	llm.Script(outOfStockScript()...)
 	llm.Script(
-		fakellm.CallTool("look_up_product", map[string]any{"code": pettoDiPollo.Code}),
-		fakellm.Reply("Substituted: chicken breast, out of stock."),
 		fakellm.CallTool("submit_plan", withoutChicken()),
 		fakellm.Reply("Lemons where the Lemon chicken was."),
 	)
 	if run := text(fillCart(t, h).Body); !strings.Contains(run, "Succeeded") {
 		t.Fatalf("the Cart Fill Run did not succeed:\n%s", run)
+	}
+	planning := newestRun(t, h, "planning")
+	if list := apptest.Link(t, h.Get(t, lastCyclePath(t, h, "groceries")).Body, "planning Run "+strings.TrimPrefix(planning, "/runs/")); list != planning {
+		t.Errorf("the Cart Fill summary links %s, want the planning Run replanning around the chicken breast, %s", list, planning)
 	}
 	if cart := cartOf(t, store); len(cart) != 0 {
 		t.Errorf("the cart holds %q, want nothing out of stock", cart)
@@ -144,7 +162,6 @@ func TestOutOfStockProductLeadsToASubstitutionPlanProposal(t *testing.T) {
 		t.Errorf("the pending Plan Proposal is not replaced by the substitution:\n%s", p)
 	}
 
-	newestRun(t, h, "planning")
 	prompt := plannerRequests(llm)[0].Messages[0].Content[0].Text
 	if want := "- chicken breast, bought as " + pettoDiPollo.Name; !strings.Contains(prompt, want) {
 		t.Errorf("the planning Run is not told Esselunga is out of the chicken breast:\n%s", prompt)
@@ -217,8 +234,19 @@ func TestProductLeftOutOfTheCartFailsCartFill(t *testing.T) {
 		fakellm.Reply("Done."),
 	)
 	run := text(fillCart(t, h).Body)
-	if want := "these are not in the cart: " + pettoDiPollo.Name + ". Fill the cart again to retry them"; !strings.Contains(run, "Run failed") || !strings.Contains(run, want) {
-		t.Errorf("the Cart Fill Run did not fail saying %q:\n%s", want, run)
+	failed := "these are not in the cart: " + pettoDiPollo.Name + ". Fill the cart again to retry them"
+	if !strings.Contains(run, "Run failed") || !strings.Contains(run, failed) {
+		t.Errorf("the Cart Fill Run did not fail saying %q:\n%s", failed, run)
+	}
+	list := groceryList(t, h)
+	for _, want := range []string{
+		"The last Cart Fill failed: " + failed,
+		"Failed: filling the cart again retries them " + pettoDiPollo.Name + ", for chicken breast",
+		"Skipped, without a Product Mapping basmati rice lemon",
+	} {
+		if !strings.Contains(list, want) {
+			t.Errorf("the Grocery List does not show %q for the failed Cart Fill:\n%s", want, list)
+		}
 	}
 	if cart := cartOf(t, store); len(cart) != 0 {
 		t.Errorf("the cart holds %q, want nothing", cart)
@@ -275,12 +303,13 @@ func TestSubstitutionWaitingForTheCurrentCycleFlagsTheUpcomingPlan(t *testing.T)
 	pending := proposePlanFor(t, h, "2026-11-02", planFrom("2026-11-04", "breakfast"))
 	store.SetAvailable(pettoDiPollo.Code, false)
 
-	llm.Script(
-		fakellm.CallTool("look_up_product", map[string]any{"code": pettoDiPollo.Code}),
-		fakellm.Reply("Substituted: chicken breast, out of stock."),
-	)
+	llm.Script(outOfStockScript()...)
 	if run := text(fillCart(t, h).Body); !strings.Contains(run, "Succeeded") {
 		t.Fatalf("the Cart Fill Run did not succeed:\n%s", run)
+	}
+	list := text(h.Get(t, lastCyclePath(t, h, "groceries")).Body)
+	if want := "Substituted: the planner can't replan now, since a Plan Proposal for the current Cycle is pending: approve or reject it: the Plan needs a new Plan Proposal " + pettoDiPollo.Name + ", for chicken breast: out of stock"; !strings.Contains(list, want) {
+		t.Errorf("the Cart Fill summary does not say the planner can't replan yet:\n%s", list)
 	}
 	if n := planningRunsGoing(t, h); n != 0 || len(plannerRequests(llm)) != 0 {
 		t.Errorf("a planning Run started while the current Cycle's Plan Proposal is pending")
@@ -331,5 +360,60 @@ func TestCartFillStartedTwiceFollowsTheRunGoing(t *testing.T) {
 	}
 	if link := apptest.Link(t, h.Get(t, lastCyclePath(t, h, "groceries")).Body, "follow Cart Fill"); link != first.Path {
 		t.Errorf("the Grocery List follows %s, want the Cart Fill going, %s", link, first.Path)
+	}
+}
+
+func TestCartFillRunAgainKeepsThePendingSubstitution(t *testing.T) {
+	h, _, llm, store := startCartFill(t)
+	store.SetAvailable(pettoDiPollo.Code, false)
+	llm.Script(outOfStockScript()...)
+	llm.Script(
+		fakellm.CallTool("submit_plan", withoutChicken()),
+		fakellm.Reply("Lemons where the Lemon chicken was."),
+	)
+	fillCart(t, h)
+	planning := newestRun(t, h, "planning")
+	substitution := proposalPaths(t, h)[0]
+
+	llm.Script(outOfStockScript()...)
+	if run := text(fillCart(t, h).Body); !strings.Contains(run, "Succeeded") {
+		t.Fatalf("Cart Fill run again did not succeed:\n%s", run)
+	}
+	if p := text(h.Get(t, substitution).Body); !strings.Contains(p, "Substitution Plan Proposal") || !strings.Contains(p, "pending") {
+		t.Errorf("filling the cart again ended the pending Substitution Plan Proposal:\n%s", p)
+	}
+	if n := len(plannerRequests(llm)); n != 2 {
+		t.Errorf("the planner was asked %d times, want only the first substitution's two turns", n)
+	}
+	if list, want := groceryList(t, h), "their substitution Plan Proposal, from planning Run "+strings.TrimPrefix(planning, "/runs/")+" , is pending"; !strings.Contains(list, want) {
+		t.Errorf("the Cart Fill summary does not point at the pending substitution:\n%s", list)
+	}
+}
+
+func TestDeliveryOrderedDuringCartFillKeepsItsPlan(t *testing.T) {
+	h, _, llm, store := startCartFill(t)
+	store.SetAvailable(pettoDiPollo.Code, false)
+	pending := proposePlan(t, h, planOf())
+
+	// The user marks the Delivery ordered while Cart Fill looks the chicken
+	// breast up.
+	llm.Script(
+		fakellm.CallTool("look_up_product", map[string]any{"code": pettoDiPollo.Code}),
+		fakellm.Then(func(agent.Request) fakellm.Step {
+			changeDelivery(t, h, map[string]string{"ordered": "yes"})
+			return fakellm.Reply("Done.")
+		}),
+	)
+	if run := text(fillCart(t, h).Body); !strings.Contains(run, "Succeeded") {
+		t.Fatalf("the Cart Fill Run did not succeed:\n%s", run)
+	}
+	if n := planningRunsGoing(t, h); n != 0 || len(plannerRequests(llm)) != 0 {
+		t.Errorf("a planning Run replans the Cycle whose Delivery is ordered")
+	}
+	if p := text(h.Get(t, pending).Body); !strings.Contains(p, "pending") {
+		t.Errorf("the Plan Proposal was replaced once the Delivery is ordered:\n%s", p)
+	}
+	if list := groceryList(t, h); !strings.Contains(list, "Substituted: its Delivery is ordered, so its Plan stays as it is") {
+		t.Errorf("the Cart Fill summary does not say the ordered Delivery keeps its Plan:\n%s", list)
 	}
 }

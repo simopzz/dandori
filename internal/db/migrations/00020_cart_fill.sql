@@ -1,9 +1,12 @@
 -- +goose Up
 -- The Cart Fill Runs of a Cycle: each adds its Grocery List to the
--- Esselunga cart while its Delivery is tentative.
+-- Esselunga cart while its Delivery is tentative. Its summary, in
+-- Markdown, says what it added, substituted, skipped and failed, once it
+-- finished.
 CREATE TABLE cart_fill_run (
     run_id   bigint PRIMARY KEY REFERENCES run ON DELETE CASCADE,
-    cycle_id bigint NOT NULL REFERENCES cycle ON DELETE CASCADE
+    cycle_id bigint NOT NULL REFERENCES cycle ON DELETE CASCADE,
+    summary  text   NOT NULL DEFAULT ''
 );
 
 -- What Esselunga was out of when Cart Fill started a planning Run to
