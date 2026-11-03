@@ -28,7 +28,7 @@ s.NextDay()          // the same time tomorrow
 
 ## Seam 2: the domain core
 
-`internal/domain/*_test.go`. Pure functions called directly, usually table-driven. No database, no clock: the time a rule needs is passed in.
+`internal/domain/*_test.go`, once v2 has a domain core. Pure functions called directly, usually table-driven. No database, no clock: the time a rule needs is passed in.
 
 ## Guardrails
 

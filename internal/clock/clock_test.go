@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-// readsTheTime is a call that reads the machine's time instead of the
-// app's Clock.
-var readsTheTime = regexp.MustCompile(`\btime\.(Now|Since|Until)\(`)
+// readsTheTime reads the machine's time instead of the app's Clock, called
+// or passed as a function.
+var readsTheTime = regexp.MustCompile(`\btime\.(Now|Since|Until)\b`)
 
 // Time is an input (ADR-0014): nothing outside this package reads the
 // machine's time, in Go code, tests or templates, so tests can set and

@@ -7,7 +7,7 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// TestPagesShowTheClocksDay, through a real browser: the clock is set
+// TestPagesShowTheClocksDay through a real browser: the clock is set
 // through the test-only switch.
 func TestBrowserPagesShowTheClocksDay(t *testing.T) {
 	h := apptest.Start(t)

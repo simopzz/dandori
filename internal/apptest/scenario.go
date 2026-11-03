@@ -40,9 +40,9 @@ func (s *Scenario) At(when string) {
 	s.t.Helper()
 	now := s.Clock.Now()
 	var next time.Time
-	if day, clock, ok := strings.Cut(when, " "); ok && len(day) == 3 {
+	if day, timeOfDay, ok := strings.Cut(when, " "); ok && len(day) == 3 {
 		wd, ok := weekdays[day]
-		hm, err := time.Parse("15:04", clock)
+		hm, err := time.Parse("15:04", timeOfDay)
 		if !ok || err != nil {
 			s.t.Fatalf("At(%q): want a weekday and a time, such as \"Tue 10:00\"", when)
 		}

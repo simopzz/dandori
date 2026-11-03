@@ -5,6 +5,7 @@ package clock
 import (
 	"sync"
 	"time"
+	_ "time/tzdata" // DefaultZone loads without a zone database, as on distroless
 )
 
 // DefaultZone is the zone a day starts and ends in unless
@@ -23,8 +24,7 @@ type real struct{ loc *time.Location }
 
 func (r real) Now() time.Time { return time.Now().In(r.loc) }
 
-// Manual is a clock that stands still until it is set or advanced, for
-// tests.
+// Manual is a clock that stands still until it is set, for tests.
 type Manual struct {
 	mu  sync.Mutex
 	now time.Time

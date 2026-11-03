@@ -24,10 +24,7 @@ func (h *Harness) Browser(t testing.TB) *Browser {
 	t.Helper()
 	pw, err := playwright.Run(&playwright.RunOptions{Stdout: os.Stderr})
 	if err != nil {
-		if os.Getenv("CI") == "" {
-			t.Skipf("no Playwright driver (run `mise run browsers`): %v", err)
-		}
-		t.Fatalf("start Playwright: %v", err)
+		notInstalled(t, "start Playwright", err)
 	}
 	t.Cleanup(func() {
 		if err := pw.Stop(); err != nil {
@@ -36,10 +33,7 @@ func (h *Harness) Browser(t testing.TB) *Browser {
 	})
 	browser, err := pw.Chromium.Launch()
 	if err != nil {
-		if os.Getenv("CI") == "" {
-			t.Skipf("no Playwright Chromium (run `mise run browsers`): %v", err)
-		}
-		t.Fatalf("launch Chromium: %v", err)
+		notInstalled(t, "launch Chromium", err)
 	}
 	t.Cleanup(func() { browser.Close() })
 	page, err := browser.NewPage()
@@ -47,6 +41,16 @@ func (h *Harness) Browser(t testing.TB) *Browser {
 		t.Fatalf("open a page: %v", err)
 	}
 	return &Browser{Page: page, url: h.URL}
+}
+
+// notInstalled skips the test when what failed is likely a browser not
+// installed here, and fails it in CI, which installs one.
+func notInstalled(t testing.TB, what string, err error) {
+	t.Helper()
+	if os.Getenv("CI") == "" {
+		t.Skipf("%s (run `mise run browsers`): %v", what, err)
+	}
+	t.Fatalf("%s: %v", what, err)
 }
 
 // SetClock sets the app's clock to now through the test-only switch.

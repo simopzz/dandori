@@ -20,7 +20,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-	_ "time/tzdata" // the distroless image has no zone database
 
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/clock"
