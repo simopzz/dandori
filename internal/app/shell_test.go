@@ -9,12 +9,13 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
+// Every page is in the app shell, the signed-out sign-in page as well.
 func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 	h := apptest.Start(t)
 
-	page := h.Get(t, "/")
+	page := h.Get(t, "/sign-in")
 	if page.StatusCode != http.StatusOK {
-		t.Fatalf("GET / status = %d, want 200", page.StatusCode)
+		t.Fatalf("GET /sign-in status = %d, want 200", page.StatusCode)
 	}
 	if !strings.Contains(page.Body, `<link rel="manifest" href="/manifest.webmanifest"`) {
 		t.Errorf("app shell does not link the manifest:\n%s", page.Body)
@@ -63,10 +64,12 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 
 func TestHomeIsServedInTheAppShell(t *testing.T) {
 	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	h.SignIn(t, "ada@example.com")
 
 	page := h.Get(t, "/")
-	if page.StatusCode != http.StatusOK {
-		t.Fatalf("GET / status = %d, want 200", page.StatusCode)
+	if page.StatusCode != http.StatusOK || page.Path != "/" {
+		t.Fatalf("GET / = %d at %s, want 200 at /", page.StatusCode, page.Path)
 	}
 	if got := apptest.Text(page.Body); !strings.Contains(got, "Dandori") {
 		t.Errorf("Home does not show Dandori: %s", got)

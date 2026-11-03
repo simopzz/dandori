@@ -369,6 +369,13 @@ open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/auth/providers"
 step "Authentication → Sign In / Providers: turn 'Allow new users to sign up' off; keep Email enabled. Save."
 open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/auth/url-configuration"
 step "Authentication → URL Configuration: Site URL https://$DOMAIN; add Redirect URL https://$DOMAIN/**. Save."
+open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/auth/templates"
+say "Links lead to the app, which redeems them: any device can open them, and one click confirms, so a mail scanner can't use one up."
+step "Authentication → Emails → Templates → Magic Link: make the link's href"
+note '{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email'
+step "Templates → Invite user: make the link's href"
+note '{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite'
+step "Save each."
 open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/settings/jwt"
 step "Project Settings → JWT Keys: the current key must be asymmetric (ECC or RSA)."
 step "If the current one is the Legacy JWT secret: migrate it, then rotate to the new key."

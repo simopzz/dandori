@@ -20,6 +20,8 @@ s.Sees("Tuesday 3 November") // Then: its main content shows this
 s.NextDay()          // the same time tomorrow
 ```
 
+Every page but sign-in needs a signed-in User. `apptest` starts a fake Supabase Auth beside the app (`h.Auth`): it emails magic links only to invited Users, into a mailbox the test reads, and signs sessions that expire an hour after they're issued by the app's clock. Moving the clock past that takes the app through a refresh, as in production. `s.Invite(email)` stands in for an invitation from Supabase's dashboard, and `s.SignsIn(email)` signs in through the pages and the emailed link (`h.Invite` and `h.SignIn` outside a scenario, `b.SignIn` in a browser). Each owned table's rows are seen only by their User through row-level security, so a fixture inserted with `h.Exec` (as the admin role) needs that User's `user_id`.
+
 `At` takes a weekday and a time, the next one from now, or a date and a time (`"2026-11-03 10:00"`); the clock never moves back. Each step goes on a timeline of what happened at what time, which a failed scenario prints. A step the DSL lacks goes on `Scenario` as a method that records itself, rather than into one test; a scenario can still use the `Harness` it embeds. The lower-level helpers drive pages the way a browser does: `apptest.Form(t, page, id)` reads a form to post, `apptest.Link(t, page, text)` follows a link, and `apptest.Text(body)` is the page's main content without markup. A form that swaps its own fragment (`httpx.IsHTMX`) is tested both ways: posted as htmx with `HTMXPostForm`, checking the fragment, and as a plain browser, checking the page it lands on.
 
 ### Browser tests (a few per page)

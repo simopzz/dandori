@@ -1,0 +1,85 @@
+package auth
+
+import (
+	"time"
+
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// SignInForm is the sign-in form as shown: what was typed, and why it
+// was rejected.
+type SignInForm struct {
+	Email string
+	// EmailErr is why the email was rejected.
+	EmailErr string
+	// BadLink says the magic link that led here could not sign in.
+	BadLink bool
+	// Failed says Supabase couldn't be reached to send the link.
+	Failed bool
+}
+
+templ signInPage(today time.Time, f SignInForm) {
+	@web.Layout("Sign in · Dandori", web.NoTab) {
+		@web.PageHeader("入口", "Sign in", today) {
+			<p class="lede">Dandori is by invitation. Sign in with the email you were invited with.</p>
+		}
+		<form id="sign-in" class="stack" method="post" action="/sign-in">
+			if f.BadLink {
+				@web.Alert() {
+					That sign-in link has expired or was already used. Ask for a new one.
+				}
+			}
+			if f.Failed {
+				@web.Alert() {
+					The sign-in link couldn't be sent. Try again in a moment.
+				}
+			}
+			@web.Field("Email", "", f.EmailErr) {
+				<input
+					type="email"
+					name="email"
+					value={ f.Email }
+					required
+					autocomplete="email"
+					if f.EmailErr != "" {
+						aria-invalid="true"
+					}
+				/>
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					Email me a sign-in link
+				}
+			}
+		</form>
+	}
+}
+
+templ sentPage(today time.Time) {
+	@web.Layout("Check your email · Dandori", web.NoTab) {
+		@web.PageHeader("入口", "Check your email", today) {
+			<p class="lede">If that email was invited, a sign-in link is on its way.</p>
+		}
+		@web.Hint() {
+			Open it in the browser you want to use Dandori in: that is where it signs you in.
+		}
+		<p><a href="/sign-in">Use another email</a></p>
+	}
+}
+
+// confirmPage asks for one click before redeeming a magic link, so a mail
+// scanner opening the link can't use it up.
+templ confirmPage(today time.Time, tokenHash, kind string) {
+	@web.Layout("Sign in · Dandori", web.NoTab) {
+		@web.PageHeader("入口", "Sign in", today)
+		<form id="confirm" class="stack" method="post" action="/auth/confirm">
+			<input type="hidden" name="token_hash" value={ tokenHash }/>
+			<input type="hidden" name="type" value={ kind }/>
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					Sign in to Dandori
+				}
+			}
+		</form>
+	}
+}

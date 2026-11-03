@@ -64,11 +64,20 @@ templ tab(t, current Tab, icon, label string, aux bool) {
 	</a>
 }
 
-// Home is the app shell's landing page.
-templ Home(today time.Time) {
+// Home is the app shell's landing page. It ends with who is signed in,
+// email, and signing out, until the Profile has them.
+templ Home(today time.Time, email string) {
 	@Layout("Dandori", NoTab) {
 		@PageHeader("段取り", "Dandori", today) {
 			<p class="lede">Plan a Cycle, then fill the cart.</p>
 		}
+		<form id="sign-out" class="section" method="post" action="/sign-out">
+			@Hint() {
+				Signed in as { email } ·
+				@TextButton(templ.Attributes{"type": "submit"}) {
+					Sign out
+				}
+			}
+		</form>
 	}
 }

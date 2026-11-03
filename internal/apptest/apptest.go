@@ -14,6 +14,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -27,17 +28,21 @@ import (
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
 
 	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
 )
 
 // Harness is one running app with its own database.
 type Harness struct {
-	URL    string
+	URL string
+	// Client is the User's browser: it keeps cookies.
 	Client *http.Client
 	// Clock is the app's clock, standing at Monday 2 November 2026 in
 	// clock.DefaultZone until the test moves it.
 	Clock *clock.Manual
+	// Auth is the fake Supabase Auth the app signs Users in through.
+	Auth *FakeAuth
 
 	databaseURL string
 }
@@ -116,7 +121,12 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
 	manual := clock.NewManual(time.Date(2026, time.November, 2, 0, 0, 0, 0, zone(t)))
-	cfg := app.Config{DatabaseURL: instance.URL(), Clock: manual}
+	fake := startFakeAuth(t, manual)
+	cfg := app.Config{
+		DatabaseURL: instance.URL(),
+		Clock:       manual,
+		Auth:        auth.Config{SupabaseURL: fake.URL, PublishableKey: fakeAPIKey},
+	}
 	if s.config != nil {
 		s.config(&cfg)
 	}
@@ -132,7 +142,13 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		srv.Close()
 		a.Close()
 	})
-	return &Harness{URL: srv.URL, Client: srv.Client(), Clock: manual, databaseURL: instance.URL()}
+	fake.SiteURL = srv.URL
+	client := srv.Client()
+	client.Jar, err = cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &Harness{URL: srv.URL, Client: client, Clock: manual, Auth: fake, databaseURL: instance.URL()}
 }
 
 // zone is the installation's zone, which tests tell the time in.
@@ -200,6 +216,17 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }
 
+// HTMXGet requests path as a boosted link does, marked with HX-Request.
+func (h *Harness) HTMXGet(t testing.TB, path string) Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, h.URL+path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("HX-Request", "true")
+	return h.do(t, req)
+}
+
 // PostForm submits form to path, as a browser does without HTMX, following
 // any redirect.
 func (h *Harness) PostForm(t testing.TB, path string, form url.Values) Response {
@@ -223,14 +250,19 @@ func (h *Harness) postForm(t testing.TB, path string, form url.Values, htmx bool
 	if htmx {
 		req.Header.Set("HX-Request", "true")
 	}
+	return h.do(t, req)
+}
+
+func (h *Harness) do(t testing.TB, req *http.Request) Response {
+	t.Helper()
 	res, err := h.Client.Do(req)
 	if err != nil {
-		t.Fatalf("POST %s: %v", path, err)
+		t.Fatalf("%s %s: %v", req.Method, req.URL.Path, err)
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		t.Fatalf("POST %s: read body: %v", path, err)
+		t.Fatalf("%s %s: read body: %v", req.Method, req.URL.Path, err)
 	}
 	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }

@@ -13,8 +13,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -24,6 +26,8 @@ type Config struct {
 	// Clock is the only time the app reads: the real one in production,
 	// one a test sets and steps in apptest.
 	Clock clock.Clock
+	// Auth is the Supabase Auth Users sign in through.
+	Auth auth.Config
 }
 
 // App is a running Dandori instance.
@@ -31,6 +35,7 @@ type App struct {
 	pool  *pgxpool.Pool
 	clock clock.Clock
 	log   *slog.Logger
+	auth  *auth.Service
 }
 
 // New creates the app once its database is reachable and migrated. It
@@ -44,7 +49,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, log: log}
+	a := &App{pool: pool, clock: cfg.Clock, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock)}
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -63,10 +68,18 @@ func (a *App) Close() { a.pool.Close() }
 
 // Handler returns the app's HTTP routes.
 func (a *App) Handler() http.Handler {
+	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
+	signedIn := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(h) }
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
-	mux.HandleFunc("GET /{$}", a.home)
+	mux.HandleFunc("GET /sign-in", signIn.ShowSignIn)
+	mux.HandleFunc("POST /sign-in", signIn.SendLink)
+	mux.HandleFunc("GET /sign-in/sent", signIn.ShowSent)
+	mux.HandleFunc("GET /auth/confirm", signIn.ShowConfirm)
+	mux.HandleFunc("POST /auth/confirm", signIn.Confirm)
+	mux.HandleFunc("POST /sign-out", signIn.SignOut)
+	mux.Handle("GET /{$}", signedIn(a.home))
 	return mux
 }
 
@@ -93,7 +106,12 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	if err := web.Home(a.clock.Now()).Render(r.Context(), w); err != nil {
+	email, err := a.auth.Email(r.Context())
+	if err != nil {
+		httpx.ServerError(w, a.log, "load the User's email", err)
+		return
+	}
+	if err := web.Home(a.clock.Now(), email).Render(r.Context(), w); err != nil {
 		a.log.Error("render Home", "err", err)
 	}
 }
