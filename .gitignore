@@ -1,0 +1,12 @@
+.agents/skills/*
+!.agents/skills/htmx-*/
+.claude/skills/*
+!.claude/skills/htmx-*/
+skills-lock.json
+.claude/settings.local.json
+
+bin/
+.env
+
+# Snapshots and network captures the Playwright MCP server writes.
+.playwright-mcp/
