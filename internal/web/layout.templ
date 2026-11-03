@@ -1,0 +1,72 @@
+package web
+
+// Tab is the shell tab a page belongs to, marked as current.
+type Tab string
+
+// NoTab is a page outside every tab, such as Home. Each feature adds its
+// tab here, and to the shell in Layout, as it lands.
+const NoTab Tab = ""
+
+// Layout is the page shell every page renders inside: the head, the
+// navigation (bottom tabs on a phone, a rail on desktop) with the page's
+// tab marked, and the page's content. Every link and form is boosted, with
+// a form's buttons disabled while its request is in flight; ADR 0009 says
+// why a rejection keeps its address and why settling is off.
+templ Layout(title string, current Tab) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<meta name="theme-color" content={ themeColour }/>
+			<title>{ title }</title>
+			<link rel="manifest" href="/manifest.webmanifest"/>
+			<link rel="icon" href="/static/icon-192.png"/>
+			<link rel="apple-touch-icon" href="/static/icon-192.png"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<meta name="htmx-config" content="defaultSettleDelay:0"/>
+			<script src="/static/htmx.min.js" defer></script>
+			<script>
+				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+			</script>
+		</head>
+		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
+			<nav class="shell" aria-label="Main">
+				@wordmark("")
+			</nav>
+			<main class="page">
+				@wordmark("masthead")
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+// wordmark links Home: in the rail on desktop, and as the masthead above
+// each page on a phone, where the rail's is hidden.
+templ wordmark(class string) {
+	<a class={ "wordmark", class } href="/"><span class="wordmark-ja" lang="ja">段取り</span><span class="wordmark-latin">Dandori</span></a>
+}
+
+// tab is one link of the shell; aux ones sit apart, at the rail's foot.
+templ tab(t, current Tab, icon, label string, aux bool) {
+	<a
+		class={ "tab", templ.KV("tab-aux", aux) }
+		href={ templ.SafeURL(t) }
+		if t == current {
+			aria-current="page"
+		}
+	>
+		@Icon(icon)
+		<span>{ label }</span>
+	</a>
+}
+
+// Home is the app shell's landing page.
+templ Home() {
+	@Layout("Dandori", NoTab) {
+		@PageHeader("段取り", "Dandori") {
+			<p class="lede">Plan a Cycle, then fill the cart.</p>
+		}
+	}
+}

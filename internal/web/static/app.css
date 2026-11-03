@@ -1,0 +1,677 @@
+/* Dandori's design system, "Ma on white paper": tokens, then base styles,
+   then components. See docs/design.md. Colour values live only in the
+   :root block below; everything else uses its tokens. */
+
+:root {
+  /* colour: near-white paper, sumi ink, one vermilion seal */
+  --color-bg: #fdfcfa;            /* paper */
+  --color-surface: #ffffff;       /* raised: the add sheet, trace details, an open row */
+  --color-text: #1a1a18;          /* sumi ink, 17:1 on bg */
+  --color-text-soft: #5c5a54;     /* soft ink, 6.7:1 on bg */
+  --color-rule: #e4e0d8;          /* hairline between rows */
+  --color-rule-strong: #1a1a18;   /* under section headings, input underlines */
+  --color-fill: #1a1a18;          /* primary buttons, chosen segment */
+  --color-fill-hover: #000000;
+  --color-on-fill: #fdfcfa;       /* text on fill or accent */
+  --color-accent: #b8321b;        /* vermilion seal, 5.8:1 on bg: attention only */
+  --color-accent-wash: #faebe6;   /* behind alerts */
+  --color-backdrop: rgb(26 26 24 / 0.35);
+
+  /* type */
+  --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* space */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.5rem;
+  --space-7: 4rem;
+
+  /* shape and size */
+  --radius: 0;
+  --tap: 2.75rem;                 /* smallest touch target, 44px */
+  --focus-ring: 2px solid var(--color-accent);
+  --rail-width: 13rem;
+  --tabs-height: 3.75rem;
+  --measure: 42rem;
+}
+
+@font-face { font-family: "Shippori Mincho"; font-weight: 500; font-display: swap; src: url(fonts/shippori-mincho-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Shippori Mincho"; font-weight: 700; font-display: swap; src: url(fonts/shippori-mincho-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Zen Kaku Gothic New"; font-weight: 400; font-display: swap; src: url(fonts/zen-kaku-gothic-new-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; font-display: swap; src: url(fonts/zen-kaku-gothic-new-latin-700-normal.woff2) format("woff2"); }
+
+/* ── base ─────────────────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 400 1rem/1.7 var(--font-body);
+  letter-spacing: 0.01em;
+}
+
+a { color: inherit; text-underline-offset: 4px; }
+
+h1 {
+  font: 500 clamp(2.5rem, 9vw, 4rem)/1.05 var(--font-display);
+  letter-spacing: 0.02em;
+  margin: var(--space-2) 0 var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+h2,
+h3 { font-family: var(--font-display); font-weight: 500; line-height: 1.2; }
+
+h3 { font-size: 1.15rem; margin: var(--space-5) 0 var(--space-2); }
+
+p { margin: 0 0 var(--space-3); }
+
+ul,
+ol { margin: 0 0 var(--space-4); padding-left: var(--space-5); }
+
+li::marker { color: var(--color-text-soft); }
+
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+dt { color: var(--color-text-soft); font-size: 0.85rem; letter-spacing: 0.08em; }
+
+dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+
+th {
+  text-align: left;
+  font-weight: 400;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: var(--color-text-soft);
+  border-bottom: 1px solid var(--color-rule-strong);
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+}
+
+td { border-bottom: 1px solid var(--color-rule); padding: var(--space-3) var(--space-3) var(--space-3) 0; }
+
+td a { display: inline-flex; align-items: center; min-width: var(--tap); min-height: var(--tap); }
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius);
+  padding: var(--space-2) 0;
+  min-height: var(--tap);
+  width: 100%;
+}
+
+textarea {
+  border: 1px solid var(--color-rule-strong);
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+[aria-invalid="true"] { border-bottom: 2px solid var(--color-accent); }
+
+textarea[aria-invalid="true"] { border: 2px solid var(--color-accent); }
+
+button { font: inherit; color: inherit; }
+
+form { margin: 0; }
+
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+
+legend { padding: 0; }
+
+pre,
+code { font-family: var(--font-mono); font-size: 0.85rem; }
+
+:focus-visible { outline: var(--focus-ring); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+/* ── components ───────────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.icon { width: 1.25rem; height: 1.25rem; flex: none; }
+
+/* shell: bottom tabs on phone, a left rail on desktop */
+
+.shell {
+  position: fixed;
+  z-index: 10;
+  inset: auto 0 0 0;
+  display: flex;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-rule-strong);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  text-decoration: none;
+}
+
+.wordmark-ja { font: 700 1.25rem/1 var(--font-display); letter-spacing: 0.15em; }
+
+.wordmark-latin { font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--color-text-soft); }
+
+.shell .wordmark { display: none; }
+
+.masthead { margin-bottom: var(--space-4); }
+
+.tab {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--tabs-height);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--color-text-soft);
+}
+
+.tab[aria-current="page"] { color: var(--color-text); }
+
+.tab[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: 1.5rem;
+  height: 3px;
+  background: var(--color-accent);
+}
+
+.page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) calc(var(--tabs-height) + var(--space-7) + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 900px) {
+  .shell {
+    inset: 0 auto 0 0;
+    width: var(--rail-width);
+    flex-direction: column;
+    border-top: 0;
+    border-right: 1px solid var(--color-rule);
+    padding: var(--space-6) var(--space-5);
+  }
+
+  .shell .wordmark { display: flex; flex-direction: column; align-items: stretch; gap: 0; margin-bottom: var(--space-7); }
+
+  .shell .wordmark-ja {
+    font-size: 1.75rem;
+    writing-mode: vertical-rl;
+    margin-bottom: var(--space-3);
+    align-self: flex-start;
+  }
+
+  .masthead { display: none; }
+
+  .tab { flex: none; flex-direction: row; justify-content: flex-start; gap: var(--space-3); font-size: 0.9rem; min-height: var(--tap); }
+
+  .tab[aria-current="page"]::before { top: auto; left: calc(-1 * var(--space-5)); width: 3px; height: 1.5rem; }
+
+  .tab-aux { margin-top: auto; font-size: 0.8rem; }
+
+  .page { margin-left: var(--rail-width); max-width: calc(var(--measure) + 10rem); padding: var(--space-7) var(--space-7) var(--space-7) 6rem; }
+}
+
+/* page header */
+
+.page-header { margin-bottom: var(--space-6); }
+
+.eyebrow { margin: 0; font-size: 0.8rem; letter-spacing: 0.2em; color: var(--color-text-soft); }
+
+.lede { margin: 0; color: var(--color-text-soft); }
+
+/* sections: a numbered heading over a strong rule */
+
+.section { margin: 0 0 var(--space-6); }
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  width: 100%;
+  font: 500 1.4rem/1.2 var(--font-display);
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-rule-strong);
+}
+
+legend.section-heading { float: left; }
+
+legend.section-heading + * { clear: both; }
+
+.num { font: 400 0.8rem var(--font-body); letter-spacing: 0.1em; color: var(--color-accent); }
+
+.hint { color: var(--color-text-soft); font-size: 0.9rem; }
+
+.empty { color: var(--color-text-soft); margin: var(--space-4) 0; }
+
+/* rows: hairline-separated, opening in place to edit */
+
+.rows { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+
+.row { border-bottom: 1px solid var(--color-rule); }
+
+.row-static {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-4);
+  padding: var(--space-3) 0;
+  min-height: var(--tap);
+}
+
+.row summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  column-gap: var(--space-4);
+  padding: var(--space-3) 0;
+  min-height: var(--tap);
+}
+
+.row summary::-webkit-details-marker { display: none; }
+
+.row summary:hover .row-title { text-decoration: underline; text-decoration-color: var(--color-rule-strong); text-underline-offset: 4px; }
+
+.row details[open] summary { border-bottom: 1px dashed var(--color-rule); }
+
+/* An open row is raised, so its form doesn't run into the next row. */
+.row:has(> details[open]) {
+  margin: var(--space-3) calc(-1 * var(--space-3));
+  padding: 0 calc(var(--space-3) - 1px); /* the text stays in line with the closed rows' */
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+}
+
+.row-title { flex: 1 1 12rem; }
+
+a.row-title { display: flex; align-items: center; min-height: var(--tap); text-decoration: none; }
+
+a.row-title:hover { text-decoration: underline; }
+
+.row-figure { font-variant-numeric: tabular-nums; color: var(--color-text-soft); }
+
+.row-meta {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  font-size: 0.8rem;
+  color: var(--color-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.row-edit { grid-row: 1; grid-column: 3; color: var(--color-text-soft); align-self: center; }
+
+.row summary .row-meta { grid-column: 1 / -1; }
+
+.row-body { padding: var(--space-4) 0 var(--space-5); }
+
+/* Why a change to a row that can't open was refused, under it. */
+.row-static > .alert { flex-basis: 100%; margin: var(--space-2) 0 0; }
+
+.row-action { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); flex-basis: 100%; }
+
+@media (min-width: 600px) {
+  .row-static .row-meta { flex-basis: auto; }
+
+  .row-static .row-action { flex-basis: auto; margin-left: auto; }
+
+  /* With an action, the details are a second line under the name, so the
+     action keeps its place however long they are. */
+  .row-static:has(> .row-action) { display: grid; grid-template-columns: 1fr auto; }
+
+  .row-static:has(> .row-action) .row-meta { grid-column: 1; }
+
+  .row-static:has(> .row-action) .row-action { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+}
+
+/* forms: underline fields, square buttons */
+
+.stack { display: grid; gap: var(--space-4); }
+
+.field { display: grid; gap: var(--space-1); align-content: start; }
+
+.field-label { font-size: 0.75rem; letter-spacing: 0.12em; color: var(--color-text-soft); }
+
+.field-hint { letter-spacing: 0; margin-left: var(--space-1); }
+
+.field-error { color: var(--color-accent); font-size: 0.8rem; }
+
+.field-error::before { content: "! "; font-weight: 700; }
+
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-4); }
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: var(--space-5) 0 0; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  background: var(--color-fill);
+  color: var(--color-on-fill);
+  border: 0;
+  border-radius: var(--radius);
+  min-height: var(--tap);
+  padding: 0 var(--space-5);
+  cursor: pointer;
+}
+
+.btn:hover { background: var(--color-fill-hover); }
+
+.btn-text {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0 var(--space-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.btn-danger { color: var(--color-accent); }
+
+/* segmented choice: square toggles for one of a few options */
+
+.seg { display: flex; justify-self: start; border: 1px solid var(--color-rule-strong); }
+
+.seg label { position: relative; }
+
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; min-height: 0; cursor: pointer; }
+
+.seg span { display: block; padding: 0 var(--space-3); font-size: 0.8rem; line-height: var(--tap); min-height: var(--tap); }
+
+.seg label + label span { border-left: 1px solid var(--color-rule-strong); }
+
+.seg input:checked + span { background: var(--color-fill); color: var(--color-on-fill); }
+
+.seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: 2px; }
+
+.seg[aria-invalid="true"] { border: 2px solid var(--color-accent); }
+
+/* alert and notice */
+
+.alert {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-accent-wash);
+  border-left: 3px solid var(--color-accent);
+}
+
+.alert > :last-child { margin-bottom: 0; }
+
+.notice {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-rule-strong);
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  line-height: 1.6;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-rule-strong);
+  white-space: nowrap;
+}
+
+.tag-accent { color: var(--color-accent); border-color: var(--color-accent); }
+
+/* add: a square seal button and a sheet */
+
+.fab {
+  position: fixed;
+  z-index: 11;
+  right: var(--space-5);
+  bottom: calc(var(--tabs-height) + var(--space-4) + env(safe-area-inset-bottom));
+  width: 3.5rem;
+  height: 3.5rem;
+  display: grid;
+  place-items: center;
+  background: var(--color-accent);
+  color: var(--color-on-fill);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.fab .icon { width: 1.5rem; height: 1.5rem; }
+
+.sheet {
+  margin: auto 0 0;
+  width: 100%;
+  max-width: none;
+  max-height: 90dvh;
+  overflow-y: auto;
+  border: 0;
+  border-top: 1px solid var(--color-rule-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: var(--space-5) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+
+.sheet::backdrop { background: var(--color-backdrop); }
+
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-4); }
+
+.sheet-head h2 { font-size: 1.5rem; margin: 0; }
+
+@media (min-width: 900px) {
+  .fab { bottom: var(--space-6); right: var(--space-6); }
+
+  .sheet { margin: auto; width: 28rem; border: 1px solid var(--color-rule-strong); }
+}
+
+/* Recipe Draft form: its Ingredient grid and step list */
+
+.ingredient-grid { margin-bottom: var(--space-3); }
+
+.ingredient-head,
+.ingredient-row {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(7rem, 2.2fr) 4.5rem 4.75rem repeat(4, minmax(3.25rem, 1fr));
+  gap: 0 var(--space-3);
+  align-items: start;
+  padding: var(--space-2) 0;
+}
+
+.ingredient-head { font-size: 0.75rem; letter-spacing: 0.08em; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); }
+
+.ingredient-row { border-bottom: 1px solid var(--color-rule); }
+
+.ingredient-row .ingredient-status,
+.ingredient-row .unit { align-self: center; }
+
+.ingredient-row .known { grid-column: span 4; align-self: center; font-size: 0.85rem; color: var(--color-text-soft); }
+
+.ingredient-row .ingredient-error,
+.ingredient-row .ingredient-suggestion { grid-column: 2 / -1; }
+
+.ingredient-suggestion { margin-top: var(--space-2); }
+
+.cell-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .ingredient-head { display: none; }
+
+  .ingredient-row { grid-template-columns: repeat(4, 1fr); gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; }
+
+  .ingredient-row > :nth-child(-n + 3) { grid-column: 1 / -1; }
+
+  .ingredient-row .ingredient-status:empty { display: none; }
+
+  .ingredient-row > :nth-child(4),
+  .ingredient-row > :nth-child(5) { grid-column: span 2; }
+
+  .ingredient-row .ingredient-error,
+  .ingredient-row .ingredient-suggestion { grid-column: 1 / -1; }
+
+  .cell-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+}
+
+.draft-steps li { margin-bottom: var(--space-2); }
+
+.draft-steps textarea { field-sizing: content; min-height: var(--tap); vertical-align: top; }
+
+/* Exceptions page: a Cycle's Slots, rows on a phone, a day × Slot grid on
+   desktop */
+
+.slot-grid-head,
+.slot-gap { display: none; }
+
+@media (min-width: 900px) {
+  .slot-grid-head,
+  .slot-day {
+    display: grid;
+    grid-template-columns: 5.5rem repeat(4, minmax(0, 1fr));
+    column-gap: var(--space-3);
+  }
+
+  .slot-grid-head { font-size: 0.75rem; letter-spacing: 0.08em; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); padding: var(--space-2) 0; }
+
+  .slot-day > h3 { margin: 0; padding: var(--space-3) 0; font-size: 1rem; border-bottom: 1px solid var(--color-rule); }
+
+  .slot-day > .rows { grid-column: 2 / -1; display: grid; grid-template-columns: subgrid; margin: 0; }
+
+  /* Each Slot keeps its column, all on the day's one line. */
+  .slot-day > .rows > li { grid-row: 1; }
+
+  .slot-day > .rows > li:nth-child(1) { grid-column: 1; }
+
+  .slot-day > .rows > li:nth-child(2) { grid-column: 2; }
+
+  .slot-day > .rows > li:nth-child(3) { grid-column: 3; }
+
+  .slot-day > .rows > li:nth-child(4) { grid-column: 4; }
+
+  .slot-gap { display: block; border-bottom: 1px solid var(--color-rule); }
+
+  /* An open Slot spans its day, over the day's other Slots, which stay in
+     place, hidden; the line grows to its form, pushing later days down. */
+  .slot-day > .rows > li:has(> details[open]) { grid-column: 1 / -1; }
+
+  .slot-day > .rows:has(> li > details[open]) > li:not(:has(> details[open])) { visibility: hidden; }
+
+  /* The column heads name a closed cell's Slot. */
+  .slot-day li:not(:has(> details[open])) .row-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .slot-day li:not(:has(> details[open])) .slot-more { display: none; }
+
+  /* Its state takes the name's place, beside the chevron. */
+  .slot-day li:not(:has(> details[open])) summary .row-meta { grid-column: 1; grid-row: 1; }
+}
+
+/* A Slot opening or closing, through slot-grid.js: its cell unfolds, its
+   contents unscaled. */
+html.slot-toggle::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease-out; overflow: clip; }
+
+html.slot-toggle::view-transition-old(*),
+html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; object-position: left top; }
+
+/* trace panel: a Run's Trace Events */
+
+.trace { list-style: none; padding: 0; margin: var(--space-4) 0; font-size: 0.9rem; }
+
+.trace-event {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0 var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.trace-event time { color: var(--color-text-soft); font-variant-numeric: tabular-nums; }
+
+.trace-kind { font-weight: 700; }
+
+.trace-summary { overflow-wrap: anywhere; }
+
+/* Markdown an agent wrote */
+
+.trace .prose > :last-child { margin-bottom: 0; }
+
+.prose ul, .prose ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+
+.prose li + li { margin-top: var(--space-1); }
+
+.trace-detail {
+  grid-column: 1 / -1;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.trace-error .trace-kind,
+.trace-retry .trace-kind { color: var(--color-accent); }
+
+.trace-wait .trace-kind { color: var(--color-text-soft); }
