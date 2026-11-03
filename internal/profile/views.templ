@@ -73,7 +73,7 @@ templ profilePage(today time.Time, email string, f LanguageForm) {
 				}
 			}
 		</form>
-		@web.Section(2, web.T(ctx, msgAccount)) {
+		@web.Section(2, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·

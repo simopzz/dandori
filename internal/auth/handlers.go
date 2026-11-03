@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/a-h/templ"
-
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -58,32 +56,32 @@ func (h Handlers) SignedIn(next http.Handler) http.Handler {
 }
 
 func (h Handlers) ShowSignIn(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, http.StatusOK, signInPage(h.Clock.Now(), SignInForm{}))
+	httpx.Render(w, r, h.Log, http.StatusOK, signInPage(h.Clock.Now(), SignInForm{}))
 }
 
 func (h Handlers) SendLink(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	if !strings.Contains(email, "@") {
-		h.render(w, r, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{Email: email, EmailErr: msgNotAnEmail}))
+		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{Email: email, EmailErr: msgNotAnEmail}))
 		return
 	}
 	if err := h.Service.SendMagicLink(r.Context(), email, origin(r)+"/auth/confirm"); err != nil {
 		h.Log.Error("send magic link", "err", err)
-		h.render(w, r, http.StatusBadGateway, signInPage(h.Clock.Now(), SignInForm{Email: email, Failed: true}))
+		httpx.Render(w, r, h.Log, http.StatusBadGateway, signInPage(h.Clock.Now(), SignInForm{Email: email, Failed: true}))
 		return
 	}
 	http.Redirect(w, r, "/sign-in/sent", http.StatusSeeOther)
 }
 
 func (h Handlers) ShowSent(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, http.StatusOK, sentPage(h.Clock.Now()))
+	httpx.Render(w, r, h.Log, http.StatusOK, sentPage(h.Clock.Now()))
 }
 
 // ShowConfirm is where a magic link leads: Supabase's email templates
 // link here with the token hash and the link's type.
 func (h Handlers) ShowConfirm(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	h.render(w, r, http.StatusOK, confirmPage(r.URL, h.Clock.Now(), q.Get("token_hash"), q.Get("type")))
+	httpx.Render(w, r, h.Log, http.StatusOK, confirmPage(r.URL, h.Clock.Now(), q.Get("token_hash"), q.Get("type")))
 }
 
 // linkTypes are the links that sign in: a magic link, an invitation, and
@@ -98,7 +96,7 @@ func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 		tokens, err = h.Service.Redeem(r.Context(), tokenHash, kind)
 	}
 	if errors.Is(err, ErrBadLink) {
-		h.render(w, r, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{BadLink: true}))
+		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{BadLink: true}))
 		return
 	}
 	if err != nil {
@@ -119,14 +117,6 @@ func (h Handlers) SignOut(w http.ResponseWriter, r *http.Request) {
 	}
 	clearSession(w, r)
 	http.Redirect(w, r, "/sign-in", http.StatusSeeOther)
-}
-
-func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, page templ.Component) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	if err := page.Render(r.Context(), w); err != nil {
-		h.Log.Error("render", "path", r.URL.Path, "err", err)
-	}
 }
 
 // cookieTokens reads the Tokens the cookies keep, if any.
@@ -159,15 +149,9 @@ func cookie(r *http.Request, name, value string, maxAge int) *http.Cookie {
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   secure(r),
+		Secure:   httpx.Secure(r),
 		SameSite: http.SameSiteLaxMode,
 	}
-}
-
-// secure reports whether the browser reached the app over https: directly,
-// or through Caddy, which says so in X-Forwarded-Proto.
-func secure(r *http.Request) bool {
-	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 // origin is the app's address as the browser reached it, which a magic
@@ -175,7 +159,7 @@ func secure(r *http.Request) bool {
 // redirect URLs, so a forged Host can't lead one elsewhere.
 func origin(r *http.Request) string {
 	scheme := "http"
-	if secure(r) {
+	if httpx.Secure(r) {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host

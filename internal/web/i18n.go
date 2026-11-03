@@ -10,6 +10,7 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/httpx"
 )
 
 // Message is a string a page shows, in every Language. Pages show no text
@@ -134,7 +135,7 @@ func KeepLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) {
 		Path:     "/",
 		MaxAge:   400 * 24 * 60 * 60,
 		HttpOnly: true,
-		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+		Secure:   httpx.Secure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 }

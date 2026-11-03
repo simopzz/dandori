@@ -454,7 +454,7 @@ func profilePage(today time.Time, email string, f LanguageForm) templ.Component 
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Section(2, web.T(ctx, msgAccount)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var20), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Section(2, web.T(ctx, msgSigningIn)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var20), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

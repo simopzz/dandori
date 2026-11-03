@@ -25,7 +25,7 @@ var (
 	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
 	msgSave         = web.Message{En: "Save", It: "Salva"}
 	msgSaved        = web.Message{En: "Profile saved.", It: "Profilo salvato."}
-	msgAccount      = web.Message{En: "Signing in", It: "Accesso"}
+	msgSigningIn    = web.Message{En: "Signing in", It: "Accesso"}
 	msgSignedInAs   = web.Message{En: "Signed in as %s", It: "Accesso effettuato come %s"}
 	msgSignOut      = web.Message{En: "Sign out", It: "Esci"}
 )

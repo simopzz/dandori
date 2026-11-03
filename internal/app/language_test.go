@@ -104,3 +104,37 @@ func TestTheLanguageChoiceRefusesAnotherLanguage(t *testing.T) {
 		t.Errorf("after refusing fr, / opens %s, want the Language choice", page.Path)
 	}
 }
+
+// A change the Profile refuses comes back with the Language as it was.
+func TestTheProfileRefusesAnotherLanguageKeepingTheUsers(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	h.SignUp(t, "ada@example.com")
+
+	form := apptest.Form(t, h.Get(t, "/profile").Body, "profile-language")
+	form.Values.Set("language", "fr")
+	page := h.PostForm(t, form.Action, form.Values)
+	if page.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("changing to fr answered %d, want 422:\n%s", page.StatusCode, page.Body)
+	}
+	if got := apptest.Form(t, page.Body, "profile-language").Get("language"); got != "en" {
+		t.Errorf("the refused Profile has %q chosen, want en, the User's", got)
+	}
+}
+
+// The Language is chosen once at the first sign-in: the choice, posted
+// again, goes Home and changes nothing; changing it is the Profile's.
+func TestTheLanguageIsChosenOnce(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	choice := s.Page()
+	s.ChoosesLanguage("English")
+
+	page := s.ChooseLanguage(t, choice, "Italiano")
+	if page.Path != "/" {
+		t.Errorf("choosing again landed on %s, want /", page.Path)
+	}
+	s.Open("/")
+	s.Sees("Monday 2 November")
+}

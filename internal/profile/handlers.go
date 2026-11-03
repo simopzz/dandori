@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/a-h/templ"
-
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -44,22 +42,21 @@ func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
 // ShowChoice asks a signed-in User for their Language, with the one the
 // pages were switched to chosen. One who has chosen goes Home.
 func (h Handlers) ShowChoice(w http.ResponseWriter, r *http.Request) {
-	_, ok, err := h.Service.Language(r.Context())
-	if err != nil {
-		httpx.ServerError(w, h.Log, "load the User's Language", err)
+	if h.goneHomeIfChosen(w, r) {
 		return
 	}
-	if ok {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-	h.render(w, r, http.StatusOK, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context())}))
+	httpx.Render(w, r, h.Log, http.StatusOK, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context())}))
 }
 
+// Choose makes the first choice of Language; changing it later is the
+// Profile's.
 func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
+	if h.goneHomeIfChosen(w, r) {
+		return
+	}
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
-		h.render(w, r, http.StatusUnprocessableEntity, choicePage(h.Clock.Now(), LanguageForm{Err: msgChooseOne}))
+		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne}))
 		return
 	}
 	if !h.setLanguage(w, r, l) {
@@ -76,13 +73,27 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
-		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Err: msgChooseOne})
+		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne})
 		return
 	}
 	if !h.setLanguage(w, r, l) {
 		return
 	}
 	http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
+}
+
+// goneHomeIfChosen sends a User who has chosen their Language Home, and
+// reports whether it did, or answered with an error.
+func (h Handlers) goneHomeIfChosen(w http.ResponseWriter, r *http.Request) bool {
+	_, ok, err := h.Service.Language(r.Context())
+	if err != nil {
+		httpx.ServerError(w, h.Log, "load the User's Language", err)
+		return true
+	}
+	if ok {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	return ok
 }
 
 // setLanguage sets the User's Language to l and remembers it in this
@@ -108,13 +119,5 @@ func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status i
 		httpx.ServerError(w, h.Log, "load the User's email", err)
 		return
 	}
-	h.render(w, r, status, profilePage(h.Clock.Now(), email, f))
-}
-
-func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, page templ.Component) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	if err := page.Render(r.Context(), w); err != nil {
-		h.Log.Error("render", "path", r.URL.Path, "err", err)
-	}
+	httpx.Render(w, r, h.Log, status, profilePage(h.Clock.Now(), email, f))
 }
