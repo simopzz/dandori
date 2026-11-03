@@ -5,6 +5,7 @@ go 1.27.3
 require (
 	github.com/a-h/templ v0.3.1070
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/mxschmitt/playwright-go v0.6201.1
 	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/peterldowns/pgtestdb/migrators/goosemigrator v0.1.1
 	github.com/pressly/goose/v3 v3.29.0
@@ -13,6 +14,8 @@ require (
 )
 
 require (
+	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect

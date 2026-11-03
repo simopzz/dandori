@@ -1,6 +1,8 @@
 // Package apptest starts Dandori in-process over HTTP against a real,
 // freshly migrated Postgres + pgvector database of its own, for tests at
-// the app seam.
+// the app seam. The app runs on a Manual clock the test sets and steps,
+// directly or through POST /_test/clock: a switch only this package
+// serves, so the production binary, which never imports it, has none.
 //
 // DANDORI_TEST_DATABASE_URL must point at a disposable Postgres server with
 // pgvector, as a superuser (`mise run testdb`). pgtestdb migrates a template
@@ -17,6 +19,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver pgtestdb connects with
@@ -24,6 +27,7 @@ import (
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
 
 	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
 )
 
@@ -31,6 +35,9 @@ import (
 type Harness struct {
 	URL    string
 	Client *http.Client
+	// Clock is the app's clock, standing at Monday 2 November 2026 in
+	// clock.DefaultZone until the test moves it.
+	Clock *clock.Manual
 
 	databaseURL string
 }
@@ -108,7 +115,8 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if testing.Verbose() {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
-	cfg := app.Config{DatabaseURL: instance.URL()}
+	manual := clock.NewManual(time.Date(2026, time.November, 2, 0, 0, 0, 0, zone(t)))
+	cfg := app.Config{DatabaseURL: instance.URL(), Clock: manual}
 	if s.config != nil {
 		s.config(&cfg)
 	}
@@ -116,12 +124,39 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(a.Handler())
+	mux := http.NewServeMux()
+	mux.Handle("/", a.Handler())
+	mux.HandleFunc("POST /_test/clock", clockSwitch(manual))
+	srv := httptest.NewServer(mux)
 	t.Cleanup(func() {
 		srv.Close()
 		a.Close()
 	})
-	return &Harness{URL: srv.URL, Client: srv.Client(), databaseURL: instance.URL()}
+	return &Harness{URL: srv.URL, Client: srv.Client(), Clock: manual, databaseURL: instance.URL()}
+}
+
+// zone is the installation's zone, which tests tell the time in.
+func zone(t testing.TB) *time.Location {
+	t.Helper()
+	loc, err := time.LoadLocation(clock.DefaultZone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return loc
+}
+
+// clockSwitch sets the clock to the RFC 3339 time posted as now, for
+// tests that can't reach the Harness, such as a browser's.
+func clockSwitch(c *clock.Manual) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		now, err := time.Parse(time.RFC3339, r.FormValue("now"))
+		if err != nil {
+			http.Error(w, "now must be an RFC 3339 time: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		c.Set(now.In(c.Now().Location()))
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 // Exec runs sql on the app's database, for fixtures of what the app can't

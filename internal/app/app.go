@@ -5,14 +5,15 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -20,23 +21,30 @@ import (
 // Config is what the app needs from its environment.
 type Config struct {
 	DatabaseURL string
+	// Clock is the only time the app reads: the real one in production,
+	// one a test sets and steps in apptest.
+	Clock clock.Clock
 }
 
 // App is a running Dandori instance.
 type App struct {
-	pool *pgxpool.Pool
-	log  *slog.Logger
+	pool  *pgxpool.Pool
+	clock clock.Clock
+	log   *slog.Logger
 }
 
 // New creates the app once its database is reachable and migrated. It
 // fails rather than serve on a database it can't use: Docker Compose
 // restarts it, and a deploy that never comes up healthy fails.
 func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
+	if cfg.Clock == nil {
+		return nil, errors.New("app.Config has no Clock")
+	}
 	pool, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, log: log}
+	a := &App{pool: pool, clock: cfg.Clock, log: log}
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -58,7 +66,7 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
-	mux.Handle("GET /{$}", templ.Handler(web.Home()))
+	mux.HandleFunc("GET /{$}", a.home)
 	return mux
 }
 
@@ -82,4 +90,10 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"database": status})
+}
+
+func (a *App) home(w http.ResponseWriter, r *http.Request) {
+	if err := web.Home(a.clock.Now()).Render(r.Context(), w); err != nil {
+		a.log.Error("render Home", "err", err)
+	}
 }

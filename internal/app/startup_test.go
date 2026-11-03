@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
+	"github.com/simopzz/dandori/internal/clock"
 )
 
 // A deploy starts the new binary on the database as the last one left it:
@@ -29,6 +31,7 @@ func TestStartupFailsWhenTheDatabaseIsUnreachable(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a, err := app.New(context.Background(), app.Config{
 		DatabaseURL: "postgres://postgres:postgres@127.0.0.1:1/postgres?sslmode=disable",
+		Clock:       clock.Real(time.UTC),
 	}, log)
 	if err == nil {
 		a.Close()

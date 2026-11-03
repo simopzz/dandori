@@ -10,9 +10,9 @@ import (
 
 // PageHeader opens a page: an eyebrow with the page's Japanese name and
 // today's date, then the title. Children, if any, are a lede below it.
-templ PageHeader(ja, title string) {
+templ PageHeader(ja, title string, today time.Time) {
 	<header class="page-header">
-		<p class="eyebrow"><span lang="ja">{ ja }</span> · { time.Now().Format("Monday 2 January") }</p>
+		<p class="eyebrow"><span lang="ja">{ ja }</span> · { today.Format("Monday 2 January") }</p>
 		<h1>{ title }</h1>
 		{ children... }
 	</header>
