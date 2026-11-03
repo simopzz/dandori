@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [v2]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+      - name: Generate templ code
+        run: mise run generate
+      - name: Generated code is committed
+        run: git diff --exit-code
+      - name: Check
+        run: mise run check
+
+  # A merge to v2 deploys once every check passes (ADR-0017): the image goes
+  # to GHCR, and the VPS pulls it. The app migrates its database on start,
+  # and the deploy fails unless it comes up healthy.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/v2'
+    needs: check
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}
+            ghcr.io/${{ github.repository }}:v2
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: SSH to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519
+      - name: Deploy
+        env:
+          HOST: deploy@${{ secrets.DEPLOY_HOST }}
+          DANDORI_DOMAIN: ${{ vars.DANDORI_DOMAIN }}
+          DANDORI_DATABASE_URL: ${{ secrets.DANDORI_DATABASE_URL }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scp deploy/compose.yaml deploy/Caddyfile "$HOST:/srv/dandori/"
+          printf "DANDORI_IMAGE='%s'\nDANDORI_DOMAIN='%s'\nDANDORI_DATABASE_URL='%s'\n" \
+            "$IMAGE" "$DANDORI_DOMAIN" "$DANDORI_DATABASE_URL" \
+            | ssh "$HOST" 'umask 077 && cat > /srv/dandori/.env'
+          printf '%s' "$GHCR_TOKEN" | ssh "$HOST" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          ssh "$HOST" 'cd /srv/dandori && docker compose pull && docker compose up -d --wait --wait-timeout 120 --remove-orphans'
+          ssh "$HOST" 'docker logout ghcr.io; docker image prune -f'
+      - name: The page is served over TLS
+        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "https://${{ vars.DANDORI_DOMAIN }}/healthz"
