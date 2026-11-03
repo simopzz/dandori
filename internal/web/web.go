@@ -19,6 +19,11 @@ import (
 // Zen Kaku Gothic New (400, 700), both SIL OFL 1.1 (static/fonts/OFL.txt),
 // from Fontsource (@fontsource/shippori-mincho, @fontsource/zen-kaku-gothic-new).
 //
+// static/icon-192.png and icon-512.png are drawn from icon.svg: 段 in sumi
+// ink on the paper with a vermilion seal, inside the maskable safe zone.
+// Its 段 is set in Noto Serif CJK JP Bold (SIL OFL); render it again with
+// `rsvg-convert -w 512 -h 512 icon.svg -o static/icon-512.png`, and -w 192 -h 192 for icon-192.png.
+//
 //go:embed static
 var static embed.FS
 
