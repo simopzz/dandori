@@ -532,6 +532,15 @@ func TestStorePortHasNoCheckoutOrPayment(t *testing.T) {
 			t.Errorf("the seed Run offers the agent %s: %s", tool.Name, tool.Description)
 		}
 	}
+
+	h, _, llm, _ = startCartFill(t)
+	llm.Script(fillScript()...)
+	fillCart(t, h)
+	for _, tool := range requestOf(t, llm, "You fill the user's Esselunga cart").Tools {
+		if forbidden.MatchString(tool.Name) || forbidden.MatchString(tool.Description) {
+			t.Errorf("the Cart Fill Run offers the agent %s: %s", tool.Name, tool.Description)
+		}
+	}
 }
 
 func TestSeedingAgainRefreshesProductsAndKeepsTheirMappings(t *testing.T) {

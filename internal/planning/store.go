@@ -619,10 +619,59 @@ func planningRunAfter(ctx context.Context, q db.Querier, id int64) (int64, error
 
 // insertPlanningRun records run as a planning Run of the Cycle with id,
 // started by rejecting the Plan Proposal with id after, or by the user
-// when after is 0.
-func insertPlanningRun(ctx context.Context, q db.Querier, run, id, after int64) error {
-	_, err := q.Exec(ctx, `INSERT INTO planning_run (run_id, cycle_id, after_proposal) VALUES ($1, $2, nullif($3, 0))`, run, id, after)
+// when after is 0, replanning around missing, what Esselunga is out of,
+// when Cart Fill started it.
+func insertPlanningRun(ctx context.Context, q db.Querier, run, id, after int64, missing string) error {
+	_, err := q.Exec(ctx, `INSERT INTO planning_run (run_id, cycle_id, after_proposal, missing) VALUES ($1, $2, nullif($3, 0), $4)`, run, id, after, missing)
 	return err
+}
+
+// substitutes is whether the planning Run run replans around what
+// Esselunga is out of.
+func substitutes(ctx context.Context, q db.Querier, run int64) (bool, error) {
+	var missing bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT FROM planning_run WHERE run_id = $1 AND missing <> '')`, run).Scan(&missing)
+	return missing, err
+}
+
+// insertCartFillRun records run as a Cart Fill Run of the Cycle with id.
+func insertCartFillRun(ctx context.Context, q db.Querier, run, id int64) error {
+	_, err := q.Exec(ctx, `INSERT INTO cart_fill_run (run_id, cycle_id) VALUES ($1, $2)`, run, id)
+	return err
+}
+
+// latestCartFillRun is the last Cart Fill Run of the Cycle with id, and
+// its summary; found is false when it has had none.
+func latestCartFillRun(ctx context.Context, q db.Querier, id int64) (run int64, summary string, found bool, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT run_id, summary FROM cart_fill_run WHERE cycle_id = $1 ORDER BY run_id DESC LIMIT 1`, id).Scan(&run, &summary)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", false, nil
+	}
+	return run, summary, err == nil, err
+}
+
+// setCartFillSummary stores summary as what the Cart Fill Run run did.
+func setCartFillSummary(ctx context.Context, q db.Querier, run int64, summary string) error {
+	_, err := q.Exec(ctx, `UPDATE cart_fill_run SET summary = $2 WHERE run_id = $1`, run, summary)
+	return err
+}
+
+// substitutionUnderWay is the planning Run already replanning the Cycle
+// with id around missing, what Esselunga is out of: one among going yet
+// to submit, or one whose substitution Plan Proposal is pending, as
+// pending says. run is 0 when there is none.
+func substitutionUnderWay(ctx context.Context, q db.Querier, id int64, missing string, going []int64) (run int64, pending bool, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT p.run_id, pp.id IS NOT NULL FROM planning_run p
+		LEFT JOIN plan_proposal pp ON pp.run_id = p.run_id
+		WHERE p.cycle_id = $1 AND p.missing = $2
+			AND (pp.id IS NULL AND p.run_id = ANY($3) OR pp.status = 'pending')
+		ORDER BY p.run_id DESC LIMIT 1`, id, missing, going).Scan(&run, &pending)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	return run, pending, err
 }
 
 // loadNotes loads the Planning Notes of the Cycle with id, newest first.

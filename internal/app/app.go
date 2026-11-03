@@ -167,8 +167,10 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Embedder: ports.Embedder,
 		Stock:    a.stock,
 	})
+	// One throttle for every Run that reaches Esselunga.
+	store := esselunga.Throttle(ports.Store, a.cfg.StoreThrottle)
 	a.catalog = catalog.New(pool, a.runs, catalog.Config{
-		Store:    esselunga.Throttle(ports.Store, a.cfg.StoreThrottle),
+		Store:    store,
 		Orders:   a.cfg.SeedOrders,
 		Language: a.cfg.ContentLanguage,
 		Now:      a.cfg.Now,
@@ -178,6 +180,7 @@ func New(ctx context.Context, cfg Config, ports Ports, log *slog.Logger) (*App, 
 		Recipes:      a.recipes,
 		Stock:        a.stock,
 		Catalog:      a.catalog,
+		Store:        store,
 		Runs:         a.runs,
 		Language:     a.cfg.ContentLanguage,
 		PlanAttempts: a.cfg.PlanAttempts,
@@ -286,6 +289,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /cycles/{id}/exceptions", settled(http.HandlerFunc(plan.ShowExceptions)))
 	mux.Handle("POST /cycles/{id}/exceptions", settled(http.HandlerFunc(plan.LogException)))
 	mux.Handle("GET /cycles/{id}/groceries", settled(http.HandlerFunc(plan.ShowGroceries)))
+	mux.Handle("POST /cycles/{id}/cart-fill", settled(http.HandlerFunc(plan.FillCart)))
 	mux.Handle("POST /exceptions/remove", settled(http.HandlerFunc(plan.RemoveExceptionBetweenCycles)))
 	mux.Handle("GET /plan-proposals/{id}", settled(http.HandlerFunc(plan.ShowProposal)))
 	mux.Handle("POST /plan-proposals/{id}/approve", settled(http.HandlerFunc(plan.Approve)))

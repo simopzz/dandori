@@ -18,6 +18,8 @@ type Groceries struct {
 	// Fixed is whether the list no longer follows the Plan, stock and
 	// Product Mappings: its Delivery was ordered, or has arrived.
 	Fixed bool
+	// CartFill is how filling the cart with it stands.
+	CartFill CartFill
 }
 
 // GroceryList loads the Grocery List of the Cycle with id: what its Plan
@@ -37,7 +39,10 @@ func (s *Service) GroceryList(ctx context.Context, id int64) (Groceries, error) 
 		if g.HasPlan, err = hasPlan(ctx, tx, id); err != nil {
 			return err
 		}
-		g.List, g.Fixed, err = s.groceryListOf(ctx, tx, *c)
+		if g.List, g.Fixed, err = s.groceryListOf(ctx, tx, *c); err != nil {
+			return err
+		}
+		g.CartFill, err = s.cartFill(ctx, tx, *c, g.List)
 		return err
 	})
 }

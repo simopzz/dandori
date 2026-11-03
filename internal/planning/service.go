@@ -16,6 +16,7 @@ import (
 	"github.com/simopzz/dandori/internal/catalog"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/esselunga"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
@@ -151,6 +152,7 @@ type Service struct {
 	recipes  *recipes.Service
 	stock    *stock.Service
 	catalog  *catalog.Service
+	store    *esselunga.Throttled
 	runs     *runs.Engine
 	language domain.ContentLanguage
 	attempts int
@@ -167,7 +169,10 @@ type Config struct {
 	Recipes *recipes.Service
 	Stock   *stock.Service
 	Catalog *catalog.Service
-	// Runs is where planning Runs go through.
+	// Store is the user's Esselunga session, throttled, that Cart Fill
+	// fills the cart of.
+	Store *esselunga.Throttled
+	// Runs is where planning and Cart Fill Runs go through.
 	Runs *runs.Engine
 	// Language is the Content Language food terms are written in.
 	Language domain.ContentLanguage
@@ -183,7 +188,7 @@ type Config struct {
 func New(pool *pgxpool.Pool, cfg Config) *Service {
 	return &Service{
 		pool: pool, profile: cfg.Profile, recipes: cfg.Recipes, stock: cfg.Stock, catalog: cfg.Catalog,
-		runs: cfg.Runs, language: cfg.Language, attempts: cfg.PlanAttempts, now: cfg.Now,
+		store: cfg.Store, runs: cfg.Runs, language: cfg.Language, attempts: cfg.PlanAttempts, now: cfg.Now,
 	}
 }
 
@@ -773,7 +778,7 @@ func (s *Service) Reject(ctx context.Context, id int64, note string) (run int64,
 		if err := insertNote(ctx, tx, stored.CycleID, note); err != nil {
 			return err
 		}
-		started, err = s.startPlanningIn(ctx, tx, stored.CycleID, askAny, id, "")
+		started, err = s.startPlanningIn(ctx, tx, stored.CycleID, askAny, id, "", "")
 		if errors.Is(err, ErrCannotPlan) {
 			started, waits, err = runs.Recorded{}, waitsTurn(err) != "", nil
 		}

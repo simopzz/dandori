@@ -14,6 +14,15 @@ import (
 // ErrNoStore means Dandori was started without a way to reach Esselunga.
 var ErrNoStore = errors.New("no Esselunga store is configured: set DANDORI_PLAYWRIGHT_MCP")
 
+// ToolFailure is how an agent tool reports err, from a store action: one
+// the agent can't work around ends the Run.
+func ToolFailure(err error) error {
+	if errors.Is(err, ErrLoggedOut) || errors.Is(err, ErrNoStore) {
+		return agent.Stop(err)
+	}
+	return err
+}
+
 // Throttled is the store as Runs use it: one action at a time, across all
 // Runs, at least the delay apart and up to half as much again, picked at
 // random, so Dandori behaves politely, doesn't tick like a clock, and the
