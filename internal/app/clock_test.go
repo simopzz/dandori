@@ -11,9 +11,12 @@ import (
 // Wednesday.
 func TestPagesShowTheClocksDay(t *testing.T) {
 	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
 
 	s.At("Tue 10:00")
 	s.Open("/")
+	s.IsAt("/")
 	s.Sees("Tuesday 3 November")
 
 	s.NextDay()

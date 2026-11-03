@@ -4,14 +4,14 @@
 //	dandori healthcheck ask the app serving on DANDORI_ADDR whether it is
 //	                    healthy, for the container's health check
 //
-// Configuration comes from the environment: DANDORI_DATABASE_URL (required
-// to serve), DANDORI_ADDR (default 127.0.0.1:8080) and DANDORI_TIMEZONE,
-// the zone a day starts and ends in (default Europe/Rome).
+// Configuration comes from the environment: DANDORI_DATABASE_URL,
+// DANDORI_SUPABASE_URL and DANDORI_SUPABASE_PUBLISHABLE_KEY (required to
+// serve), DANDORI_ADDR (default 127.0.0.1:8080) and DANDORI_TIMEZONE, the
+// zone a day starts and ends in (default Europe/Rome).
 package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 )
 
@@ -48,9 +49,22 @@ func run(log *slog.Logger, args []string) error {
 		if err != nil {
 			return fmt.Errorf("DANDORI_TIMEZONE: %w", err)
 		}
-		cfg := app.Config{DatabaseURL: os.Getenv("DANDORI_DATABASE_URL"), Clock: clock.Real(loc)}
-		if cfg.DatabaseURL == "" {
-			return errors.New("DANDORI_DATABASE_URL is not set")
+		cfg := app.Config{
+			DatabaseURL: os.Getenv("DANDORI_DATABASE_URL"),
+			Clock:       clock.Real(loc),
+			Auth: auth.Config{
+				SupabaseURL:    os.Getenv("DANDORI_SUPABASE_URL"),
+				PublishableKey: os.Getenv("DANDORI_SUPABASE_PUBLISHABLE_KEY"),
+			},
+		}
+		for name, value := range map[string]string{
+			"DANDORI_DATABASE_URL":             cfg.DatabaseURL,
+			"DANDORI_SUPABASE_URL":             cfg.Auth.SupabaseURL,
+			"DANDORI_SUPABASE_PUBLISHABLE_KEY": cfg.Auth.PublishableKey,
+		} {
+			if value == "" {
+				return fmt.Errorf("%s is not set", name)
+			}
 		}
 		return serve(ctx, log, cfg, addr)
 	case "healthcheck":

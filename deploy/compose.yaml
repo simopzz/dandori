@@ -1,13 +1,16 @@
 # Dandori on the VPS (ADR-0017): the app behind Caddy, which gets and
 # renews the TLS certificate. CI copies this file and the Caddyfile to
 # /srv/dandori and writes the .env next to them with DANDORI_IMAGE,
-# DANDORI_DOMAIN and DANDORI_DATABASE_URL on every deploy.
+# DANDORI_DOMAIN, DANDORI_DATABASE_URL and the Supabase project's URL and
+# publishable key on every deploy.
 services:
   app:
     image: ${DANDORI_IMAGE:?}
     restart: unless-stopped
     environment:
       DANDORI_DATABASE_URL: ${DANDORI_DATABASE_URL:?}
+      DANDORI_SUPABASE_URL: ${DANDORI_SUPABASE_URL:?}
+      DANDORI_SUPABASE_PUBLISHABLE_KEY: ${DANDORI_SUPABASE_PUBLISHABLE_KEY:?}
 
   caddy:
     image: caddy:2.11.7-alpine

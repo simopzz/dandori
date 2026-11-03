@@ -15,7 +15,8 @@ import (
 // test against a separately started server would.
 type Browser struct {
 	playwright.Page
-	url string
+	url  string
+	auth *FakeAuth
 }
 
 // Browser opens a browser page on the app. Without Playwright's Chromium
@@ -40,7 +41,7 @@ func (h *Harness) Browser(t testing.TB) *Browser {
 	if err != nil {
 		t.Fatalf("open a page: %v", err)
 	}
-	return &Browser{Page: page, url: h.URL}
+	return &Browser{Page: page, url: h.URL, auth: h.Auth}
 }
 
 // notInstalled skips the test when what failed is likely a browser not
@@ -77,6 +78,39 @@ func (b *Browser) Open(t testing.TB, path string) {
 	}
 	if res.Status() != http.StatusOK {
 		t.Fatalf("open %s: status %d", path, res.Status())
+	}
+}
+
+// SignIn signs the invited email in as a User does: asks for a magic link,
+// opens it from their mailbox and confirms, landing on Today.
+func (b *Browser) SignIn(t testing.TB, email string) {
+	t.Helper()
+	b.Open(t, "/sign-in")
+	if err := b.GetByLabel("Email").Fill(email); err != nil {
+		t.Fatalf("type the email: %v", err)
+	}
+	b.Click(t, "Email me a sign-in link")
+	b.IsAt(t, "/sign-in/sent")
+	if _, err := b.Goto(b.auth.LastLink(t, email)); err != nil {
+		t.Fatalf("open the magic link: %v", err)
+	}
+	b.Click(t, "Sign in to Dandori")
+	b.IsAt(t, "/")
+}
+
+// Click clicks the button named name.
+func (b *Browser) Click(t testing.TB, name string) {
+	t.Helper()
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: name}).Click(); err != nil {
+		t.Fatalf("click %q: %v", name, err)
+	}
+}
+
+// IsAt waits for the page to be at path.
+func (b *Browser) IsAt(t testing.TB, path string) {
+	t.Helper()
+	if err := playwright.NewPlaywrightAssertions().Page(b.Page).ToHaveURL(b.url + path); err != nil {
+		t.Fatalf("the page is not at %s: %v", path, err)
 	}
 }
 

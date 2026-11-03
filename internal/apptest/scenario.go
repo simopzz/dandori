@@ -87,6 +87,50 @@ func (s *Scenario) Open(path string) {
 	}
 }
 
+// IsAt checks the page last opened is at path, where any redirect led.
+func (s *Scenario) IsAt(path string) {
+	s.t.Helper()
+	if s.page.Path != path {
+		s.record(fmt.Sprintf("is not at %s but %s", path, s.page.Path))
+		s.t.Fatalf("the page is at %s, want %s", s.page.Path, path)
+	}
+	s.record("is at " + path)
+}
+
+// Invite invites email, as from Supabase's dashboard.
+func (s *Scenario) Invite(email string) {
+	s.Harness.Invite(email)
+	s.record("invites " + email)
+}
+
+// AsksForALink asks for a magic link for email on the sign-in page.
+func (s *Scenario) AsksForALink(email string) {
+	s.t.Helper()
+	s.page = s.AskForLink(s.t, email)
+	s.record(fmt.Sprintf("asks for a link for %s: %d %s", email, s.page.StatusCode, s.page.Path))
+}
+
+// Page is the page last opened.
+func (s *Scenario) Page() Response { return s.page }
+
+// SignsIn signs the invited email in by magic link, landing on Today.
+func (s *Scenario) SignsIn(email string) {
+	s.t.Helper()
+	s.page = s.SignIn(s.t, email)
+	s.record(fmt.Sprintf("signs in as %s: %d %s", email, s.page.StatusCode, s.page.Path))
+	if s.page.StatusCode != http.StatusOK || s.page.Path != "/" {
+		s.t.Fatalf("signing in as %s landed on %s with status %d, want / and 200:\n%s", email, s.page.Path, s.page.StatusCode, s.page.Body)
+	}
+}
+
+// SignsOut signs out from the page last opened.
+func (s *Scenario) SignsOut() {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "sign-out")
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("signs out: %d %s", s.page.StatusCode, s.page.Path))
+}
+
 // Sees checks the page last opened shows want.
 func (s *Scenario) Sees(want string) {
 	s.t.Helper()
@@ -96,6 +140,17 @@ func (s *Scenario) Sees(want string) {
 		return
 	}
 	s.record(fmt.Sprintf("sees %q", want))
+}
+
+// DoesNotSee checks the page last opened doesn't show unwanted.
+func (s *Scenario) DoesNotSee(unwanted string) {
+	s.t.Helper()
+	if shown := Text(s.page.Body); strings.Contains(shown, unwanted) {
+		s.record(fmt.Sprintf("sees %q", unwanted))
+		s.t.Errorf("%s shows %q: %s", s.page.Path, unwanted, shown)
+		return
+	}
+	s.record(fmt.Sprintf("does not see %q", unwanted))
 }
 
 // stamp is how the timeline tells the clock's time.

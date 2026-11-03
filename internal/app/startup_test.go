@@ -17,9 +17,11 @@ import (
 // the migrations a PR added are applied before the app serves.
 func TestStartupMigratesTheDatabaseBeforeServing(t *testing.T) {
 	h := apptest.Start(t, apptest.WithUnmigratedDatabase())
+	h.Invite("ada@example.com")
 
-	if res := h.Get(t, "/"); res.StatusCode != http.StatusOK {
-		t.Fatalf("GET / status = %d, want 200:\n%s", res.StatusCode, res.Body)
+	// Signing in creates the User, in the table a migration adds.
+	if res := h.SignIn(t, "ada@example.com"); res.StatusCode != http.StatusOK || res.Path != "/" {
+		t.Fatalf("signing in = %d at %s, want 200 at /:\n%s", res.StatusCode, res.Path, res.Body)
 	}
 	// 00001 enables pgvector: no page reads a vector yet.
 	h.Exec(t, "SELECT '[1,2,3]'::vector")
