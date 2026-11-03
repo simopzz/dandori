@@ -68,7 +68,7 @@ func TestHomeIsServedInTheAppShell(t *testing.T) {
 	if page.StatusCode != http.StatusOK {
 		t.Fatalf("GET / status = %d, want 200", page.StatusCode)
 	}
-	if got := text(page.Body); !strings.Contains(got, "Dandori") {
+	if got := apptest.Text(page.Body); !strings.Contains(got, "Dandori") {
 		t.Errorf("Home does not show Dandori: %s", got)
 	}
 	if !strings.Contains(page.Body, `<nav class="shell"`) {

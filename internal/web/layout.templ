@@ -1,5 +1,7 @@
 package web
 
+import "time"
+
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
@@ -63,9 +65,9 @@ templ tab(t, current Tab, icon, label string, aux bool) {
 }
 
 // Home is the app shell's landing page.
-templ Home() {
+templ Home(today time.Time) {
 	@Layout("Dandori", NoTab) {
-		@PageHeader("段取り", "Dandori") {
+		@PageHeader("段取り", "Dandori", today) {
 			<p class="lede">Plan a Cycle, then fill the cart.</p>
 		}
 	}

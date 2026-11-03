@@ -5,7 +5,8 @@
 //	                    healthy, for the container's health check
 //
 // Configuration comes from the environment: DANDORI_DATABASE_URL (required
-// to serve) and DANDORI_ADDR (default 127.0.0.1:8080).
+// to serve), DANDORI_ADDR (default 127.0.0.1:8080) and DANDORI_TIMEZONE,
+// the zone a day starts and ends in (default Europe/Rome).
 package main
 
 import (
@@ -19,8 +20,10 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata" // the distroless image has no zone database
 
 	"github.com/simopzz/dandori/internal/app"
+	"github.com/simopzz/dandori/internal/clock"
 )
 
 func main() {
@@ -42,7 +45,11 @@ func run(log *slog.Logger, args []string) error {
 	}
 	switch cmd {
 	case "serve":
-		cfg := app.Config{DatabaseURL: os.Getenv("DANDORI_DATABASE_URL")}
+		loc, err := time.LoadLocation(envOr("DANDORI_TIMEZONE", clock.DefaultZone))
+		if err != nil {
+			return fmt.Errorf("DANDORI_TIMEZONE: %w", err)
+		}
+		cfg := app.Config{DatabaseURL: os.Getenv("DANDORI_DATABASE_URL"), Clock: clock.Real(loc)}
 		if cfg.DatabaseURL == "" {
 			return errors.New("DANDORI_DATABASE_URL is not set")
 		}

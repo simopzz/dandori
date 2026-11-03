@@ -78,7 +78,7 @@ elements themselves.
 | Component | Use it for |
 | --- | --- |
 | `Layout(title, tab)` | Every full page. Renders the head and the shell. |
-| `PageHeader(ja, title)` | The top of every page. Children, if any, are a `<p class="lede">` under the title. |
+| `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
 | `Section(num, title)` | A numbered group of a page's content. |
 | `FieldGroup(num, legend)` | A numbered group of a form's fields. |
 | `Hint()` | A quiet paragraph explaining what follows. |

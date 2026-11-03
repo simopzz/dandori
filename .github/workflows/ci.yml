@@ -28,8 +28,15 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
+            ~/.cache/ms-playwright
+            ~/.cache/ms-playwright-go
           key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: go-${{ runner.os }}-
+      # The browser tests' Chromium, at the version go.mod's playwright-go
+      # drives. CI sets CI=true, so a missing browser fails them instead of
+      # skipping them.
+      - name: Install Chromium
+        run: go run github.com/mxschmitt/playwright-go/cmd/playwright install --with-deps chromium
       - name: Generate templ code
         run: mise run generate
       - name: Generated code is committed
