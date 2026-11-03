@@ -373,6 +373,8 @@ open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/auth/templates"
 say "Links lead to the app, which redeems them: any device can open them, and one click confirms, so a mail scanner can't use one up."
 step "Authentication → Emails → Templates → Magic Link: make the link's href"
 note '{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email'
+step "Templates → Confirm signup (sent in place of a magic link until an invited User first signs in): make the link's href"
+note '{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=signup'
 step "Templates → Invite user: make the link's href"
 note '{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite'
 step "Save each."

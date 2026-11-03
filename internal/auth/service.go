@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -47,25 +46,25 @@ type Service struct {
 
 // New creates the Service.
 func New(pool *pgxpool.Pool, cfg Config, c clock.Clock) *Service {
-	return &Service{pool: pool, supabase: newSupabase(cfg.SupabaseURL, cfg.PublishableKey, c), clock: c}
+	return &Service{pool: pool, supabase: newSupabase(cfg, c), clock: c}
 }
 
 // SendMagicLink emails a magic link leading to redirectTo, if email was
-// invited. Whether it was is never told: Supabase refusing an email
-// that wasn't is no error. Only failing to reach Supabase is.
+// invited. Whether it was is never told: Supabase refusing an email is no
+// error, even a rate limit, which it applies only to invited emails. Only
+// failing to reach Supabase is.
 func (s *Service) SendMagicLink(ctx context.Context, email, redirectTo string) error {
-	err := s.supabase.sendMagicLink(ctx, email, redirectTo)
-	if apiErr, ok := errors.AsType[*apiError](err); ok && apiErr.Status < http.StatusInternalServerError {
-		return nil
+	if err := s.supabase.sendMagicLink(ctx, email, redirectTo); !refused(err) {
+		return err
 	}
-	return err
+	return nil
 }
 
 // Redeem signs in with a magic link's token hash, kind being the link's
 // type, and creates the User at their first sign-in.
 func (s *Service) Redeem(ctx context.Context, tokenHash, kind string) (Tokens, error) {
 	sess, err := s.supabase.verify(ctx, tokenHash, kind)
-	if apiErr, ok := errors.AsType[*apiError](err); ok && apiErr.Status < http.StatusInternalServerError {
+	if refused(err) {
 		return Tokens{}, ErrBadLink
 	}
 	if err != nil {
@@ -83,31 +82,45 @@ func (s *Service) Redeem(ctx context.Context, tokenHash, kind string) (Tokens, e
 
 // Authenticate tells who tokens sign in. When the access token has
 // expired, it refreshes the session: renewed are the Tokens to keep in
-// its place. It is ErrSignedOut when they sign no one in any more.
+// its place. It is ErrSignedOut when they sign no one in any more; failing
+// to reach Supabase is another error, which signs no one out.
 func (s *Service) Authenticate(ctx context.Context, tokens Tokens) (userID string, renewed *Tokens, err error) {
-	c, err := s.supabase.check(ctx, tokens.Access)
-	if err == nil {
-		return c.UserID, nil, nil
-	}
-	if !errors.Is(err, errExpired) || tokens.Refresh == "" {
+	userID, err = s.supabase.check(ctx, tokens.Access)
+	switch {
+	case err == nil:
+		return userID, nil, nil
+	case errors.Is(err, errNoKeys):
+		return "", nil, err
+	case !errors.Is(err, errExpired) || tokens.Refresh == "":
 		return "", nil, ErrSignedOut
 	}
 	sess, err := s.supabase.refresh(ctx, tokens.Refresh)
-	if apiErr, ok := errors.AsType[*apiError](err); ok && apiErr.Status < http.StatusInternalServerError {
+	if refused(err) {
 		return "", nil, ErrSignedOut
 	}
 	if err != nil {
 		return "", nil, fmt.Errorf("refresh the session: %w", err)
 	}
-	c, err = s.supabase.check(ctx, sess.AccessToken)
+	userID, err = s.supabase.check(ctx, sess.AccessToken)
 	if err != nil {
 		return "", nil, fmt.Errorf("check the refreshed session: %w", err)
 	}
-	return c.UserID, &Tokens{Access: sess.AccessToken, Refresh: sess.RefreshToken}, nil
+	return userID, &Tokens{Access: sess.AccessToken, Refresh: sess.RefreshToken}, nil
 }
 
-// SignOut ends the session tokens belong to.
+// SignOut ends the session tokens belong to, at Supabase. Supabase takes
+// only a live access token for it, so an expired one is refreshed first.
 func (s *Service) SignOut(ctx context.Context, tokens Tokens) error {
+	_, renewed, err := s.Authenticate(ctx, tokens)
+	if errors.Is(err, ErrSignedOut) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if renewed != nil {
+		tokens = *renewed
+	}
 	return s.supabase.signOut(ctx, tokens.Access)
 }
 

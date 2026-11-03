@@ -2,8 +2,10 @@ package app_test
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/simopzz/dandori/internal/apptest"
 )
@@ -106,14 +108,15 @@ func TestTheInvitationSignsIn(t *testing.T) {
 	}
 }
 
-// A boosted request signed out loads sign-in as a whole page, rather than
-// swapping it into the page it came from.
-func TestABoostedRequestSignedOutLoadsSignIn(t *testing.T) {
+// An invited User who never opened the invitation signs in by asking for a
+// link: Supabase sends its signup confirmation in place of a magic link.
+func TestAnInvitedUserCanIgnoreTheInvitation(t *testing.T) {
 	h := apptest.Start(t)
+	h.Invite("ada@example.com")
 
-	res := h.HTMXGet(t, "/")
-	if got := res.Header.Get("HX-Redirect"); got != "/sign-in" {
-		t.Errorf("HX-Redirect = %q, want /sign-in (status %d)", got, res.StatusCode)
+	page := h.SignIn(t, "ada@example.com")
+	if page.StatusCode != http.StatusOK || page.Path != "/" {
+		t.Fatalf("signing in landed on %s with %d, want / and 200:\n%s", page.Path, page.StatusCode, page.Body)
 	}
 }
 
@@ -130,4 +133,33 @@ func TestSignInRejectsWhatIsNotAnEmail(t *testing.T) {
 	if got := apptest.Form(t, page.Body, "sign-in").Get("email"); got != "ada" {
 		t.Errorf("the form shows %q, want what was typed", got)
 	}
+}
+
+// Signing out ends the session at Supabase, not only in this browser: its
+// cookies, kept from before, sign no one in. It does so after the access
+// token has expired, too.
+func TestSigningOutEndsTheSession(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	today := h.SignIn(t, "ada@example.com")
+	signedIn := h.Client.Jar.Cookies(mustParse(t, h.URL))
+
+	// Today was left open past the hour its access token lasts.
+	h.Clock.Set(h.Clock.Now().Add(2 * time.Hour))
+	form := apptest.Form(t, today.Body, "sign-out")
+	h.PostForm(t, form.Action, form.Values)
+
+	h.Client.Jar.SetCookies(mustParse(t, h.URL), signedIn)
+	if page := h.Get(t, "/"); page.Path != "/sign-in" {
+		t.Errorf("the session's cookies still open %s after signing out", page.Path)
+	}
+}
+
+func mustParse(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
 }

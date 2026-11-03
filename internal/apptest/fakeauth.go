@@ -38,12 +38,13 @@ type FakeAuth struct {
 	clock clock.Clock
 	key   *ecdsa.PrivateKey
 
-	mu       sync.Mutex
-	users    map[string]string      // the invited Users' ids by email
-	links    map[string]link        // the unredeemed links by token hash
-	sessions map[string]fakeSession // the session each live refresh token renews
-	revoked  map[string]bool        // the signed-out session ids
-	mail     map[string][]string
+	mu        sync.Mutex
+	users     map[string]string      // the invited Users' ids by email
+	confirmed map[string]bool        // the invited emails that have redeemed a link
+	links     map[string]link        // the unredeemed links by token hash
+	sessions  map[string]fakeSession // the session each live refresh token renews
+	revoked   map[string]bool        // the signed-out session ids
+	mail      map[string][]string
 }
 
 type link struct{ email, kind string }
@@ -58,7 +59,7 @@ func startFakeAuth(t testing.TB, c clock.Clock) *FakeAuth {
 	}
 	f := &FakeAuth{
 		clock: c, key: key,
-		users: map[string]string{}, links: map[string]link{}, sessions: map[string]fakeSession{},
+		users: map[string]string{}, confirmed: map[string]bool{}, links: map[string]link{}, sessions: map[string]fakeSession{},
 		revoked: map[string]bool{}, mail: map[string][]string{},
 	}
 	mux := http.NewServeMux()
@@ -137,7 +138,13 @@ func (f *FakeAuth) otp(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusUnprocessableEntity, "otp_disabled")
 		return
 	}
-	f.sendLink(body.Email, r.URL.Query().Get("redirect_to"), "email")
+	kind := "email"
+	if !f.confirmed[body.Email] {
+		// Supabase confirms an invited User's email at the first link they
+		// redeem; until then it sends the signup confirmation.
+		kind = "signup"
+	}
+	f.sendLink(body.Email, r.URL.Query().Get("redirect_to"), kind)
 	writeJSON(w, map[string]any{})
 }
 
@@ -158,6 +165,7 @@ func (f *FakeAuth) verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	delete(f.links, body.TokenHash)
+	f.confirmed[l.email] = true
 	writeJSON(w, f.newSession(fakeSession{email: l.email, id: randomUUID()}))
 }
 

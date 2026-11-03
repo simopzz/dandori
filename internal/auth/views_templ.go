@@ -299,7 +299,7 @@ func sentPage(today time.Time) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "Open it in the browser you want to use Dandori in: that is where it signs you in.")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "Open it in the browser you want to use Dandori in: that is where it signs you in. If none arrives in a few minutes, ask again.")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

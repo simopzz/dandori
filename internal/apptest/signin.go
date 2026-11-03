@@ -14,12 +14,19 @@ func (h *Harness) Invite(email string) { h.Auth.Invite(email) }
 // returns the page that lands on.
 func (h *Harness) SignIn(t testing.TB, email string) Response {
 	t.Helper()
-	form := Form(t, h.Get(t, "/sign-in").Body, "sign-in")
-	form.Values.Set("email", email)
-	if sent := h.PostForm(t, form.Action, form.Values); sent.StatusCode != http.StatusOK {
+	if sent := h.AskForLink(t, email); sent.StatusCode != http.StatusOK {
 		t.Fatalf("ask for a magic link for %s: status %d:\n%s", email, sent.StatusCode, sent.Body)
 	}
 	return h.OpenLink(t, h.Auth.LastLink(t, email))
+}
+
+// AskForLink asks for a magic link for email on the sign-in page,
+// returning the page that answers.
+func (h *Harness) AskForLink(t testing.TB, email string) Response {
+	t.Helper()
+	form := Form(t, h.Get(t, "/sign-in").Body, "sign-in")
+	form.Values.Set("email", email)
+	return h.PostForm(t, form.Action, form.Values)
 }
 
 // OpenLink opens a link from an email and confirms signing in with it,

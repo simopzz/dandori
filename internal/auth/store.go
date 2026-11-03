@@ -2,7 +2,10 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/simopzz/dandori/internal/db"
 )
@@ -18,9 +21,19 @@ func saveUser(ctx context.Context, q db.Querier, id, email string, now time.Time
 }
 
 // loadEmail reads the signed-in User's email. It has no WHERE on purpose:
-// run in db.AsUser, row-level security leaves only their row.
+// run in db.AsUser, row-level security leaves only their row, and any
+// other row it let through is an error.
 func loadEmail(ctx context.Context, q db.Querier) (string, error) {
-	var email string
-	err := q.QueryRow(ctx, `SELECT email FROM "user"`).Scan(&email)
-	return email, err
+	rows, err := q.Query(ctx, `SELECT email FROM "user"`)
+	if err != nil {
+		return "", err
+	}
+	emails, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return "", err
+	}
+	if len(emails) != 1 {
+		return "", fmt.Errorf("row-level security let through %d Users, want 1", len(emails))
+	}
+	return emails[0], nil
 }

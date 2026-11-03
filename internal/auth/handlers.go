@@ -35,20 +35,15 @@ type Handlers struct {
 // them; anyone else goes to sign-in.
 func (h Handlers) SignedIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		access, err := r.Cookie(accessCookie)
-		if err != nil {
-			toSignIn(w, r)
+		tokens, ok := cookieTokens(r)
+		if !ok {
+			http.Redirect(w, r, "/sign-in", http.StatusSeeOther)
 			return
-		}
-		var tokens Tokens
-		tokens.Access = access.Value
-		if refresh, err := r.Cookie(refreshCookie); err == nil {
-			tokens.Refresh = refresh.Value
 		}
 		userID, renewed, err := h.Service.Authenticate(r.Context(), tokens)
 		if errors.Is(err, ErrSignedOut) {
 			clearSession(w, r)
-			toSignIn(w, r)
+			http.Redirect(w, r, "/sign-in", http.StatusSeeOther)
 			return
 		}
 		if err != nil {
@@ -60,17 +55,6 @@ func (h Handlers) SignedIn(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(db.WithUser(r.Context(), userID)))
 	})
-}
-
-// toSignIn sends the browser to sign-in: htmx, which would swap the page
-// into the one it is on, loads it in full.
-func toSignIn(w http.ResponseWriter, r *http.Request) {
-	if httpx.IsHTMX(r) {
-		w.Header().Set("HX-Redirect", "/sign-in")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	http.Redirect(w, r, "/sign-in", http.StatusSeeOther)
 }
 
 func (h Handlers) ShowSignIn(w http.ResponseWriter, r *http.Request) {
@@ -102,16 +86,17 @@ func (h Handlers) ShowConfirm(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, http.StatusOK, confirmPage(h.Clock.Now(), q.Get("token_hash"), q.Get("type")))
 }
 
-// linkTypes are the links that sign in: a magic link, and an invitation.
-var linkTypes = map[string]bool{"email": true, "magiclink": true, "invite": true}
+// linkTypes are the links that sign in: a magic link, an invitation, and
+// the signup confirmation an invited User who hasn't confirmed yet is sent
+// in place of a magic link.
+var linkTypes = map[string]bool{"email": true, "invite": true, "signup": true}
 
 func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 	tokenHash, kind := r.PostFormValue("token_hash"), r.PostFormValue("type")
-	if tokenHash == "" || !linkTypes[kind] {
-		h.render(w, r, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{BadLink: true}))
-		return
+	tokens, err := Tokens{}, ErrBadLink
+	if tokenHash != "" && linkTypes[kind] {
+		tokens, err = h.Service.Redeem(r.Context(), tokenHash, kind)
 	}
-	tokens, err := h.Service.Redeem(r.Context(), tokenHash, kind)
 	if errors.Is(err, ErrBadLink) {
 		h.render(w, r, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{BadLink: true}))
 		return
@@ -125,10 +110,10 @@ func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) SignOut(w http.ResponseWriter, r *http.Request) {
-	if access, err := r.Cookie(accessCookie); err == nil {
+	if tokens, ok := cookieTokens(r); ok {
 		// Signing out on this browser goes ahead even if Supabase can't
 		// revoke the session.
-		if err := h.Service.SignOut(r.Context(), Tokens{Access: access.Value}); err != nil {
+		if err := h.Service.SignOut(r.Context(), tokens); err != nil {
 			h.Log.Warn("revoke session", "err", err)
 		}
 	}
@@ -142,6 +127,19 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, pag
 	if err := page.Render(r.Context(), w); err != nil {
 		h.Log.Error("render", "path", r.URL.Path, "err", err)
 	}
+}
+
+// cookieTokens reads the Tokens the cookies keep, if any.
+func cookieTokens(r *http.Request) (Tokens, bool) {
+	access, err := r.Cookie(accessCookie)
+	if err != nil {
+		return Tokens{}, false
+	}
+	t := Tokens{Access: access.Value}
+	if refresh, err := r.Cookie(refreshCookie); err == nil {
+		t.Refresh = refresh.Value
+	}
+	return t, true
 }
 
 func keepSession(w http.ResponseWriter, r *http.Request, t Tokens) {

@@ -106,9 +106,7 @@ func (s *Scenario) Invite(email string) {
 // AsksForALink asks for a magic link for email on the sign-in page.
 func (s *Scenario) AsksForALink(email string) {
 	s.t.Helper()
-	form := Form(s.t, s.Get(s.t, "/sign-in").Body, "sign-in")
-	form.Values.Set("email", email)
-	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.page = s.AskForLink(s.t, email)
 	s.record(fmt.Sprintf("asks for a link for %s: %d %s", email, s.page.StatusCode, s.page.Path))
 }
 
