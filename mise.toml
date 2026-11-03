@@ -49,4 +49,4 @@ run = "golangci-lint run ./..."
 
 [tasks."db:schema"]
 description = "Print the schema of the database at DANDORI_DATABASE_URL (pg_dump must be as new as its Postgres)"
-run = 'pg_dump --schema-only --no-owner --no-privileges --schema=public "$DANDORI_DATABASE_URL"'
+run = 'pg_dump --schema-only --no-owner --no-privileges --schema=public --extension=vector "$DANDORI_DATABASE_URL"'

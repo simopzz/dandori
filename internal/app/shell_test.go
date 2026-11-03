@@ -85,7 +85,10 @@ func TestAppShellServesItsFonts(t *testing.T) {
 	css := h.Get(t, "/static/app.css").Body
 	fonts := 0
 	for _, part := range strings.Split(css, "url(")[1:] {
-		src := part[:strings.Index(part, ")")]
+		src, _, ok := strings.Cut(part, ")")
+		if !ok {
+			t.Fatalf("app.css has a url( with no closing parenthesis: %.40s", part)
+		}
 		if !strings.HasSuffix(src, ".woff2") {
 			continue
 		}
