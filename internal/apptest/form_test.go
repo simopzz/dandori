@@ -8,3 +8,13 @@ func TestSelectWithNothingSelectedSubmitsItsFirstOption(t *testing.T) {
 		t.Errorf("unit = %q, want the first option's empty value", got)
 	}
 }
+
+func TestChooseChecksTheRadioButtonLabelledSo(t *testing.T) {
+	page := `<form id="f" action="/x">
+		<label><input type="radio" name="lang" value="en" checked/><span>English</span></label>
+		<label><input type="radio" name="lang" value="it"/><span>Italiano</span></label>
+	</form>`
+	if got := Choose(t, page, "f", "Italiano").Values["lang"]; len(got) != 1 || got[0] != "it" {
+		t.Errorf("lang = %q, want only it", got)
+	}
+}

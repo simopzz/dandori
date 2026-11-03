@@ -64,7 +64,7 @@ func (h Handlers) ShowSignIn(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) SendLink(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	if !strings.Contains(email, "@") {
-		h.render(w, r, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{Email: email, EmailErr: "Enter the email you were invited with."}))
+		h.render(w, r, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{Email: email, EmailErr: msgNotAnEmail}))
 		return
 	}
 	if err := h.Service.SendMagicLink(r.Context(), email, origin(r)+"/auth/confirm"); err != nil {
@@ -83,7 +83,7 @@ func (h Handlers) ShowSent(w http.ResponseWriter, r *http.Request) {
 // link here with the token hash and the link's type.
 func (h Handlers) ShowConfirm(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	h.render(w, r, http.StatusOK, confirmPage(h.Clock.Now(), q.Get("token_hash"), q.Get("type")))
+	h.render(w, r, http.StatusOK, confirmPage(r.URL, h.Clock.Now(), q.Get("token_hash"), q.Get("type")))
 }
 
 // linkTypes are the links that sign in: a magic link, an invitation, and

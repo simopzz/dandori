@@ -18,10 +18,14 @@ func TestPagesNeedASignedInUser(t *testing.T) {
 
 	s.Open("/")
 	s.IsAt("/sign-in")
+	s.Open("/language")
+	s.IsAt("/sign-in")
 
 	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
 	s.Open("/")
 	s.IsAt("/")
+	s.Open("/profile")
 	s.Sees("Signed in as ada@example.com")
 
 	s.SignsOut()
@@ -29,18 +33,22 @@ func TestPagesNeedASignedInUser(t *testing.T) {
 	s.IsAt("/sign-in")
 }
 
-// Users share nothing, and row-level security is what enforces it: Today
-// reads the signed-in User's email with no WHERE, and still shows only
-// theirs.
+// Users share nothing, and row-level security is what enforces it: the
+// Profile reads the signed-in User's email with no WHERE, and still shows
+// only theirs.
 func TestEachUserSeesOnlyTheirOwnRows(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
 	s.Invite("bea@example.com")
 
 	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/profile")
 	s.SignsOut()
 
 	s.SignsIn("bea@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/profile")
 	s.Sees("Signed in as bea@example.com")
 	s.DoesNotSee("ada@example.com")
 }
@@ -68,13 +76,14 @@ func TestSigningInLastsUntilSigningOut(t *testing.T) {
 	s.Invite("ada@example.com")
 	s.At("Mon 10:00")
 	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
 
 	s.NextDay()
 	s.Open("/")
 	s.IsAt("/")
 	s.NextDay()
-	s.Open("/")
-	s.IsAt("/")
+	s.Open("/profile")
+	s.IsAt("/profile")
 	s.Sees("Signed in as ada@example.com")
 }
 
@@ -100,11 +109,8 @@ func TestTheInvitationSignsIn(t *testing.T) {
 	h.Invite("ada@example.com")
 
 	page := h.OpenLink(t, h.Auth.LastLink(t, "ada@example.com"))
-	if page.StatusCode != http.StatusOK || page.Path != "/" {
-		t.Fatalf("the invitation landed on %s with %d, want / and 200:\n%s", page.Path, page.StatusCode, page.Body)
-	}
-	if got := apptest.Text(page.Body); !strings.Contains(got, "Signed in as ada@example.com") {
-		t.Errorf("Today after the invitation: %s", got)
+	if page.StatusCode != http.StatusOK || page.Path != "/language" {
+		t.Fatalf("the invitation landed on %s with %d, want /language and 200:\n%s", page.Path, page.StatusCode, page.Body)
 	}
 }
 
@@ -115,8 +121,8 @@ func TestAnInvitedUserCanIgnoreTheInvitation(t *testing.T) {
 	h.Invite("ada@example.com")
 
 	page := h.SignIn(t, "ada@example.com")
-	if page.StatusCode != http.StatusOK || page.Path != "/" {
-		t.Fatalf("signing in landed on %s with %d, want / and 200:\n%s", page.Path, page.StatusCode, page.Body)
+	if page.StatusCode != http.StatusOK || page.Path != "/language" {
+		t.Fatalf("signing in landed on %s with %d, want /language and 200:\n%s", page.Path, page.StatusCode, page.Body)
 	}
 }
 
@@ -141,12 +147,13 @@ func TestSignInRejectsWhatIsNotAnEmail(t *testing.T) {
 func TestSigningOutEndsTheSession(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
-	today := h.SignIn(t, "ada@example.com")
+	h.SignUp(t, "ada@example.com")
+	profile := h.Get(t, "/profile")
 	signedIn := h.Client.Jar.Cookies(mustParse(t, h.URL))
 
-	// Today was left open past the hour its access token lasts.
+	// The Profile was left open past the hour its access token lasts.
 	h.Clock.Set(h.Clock.Now().Add(2 * time.Hour))
-	form := apptest.Form(t, today.Body, "sign-out")
+	form := apptest.Form(t, profile.Body, "sign-out")
 	h.PostForm(t, form.Action, form.Values)
 
 	h.Client.Jar.SetCookies(mustParse(t, h.URL), signedIn)

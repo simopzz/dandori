@@ -119,7 +119,7 @@ _Avoid_: Account, tenant, household
 ### Goals
 
 **Profile**:
-The user's stored nutrition settings: the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, the Untracked Allowance, and the time of day of each kind of Slot.
+The user's stored settings: their Language, and for nutrition the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, the Untracked Allowance, and the time of day of each kind of Slot.
 _Avoid_: Settings, preferences
 
 **Target**:

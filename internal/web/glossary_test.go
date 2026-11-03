@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,17 +17,31 @@ var ordinarySense = map[string]string{
 	"step": `a Recipe's steps, which the glossary names so, not a Trace Event`,
 }
 
-// Pages speak the glossary: what a template shows never uses a word
-// GLOSSARY.md lists under _Avoid_. A glossary term containing such a word
-// (Meal Out holds "meal") is the term, and fine; so is a word in
-// ordinarySense.
-func TestTemplatesAvoidWhatTheGlossaryAvoids(t *testing.T) {
+// Pages speak the glossary: what a page shows, a Message's English or a
+// template's own text, never uses a word GLOSSARY.md lists under _Avoid_.
+// A glossary term containing such a word (Meal Out holds "meal") is the
+// term, and fine; so is a word in ordinarySense.
+func TestPagesAvoidWhatTheGlossaryAvoids(t *testing.T) {
 	glossary, err := os.ReadFile("../../GLOSSARY.md")
 	if err != nil {
 		t.Fatal(err)
 	}
 	terms, avoided := glossaryWords(string(glossary))
+	check := func(where, text string) {
+		shown := text
+		for _, term := range terms {
+			shown = term.ReplaceAllString(shown, " ")
+		}
+		for word, re := range avoided {
+			if re.MatchString(shown) {
+				t.Errorf("%s shows %q, which GLOSSARY.md avoids: %s", where, word, strings.TrimSpace(text))
+			}
+		}
+	}
 
+	for _, m := range messages(t) {
+		check(m.pos, m.en)
+	}
 	err = filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".templ" {
 			return err
@@ -36,15 +51,7 @@ func TestTemplatesAvoidWhatTheGlossaryAvoids(t *testing.T) {
 			return err
 		}
 		for _, line := range visibleText(string(src)) {
-			shown := line.text
-			for _, term := range terms {
-				shown = term.ReplaceAllString(shown, " ")
-			}
-			for word, re := range avoided {
-				if re.MatchString(shown) {
-					t.Errorf("%s line %d shows %q, which GLOSSARY.md avoids: %s", path, line.line, word, strings.TrimSpace(line.text))
-				}
-			}
+			check(fmt.Sprintf("%s line %d", path, line.line), line.text)
 		}
 		return nil
 	})
@@ -92,11 +99,11 @@ var (
 )
 
 // visibleText is the text a .templ file's templates show, line by line:
-// what is left of their bodies once templ statements, tags and Go
-// expressions are removed. Go code outside templates shows nothing.
+// what is left of their bodies once templ statements, tags, scripts and
+// Go expressions are removed. Go code outside templates shows nothing.
 func visibleText(src string) []textLine {
 	var lines []textLine
-	in, tag := false, false
+	in, tag, script := false, false, false
 	for i, raw := range strings.Split(src, "\n") {
 		line := strings.TrimSpace(raw)
 		switch {
@@ -107,6 +114,12 @@ func visibleText(src string) []textLine {
 			continue
 		case raw == "}":
 			in = false
+			continue
+		case script:
+			script = !strings.Contains(line, "</script>")
+			continue
+		case strings.HasPrefix(line, "<script") && !strings.Contains(line, "</script>"):
+			script = true
 			continue
 		}
 		// A tag spread over several lines, its attributes one per line.

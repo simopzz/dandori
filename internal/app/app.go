@@ -16,7 +16,7 @@ import (
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
-	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -32,10 +32,11 @@ type Config struct {
 
 // App is a running Dandori instance.
 type App struct {
-	pool  *pgxpool.Pool
-	clock clock.Clock
-	log   *slog.Logger
-	auth  *auth.Service
+	pool    *pgxpool.Pool
+	clock   clock.Clock
+	log     *slog.Logger
+	auth    *auth.Service
+	profile *profile.Service
 }
 
 // New creates the app once its database is reachable and migrated. It
@@ -49,7 +50,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock)}
+	a := &App{pool: pool, clock: cfg.Clock, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool)}
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -66,10 +67,14 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 // Close releases the database connections.
 func (a *App) Close() { a.pool.Close() }
 
-// Handler returns the app's HTTP routes.
+// Handler returns the app's HTTP routes. Every page speaks the signed-in
+// User's Language, and asks them for it before anything else; pages
+// before signing in speak the one they were switched to.
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
-	signedIn := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(h) }
+	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
+	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(h) }
+	signedIn := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(prof.LanguageChosen(h)) }
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
@@ -79,8 +84,12 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /auth/confirm", signIn.ShowConfirm)
 	mux.HandleFunc("POST /auth/confirm", signIn.Confirm)
 	mux.HandleFunc("POST /sign-out", signIn.SignOut)
+	mux.Handle("GET /language", choosing(prof.ShowChoice))
+	mux.Handle("POST /language", choosing(prof.Choose))
 	mux.Handle("GET /{$}", signedIn(a.home))
-	return mux
+	mux.Handle("GET /profile", signedIn(prof.Show))
+	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
+	return web.Languages(mux)
 }
 
 func (a *App) ping(ctx context.Context) error {
@@ -106,12 +115,7 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	email, err := a.auth.Email(r.Context())
-	if err != nil {
-		httpx.ServerError(w, a.log, "load the User's email", err)
-		return
-	}
-	if err := web.Home(a.clock.Now(), email).Render(r.Context(), w); err != nil {
+	if err := web.Home(a.clock.Now()).Render(r.Context(), w); err != nil {
 		a.log.Error("render Home", "err", err)
 	}
 }

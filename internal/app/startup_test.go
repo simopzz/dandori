@@ -19,10 +19,9 @@ func TestStartupMigratesTheDatabaseBeforeServing(t *testing.T) {
 	h := apptest.Start(t, apptest.WithUnmigratedDatabase())
 	h.Invite("ada@example.com")
 
-	// Signing in creates the User, in the table a migration adds.
-	if res := h.SignIn(t, "ada@example.com"); res.StatusCode != http.StatusOK || res.Path != "/" {
-		t.Fatalf("signing in = %d at %s, want 200 at /:\n%s", res.StatusCode, res.Path, res.Body)
-	}
+	// Signing up creates the User and their Profile, in the tables
+	// migrations add.
+	h.SignUp(t, "ada@example.com")
 	// 00001 enables pgvector: no page reads a vector yet.
 	h.Exec(t, "SELECT '[1,2,3]'::vector")
 }

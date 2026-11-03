@@ -19,13 +19,7 @@ func Link(t testing.TB, page, text string) string {
 		if n.Type != html.ElementNode || n.Data != "a" {
 			continue
 		}
-		var shown strings.Builder
-		for c := range n.Descendants() {
-			if c.Type == html.TextNode {
-				shown.WriteString(c.Data)
-			}
-		}
-		if strings.Contains(strings.Join(strings.Fields(shown.String()), " "), text) {
+		if strings.Contains(shownText(n), text) {
 			return attr(n, "href")
 		}
 	}

@@ -128,3 +128,38 @@ func hasAttr(n *html.Node, key string) bool {
 	}
 	return false
 }
+
+// Choose reads the form with the given id from page as Form does, with
+// the radio button labelled label checked in place of its group's.
+func Choose(t testing.TB, page, id, label string) FormData {
+	t.Helper()
+	f := Form(t, page, id)
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	for n := range doc.Descendants() {
+		if n.Type != html.ElementNode || n.Data != "label" || shownText(n) != label {
+			continue
+		}
+		for c := range n.Descendants() {
+			if c.Type == html.ElementNode && c.Data == "input" && attr(c, "type") == "radio" {
+				f.Values.Set(attr(c, "name"), attr(c, "value"))
+				return f
+			}
+		}
+	}
+	t.Fatalf("form %q has no radio button labelled %q", id, label)
+	return f
+}
+
+// shownText is the text n shows, its whitespace collapsed.
+func shownText(n *html.Node) string {
+	var b strings.Builder
+	for c := range n.Descendants() {
+		if c.Type == html.TextNode {
+			b.WriteString(c.Data)
+		}
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}

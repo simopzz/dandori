@@ -65,7 +65,7 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 func TestHomeIsServedInTheAppShell(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
-	h.SignIn(t, "ada@example.com")
+	h.SignUp(t, "ada@example.com")
 
 	page := h.Get(t, "/")
 	if page.StatusCode != http.StatusOK || page.Path != "/" {
@@ -79,6 +79,25 @@ func TestHomeIsServedInTheAppShell(t *testing.T) {
 	}
 	if strings.Contains(page.Body, `aria-current="page"`) {
 		t.Errorf("Home marks a tab as current:\n%s", page.Body)
+	}
+}
+
+// The shell's tabs lead to pages for a signed-in User who has chosen their
+// Language, so the pages before have none; the Profile marks its own.
+func TestTheShellHasTabsOnceTheLanguageIsChosen(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	if page := h.Get(t, "/sign-in"); strings.Contains(page.Body, `class="tab`) {
+		t.Errorf("sign-in shows the shell's tabs:\n%s", page.Body)
+	}
+	if page := h.SignIn(t, "ada@example.com"); strings.Contains(page.Body, `class="tab`) {
+		t.Errorf("the Language choice shows the shell's tabs:\n%s", page.Body)
+	}
+
+	h.ChooseLanguage(t, h.Get(t, "/language"), "English")
+	page := h.Get(t, "/profile")
+	if !strings.Contains(page.Body, `href="/profile" aria-current="page"`) {
+		t.Errorf("the Profile does not mark its tab as current:\n%s", page.Body)
 	}
 }
 

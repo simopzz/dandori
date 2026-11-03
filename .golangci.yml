@@ -63,3 +63,8 @@ linters:
       - std-error-handling
     paths:
       - ".*_templ\\.go$"
+    rules:
+      # Messages are in Italian as well, which misspell reads as English.
+      - path: "(messages|i18n)\\.go$"
+        linters:
+          - misspell

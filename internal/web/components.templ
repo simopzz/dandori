@@ -2,7 +2,10 @@ package web
 
 import (
 	"fmt"
+	"net/url"
 	"time"
+
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 // The shared components every page is built from. docs/design.md says when
@@ -12,7 +15,7 @@ import (
 // today's date, then the title. Children, if any, are a lede below it.
 templ PageHeader(ja, title string, today time.Time) {
 	<header class="page-header">
-		<p class="eyebrow"><span lang="ja">{ ja }</span> · { today.Format("Monday 2 January") }</p>
+		<p class="eyebrow"><span lang="ja">{ ja }</span> · { Date(ctx, today) }</p>
 		<h1>{ title }</h1>
 		{ children... }
 	</header>
@@ -86,7 +89,7 @@ templ EditRowIn(group string, open bool, summary templ.Component) {
 				@summary
 				<span class="row-edit">
 					@Icon("chevron-down")
-					<span class="sr-only">Change</span>
+					<span class="sr-only">{ T(ctx, msgChange) }</span>
 				</span>
 			</summary>
 			<div class="row-body">
@@ -252,7 +255,7 @@ templ AddSheet(id, title string, open bool) {
 	<div id={ id } class="sheet" popover role="dialog" aria-labelledby={ id + "-title" } data-open?={ open }>
 		<div class="sheet-head">
 			<h2 id={ id + "-title" }>{ title }</h2>
-			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">Close</button>
+			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">{ T(ctx, msgClose) }</button>
 		</div>
 		{ children... }
 	</div>
@@ -264,4 +267,24 @@ templ AddSheet(id, title string, open bool) {
 			}
 		</script>
 	}
+}
+
+// LanguageSwitch switches the pages before signing in between Languages,
+// each named in itself, staying on the page at u. The one they speak is
+// marked current.
+templ LanguageSwitch(u *url.URL) {
+	<nav class="lang-switch" aria-label={ T(ctx, msgLanguages) }>
+		for i, l := range domain.Languages {
+			if i > 0 {
+				<span aria-hidden="true">·</span>
+			}
+			<a
+				href={ switchURL(u, l) }
+				lang={ string(l) }
+				if l == LanguageOf(ctx) {
+					aria-current="true"
+				}
+			>{ T(ctx, LanguageNames[l]) }</a>
+		}
+	</nav>
 }

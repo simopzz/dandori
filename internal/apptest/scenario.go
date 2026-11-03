@@ -113,14 +113,39 @@ func (s *Scenario) AsksForALink(email string) {
 // Page is the page last opened.
 func (s *Scenario) Page() Response { return s.page }
 
-// SignsIn signs the invited email in by magic link, landing on Today.
+// SignsIn signs the invited email in by magic link, landing on Today, or
+// at a first sign-in on the Language choice.
 func (s *Scenario) SignsIn(email string) {
 	s.t.Helper()
 	s.page = s.SignIn(s.t, email)
 	s.record(fmt.Sprintf("signs in as %s: %d %s", email, s.page.StatusCode, s.page.Path))
-	if s.page.StatusCode != http.StatusOK || s.page.Path != "/" {
-		s.t.Fatalf("signing in as %s landed on %s with status %d, want / and 200:\n%s", email, s.page.Path, s.page.StatusCode, s.page.Body)
+	if s.page.StatusCode != http.StatusOK {
+		s.t.Fatalf("signing in as %s landed on %s with status %d, want 200:\n%s", email, s.page.Path, s.page.StatusCode, s.page.Body)
 	}
+}
+
+// ChoosesLanguage chooses the Language named name, as named on the
+// Language choice open at a first sign-in.
+func (s *Scenario) ChoosesLanguage(name string) {
+	s.t.Helper()
+	s.page = s.ChooseLanguage(s.t, s.page, name)
+	s.record(fmt.Sprintf("chooses %s: %d %s", name, s.page.StatusCode, s.page.Path))
+}
+
+// ChangesLanguage changes the Language to the one named name on the
+// Profile open.
+func (s *Scenario) ChangesLanguage(name string) {
+	s.t.Helper()
+	form := Choose(s.t, s.page.Body, "profile-language", name)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("changes the Language to %s: %d %s", name, s.page.StatusCode, s.page.Path))
+}
+
+// Follows follows the link on the page open that shows text.
+func (s *Scenario) Follows(text string) {
+	s.t.Helper()
+	s.page = s.Get(s.t, Link(s.t, s.page.Body, text))
+	s.record(fmt.Sprintf("follows %q: %d %s", text, s.page.StatusCode, s.page.Path))
 }
 
 // SignsOut signs out from the page last opened.

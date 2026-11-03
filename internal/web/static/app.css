@@ -265,6 +265,21 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
 
 .lede { margin: 0; color: var(--color-text-soft); }
 
+/* language switch: the pages before signing in, each Language named in itself */
+
+.lang-switch {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--color-text-soft);
+}
+
+.lang-switch a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--space-1); }
+
+.lang-switch a[aria-current] { color: var(--color-text); font-weight: 700; text-decoration: none; }
+
 /* sections: a numbered heading over a strong rule */
 
 .section { margin: 0 0 var(--space-6); }
