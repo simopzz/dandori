@@ -43,6 +43,13 @@ jobs:
         run: git diff --exit-code
       - name: Check
         run: mise run check
+      # go test hides a skip behind "ok": show the browser tests passed in
+      # Chromium, and fail if none did.
+      - name: Browser tests ran
+        run: |
+          set -o pipefail
+          go test -count=1 -v -run '^TestBrowser' ./internal/app | tee browser.log
+          grep -q -- '--- PASS: TestBrowser' browser.log
 
   # A merge to v2 deploys once every check passes (ADR-0017): the image goes
   # to GHCR, and the VPS pulls it. The app migrates its database on start,
