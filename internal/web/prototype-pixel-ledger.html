@@ -1,0 +1,542 @@
+<meta charset="utf-8">
+<title>Dandori Dusk Prototypes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* PROTOTYPE, throwaway: three treatments of the banner's look on the Stock page.
+   Layout: a device frame (phone or desktop) holding one mocked Stock page; a
+   floating bar switches variant. Light only, by choice (dark mode is out of scope). */
+:root {
+  /* v1 tokens */
+  --paper: #fdfcfa;
+  --surface: #ffffff;
+  --ink: #1a1a18;
+  --ink-soft: #5c5a54;
+  --accent: #b8321b;
+  /* banner palette */
+  --cream: #f7e4c6;
+  --peach: #f2c29c;
+  --salmon: #eba083;
+  --slate: #4b5582;
+  --navy: #2d3352;
+  --deep: #252840;
+  --snow: #f3eee4;
+  --rule-warm: #ecdfd2;
+  --wash-salmon: #fbe5dc;
+  /* prototype chrome, outside the design */
+  --chrome: #e9e7e3;
+  --chrome-ink: #222;
+
+  --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", system-ui, sans-serif;
+  --font-pixel: "DotGothic16", ui-monospace, monospace;
+  --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2.5rem; --s7: 4rem;
+  --tap: 2.75rem; --rail: 13rem; --tabs: 3.75rem; --measure: 42rem;
+  color-scheme: light;
+}
+body { background: var(--chrome); color: var(--chrome-ink); font-family: var(--font-body); }
+.proto {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 96px;
+  display: grid; gap: 12px; justify-items: center;
+}
+.caption { max-width: 1180px; width: 100%; font-size: 14px; line-height: 1.5; }
+.caption h2 { margin: 0 0 4px; font: 700 17px/1.3 var(--font-body); }
+.caption ul { margin: 4px 0 0; padding-left: 18px; }
+.caption .cost { color: #6b4a3a; }
+
+/* ── the device frame ─────────────────────────────────────────── */
+.device {
+  --rule: #e4e0d8; --rule-strong: var(--ink); --fill: var(--ink); --fill-hover: #000; --on-fill: var(--paper); --wash: #faebe6;
+  --px: 3px;
+  position: relative; overflow: hidden; background: var(--paper); color: var(--ink);
+  font: 400 1rem/1.7 var(--font-body); letter-spacing: 0.01em;
+  container: dev / inline-size;
+  width: 100%; max-width: 1180px; height: 780px;
+  box-shadow: 0 0 0 1px #0002, 0 12px 40px #0002;
+}
+.device[data-size="phone"] { max-width: 390px; height: 800px; border-radius: 28px; }
+.scroll { position: absolute; inset: 0; overflow-y: auto; }
+
+/* dithering: two colours, four densities, square pixels of --px */
+.st { height: var(--h, calc(var(--px) * 2)); }
+.l0 { background: var(--da); }
+.l1 { background: conic-gradient(from 90deg at var(--px) var(--px), var(--db) 25%, var(--da) 0) 0 0 / calc(2 * var(--px)) calc(2 * var(--px)); }
+.l2 { background: repeating-conic-gradient(var(--db) 0 25%, var(--da) 0 50%) 0 0 / calc(2 * var(--px)) calc(2 * var(--px)); }
+.l3 { background: conic-gradient(from 90deg at var(--px) var(--px), var(--da) 25%, var(--db) 0) 0 0 / calc(2 * var(--px)) calc(2 * var(--px)); }
+.px { display: block; shape-rendering: crispEdges; }
+
+/* ── v1 base, as app.css has it ───────────────────────────────── */
+.device a { color: inherit; text-underline-offset: 4px; }
+.device h1 { font: 500 clamp(2.5rem, 9cqi, 4rem)/1.05 var(--font-display); letter-spacing: 0.02em; margin: var(--s2) 0 var(--s4); text-wrap: balance; }
+.device h2 { font-family: var(--font-display); font-weight: 500; line-height: 1.2; }
+.device p { margin: 0 0 var(--s3); }
+.device input, .device select {
+  font: inherit; color: inherit; background: transparent; border: 0; border-bottom: 1px solid var(--rule-strong);
+  border-radius: 0; min-height: var(--tap); padding: 0 var(--s1); width: 100%;
+}
+.device input[aria-invalid="true"] { border-bottom: 2px solid var(--accent); }
+.device :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon { width: 1.25rem; height: 1.25rem; flex: none; display: inline-grid; place-items: center; }
+.icon svg { width: 100%; height: 100%; }
+
+.masthead { padding: var(--s5) var(--s5) 0; }
+.wordmark { display: inline-flex; align-items: baseline; gap: var(--s2); min-height: var(--tap); text-decoration: none; }
+.wm-ja { font: 700 1.25rem/1 var(--font-display); letter-spacing: 0.15em; }
+.wm-latin { font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-soft); }
+.wm-sun { display: none; width: 14px; align-self: center; }
+
+.shell {
+  position: absolute; z-index: 10; inset: auto 0 0 0; display: flex;
+  background: var(--paper); border-top: 1px solid var(--rule-strong);
+}
+.shell > .wordmark, .rail-ribbon, .rail-sky { display: none; }
+.tabs { display: contents; }
+.tab {
+  flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s1); min-height: var(--tabs); text-decoration: none; font-size: 0.75rem; letter-spacing: 0.08em; color: var(--ink-soft);
+}
+.tab[aria-current="page"] { color: var(--ink); }
+.tab[aria-current="page"]::before { content: ""; position: absolute; top: -1px; width: 1.5rem; height: 3px; background: var(--accent); }
+.tab-aux { display: none; }
+
+.page { max-width: var(--measure); margin: 0 auto; padding: var(--s5) var(--s5) calc(var(--tabs) + var(--s7)); }
+.page-header { margin-bottom: var(--s6); }
+.eyebrow { margin: 0; font-size: 0.8rem; letter-spacing: 0.2em; color: var(--ink-soft); }
+.lede { color: var(--ink-soft); }
+.section { margin: 0 0 var(--s6); }
+.section-heading {
+  position: relative; display: flex; align-items: baseline; gap: var(--s3);
+  font: 500 1.4rem/1.2 var(--font-display); margin: 0 0 var(--s3); padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule-strong);
+}
+.num { font: 400 0.8rem var(--font-body); letter-spacing: 0.1em; color: var(--accent); }
+.hint { color: var(--ink-soft); font-size: 0.9rem; }
+.rows { list-style: none; margin: 0 0 var(--s4); padding: 0; }
+.row { border-bottom: 1px solid var(--rule); }
+.row-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s4); min-height: var(--tap); padding: var(--s2) 0; }
+.row-title { flex: 1 1 12rem; min-width: 0; }
+.row-figure { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.row-meta { flex-basis: 100%; font-size: 0.85rem; color: var(--ink-soft); display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; }
+.row-edit { color: var(--ink-soft); font-size: 0.85rem; }
+.row.open { background: var(--surface); box-shadow: 0 0 0 1px var(--rule); padding: 0 var(--s3); margin: 0 calc(-1 * var(--s3)); }
+.row-body { padding: var(--s3) 0 var(--s4); border-top: 1px dashed var(--rule); display: flex; flex-wrap: wrap; gap: var(--s4); align-items: center; }
+.seal { display: none; width: 12px; }
+
+.stack { display: grid; gap: var(--s4); }
+.field { display: grid; gap: var(--s1); }
+.field-label { font-size: 0.75rem; letter-spacing: 0.12em; color: var(--ink-soft); }
+.field-error { color: var(--accent); font-size: 0.8rem; }
+.field-error::before { content: "! "; font-weight: 700; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: center; margin-top: var(--s5); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; font: inherit; letter-spacing: 0.1em;
+  background: var(--fill); color: var(--on-fill); border: 0; border-radius: 0; min-height: var(--tap); padding: 0 var(--s5); cursor: pointer;
+}
+.btn:hover { background: var(--fill-hover); }
+.btn-text { font: inherit; background: none; border: 0; padding: 0 var(--s2); min-height: var(--tap); cursor: pointer; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+.seg { display: flex; justify-self: start; border: 1px solid var(--rule-strong); }
+.seg label { position: relative; }
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; min-height: 0; cursor: pointer; }
+.seg span { display: block; padding: 0 var(--s3); font-size: 0.8rem; line-height: var(--tap); min-height: var(--tap); }
+.seg label + label span { border-left: 1px solid var(--rule-strong); }
+.seg input:checked + span { background: var(--fill); color: var(--on-fill); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.alert { margin: 0 0 var(--s4); padding: var(--s3) var(--s4); background: var(--wash); border-left: 3px solid var(--accent); }
+.alert p:last-child { margin: 0; }
+.notice { margin: 0 0 var(--s4); padding: var(--s3) var(--s4); border-left: 3px solid var(--rule-strong); }
+.tag { display: inline-block; font-size: 0.7rem; letter-spacing: 0.12em; line-height: 1.6; padding: 0 var(--s2); border: 1px solid var(--rule-strong); white-space: nowrap; }
+.tag-accent { color: var(--accent); border-color: var(--accent); }
+
+.fab {
+  position: absolute; z-index: 11; right: var(--s5); bottom: calc(var(--tabs) + var(--s4));
+  width: 3.5rem; height: 3.5rem; display: grid; place-items: center;
+  background: var(--accent); color: var(--on-fill); border: 0; cursor: pointer;
+}
+.fab .icon { width: 1.5rem; height: 1.5rem; }
+.overlay { position: absolute; inset: 0; z-index: 20; display: flex; }
+.overlay[hidden] { display: none; }
+.backdrop { position: absolute; inset: 0; background: rgb(26 26 24 / 0.35); }
+.sheet {
+  position: relative; margin: auto 0 0; width: 100%; max-height: 90%; overflow-y: auto;
+  border-top: 1px solid var(--rule-strong); background: var(--surface); padding: var(--s5) var(--s5) var(--s6);
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--s4); }
+.sheet-head h2 { font-size: 1.5rem; margin: 0; }
+
+.only-a, .only-b, .only-c { display: none; }
+.device[data-v="a"] .only-a, .device[data-v="b"] .only-b, .device[data-v="c"] .only-c { display: block; }
+.device[data-v="b"] .not-b, .device[data-v="c"] .not-c { display: none; }
+
+@container dev (min-width: 900px) {
+  .masthead { display: none; }
+  .shell { inset: 0 auto 0 0; width: var(--rail); flex-direction: column; border-top: 0; border-right: 1px solid var(--rule); padding: var(--s6) var(--s5); }
+  .shell > .wordmark { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin-bottom: var(--s7); }
+  .shell .wm-ja { font-size: 1.75rem; writing-mode: vertical-rl; margin-bottom: var(--s3); }
+  .tabs { display: flex; flex-direction: column; flex: 1; }
+  .tab { flex: none; flex-direction: row; justify-content: flex-start; gap: var(--s3); font-size: 0.9rem; min-height: var(--tap); }
+  .tab[aria-current="page"]::before { top: auto; left: calc(-1 * var(--s5)); width: 3px; height: 1.5rem; }
+  .tab-aux { display: flex; margin-top: auto; font-size: 0.8rem; }
+  .main { margin-left: var(--rail); }
+  .page { max-width: calc(var(--measure) + 10rem); padding: var(--s7) var(--s7) var(--s7) 6rem; margin: 0; }
+  .fab { bottom: var(--s6); right: var(--s6); }
+  .overlay { align-items: center; justify-content: center; }
+  .sheet { margin: auto; width: 28rem; border: 1px solid var(--rule-strong); }
+}
+
+/* ── A · Quiet dusk ───────────────────────────────────────────── */
+.device[data-v="a"] { --fill: var(--navy); --fill-hover: var(--deep); --rule: var(--rule-warm); --wash: var(--wash-salmon); }
+.device[data-v="a"] .wm-sun { display: block; }
+.ribbon { --px: 2px; }
+.device[data-v="a"] .masthead { padding-top: 0; }
+.device[data-v="a"] .masthead .ribbon { margin: 0 calc(-1 * var(--s5)) var(--s4); }
+@container dev (min-width: 900px) {
+  .device[data-v="a"] .shell { padding-top: 0; }
+  .device[data-v="a"] .rail-ribbon { display: block; margin: 0 calc(-1 * var(--s5)) var(--s6); }
+}
+
+/* ── B · Dusk band ────────────────────────────────────────────── */
+.device[data-v="b"] { --fill: var(--navy); --fill-hover: var(--deep); --rule: var(--rule-warm); --wash: var(--wash-salmon); }
+.band img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.band .fade { --px: 3px; }
+.device[data-v="b"] .masthead { display: none; }
+.device[data-v="b"] .page { padding-top: var(--s4); }
+.device[data-v="b"] .section-heading { border-bottom: 0; }
+.device[data-v="b"] .section-heading::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; --px: 2px;
+  background: repeating-conic-gradient(var(--navy) 0 25%, transparent 0 50%) 0 0 / 4px 4px;
+}
+.device[data-v="b"] .btn:hover { background: repeating-conic-gradient(var(--navy) 0 25%, var(--slate) 0 50%) 0 0 / 4px 4px; }
+.device[data-v="b"] .seg input:checked + span { background: var(--slate); }
+.device[data-v="b"] .tag:not(.tag-accent) { background: var(--cream); border-color: var(--peach); }
+.device[data-v="b"] .alert { background: conic-gradient(from 90deg at 2px 2px, var(--wash-salmon) 25%, var(--paper) 0) 0 0 / 4px 4px; }
+.device[data-v="b"] .backdrop { background: repeating-conic-gradient(rgb(45 51 82 / 0.75) 0 25%, transparent 0 50%) 0 0 / 4px 4px; }
+@container dev (min-width: 900px) {
+  .device[data-v="b"] .shell > .wordmark { display: none; }
+  .device[data-v="b"] .shell { border-right: 0; padding-top: var(--s5); }
+  .device[data-v="b"] .shell::after {
+    content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 4px;
+    background: conic-gradient(from 90deg at 2px 2px, var(--peach) 25%, transparent 0) 0 0 / 4px 4px;
+  }
+  .device[data-v="b"] .band img { height: 220px; object-fit: cover; object-position: 0 60%; }
+  .device[data-v="b"] .page { padding-top: var(--s6); }
+}
+
+/* ── C · Pixel ledger ─────────────────────────────────────────── */
+.device[data-v="c"] { --fill: var(--navy); --fill-hover: var(--deep); --rule: var(--rule-warm); --rule-strong: var(--navy); --wash: var(--wash-salmon); }
+.device[data-v="c"] h1, .device[data-v="c"] .section-heading, .device[data-v="c"] .sheet-head h2 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0.04em; }
+.device[data-v="c"] h1 { font-size: clamp(2.2rem, 8cqi, 3.4rem); }
+.device[data-v="c"] .section-heading { border-bottom: 0; padding-bottom: var(--s3); }
+.device[data-v="c"] .section-heading::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0 2.25rem, transparent 2.25rem 2.6rem, var(--navy) 2.6rem);
+}
+.device[data-v="c"] .btn:hover { background: repeating-conic-gradient(var(--navy) 0 25%, var(--slate) 0 50%) 0 0 / 4px 4px; }
+.device[data-v="c"] .tag { border: 0; background: var(--cream); padding: 0 var(--s2); }
+.device[data-v="c"] .tag-accent { background: var(--accent); color: var(--paper); }
+.device[data-v="c"] .seal { display: block; }
+.device[data-v="c"] .seg input:checked + span { background: repeating-conic-gradient(var(--navy) 0 25%, var(--slate) 0 50%) 0 0 / 4px 4px; }
+.device[data-v="c"] .alert { border-left: 0; background: var(--wash-salmon); box-shadow: inset 4px 0 0 var(--accent); }
+.device[data-v="c"] .backdrop { background: repeating-conic-gradient(var(--navy) 0 25%, transparent 0 50%) 0 0 / 4px 4px; }
+.device[data-v="c"] .shell { background: var(--navy); color: var(--snow); border-top: 0; }
+.device[data-v="c"] .tab { color: #b9bdd3; }
+.device[data-v="c"] .tab[aria-current="page"] { color: var(--paper); }
+.device[data-v="c"] .masthead { padding: 0; }
+.sky { position: relative; }
+.sky .wordmark { position: absolute; left: var(--s5); top: var(--s3); align-items: baseline; color: var(--ink); }
+.device[data-v="c"] .wm-ja { font-family: var(--font-pixel); font-weight: 400; font-size: 1.5rem; }
+.device[data-v="c"] .wm-latin { font-family: var(--font-pixel); color: var(--ink); }
+.sky .sun { position: absolute; width: 48px; right: 64px; top: 14px; }
+.sky .mtn { position: absolute; right: 0; bottom: 30px; width: 180px; }
+@container dev (min-width: 900px) {
+  .device[data-v="c"] .shell { padding: 0 0 var(--s6); border-right: 0; }
+  .device[data-v="c"] .shell > .wordmark { display: none; }
+  .device[data-v="c"] .rail-sky { display: block; margin-bottom: var(--s5); }
+  .device[data-v="c"] .rail-sky .wordmark { flex-direction: column; align-items: flex-start; }
+  .device[data-v="c"] .rail-sky .wm-ja { writing-mode: vertical-rl; font-size: 1.9rem; margin-bottom: var(--s2); }
+  .device[data-v="c"] .rail-sky .sun { right: 22px; top: 46px; width: 56px; }
+  .device[data-v="c"] .rail-sky .mtn { width: 100%; bottom: 0; }
+  .device[data-v="c"] .tabs { padding: 0 var(--s5); }
+  .device[data-v="c"] .tab[aria-current="page"]::before { left: 0; margin-left: calc(-1 * var(--s5)); }
+}
+
+/* ── the switcher, not part of the design ─────────────────────── */
+.switcher {
+  position: fixed; z-index: 100; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 999px;
+  background: #111; color: #fff; box-shadow: 0 6px 24px #0005; font: 500 14px/1 system-ui, sans-serif; max-width: calc(100vw - 32px);
+}
+.switcher button { font: inherit; color: inherit; background: #2a2a2a; border: 0; border-radius: 999px; height: 36px; min-width: 36px; padding: 0 12px; cursor: pointer; }
+.switcher button:hover { background: #3a3a3a; }
+.switcher button[aria-pressed="true"] { background: #fff; color: #111; }
+.switcher .label { padding: 0 10px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.switcher .sep { width: 1px; height: 20px; background: #444; margin: 0 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="proto">
+  <div class="caption" id="caption"></div>
+
+  <div class="device" id="device" data-v="a" data-size="desktop">
+    <div class="scroll">
+      <div class="main">
+        <!-- B: the banner is the masthead, dithering down into paper -->
+        <div class="band only-b">
+          <img alt="段取り Dandori" src="data:image/png;base64,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">
+          <div class="fade" data-ramp="deep,paper"></div>
+        </div>
+        <header class="masthead not-b">
+          <div class="ribbon only-a" data-ramp="cream,peach,salmon" data-px="2"></div>
+          <a class="wordmark not-c" href="#">
+            <span class="wm-sun" data-pixel="sun"></span>
+            <span class="wm-ja">段取り</span><span class="wm-latin">Dandori</span>
+          </a>
+          <div class="sky only-c">
+            <div data-ramp="cream,peach,salmon" data-px="3" data-h="5"></div>
+            <span class="sun" data-pixel="sun"></span>
+            <span class="mtn" data-pixel="mountain"></span>
+            <a class="wordmark" href="#"><span class="wm-ja">段取り</span><span class="wm-latin">Dandori</span></a>
+            <div data-ramp="deep,paper" data-px="3"></div>
+          </div>
+        </header>
+
+        <main class="page">
+          <div class="page-header">
+            <p class="eyebrow">在庫 · Tuesday 3 November</p>
+            <h1>Stock</h1>
+          </div>
+
+          <div class="notice"><p>Stock Item recorded: Ricotta, 250 g in the fridge.</p></div>
+
+          <section class="section">
+            <h2 class="section-heading"><span class="num">01</span>Stock Items</h2>
+            <ul class="rows">
+              <li class="row"><div class="row-line"><span class="row-title">Chicken breast</span><span class="row-figure">450 g</span><span class="row-edit">Edit</span><span class="row-meta">Fridge</span></div></li>
+              <li class="row"><div class="row-line"><span class="row-title">Ricotta</span><span class="row-figure">250 g</span><span class="row-edit">Edit</span><span class="row-meta">Fridge · <span class="tag">New</span></span></div></li>
+              <li class="row"><div class="row-line"><span class="row-title">Chickpeas, drained</span><span class="row-figure">480 g</span><span class="row-edit">Edit</span><span class="row-meta">Pantry</span></div></li>
+              <li class="row"><div class="row-line"><span class="row-title">Rolled oats</span><span class="row-figure">1,200 g</span><span class="row-edit">Edit</span><span class="row-meta">Pantry</span></div></li>
+              <li class="row"><div class="row-line"><span class="row-title">Spinach</span><span class="row-figure">300 g</span><span class="row-edit">Edit</span><span class="row-meta">Freezer</span></div></li>
+              <li class="row"><div class="row-line"><span class="row-title">Eggs</span><span class="row-figure">6 pieces</span><span class="row-edit">Edit</span><span class="row-meta">Fridge</span></div></li>
+            </ul>
+            <p class="hint">Stock Items are of Ingredients the Recipe Library knows. Olive oil and salt are Staples, so no Stock Item holds them.</p>
+          </section>
+
+          <section class="section">
+            <h2 class="section-heading"><span class="num">02</span>Portions waiting for their Slot</h2>
+            <ul class="rows">
+              <li class="row"><div class="row-line">
+                <span class="seal" data-pixel="sun"></span>
+                <span class="row-title">Chickpea and spinach stew</span>
+                <span class="row-meta">Freezer · for lunch on Wed 4 Nov <span class="tag tag-accent">Thaw tonight</span></span>
+              </div></li>
+              <li class="row open"><div class="row-line">
+                <span class="row-title">Lemon chicken with farro</span>
+                <span class="row-meta">Fridge · for dinner on Thu 5 Nov</span>
+              </div>
+              <div class="row-body">
+                <fieldset class="seg" style="border-width:1px;margin:0;padding:0">
+                  <legend class="sr-only" style="position:absolute;clip:rect(0 0 0 0)">Move to</legend>
+                  <label><input type="radio" name="mv" id="mv-pantry"><span>Pantry</span></label>
+                  <label><input type="radio" name="mv" id="mv-fridge" checked><span>Fridge</span></label>
+                  <label><input type="radio" name="mv" id="mv-freezer"><span>Freezer</span></label>
+                </fieldset>
+                <button class="btn" type="button">Move</button>
+                <button class="btn-text" type="button">Cancel</button>
+              </div></li>
+              <li class="row"><div class="row-line">
+                <span class="row-title">Lemon chicken with farro</span>
+                <span class="row-meta">Freezer · for lunch on Sat 7 Nov</span>
+              </div></li>
+            </ul>
+          </section>
+
+          <section class="section">
+            <h2 class="section-heading"><span class="num">03</span>Portions without a Slot</h2>
+            <ul class="rows">
+              <li class="row"><div class="row-line"><span class="row-title">Ricotta and pea frittata</span><span class="row-meta">Freezer</span></div></li>
+              <li class="row"><div class="row-line"><span class="row-title">Overnight oats</span><span class="row-meta">Fridge</span></div></li>
+            </ul>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <nav class="shell" aria-label="Main">
+      <div class="rail-ribbon" data-ramp="cream,peach,salmon" data-px="2"></div>
+      <div class="rail-sky sky">
+        <div data-ramp="paper,cream,peach,salmon" data-px="3" data-h="7"></div>
+        <span class="sun" data-pixel="sun"></span>
+        <span class="mtn" data-pixel="mountain"></span>
+        <a class="wordmark" href="#"><span class="wm-ja">段取り</span><span class="wm-latin">Dandori</span></a>
+      </div>
+      <a class="wordmark" href="#"><span class="wm-sun" data-pixel="sun"></span><span class="wm-ja">段取り</span><span class="wm-latin">Dandori</span></a>
+      <div class="tabs">
+        <a class="tab" href="#"><span class="icon" data-icon="plan"></span>Plan</a>
+        <a class="tab" href="#"><span class="icon" data-icon="recipes"></span>Recipes</a>
+        <a class="tab" href="#" aria-current="page"><span class="icon" data-icon="stock"></span>Stock</a>
+        <a class="tab" href="#"><span class="icon" data-icon="catalog"></span>Catalog</a>
+        <a class="tab" href="#"><span class="icon" data-icon="profile"></span>Profile</a>
+        <a class="tab tab-aux" href="#"><span class="icon" data-icon="runs"></span>Runs</a>
+      </div>
+    </nav>
+
+    <button class="fab" id="fab" type="button" aria-label="Record a Stock Item"><span class="icon" data-icon="plus"></span></button>
+
+    <div class="overlay" id="overlay" hidden>
+      <div class="backdrop" id="backdrop"></div>
+      <div class="sheet" role="dialog" aria-labelledby="sheet-title">
+        <div class="sheet-head"><h2 id="sheet-title">Record a Stock Item</h2><button class="btn-text" type="button" id="close">Close</button></div>
+        <form class="stack" onsubmit="event.preventDefault()">
+          <div class="alert"><p>The Stock Item was not recorded; fix the fields marked below.</p></div>
+          <label class="field"><span class="field-label">Ingredient</span>
+            <select id="f-ingredient"><option>Ricotta</option><option>Chicken breast</option><option>Rolled oats</option></select></label>
+          <label class="field"><span class="field-label">Quantity <span style="letter-spacing:0">(g)</span></span>
+            <input id="f-qty" value="0" aria-invalid="true" inputmode="numeric">
+            <span class="field-error">The quantity must be more than 0 g.</span></label>
+          <div class="field"><span class="field-label">Storage Location</span>
+            <div class="seg">
+              <label><input type="radio" name="loc" id="loc-pantry"><span>Pantry</span></label>
+              <label><input type="radio" name="loc" id="loc-fridge" checked><span>Fridge</span></label>
+              <label><input type="radio" name="loc" id="loc-freezer"><span>Freezer</span></label>
+            </div></div>
+          <div class="actions"><button class="btn" type="submit">Record</button><button class="btn-text" type="button" id="cancel">Cancel</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="switcher" role="toolbar" aria-label="Prototype switcher">
+  <button type="button" id="prev" aria-label="Previous variant">←</button>
+  <span class="label" id="vlabel"></span>
+  <button type="button" id="next" aria-label="Next variant">→</button>
+  <span class="sep"></span>
+  <button type="button" id="sz-phone">Phone</button>
+  <button type="button" id="sz-desktop">Desktop</button>
+  <button type="button" id="sheet-btn">Sheet</button>
+</div>
+
+<script>
+const VARIANTS = [
+  { key: "a", hash: "quiet-dusk", name: "Quiet dusk",
+    summary: "The v1 page, warmed. The banner shows up only as a thin dithered sunset ribbon above the wordmark and a small pixel sun.",
+    points: ["Navy replaces sumi on fills only: the primary button, the chosen segment.", "Hairlines are a warm peach-grey and the alert wash is salmon. Section rules, text and inputs stay sumi.", "Dithering: the masthead/rail ribbon only. Headings keep Shippori Mincho."],
+    cost: "Cheapest to adopt: a handful of token changes plus one ribbon component." },
+  { key: "b", hash: "dusk-band", name: "Dusk band",
+    summary: "The banner itself is the masthead and dithers down into the paper, and dithering marks structure throughout.",
+    points: ["Section rules are a navy checker dither. The rail edge is a peach dither, and the primary button hovers to a navy/slate dither.", "The chosen segment is slate. Tags sit on cream, and the alert is a light salmon dither.", "The backdrop behind the sheet is a navy checker veil, not a flat tint. Open it with Sheet or the + button."],
+    cost: "On desktop the banner sits above the page column, and the rail drops its own wordmark because the banner carries it." },
+  { key: "c", hash: "pixel-ledger", name: "Pixel ledger",
+    summary: "The furthest step: a navy rail with a dithered sky and a pixel Fuji, and a pixel face for titles only.",
+    points: ["Only titles are DotGothic16: the page title, section headings, the sheet title and the wordmark. Everything else stays Zen Kaku Gothic.", "Buttons and tags are square, as in v1: no stepped corners.", "Section rules use the banner's underline motif: a short vermilion stroke under the number, then navy. Hover states and the chosen segment are dithered.", "An urgent row carries a pixel seal (the sun) as well as its text. The shell is navy with paper text."],
+    cost: "DotGothic16 is a 4th self-hosted font; for titles alone, a Latin subset plus 段取り and the page names keeps it small." },
+];
+const ICONS = { // Lucide-style strokes, as icons.go would have them
+  plan: '<rect x="3" y="4" width="18" height="18" rx="0"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  recipes: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  stock: '<path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
+  catalog: '<path d="M12 2H2v10l9.3 9.3a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4z"/><circle cx="7" cy="7" r="1.5"/>',
+  profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  runs: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+};
+const PIXEL_ICONS = {
+  plan: [".#......#.","##########","#........#","##########","#........#","#.##.##..#","#........#","#.##.##..#","#........#","##########"],
+  recipes: [".###..###.","#...##...#","#...##...#","#...##...#","#...##...#","#...##...#","#...##...#","####..####","..........",".........."],
+  stock: ["..######..","..#....#..",".########.","#........#","#.######.#","#.#....#.#","#.######.#","#........#","#........#","##########"],
+  catalog: ["######....","#.....#...","#.##...#..","#.##....#.","#........#","#.......#.","#......#..","#.....#...","######....",".........."],
+  profile: ["...####...","..#....#..","..#....#..","..#....#..","...####...","..........",".########.","#........#","#........#","##########"],
+  runs: ["..........","........#.","........#.",".....#..#.",".....#..#.","..#..#..#.","..#..#..#.","..#..#..#.","..#..#..#.","##########"],
+  plus: ["....##....","....##....","....##....","....##....","##########","##########","....##....","....##....","....##....","....##...."],
+};
+const rect = (x, y, w, h, fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" style="fill:${fill}"/>`;
+function bitmap(rows, fill = "currentColor") {
+  let r = "";
+  rows.forEach((row, y) => [...row].forEach((c, x) => { if (c === "#") r += rect(x, y, 1, 1, fill); }));
+  return `<svg class="px" viewBox="0 0 ${rows[0].length} ${rows.length}" aria-hidden="true">${r}</svg>`;
+}
+function sun() { // a striped setting sun, as in the banner
+  const n = 16; let r = "";
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const d = (x - 7.5) ** 2 + (y - 7.5) ** 2;
+    if (d < 62 && ![10, 12, 14].includes(y)) r += rect(x, y, 1, 1, "var(--accent)");
+  }
+  return `<svg class="px" viewBox="0 0 ${n} ${n}" aria-hidden="true">${r}</svg>`;
+}
+function mountain() { // a pixel Fuji with a snowcap and a tree line
+  const W = 60, H = 24, peak = 38; let r = "";
+  for (let y = 2; y < H; y++) {
+    const half = Math.round((y - 2) * 1.35 + (y % 3 === 0 ? 1 : 0));
+    const fill = y < 6 ? "var(--snow)" : "var(--slate)";
+    r += rect(Math.max(0, peak - half), y, Math.min(W, peak + half + 1) - Math.max(0, peak - half), 1, fill);
+    if (y >= 6 && y < 9) r += rect(peak - (y - 3), y, 2, 1, "var(--snow)");
+  }
+  r += rect(0, 18, 26, 6, "var(--slate)");
+  for (let t = 0; t < W; t += 5) { const h = 3 + (t * 7) % 3; for (let i = 0; i < h; i++) r += rect(t + 2 - Math.floor(i / 2), H - h + i, 1 + 2 * Math.floor(i / 2), 1, "var(--navy)"); }
+  r += rect(0, H - 1, W, 1, "var(--navy)");
+  return `<svg class="px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">${r}</svg>`;
+}
+function ramp(el) { // stepped dither between colours, top to bottom
+  const cols = el.dataset.ramp.split(",").map(c => `var(--${c})`);
+  const px = el.dataset.px, h = el.dataset.h;
+  let html = "";
+  for (let i = 0; i < cols.length - 1; i++) {
+    for (let l = 0; l < 4; l++) html += `<div class="st l${l}" style="--da:${cols[i]};--db:${cols[i + 1]}"></div>`;
+  }
+  html += `<div class="st l0" style="--da:${cols[cols.length - 1]}"></div>`;
+  el.innerHTML = html;
+  if (px) el.style.setProperty("--px", px + "px");
+  if (h) el.querySelectorAll(".st").forEach(s => s.style.setProperty("--h", `calc(var(--px) * ${h})`));
+}
+document.querySelectorAll("[data-ramp]").forEach(ramp);
+document.querySelectorAll('[data-pixel="sun"]').forEach(e => e.innerHTML = sun());
+document.querySelectorAll('[data-pixel="mountain"]').forEach(e => e.innerHTML = mountain());
+
+const device = document.getElementById("device");
+function renderIcons(v) {
+  document.querySelectorAll("[data-icon]").forEach(e => {
+    const k = e.dataset.icon;
+    e.innerHTML = v === "c" ? bitmap(PIXEL_ICONS[k])
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true">${ICONS[k]}</svg>`;
+  });
+}
+let idx = 0;
+function show(i) {
+  idx = (i + VARIANTS.length) % VARIANTS.length;
+  const v = VARIANTS[idx];
+  device.dataset.v = v.key;
+  renderIcons(v.key);
+  document.getElementById("vlabel").textContent = `${v.key.toUpperCase()} · ${v.name}`;
+  document.getElementById("caption").innerHTML =
+    `<h2>${v.key.toUpperCase()} · ${v.name}</h2><div>${v.summary}</div><ul>${v.points.map(p => `<li>${p}</li>`).join("")}<li class="cost">${v.cost}</li></ul>`;
+  if (location.hash !== "#" + v.hash) history.replaceState(null, "", "#" + v.hash);
+}
+function size(s) {
+  device.dataset.size = s;
+  document.getElementById("sz-phone").setAttribute("aria-pressed", s === "phone");
+  document.getElementById("sz-desktop").setAttribute("aria-pressed", s === "desktop");
+}
+const overlay = document.getElementById("overlay");
+function sheet(open) { overlay.hidden = !open; document.getElementById("sheet-btn").setAttribute("aria-pressed", open); }
+document.getElementById("prev").onclick = () => show(idx - 1);
+document.getElementById("next").onclick = () => show(idx + 1);
+document.getElementById("sz-phone").onclick = () => size("phone");
+document.getElementById("sz-desktop").onclick = () => size("desktop");
+document.getElementById("sheet-btn").onclick = () => sheet(overlay.hidden);
+document.getElementById("fab").onclick = () => sheet(true);
+["close", "cancel", "backdrop"].forEach(id => document.getElementById(id).onclick = () => sheet(false));
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+  if (e.key === "ArrowLeft") show(idx - 1);
+  if (e.key === "ArrowRight") show(idx + 1);
+  if (e.key === "Escape") sheet(false);
+});
+function fromHash() { const i = VARIANTS.findIndex(v => "#" + v.hash === location.hash); show(i < 0 ? 0 : i); }
+window.addEventListener("hashchange", fromHash);
+fromHash();
+size(window.innerWidth >= 1000 ? "desktop" : "phone");
+sheet(false);
+</script>
