@@ -27,8 +27,10 @@ Go, [templ](https://templ.guide) and htmx, PostgreSQL with pgvector (on Supabase
 Tools are managed with [mise](https://mise.jdx.dev).
 
 ```sh
-cp .env.example .env   # set DANDORI_DATABASE_URL, and ANTHROPIC_API_KEY if needed
+cp .env.example .env   # set the Supabase URL and key, and ANTHROPIC_API_KEY if needed
 mise run dev           # serves on http://127.0.0.1:8080
 ```
+
+`mise run dev` starts a local Postgres in Docker (`mise run devdb`) and runs the app against it, never against `DANDORI_DATABASE_URL`, so a branch's migrations stay off production. Its data is kept between runs; `sudo docker rm -f dandori-devdb && sudo docker volume rm dandori-devdb` starts it over. Signing in still goes through the real Supabase Auth.
 
 Other tasks: `mise run build`, `mise run lint`, and `mise run testdb` followed by `mise run test` for the full suite (the tests need a disposable Postgres, started with Docker).
