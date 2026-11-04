@@ -55,12 +55,13 @@ until sudo docker exec dandori-devdb pg_isready -q -h 127.0.0.1; do sleep 0.5; d
 
 [tasks.dev]
 description = "Run the app locally against the dev server and the real Supabase Auth"
-depends = ["generate", "devdb"]
 # The dev server, never DANDORI_DATABASE_URL: a branch's migrations must not
 # reach production. Supabase's URL and key come from .env under either name,
 # DANDORI_ as in .env.example or bare as provision.sh writes them.
 env = { DANDORI_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5434/postgres?sslmode=disable", DANDORI_SUPABASE_URL = "{{ env.DANDORI_SUPABASE_URL | default(value=env | get(key='SUPABASE_URL', default='')) }}", DANDORI_SUPABASE_PUBLISHABLE_KEY = "{{ env.DANDORI_SUPABASE_PUBLISHABLE_KEY | default(value=env | get(key='SUPABASE_PUBLISHABLE_KEY', default='')) }}" }
-run = "go run ./cmd/dandori"
+# devdb first, alone: as dependencies the two would run in parallel, and
+# generate's output would land on sudo's password prompt.
+run = [{ task = "devdb" }, { task = "generate" }, "go run ./cmd/dandori"]
 
 [tasks.lint]
 description = "Run golangci-lint (config in .golangci.yml)"
