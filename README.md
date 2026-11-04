@@ -16,7 +16,7 @@ The original pitch is in [vision.md](vision.md); the current terminology is in [
 
 ## Status
 
-This is v2, a new codebase (see [ADR-0014](docs/adr/0014-v2-is-a-new-codebase.md)); v1 is frozen on `main`. So far v2 is a binary that deploys to [dandori.simopzz.com](https://dandori.simopzz.com) on every merge to `v2`. Next is the walking skeleton: sign-in by invite, a Profile with Language, an empty Today, the scheduler and a controlled clock. Then v1's features are ported one at a time.
+This is v2, a new codebase (see [ADR-0014](docs/adr/0014-v2-is-a-new-codebase.md)); v1 is frozen on `main`. So far v2 is a binary that deploys to [dandori.simopzz.com](https://dandori.simopzz.com) on every merge to `v2` that changes what runs. Next is the walking skeleton: sign-in by invite, a Profile with Language, an empty Today, the scheduler and a controlled clock. Then v1's features are ported one at a time.
 
 ## Stack
 
