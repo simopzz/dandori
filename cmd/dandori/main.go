@@ -80,6 +80,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 		return err
 	}
 	defer a.Close()
+	a.Schedule(ctx)
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {

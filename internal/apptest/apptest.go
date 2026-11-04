@@ -10,6 +10,7 @@
 package apptest
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -19,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,12 +41,14 @@ type Harness struct {
 	// Client is the User's browser: it keeps cookies.
 	Client *http.Client
 	// Clock is the app's clock, standing at Monday 2 November 2026 in
-	// clock.DefaultZone until the test moves it.
+	// clock.DefaultZone until the test moves it. Moving it past a
+	// beat runs the scheduler before Set returns.
 	Clock *clock.Manual
 	// Auth is the fake Supabase Auth the app signs Users in through.
 	Auth *FakeAuth
 
 	databaseURL string
+	log         *logBuffer
 }
 
 // Option customises the app a test starts.
@@ -116,10 +120,12 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		TestRole: &pgtestdb.Role{Username: admin.User.Username(), Password: password},
 	}, migrator)
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	log := &logBuffer{}
+	var logTo io.Writer = log
 	if testing.Verbose() {
-		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
+		logTo = io.MultiWriter(log, os.Stderr)
 	}
+	logger := slog.New(slog.NewTextHandler(logTo, nil))
 	manual := clock.NewManual(time.Date(2026, time.November, 2, 0, 0, 0, 0, zone(t)))
 	fake := startFakeAuth(t, manual)
 	cfg := app.Config{
@@ -138,7 +144,10 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	mux.Handle("/", a.Handler())
 	mux.HandleFunc("POST /_test/clock", clockSwitch(manual))
 	srv := httptest.NewServer(mux)
+	scheduled, stop := context.WithCancel(context.Background())
+	a.Schedule(scheduled)
 	t.Cleanup(func() {
+		stop()
 		srv.Close()
 		a.Close()
 	})
@@ -148,7 +157,28 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Harness{URL: srv.URL, Client: client, Clock: manual, Auth: fake, databaseURL: instance.URL()}
+	return &Harness{URL: srv.URL, Client: client, Clock: manual, Auth: fake, databaseURL: instance.URL(), log: log}
+}
+
+// Logged is everything the app has logged so far.
+func (h *Harness) Logged() string { return h.log.String() }
+
+// logBuffer keeps what the app logs, from whichever goroutine logs it.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *logBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 // zone is the installation's zone, which tests tell the time in.

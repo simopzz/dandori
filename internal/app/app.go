@@ -16,6 +16,8 @@ import (
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -37,6 +39,7 @@ type App struct {
 	log     *slog.Logger
 	auth    *auth.Service
 	profile *profile.Service
+	kitchen *kitchen.Service
 }
 
 // New creates the app once its database is reachable and migrated. It
@@ -50,7 +53,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool)}
+	a := &App{pool: pool, clock: cfg.Clock, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -67,14 +70,23 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 // Close releases the database connections.
 func (a *App) Close() { a.pool.Close() }
 
+// Schedule starts the scheduler, which beats on the app's clock every kitchen.BeatEvery
+// and brings every User's kitchen up to now, until ctx ends.
+func (a *App) Schedule(ctx context.Context) {
+	a.clock.Every(ctx, kitchen.BeatEvery, func(at time.Time) { a.kitchen.Beat(ctx, at) })
+}
+
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
-// were switched to.
+// were switched to. Every signed-in page first brings the User's kitchen up to now.
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
-	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(h) }
-	signedIn := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(prof.LanguageChosen(h)) }
+	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
+	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
+	signedIn := func(h http.HandlerFunc) http.Handler {
+		return signIn.SignedIn(kit.UpToNow(prof.LanguageChosen(h)))
+	}
 	mux := http.NewServeMux()
 	web.Assets(mux)
 	mux.HandleFunc("GET /healthz", a.health)
@@ -115,7 +127,11 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	if err := web.Home(a.clock.Now()).Render(r.Context(), w); err != nil {
-		a.log.Error("render Home", "err", err)
+	beat, ok, err := a.kitchen.LastBeat(r.Context())
+	if err != nil {
+		httpx.ServerError(w, a.log, "load the kitchen's last beat", err)
+		return
 	}
+	now := a.clock.Now()
+	httpx.Render(w, r, a.log, http.StatusOK, web.Home(now, kitchen.Status(now, beat, ok)))
 }

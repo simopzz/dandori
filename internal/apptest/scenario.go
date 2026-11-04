@@ -140,6 +140,15 @@ func (s *Scenario) ChangesLanguage(name string) {
 	s.record(fmt.Sprintf("changes the Language to %s: %d %s", name, s.page.StatusCode, s.page.Path))
 }
 
+// SwitchesTo signs out from the Profile and signs the invited email in, as another User
+// sharing the browser.
+func (s *Scenario) SwitchesTo(email string) {
+	s.t.Helper()
+	s.Open("/profile")
+	s.SignsOut()
+	s.SignsIn(email)
+}
+
 // Follows follows the link on the page open that shows text.
 func (s *Scenario) Follows(text string) {
 	s.t.Helper()

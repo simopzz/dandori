@@ -72,11 +72,12 @@ templ tab(t, current Tab, icon, label string, aux bool) {
 	</a>
 }
 
-// Home is the app shell's landing page.
-templ Home(today time.Time) {
+// Home is the app shell's landing page. status says how up to date the kitchen is.
+templ Home(today time.Time, status templ.Component) {
 	@Layout("Dandori", NoTab) {
 		@PageHeader("段取り", "Dandori", today) {
 			<p class="lede">{ T(ctx, msgHomeLede) }</p>
 		}
+		@status
 	}
 }
