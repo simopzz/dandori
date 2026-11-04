@@ -275,8 +275,8 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 	})
 }
 
-// Home is the app shell's landing page.
-func Home(today time.Time) templ.Component {
+// Home is the app shell's landing page. status says how up to date the kitchen is.
+func Home(today time.Time, status templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -341,6 +341,10 @@ func Home(today time.Time) templ.Component {
 				return nil
 			})
 			templ_7745c5c3_Err = PageHeader("段取り", "Dandori", today).Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = status.Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

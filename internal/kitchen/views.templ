@@ -1,0 +1,26 @@
+package kitchen
+
+import (
+	"context"
+	"time"
+
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// Status says when the scheduler last brought the User's kitchen up to now, at, told in
+// now's zone, with its date unless it was today. Before its first beat, ok is false and
+// it says nothing.
+templ Status(now, at time.Time, ok bool) {
+	if ok {
+		@web.Hint() {
+			{ statusText(ctx, now, at.In(now.Location())) }
+		}
+	}
+}
+
+func statusText(ctx context.Context, now, at time.Time) string {
+	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
+		return web.Tf(ctx, msgUpToDateAt, at.Format("15:04"))
+	}
+	return web.Tf(ctx, msgUpToDateOn, web.Date(ctx, at), at.Format("15:04"))
+}
