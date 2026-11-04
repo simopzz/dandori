@@ -6,8 +6,8 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// A User's Language can change until they have written a Food Term
-// (ADR-0015). Each slice that brings a Food Term adds its row here.
+// A User's Language can change until they have written a Food Term (ADR-0015). Each slice
+// that brings a Food Term adds its row here.
 func TestTheLanguageCanChangeUntilAFoodTermIsWritten(t *testing.T) {
 	tests := []struct {
 		name  string

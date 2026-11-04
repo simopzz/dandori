@@ -43,8 +43,8 @@ func TestBrowserSignsInByMagicLink(t *testing.T) {
 	b.IsAt(t, "/sign-in")
 }
 
-// Choosing a Language through a real browser: switched to Italian before
-// signing in, the User keeps it at the choice, and every page follows.
+// Choosing a Language through a real browser: switched to Italian before signing in, the
+// User keeps it at the choice, and every page follows.
 func TestBrowserChoosesALanguage(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")

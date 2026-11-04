@@ -81,9 +81,9 @@ func (b *Browser) Open(t testing.TB, path string) {
 	}
 }
 
-// SignIn signs the invited email in as a User does: asks for a magic link,
-// opens it from their mailbox and confirms, landing on Today, or at a
-// first sign-in on the Language choice.
+// SignIn signs the invited email in as a User does: asks for a magic link, opens it
+// from their mailbox and confirms, landing on Today, or at a first sign-in on the
+// Language choice.
 func (b *Browser) SignIn(t testing.TB, email string) {
 	t.Helper()
 	b.Open(t, "/sign-in")
@@ -98,8 +98,8 @@ func (b *Browser) SignIn(t testing.TB, email string) {
 	b.Click(t, "Sign in to Dandori")
 }
 
-// SignUp signs the invited email in for the first time and chooses
-// English, landing on Today.
+// SignUp signs the invited email in for the first time and chooses English, landing
+// on Today.
 func (b *Browser) SignUp(t testing.TB, email string) {
 	t.Helper()
 	b.SignIn(t, email)
@@ -108,8 +108,8 @@ func (b *Browser) SignUp(t testing.TB, email string) {
 	b.IsAt(t, "/")
 }
 
-// ChooseLanguage picks the Language named name on the page and submits
-// it with the button named submit.
+// ChooseLanguage picks the Language named name on the page and submits it with the button
+// named submit.
 func (b *Browser) ChooseLanguage(t testing.TB, name, submit string) {
 	t.Helper()
 	if err := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: name}).Check(); err != nil {

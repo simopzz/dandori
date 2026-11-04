@@ -9,9 +9,9 @@ import (
 // Invite invites email to Dandori, as from Supabase's dashboard.
 func (h *Harness) Invite(email string) { h.Auth.Invite(email) }
 
-// SignIn signs the invited email in as a User does: asks for a magic link
-// on the sign-in page, opens it from their mailbox and confirms. It
-// returns the page that lands on: the Language choice at a first sign-in.
+// SignIn signs the invited email in as a User does: asks for a magic link on the sign-in
+// page, opens it from their mailbox and confirms. It returns the page that lands on: the
+// Language choice at a first sign-in.
 func (h *Harness) SignIn(t testing.TB, email string) Response {
 	t.Helper()
 	if sent := h.AskForLink(t, email); sent.StatusCode != http.StatusOK {
@@ -45,16 +45,16 @@ func (h *Harness) OpenLink(t testing.TB, link string) Response {
 	return h.PostForm(t, confirm.Action, confirm.Values)
 }
 
-// ChooseLanguage chooses the Language named name on page, the Language
-// choice, returning the page that lands on.
+// ChooseLanguage chooses the Language named name on page, the Language choice, returning
+// the page that lands on.
 func (h *Harness) ChooseLanguage(t testing.TB, page Response, name string) Response {
 	t.Helper()
 	form := Choose(t, page.Body, "language", name)
 	return h.PostForm(t, form.Action, form.Values)
 }
 
-// SignUp signs the invited email in for the first time and chooses
-// English, returning Today.
+// SignUp signs the invited email in for the first time and chooses English,
+// returning Today.
 func (h *Harness) SignUp(t testing.TB, email string) Response {
 	t.Helper()
 	page := h.ChooseLanguage(t, h.SignIn(t, email), "English")

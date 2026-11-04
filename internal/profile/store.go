@@ -10,9 +10,8 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// loadLanguage reads the signed-in User's Language, if they have chosen
-// one. It has no WHERE on purpose: run in db.AsUser, row-level security
-// leaves only their row.
+// loadLanguage reads the signed-in User's Language, if they have chosen one. It has no
+// WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
 func loadLanguage(ctx context.Context, q db.Querier) (domain.Language, bool, error) {
 	var code string
 	err := q.QueryRow(ctx, `SELECT language FROM profile`).Scan(&code)
@@ -25,8 +24,8 @@ func loadLanguage(ctx context.Context, q db.Querier) (domain.Language, bool, err
 	return domain.Language(code), true, nil
 }
 
-// saveLanguage creates the signed-in User's Profile with Language l, or
-// changes the Language of the one they have.
+// saveLanguage creates the signed-in User's Profile with Language l, or changes the
+// Language of the one they have.
 func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO profile (language) VALUES ($1)
@@ -35,8 +34,8 @@ func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	return err
 }
 
-// loadFoodTerms is the Food Terms the signed-in User has written: none
-// yet, until a slice brings one.
+// loadFoodTerms is the Food Terms the signed-in User has written: none yet, until a slice
+// brings one.
 func loadFoodTerms(context.Context, db.Querier) (domain.FoodTerms, error) {
 	return domain.FoodTerms{}, nil
 }

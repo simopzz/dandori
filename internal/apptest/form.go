@@ -129,8 +129,8 @@ func hasAttr(n *html.Node, key string) bool {
 	return false
 }
 
-// Choose reads the form with the given id from page as Form does, with
-// the radio button labelled label checked in place of its group's.
+// Choose reads the form with the given id from page as Form does, with the radio button
+// labelled label checked in place of its group's.
 func Choose(t testing.TB, page, id, label string) FormData {
 	t.Helper()
 	f := Form(t, page, id)

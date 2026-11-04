@@ -32,8 +32,8 @@ func Render(w http.ResponseWriter, r *http.Request, log *slog.Logger, status int
 	}
 }
 
-// Secure reports whether the browser reached the app over https: directly,
-// or through Caddy, which says so in X-Forwarded-Proto.
+// Secure reports whether the browser reached the app over https: directly, or through
+// Caddy, which says so in X-Forwarded-Proto.
 func Secure(r *http.Request) bool {
 	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }

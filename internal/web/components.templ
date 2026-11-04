@@ -269,9 +269,8 @@ templ AddSheet(id, title string, open bool) {
 	}
 }
 
-// LanguageSwitch switches the pages before signing in between Languages,
-// each named in itself, staying on the page at u. The one they speak is
-// marked current.
+// LanguageSwitch switches the pages before signing in between Languages, each named in
+// itself, staying on the page at u. The one they speak is marked current.
 templ LanguageSwitch(u *url.URL) {
 	<nav class="lang-switch" aria-label={ T(ctx, msgLanguageSwitch) }>
 		for i, l := range domain.Languages {

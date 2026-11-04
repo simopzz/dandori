@@ -67,9 +67,9 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 // Close releases the database connections.
 func (a *App) Close() { a.pool.Close() }
 
-// Handler returns the app's HTTP routes. Every page speaks the signed-in
-// User's Language, and asks them for it before anything else; pages
-// before signing in speak the one they were switched to.
+// Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
+// and asks them for it before anything else; pages before signing in speak the one they
+// were switched to.
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}

@@ -33,9 +33,8 @@ func TestPagesNeedASignedInUser(t *testing.T) {
 	s.IsAt("/sign-in")
 }
 
-// Users share nothing, and row-level security is what enforces it: the
-// Profile reads the signed-in User's email with no WHERE, and still shows
-// only theirs.
+// Users share nothing, and row-level security is what enforces it: the Profile reads the
+// signed-in User's email with no WHERE, and still shows only theirs.
 func TestEachUserSeesOnlyTheirOwnRows(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")

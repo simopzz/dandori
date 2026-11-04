@@ -82,8 +82,8 @@ func TestHomeIsServedInTheAppShell(t *testing.T) {
 	}
 }
 
-// The shell's tabs lead to pages for a signed-in User who has chosen their
-// Language, so the pages before have none; the Profile marks its own.
+// The shell's tabs lead to pages for a signed-in User who has chosen their Language, so
+// the pages before have none; the Profile marks its own.
 func TestTheShellHasTabsOnceTheLanguageIsChosen(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")

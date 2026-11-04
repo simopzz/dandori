@@ -113,8 +113,8 @@ func (s *Scenario) AsksForALink(email string) {
 // Page is the page last opened.
 func (s *Scenario) Page() Response { return s.page }
 
-// SignsIn signs the invited email in by magic link, landing on Today, or
-// at a first sign-in on the Language choice.
+// SignsIn signs the invited email in by magic link, landing on Today, or at a first
+// sign-in on the Language choice.
 func (s *Scenario) SignsIn(email string) {
 	s.t.Helper()
 	s.page = s.SignIn(s.t, email)
@@ -124,16 +124,15 @@ func (s *Scenario) SignsIn(email string) {
 	}
 }
 
-// ChoosesLanguage chooses the Language named name, as named on the
-// Language choice open at a first sign-in.
+// ChoosesLanguage chooses the Language named name, as named on the Language choice open
+// at a first sign-in.
 func (s *Scenario) ChoosesLanguage(name string) {
 	s.t.Helper()
 	s.page = s.ChooseLanguage(s.t, s.page, name)
 	s.record(fmt.Sprintf("chooses %s: %d %s", name, s.page.StatusCode, s.page.Path))
 }
 
-// ChangesLanguage changes the Language to the one named name on the
-// Profile open.
+// ChangesLanguage changes the Language to the one named name on the Profile open.
 func (s *Scenario) ChangesLanguage(name string) {
 	s.t.Helper()
 	form := Choose(s.t, s.page.Body, "profile-language", name)

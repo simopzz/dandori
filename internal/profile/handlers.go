@@ -12,8 +12,8 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// Handlers serve the Language choice at the first sign-in and the Profile
-// page, and keep every other page for Users who have chosen.
+// Handlers serve the Language choice at the first sign-in and the Profile page, and keep
+// every other page for Users who have chosen.
 type Handlers struct {
 	Service *Service
 	Clock   clock.Clock
@@ -22,8 +22,8 @@ type Handlers struct {
 	Email func(context.Context) (string, error)
 }
 
-// LanguageChosen serves next in the signed-in User's Language, once they
-// have chosen one; until then every page asks for it first.
+// LanguageChosen serves next in the signed-in User's Language, once they have chosen one;
+// until then every page asks for it first.
 func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l, ok, err := h.Service.Language(r.Context())
@@ -39,8 +39,8 @@ func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
 	})
 }
 
-// ShowChoice asks a signed-in User for their Language, with the one the
-// pages were switched to chosen. One who has chosen goes Home.
+// ShowChoice asks a signed-in User for their Language, with the one the pages were
+// switched to chosen. One who has chosen goes Home.
 func (h Handlers) ShowChoice(w http.ResponseWriter, r *http.Request) {
 	if h.goneHomeIfChosen(w, r) {
 		return
@@ -48,8 +48,7 @@ func (h Handlers) ShowChoice(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context())}))
 }
 
-// Choose makes the first choice of Language; changing it later is the
-// Profile's.
+// Choose makes the first choice of Language; changing it later is the Profile's.
 func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
 	if h.goneHomeIfChosen(w, r) {
 		return
@@ -82,8 +81,8 @@ func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
 }
 
-// goneHomeIfChosen sends a User who has chosen their Language Home, and
-// reports whether it did, or answered with an error.
+// goneHomeIfChosen sends a User who has chosen their Language Home, and reports whether
+// it did, or answered with an error.
 func (h Handlers) goneHomeIfChosen(w http.ResponseWriter, r *http.Request) bool {
 	_, ok, err := h.Service.Language(r.Context())
 	if err != nil {
@@ -96,9 +95,8 @@ func (h Handlers) goneHomeIfChosen(w http.ResponseWriter, r *http.Request) bool 
 	return ok
 }
 
-// setLanguage sets the User's Language to l and remembers it in this
-// browser, for the pages after signing out. When it can't, it answers
-// and is false.
+// setLanguage sets the User's Language to l and remembers it in this browser, for the
+// pages after signing out. When it can't, it answers and is false.
 func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) bool {
 	err := h.Service.SetLanguage(r.Context(), l)
 	if errors.Is(err, ErrLanguageStays) {

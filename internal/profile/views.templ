@@ -9,8 +9,8 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// LanguageForm is a Language choice as shown: the Language chosen, and
-// why a choice was rejected.
+// LanguageForm is a Language choice as shown: the Language chosen, and why a choice
+// was rejected.
 type LanguageForm struct {
 	Language domain.Language
 	Err      web.Message
@@ -29,8 +29,8 @@ func languageChoices(ctx context.Context) []web.Choice {
 
 var choiceURL = &url.URL{Path: "/language"}
 
-// choicePage asks a User at their first sign-in for their Language, before
-// anything else. It switches Language like the pages before it.
+// choicePage asks a User at their first sign-in for their Language, before anything else.
+// It switches Language like the pages before it.
 templ choicePage(today time.Time, f LanguageForm) {
 	@web.Layout(web.T(ctx, msgChooseTitle), web.SignedOut) {
 		@web.LanguageSwitch(choiceURL)

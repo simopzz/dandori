@@ -12,8 +12,8 @@ import (
 	"testing"
 )
 
-// Every string a page shows has both translations: each Message gives En
-// and It, and a format fills the same verbs in both.
+// Every string a page shows has both translations: each Message gives En and It, and a
+// format fills the same verbs in both.
 func TestEveryMessageHasBothTranslations(t *testing.T) {
 	msgs := messages(t)
 	if len(msgs) == 0 {
@@ -35,10 +35,10 @@ func TestEveryMessageHasBothTranslations(t *testing.T) {
 
 var verbs = regexp.MustCompile(`%[-+# 0-9.]*[a-zA-Z%]`)
 
-// Pages show no text of their own: what a template shows is a Message,
-// so it has both translations. The name Dandori, Japanese and punctuation
-// are the same in every Language. String literals passed to components
-// are not checked: a label goes in as a Message too.
+// Pages show no text of their own: what a template shows is a Message, so it has both
+// translations. The name Dandori, Japanese and punctuation are the same in every
+// Language. String literals passed to components are not checked: a label goes in as a
+// Message too.
 func TestTemplatesShowOnlyMessages(t *testing.T) {
 	for path, src := range ownFrontendSources(t) {
 		if filepath.Ext(path) != ".templ" {
@@ -70,8 +70,8 @@ type foundMessage struct {
 	err string
 }
 
-// messages are every Message literal in our Go source: web.Message{…},
-// and the elements of an array, slice or map of them.
+// messages are every Message literal in our Go source: web.Message{…}, and the elements
+// of an array, slice or map of them.
 func messages(t *testing.T) []foundMessage {
 	t.Helper()
 	var found []foundMessage
@@ -134,8 +134,8 @@ func isMessage(typ ast.Expr) bool {
 	return false
 }
 
-// readMessage reads a Message literal's En and It, which must be string
-// literals so this test can read them.
+// readMessage reads a Message literal's En and It, which must be string literals so this
+// test can read them.
 func readMessage(fset *token.FileSet, e ast.Expr) foundMessage {
 	m := foundMessage{pos: fset.Position(e.Pos()).String()}
 	lit, ok := e.(*ast.CompositeLit)

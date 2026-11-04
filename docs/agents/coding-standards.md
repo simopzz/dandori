@@ -72,6 +72,13 @@ Rules code review checks against. Each says what it protects.
   (Cooking Mode's Wake Lock and timers). *Protects: one way to talk to the
   server, and less hand-rolled code to maintain.*
 
+## Comments
+
+- **Go comments wrap at 90 columns**, counting a tab as 4, and fill each line
+  to it. When that leaves a lone word on the last line, break the earlier
+  lines sooner, or reword, so it isn't alone. *Protects: comments that read
+  as prose, without lines that stop early or a word stranded below them.*
+
 ## Tests
 
 - **A test helper's lookup fails with `t.Fatalf` naming what is missing**,

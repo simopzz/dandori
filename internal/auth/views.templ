@@ -76,9 +76,8 @@ templ sentPage(today time.Time) {
 	}
 }
 
-// confirmPage asks for one click before redeeming a magic link, so a mail
-// scanner opening the link can't use it up. u is the link, which switching
-// Language keeps.
+// confirmPage asks for one click before redeeming a magic link, so a mail scanner opening
+// the link can't use it up. u is the link, which switching Language keeps.
 templ confirmPage(u *url.URL, today time.Time, tokenHash, kind string) {
 	@web.Layout(web.T(ctx, msgSignInTitle), web.SignedOut) {
 		@web.LanguageSwitch(u)

@@ -17,10 +17,10 @@ var ordinarySense = map[string]string{
 	"step": `a Recipe's steps, which the glossary names so, not a Trace Event`,
 }
 
-// Pages speak the glossary: what a page shows, a Message's English or a
-// template's own text, never uses a word GLOSSARY.md lists under _Avoid_.
-// A glossary term containing such a word (Meal Out holds "meal") is the
-// term, and fine; so is a word in ordinarySense.
+// Pages speak the glossary: what a page shows, a Message's English or a template's
+// own text, never uses a word GLOSSARY.md lists under _Avoid_. A glossary term
+// containing such a word (Meal Out holds "meal") is the term, and fine; so is a word
+// in ordinarySense.
 func TestPagesAvoidWhatTheGlossaryAvoids(t *testing.T) {
 	glossary, err := os.ReadFile("../../GLOSSARY.md")
 	if err != nil {
@@ -98,9 +98,9 @@ var (
 	expressions = regexp.MustCompile(`\{[^}]*\}`)
 )
 
-// visibleText is the text a .templ file's templates show, line by line:
-// what is left of their bodies once templ statements, tags, scripts and
-// Go expressions are removed. Go code outside templates shows nothing.
+// visibleText is the text a .templ file's templates show, line by line: what is left of
+// their bodies once templ statements, tags, scripts and Go expressions are removed. Go
+// code outside templates shows nothing.
 func visibleText(src string) []textLine {
 	var lines []textLine
 	in, tag, script := false, false, false

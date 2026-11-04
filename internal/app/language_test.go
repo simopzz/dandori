@@ -7,9 +7,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// A User's first sign-in asks for their Language before anything else.
-// Picking Italian makes the pages Italian, and the next sign-in doesn't ask
-// again.
+// A User's first sign-in asks for their Language before anything else. Picking Italian
+// makes the pages Italian, and the next sign-in doesn't ask again.
 func TestTheFirstSignInAsksForTheLanguage(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -30,8 +29,7 @@ func TestTheFirstSignInAsksForTheLanguage(t *testing.T) {
 	s.Sees("lunedì 2 novembre")
 }
 
-// The Language can be changed on the Profile, while the User has written
-// no Food Term.
+// The Language can be changed on the Profile, while the User has written no Food Term.
 func TestTheLanguageCanBeChangedOnTheProfile(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -63,8 +61,8 @@ func TestEachUserHasTheirOwnLanguage(t *testing.T) {
 	s.Sees("Monday 2 November")
 }
 
-// Pages before signing in are in English, with a switch to Italian that
-// the following pages remember, up to the Language choice.
+// Pages before signing in are in English, with a switch to Italian that the following
+// pages remember, up to the Language choice.
 func TestPagesBeforeSignInSwitchToItalian(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -87,8 +85,7 @@ func TestPagesBeforeSignInSwitchToItalian(t *testing.T) {
 	}
 }
 
-// A Language Dandori doesn't speak is refused, with the choice asked
-// again.
+// A Language Dandori doesn't speak is refused, with the choice asked again.
 func TestTheLanguageChoiceRefusesAnotherLanguage(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -122,8 +119,8 @@ func TestTheProfileRefusesAnotherLanguageKeepingTheUsers(t *testing.T) {
 	}
 }
 
-// The Language is chosen once at the first sign-in: the choice, posted
-// again, goes Home and changes nothing; changing it is the Profile's.
+// The Language is chosen once at the first sign-in: the choice, posted again, goes Home
+// and changes nothing; changing it is the Profile's.
 func TestTheLanguageIsChosenOnce(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
