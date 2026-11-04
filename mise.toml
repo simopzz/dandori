@@ -42,10 +42,26 @@ run = [
   "go test -count=1 ./...",
 ]
 
+[tasks.devdb]
+description = "Start the local Postgres + pgvector dev server, which keeps its data between runs (docker needs sudo)"
+# pg_isready over TCP: while the image initialises its first database, its
+# temporary server listens only on the socket.
+run = '''
+sudo docker start dandori-devdb >/dev/null 2>&1 || sudo docker run -d --name dandori-devdb \
+  -v dandori-devdb:/var/lib/postgresql/data -e POSTGRES_PASSWORD=postgres \
+  -p 127.0.0.1:5434:5432 pgvector/pgvector:pg17 >/dev/null
+until sudo docker exec dandori-devdb pg_isready -q -h 127.0.0.1; do sleep 0.5; done
+'''
+
 [tasks.dev]
-description = "Run the app locally against DANDORI_DATABASE_URL"
-depends = ["generate"]
-run = "go run ./cmd/dandori"
+description = "Run the app locally against the dev server and the real Supabase Auth"
+# The dev server, never DANDORI_DATABASE_URL: a branch's migrations must not
+# reach production. Supabase's URL and key come from .env under either name,
+# DANDORI_ as in .env.example or bare as provision.sh writes them.
+env = { DANDORI_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5434/postgres?sslmode=disable", DANDORI_SUPABASE_URL = "{{ env.DANDORI_SUPABASE_URL | default(value=env | get(key='SUPABASE_URL', default='')) }}", DANDORI_SUPABASE_PUBLISHABLE_KEY = "{{ env.DANDORI_SUPABASE_PUBLISHABLE_KEY | default(value=env | get(key='SUPABASE_PUBLISHABLE_KEY', default='')) }}" }
+# devdb first, alone: as dependencies the two would run in parallel, and
+# generate's output would land on sudo's password prompt.
+run = [{ task = "devdb" }, { task = "generate" }, "go run ./cmd/dandori"]
 
 [tasks.lint]
 description = "Run golangci-lint (config in .golangci.yml)"
