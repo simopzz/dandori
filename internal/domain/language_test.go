@@ -6,20 +6,20 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// A User's Language can change until their kitchen holds a food term
-// (ADR-0015). Each slice that brings a food term adds its row here.
-func TestTheLanguageCanChangeUntilTheKitchenHoldsAFoodTerm(t *testing.T) {
+// A User's Language can change until they have written a Food Term
+// (ADR-0015). Each slice that brings a Food Term adds its row here.
+func TestTheLanguageCanChangeUntilAFoodTermIsWritten(t *testing.T) {
 	tests := []struct {
-		name    string
-		kitchen domain.Kitchen
-		want    bool
+		name  string
+		terms domain.FoodTerms
+		want  bool
 	}{
-		{name: "an empty kitchen", kitchen: domain.Kitchen{}, want: true},
+		{name: "no Food Term", terms: domain.FoodTerms{}, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := domain.LanguageCanChange(tt.kitchen); got != tt.want {
-				t.Errorf("LanguageCanChange(%+v) = %v, want %v", tt.kitchen, got, tt.want)
+			if got := domain.LanguageCanChange(tt.terms); got != tt.want {
+				t.Errorf("LanguageCanChange(%+v) = %v, want %v", tt.terms, got, tt.want)
 			}
 		})
 	}

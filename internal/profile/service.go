@@ -16,7 +16,7 @@ import (
 
 // ErrLanguageStays is a change of Language once the kitchen holds a food
 // term.
-var ErrLanguageStays = errors.New("the kitchen holds food terms in the Language, so it stays")
+var ErrLanguageStays = errors.New("Food Terms are written in the Language, so it stays")
 
 // Service is the signed-in User's Profile.
 type Service struct {
@@ -37,7 +37,7 @@ func (s *Service) Language(ctx context.Context) (l domain.Language, ok bool, err
 }
 
 // SetLanguage chooses the signed-in User's Language, or changes it while
-// their kitchen holds no food term; after that it is ErrLanguageStays.
+// they have written no Food Term; after that it is ErrLanguageStays.
 func (s *Service) SetLanguage(ctx context.Context, l domain.Language) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		current, chosen, err := loadLanguage(ctx, tx)
@@ -45,11 +45,11 @@ func (s *Service) SetLanguage(ctx context.Context, l domain.Language) error {
 			return err
 		}
 		if chosen && current != l {
-			kitchen, err := loadKitchen(ctx, tx)
+			terms, err := loadFoodTerms(ctx, tx)
 			if err != nil {
 				return err
 			}
-			if !domain.LanguageCanChange(kitchen) {
+			if !domain.LanguageCanChange(terms) {
 				return ErrLanguageStays
 			}
 		}

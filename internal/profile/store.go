@@ -35,8 +35,8 @@ func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	return err
 }
 
-// loadKitchen is what the signed-in User's kitchen holds, as far as the
-// Language rule needs it: nothing yet, until a slice brings a food term.
-func loadKitchen(context.Context, db.Querier) (domain.Kitchen, error) {
-	return domain.Kitchen{}, nil
+// loadFoodTerms is the Food Terms the signed-in User has written: none
+// yet, until a slice brings one.
+func loadFoodTerms(context.Context, db.Querier) (domain.FoodTerms, error) {
+	return domain.FoodTerms{}, nil
 }

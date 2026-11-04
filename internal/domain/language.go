@@ -1,7 +1,7 @@
 package domain
 
 // Language is the one language a User's Dandori speaks: its pages and
-// every food term in their kitchen (ADR-0015), as an ISO 639-1 code.
+// every Food Term (ADR-0015), as an ISO 639-1 code.
 type Language string
 
 const (
@@ -23,17 +23,16 @@ func ParseLanguage(code string) (Language, bool) {
 	return "", false
 }
 
-// Kitchen is what a User's kitchen holds, as far as the rules here need
-// it. Each slice that brings a food term (Ingredients, Recipes, the
-// Profile's exclusions) adds it here and to holdsFoodTerm.
-type Kitchen struct{}
+// FoodTerms are the Food Terms a User has written, each in their
+// Language. Each slice that brings one (Ingredients, Recipes, the
+// Profile's exclusions) adds its count here and to Any.
+type FoodTerms struct{}
 
-// holdsFoodTerm reports whether the kitchen holds any food term, which is
-// written in the User's Language.
-func (k Kitchen) holdsFoodTerm() bool { return false }
+// Any reports whether the User has written any Food Term.
+func (f FoodTerms) Any() bool { return false }
 
-// LanguageCanChange reports whether a User whose kitchen holds k can still
-// change their Language: only until it holds a food term, since an
-// Ingredient is identified by its name and mixing languages would split
+// LanguageCanChange reports whether a User who has written f can still
+// change their Language: only until they have written a Food Term, since
+// an Ingredient is identified by its name and mixing languages would split
 // one food in two.
-func LanguageCanChange(k Kitchen) bool { return !k.holdsFoodTerm() }
+func LanguageCanChange(f FoodTerms) bool { return !f.Any() }

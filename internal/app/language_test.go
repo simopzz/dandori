@@ -30,8 +30,8 @@ func TestTheFirstSignInAsksForTheLanguage(t *testing.T) {
 	s.Sees("lunedì 2 novembre")
 }
 
-// The Language can be changed on the Profile, while the kitchen holds no
-// food term.
+// The Language can be changed on the Profile, while the User has written
+// no Food Term.
 func TestTheLanguageCanBeChangedOnTheProfile(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
