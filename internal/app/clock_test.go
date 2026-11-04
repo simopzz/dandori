@@ -13,6 +13,7 @@ func TestPagesShowTheClocksDay(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
 
 	s.At("Tue 10:00")
 	s.Open("/")

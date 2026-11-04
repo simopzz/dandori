@@ -81,8 +81,9 @@ func (b *Browser) Open(t testing.TB, path string) {
 	}
 }
 
-// SignIn signs the invited email in as a User does: asks for a magic link,
-// opens it from their mailbox and confirms, landing on Today.
+// SignIn signs the invited email in as a User does: asks for a magic link, opens it
+// from their mailbox and confirms, landing on Today, or at a first sign-in on the
+// Language choice.
 func (b *Browser) SignIn(t testing.TB, email string) {
 	t.Helper()
 	b.Open(t, "/sign-in")
@@ -95,7 +96,26 @@ func (b *Browser) SignIn(t testing.TB, email string) {
 		t.Fatalf("open the magic link: %v", err)
 	}
 	b.Click(t, "Sign in to Dandori")
+}
+
+// SignUp signs the invited email in for the first time and chooses English, landing
+// on Today.
+func (b *Browser) SignUp(t testing.TB, email string) {
+	t.Helper()
+	b.SignIn(t, email)
+	b.IsAt(t, "/language")
+	b.ChooseLanguage(t, "English", "Continue")
 	b.IsAt(t, "/")
+}
+
+// ChooseLanguage picks the Language named name on the page and submits it with the button
+// named submit.
+func (b *Browser) ChooseLanguage(t testing.TB, name, submit string) {
+	t.Helper()
+	if err := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: name}).Check(); err != nil {
+		t.Fatalf("choose %s: %v", name, err)
+	}
+	b.Click(t, submit)
 }
 
 // Click clicks the button named name.

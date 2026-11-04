@@ -77,7 +77,7 @@ elements themselves.
 
 | Component | Use it for |
 | --- | --- |
-| `Layout(title, tab)` | Every full page. Renders the head and the shell. |
+| `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
 | `Section(num, title)` | A numbered group of a page's content. |
 | `FieldGroup(num, legend)` | A numbered group of a form's fields. |
@@ -102,6 +102,7 @@ elements themselves.
 | `Notice()` | Something happened as asked ("Profile saved."). |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status). `accent` when it needs attention. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
+| `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
 | `Icon(name)` | A Lucide icon, inline SVG in the text colour. Add icons to `icons.go`; an unknown name fails the render. |
 

@@ -14,7 +14,13 @@ Rules code review checks against. Each says what it protects.
   `internal/web/colours_test.go` enforces it in CI. Spaces and radii use
   `--space-*` and `--radius`. *Protects: a palette changed in one place, and
   dark mode as one block later.*
-- **Pages speak the glossary.** What a template shows uses `GLOSSARY.md`'s
+- **Pages show only Messages.** Every string a page shows is a `web.Message`
+  with its English and Italian, shown with `web.T(ctx, m)` in the request's
+  Language; a template shows no text of its own, and a label or an error
+  passed to a component is a Message too. `internal/web/i18n_test.go`
+  enforces both translations and no text of a template's own in CI.
+  *Protects: every page speaks the User's Language (ADR-0015).*
+- **Pages speak the glossary.** What a page shows uses `GLOSSARY.md`'s
   terms, never a word it lists under _Avoid_;
   `internal/web/glossary_test.go` enforces it in CI. A word used in its
   ordinary sense, not as the avoided synonym, goes in that test's
@@ -65,6 +71,13 @@ Rules code review checks against. Each says what it protects.
   vendored next to `htmx.min.js`; a JS island is for what htmx can't do
   (Cooking Mode's Wake Lock and timers). *Protects: one way to talk to the
   server, and less hand-rolled code to maintain.*
+
+## Comments
+
+- **Go comments wrap at 90 columns**, counting a tab as 4, and fill each line
+  to it. When that leaves a lone word on the last line, break the earlier
+  lines sooner, or reword, so it isn't alone. *Protects: comments that read
+  as prose, without lines that stop early or a word stranded below them.*
 
 ## Tests
 

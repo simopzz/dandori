@@ -109,8 +109,12 @@ Where a Portion or Stock Item is kept: pantry, fridge or freezer.
 _Avoid_: Stash, shelf
 
 **Language**:
-The one language a User's Dandori speaks: its pages, and every food term in their kitchen (Ingredient and Recipe names, steps, appliances, the Profile's exclusions and allergies, and what the agent says about food). Chosen by the User, who can change it until their kitchen holds any food term; after that it stays.
+The one language a User's Dandori speaks: its pages, and every Food Term. Chosen by the User, who can change it until they have written any Food Term; after that it stays.
 _Avoid_: Content Language, locale, app language
+
+**Food Term**:
+Food written in a User's Language: an Ingredient or Recipe name, a step, an appliance, the Profile's exclusions and allergies, and what the agent says about food.
+_Avoid_: Food content, kitchen data
 
 **User**:
 One person cooking for themselves, with their own kitchen: everything in Dandori (Profile, Recipes, Ingredients, Known Catalog, Cycles, Kitchen Ledger) belongs to exactly one User, and nothing is shared between Users.
@@ -119,7 +123,7 @@ _Avoid_: Account, tenant, household
 ### Goals
 
 **Profile**:
-The user's stored nutrition settings: the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, the Untracked Allowance, and the time of day of each kind of Slot.
+The user's stored settings: their Language, and for nutrition the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, the Untracked Allowance, and the time of day of each kind of Slot.
 _Avoid_: Settings, preferences
 
 **Target**:
@@ -184,7 +188,7 @@ _Avoid_: Log entry, step
 - A Prep Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Prep Sessions.
 - A Prep Session of a Recipe scales its Ingredients to the Portions the Prep Session yields: a Recipe that makes four Portions, cooked for three, uses three quarters of each Ingredient. Nutritional values per Portion are the same either way.
 - Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg), or one the kitchen can't make from the other, which the Grocery List must buy as such (minced chicken is not chicken breast). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values: on its Recipe Draft, where they can be edited, or by approving a Plan Proposal that prepares the draft as it is.
-- Every food term is in the User's Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
+- Every Food Term is in the User's Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
 - Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.
 - An Exception logged ahead is input to the planning Run when the Plan doesn't rely on it yet, and leads to a Plan Proposal like any other when it does. Its Slot gets no Portion and no Prep Session; when cooking is impossible on a day without one, the user says so in a note. A Meal Out counts toward the Targets with the Profile's default estimate unless the Exception gives its own; a skipped Slot counts as nothing. Changing or removing it works the same way. It belongs to its day and Slot kind, not to a Cycle: it outlives a moved Delivery or a dropped Cycle, and counts toward the Targets even if its day ends up between Cycles. Once its day is past it stands as what happened, unless the user changes it.
