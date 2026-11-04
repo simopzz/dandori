@@ -15,9 +15,14 @@ import (
 // .claude/skills come from the same package's dist/skills: upgrade them
 // with htmx.
 //
-// static/fonts holds the latin subsets of Shippori Mincho (500, 700) and
-// Zen Kaku Gothic New (400, 700), both SIL OFL 1.1 (static/fonts/OFL.txt),
-// from Fontsource (@fontsource/shippori-mincho, @fontsource/zen-kaku-gothic-new).
+// static/fonts holds DotGothic16 (400) and Zen Kaku Gothic New (400, 700), both SIL OFL
+// 1.1 (static/fonts/OFL.txt). Zen Kaku Gothic New is Fontsource's latin subset
+// (@fontsource/zen-kaku-gothic-new). DotGothic16 is subset from google/fonts'
+// ofl/dotgothic16 to Latin-1, typographic punctuation and 段取り, the titles it sets:
+//
+//	pyftsubset DotGothic16-Regular.ttf --flavor=woff2 --layout-features='*' \
+//	  --unicodes=U+0020-007E,U+00A0-00FF,U+2013-2014,U+2018-2019,U+201C-201D \
+//	  --text='…段取り'
 //
 // static/icon-192.png and icon-512.png are drawn from icon.svg: 段 in sumi
 // ink on the paper with a vermilion seal, inside the maskable safe zone.

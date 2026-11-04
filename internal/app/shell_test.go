@@ -119,7 +119,7 @@ func TestAppShellServesItsFonts(t *testing.T) {
 			t.Errorf("font %s status = %d", src, res.StatusCode)
 		}
 	}
-	if fonts != 4 {
-		t.Errorf("app.css loads %d fonts, want Shippori Mincho 500 and 700 and Zen Kaku Gothic New 400 and 700", fonts)
+	if fonts != 3 {
+		t.Errorf("app.css loads %d fonts, want DotGothic16 and Zen Kaku Gothic New 400 and 700", fonts)
 	}
 }

@@ -1,8 +1,11 @@
 # Design system
 
-Dandori's look is **"Ma on white paper"**: Japanese-minimal, a quiet ledger
-in sumi ink on near-white paper, with one vermilion seal for what needs
-attention. Space does the work that boxes and colour would do elsewhere.
+Dandori's look is **Pixel ledger**, the README banner's dusk brought to a
+quiet ledger: sumi ink on near-white paper, with one vermilion seal for what
+needs attention, framed by the banner's navy, its dithered sunset sky and its
+pixel art. Space does the work that boxes and colour would do elsewhere; the
+pixels stay at the edges (the shell, titles, controls), and what is read stays
+flat paper.
 
 Every page is built from the templ components in `internal/web`
 (`components.templ`, `layout.templ`) and styled by one plain stylesheet,
@@ -15,36 +18,58 @@ Every colour, space and radius is a custom property on `:root` at the top of
 `app.css`. That block is the only place a colour value may be written;
 `internal/web/colours_test.go` fails CI on a hex or `rgb()` colour anywhere
 else in `app.css` or in any `.templ` file. Tokens are named for their role, so
-dark mode can later be one `prefers-color-scheme` block that reassigns them
-(the test allows literals in any `:root` block).
+dark mode, out of scope for now, can later be one `prefers-color-scheme` block
+that reassigns them (the test allows literals in any `:root` block).
 
 | Token | Value | Use |
 | --- | --- | --- |
 | `--color-bg` | `#fdfcfa` paper | the page |
 | `--color-surface` | `#ffffff` | raised things: the add sheet, trace details, an open `EditRow` |
 | `--color-text` | `#1a1a18` sumi ink | text |
-| `--color-text-soft` | `#5c5a54` | labels, hints, metadata |
-| `--color-rule` | `#e4e0d8` | hairlines between rows |
-| `--color-rule-strong` | ink | under section headings, input underlines, borders of controls |
-| `--color-fill` / `--color-fill-hover` | ink / black | primary buttons, the chosen segment |
+| `--color-text-soft` | `#5c5a54` soft ink | labels, hints, metadata |
+| `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
+| `--color-rule-strong` | `#2d3352` navy | section rules, input underlines, borders of controls |
+| `--color-fill` | navy | primary buttons, the chosen segment |
+| `--color-fill-dither` | `#4b5582` slate | dithered over the fill: the chosen segment, a button's hover |
 | `--color-on-fill` | paper | text on a fill or on the accent |
 | `--color-accent` | `#b8321b` vermilion seal | attention only (see below) |
-| `--color-accent-wash` | `#faebe6` | behind alerts |
-| `--color-backdrop` | ink at 35% | behind an open sheet |
+| `--color-accent-wash` | `#fbe5dc` salmon wash | behind alerts |
+| `--color-tag` | `#f7e4c6` cream | behind a `Tag` |
+| `--color-veil` | navy | dithered over the page behind an open sheet |
+| `--color-shell` | navy | the bottom tabs and the rail |
+| `--color-on-shell` / `--color-on-shell-soft` | paper / `#b9bdd3` | the current tab / the other tabs |
+| `--color-shell-marker` | `#eba083` salmon | the bar on the current tab |
+| `--color-sky-*` | paper, cream `#f7e4c6`, peach `#f2c29c`, salmon `#eba083`, deep `#252840`, slate, snow `#f3eee4`, navy, sun (vermilion) | the sky and the pixel art only |
 
 **The accent is reserved** for what needs attention: errors, things to use
-soon, the current tab, a page's primary add action (the `+`), section
-numbers, and destructive actions. Never use it for decoration or emphasis.
+soon, a page's primary add action (the `+`), section numbers and the stroke
+under them, the seal on an urgent row, and destructive actions. The one
+exception is the sun in the sky, as in the banner, which the seal echoes. Never use it
+for decoration or emphasis. It is not the current tab's marker: vermilion on
+navy is about 2:1, below the 3:1 a non-text indicator needs, so the marker is
+salmon.
 
-Type: `--font-display` is Shippori Mincho (500, 700) for headings,
-`--font-body` is Zen Kaku Gothic New (400, 700) for everything else. Both are
-latin subsets, self-hosted in `static/fonts` (SIL OFL, `static/fonts/OFL.txt`);
-Japanese text falls back to the system's Mincho or Gothic.
+**Navy is structure**, not attention: it fills primary buttons and the chosen
+segment, draws section rules and input underlines, and is the shell. The
+banner's other colours (slate, cream, peach, salmon, snow) are only in the
+sky and the pixel art, with three exceptions named above: slate in a
+control's dither, cream behind a tag, salmon on the current tab and in the
+alert's wash.
+
+Type: three faces, self-hosted in `static/fonts` (SIL OFL,
+`static/fonts/OFL.txt`). `--font-title` is DotGothic16, a pixel face, for
+titles only: the page's `h1`, `Section` and `FieldGroup` headings (and any
+`h2`), the sheet title and the wordmark. It is subset to Latin-1 and 段取り,
+so a title in Japanese falls back to the system's face. `--font-body` is Zen
+Kaku Gothic New (400, 700, latin subset) for everything else, `h3` in bold;
+Japanese text falls back to the system's Gothic.
 
 `--font-mono` is for code and trace details.
 
 Space: `--space-1` … `--space-7` (0.25rem to 4rem). Shape: `--radius` is 0, so
-every control is square; `--focus-ring` is the focus outline. Size: `--tap`
+every control, tag and the `+` is plainly square, with no stepped edges;
+`--focus-ring` is the focus outline. Pixels: `--pixel` (3px) is one pixel of
+the sky, `--pixel-fine` (2px) one of a control's dither. Size: `--tap`
 (2.75rem, 44px) is the smallest touch target; `--measure` is the column's
 width; `--rail-width` and `--tabs-height` size the shell.
 
@@ -52,21 +77,54 @@ width; `--rail-width` and `--tabs-height` size the shell.
 `--color-bg` because the browser can't read a custom property there;
 `colours_test.go` checks they stay in step.
 
+## Dithering
+
+In place of gradients, colours meet in a **dither**: a stepped pattern of
+square pixels of two colours, built in CSS from tokens, at four densities
+(25, 50 and 75%, and solid). `--dither-on` is the colour laid over
+`--dither-under`, and `--dither-pixel` the size of a pixel. A ramp steps from
+one colour to the next through all four.
+
+It may go in four places only:
+
+- **the sky**: the masthead's dusk on a phone, cream to peach to salmon, then
+  deep navy dithering down into the paper; the rail's, paper to salmon;
+- **the veil** behind an open sheet: a navy checker over the page;
+- **the chosen segment**: navy and slate;
+- **a primary button's hover**: navy and slate.
+
+Rows, forms and reading text stay flat paper. Smooth gradients are out (the
+section rule is two flat strokes, not a blend).
+
+## Pixel art and icons
+
+The sun, Fuji and its tree line are bitmaps in `pixels.go`, rendered on the
+server as inline SVG, one path per colour, each filled by a `px-*` class from a
+`--color-sky-*` token. There is no runtime JS for presentation. The sun and Fuji
+appear in the sky; the sun alone is the **seal** (`Seal`) on an urgent row.
+
+Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
+and `aria-hidden`.
+
 ## Layout
 
 - **One calm column** (`--measure`, 42rem), with generous space above each
   section. No cards, no shadows, no boxes around content.
-- **The shell** (`Layout`): on a phone, bottom tabs, each an icon and a label,
-  with a vermilion bar over the current one, and a small horizontal 段取り
-  DANDORI masthead above the page linking Home. From 900px, a left rail with the
-  vertical 段取り wordmark over DANDORI, the tabs, and Runs at the rail's foot.
+- **The shell** (`Layout`) is navy. On a phone, bottom tabs, each a pixel
+  icon and a label in paper, with a salmon bar over the current one, and above
+  the page the masthead: the dithered sky with the horizontal 段取り DANDORI
+  wordmark linking Home, the pixel sun and Fuji, dithering down into the
+  paper. From 900px, a left rail whose top is the same sky with the vertical
+  wordmark, then the tabs, and Runs at the rail's foot. Before the Language is
+  chosen there are no tabs: a phone shows no bar, desktop the rail's sky alone.
   Tabs are Plan, Recipes, Stock, Catalog and Profile; Runs is secondary. A page passes its
   `Tab` to `Layout`, which marks it `aria-current="page"`.
 - **Every page opens with a `PageHeader`**: a letter-spaced eyebrow with the
   page's Japanese name and today's date (`在庫 · Sunday 25 October`) and a large
-  serif title, which is the page's only `h1`.
-- **Content is grouped into numbered `Section`s** (`01 Stock Items`): a serif
-  heading over a strong rule. In a form, use `FieldGroup`, its fieldset twin.
+  pixel title, which is the page's only `h1`.
+- **Content is grouped into numbered `Section`s** (`01 Stock Items`): a pixel
+  heading over the banner's underline, a short vermilion stroke under the
+  number, then navy. In a form, use `FieldGroup`, its fieldset twin.
 - **Lists are `Rows`**: lines separated by hairlines, the name first,
   quantities in tabular numbers.
 
@@ -85,6 +143,7 @@ elements themselves.
 | `Empty()` | What a list says when it has nothing in it. |
 | `Rows()` | A list of `Row`s or `EditRow`s. |
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
+| `Seal()` | The pixel sun before an urgent `Row`'s `row-title`. Decorative: the row's text (an accent `Tag`) says why it is urgent. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
 | `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
@@ -93,18 +152,18 @@ elements themselves.
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
-| `Button(attrs)` | The primary action of a form, in ink. One per form. |
+| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
 | `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
-| `Alert()` | Something went wrong: a rejected form, a failure. On the accent wash. |
+| `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
 | `Notice()` | Something happened as asked ("Profile saved."). |
-| `Tag(accent, title)` | A short label on a row (`New`, a Run's status). `accent` when it needs attention. |
-| `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
+| `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
+| `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop, over a navy dithered veil. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
-| `Icon(name)` | A Lucide icon, inline SVG in the text colour. Add icons to `icons.go`; an unknown name fails the render. |
+| `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |
 
 Two layout classes go on elements a component can't wrap, such as a
 `<form>`: `stack` spaces its children evenly in a column (a form's fields and
@@ -123,17 +182,24 @@ and closing.
 
 ## Accessibility baseline
 
-- Text and controls meet WCAG AA contrast on `--color-bg` (ink 17:1, soft ink
-  6.7:1, accent 5.8:1, paper on accent 5.8:1, accent on its wash 5.2:1).
+- Text and controls meet WCAG AA contrast. On paper: ink 17:1, soft ink
+  6.7:1, accent 5.8:1, navy 12:1. On navy: paper 12:1, the other tabs'
+  `#b9bdd3` 6.6:1, and paper on slate (the lighter of a control's dither) 7:1.
+  Paper on accent 5.8:1, accent on its salmon wash 4.9:1, ink on a cream tag
+  14:1.
+- Non-text indicators reach 3:1: the current tab's salmon bar is 5.8:1 on
+  navy, a section rule and an input underline 12:1 on paper.
 - Touch targets are at least `--tap` (44px).
 - Focus is always visible: a 2px vermilion ring on every control, inputs
-  included, so a focused field stands out from an invalid one.
+  included, so a focused field stands out from an invalid one. On the navy
+  tabs the ring is salmon (5.8:1), as vermilion there is about 2:1.
 - `prefers-reduced-motion` turns off transitions and animations.
 - Meaning is never carried by colour alone: an error says what is wrong and
   is marked `!`, an invalid field has a thicker underline and
-  `aria-invalid`, an urgent row needs a seal mark *and* text, the current tab
-  has a bar and `aria-current`.
-- Icons are `aria-hidden`; what they mean is said in text or an `aria-label`.
+  `aria-invalid`, an urgent row has the pixel seal *and* text, the current tab
+  has a bar, paper text and `aria-current`.
+- Icons, the seal and the pixel art are `aria-hidden`; what they mean is said
+  in text or an `aria-label`.
 
 ## Do and don't
 
@@ -141,11 +207,16 @@ and closing.
   `internal/web` when a piece will recur, and catalogue it here.
 - **Do** use tokens for every colour, space and radius.
 - **Do** let space separate things: hairlines and section rules, not boxes.
+- **Do** keep dithering to the sky, the veil, the chosen segment and a
+  button's hover, and the banner's colours other than navy to the sky and
+  the pixel art.
 - **Do** give every form one primary `Button`; everything else is a
   `TextButton` or `DestructiveButton`.
 - **Don't** write a colour value outside the token block, or in a template.
 - **Don't** restyle base elements for one feature (`.profile input`,
   `.stock-form select`): change the base style or add a component.
 - **Don't** use the accent for anything that doesn't need attention.
-- **Don't** add rounded corners, shadows, gradients or a second accent.
-- **Don't** add an icon font or runtime JS for presentation.
+- **Don't** add rounded corners, stepped corners, shadows, smooth gradients or
+  a second accent.
+- **Don't** add an icon font, a stroke icon or runtime JS for presentation.
+- **Don't** set body text, labels or rows in the pixel face.

@@ -34,4 +34,4 @@ Every page but sign-in needs a signed-in User. `apptest` starts a fake Supabase 
 
 ## Guardrails
 
-Tests that check the source instead of behaviour. `internal/web`: colours are tokens, pages show only Messages, each with both translations, and use the glossary's words, and htmx markup uses htmx 4's names with a no-JS fallback on every htmx form. `internal/clock`: nothing else reads the machine's time. `cmd/dandori`: the binary has no clock switch. `mise run check` runs everything CI runs.
+Tests that check the source instead of behaviour. `internal/web`: colours are tokens, pages show only Messages, each with both translations, and use the glossary's words, and htmx markup uses htmx 4's names with a no-JS fallback on every htmx form. Icons are 10×10 bitmaps of ink and paper, and the pixel art uses only the colours `app.css` fills from tokens. `internal/clock`: nothing else reads the machine's time. `cmd/dandori`: the binary has no clock switch. `mise run check` runs everything CI runs.

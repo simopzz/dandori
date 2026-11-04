@@ -72,6 +72,14 @@ templ Row() {
 	</li>
 }
 
+// Seal marks an urgent Row with the pixel sun, before its row-title. It is decorative:
+// the row's text, such as an accent Tag, says why it is urgent.
+templ Seal() {
+	<span class="seal">
+		@templ.Raw(sunArt)
+	</span>
+}
+
 // EditRow is one line of a list that opens in place to edit: summary is
 // the line, the children are what it opens to.
 templ EditRow(open bool, summary templ.Component) {

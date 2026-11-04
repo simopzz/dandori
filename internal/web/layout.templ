@@ -14,11 +14,11 @@ const (
 	ProfileTab Tab = "/profile"
 )
 
-// Layout is the page shell every page renders inside: the head, the
-// navigation (bottom tabs on a phone, a rail on desktop) with the page's
-// tab marked, and the page's content. Every link and form is boosted, with
-// a form's buttons disabled while its request is in flight; ADR 0009 says
-// why a rejection keeps its address and why settling is off.
+// Layout is the page shell every page renders inside: the head, the masthead (the
+// dusk sky on a phone), the navigation (bottom tabs on a phone, a rail under the sky
+// on desktop) with the page's tab marked, and the page's content. Every link and
+// form is boosted, with a form's buttons disabled while its request is in flight;
+// ADR 0009 says why a rejection keeps its address and why settling is off.
 templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
 	<html lang={ string(LanguageOf(ctx)) }>
@@ -38,24 +38,49 @@ templ Layout(title string, current Tab) {
 			</script>
 		</head>
 		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
+			<header class="masthead">
+				@sky("masthead-sky", []string{"cream", "peach", "salmon"})
+				@ramp([]string{"deep", "paper"})
+			</header>
 			<nav class="shell" aria-label={ T(ctx, msgMainNav) }>
-				@wordmark("")
+				@sky("rail-sky", []string{"paper", "cream", "peach", "salmon"})
 				if current != SignedOut {
-					@tab(ProfileTab, current, "user", T(ctx, msgProfile), false)
+					<div class="tabs">
+						@tab(ProfileTab, current, "user", T(ctx, msgProfile), false)
+					</div>
 				}
 			</nav>
 			<main class="page">
-				@wordmark("masthead")
 				{ children... }
 			</main>
 		</body>
 	</html>
 }
 
-// wordmark links Home: in the rail on desktop, and as the masthead above
-// each page on a phone, where the rail's is hidden.
-templ wordmark(class string) {
-	<a class={ "wordmark", class } href="/"><span class="wordmark-ja" lang="ja">段取り</span><span class="wordmark-latin">Dandori</span></a>
+// sky is the README banner's dusk: a dithered ramp down through colours, the sun
+// setting behind Fuji, and the wordmark linking Home. It is the masthead above each
+// page on a phone and the top of the rail on desktop, each hidden where the other
+// shows.
+templ sky(class string, colours []string) {
+	<div class={ "sky", class }>
+		@ramp(colours)
+		<span class="sky-sun">
+			@templ.Raw(sunArt)
+		</span>
+		<span class="sky-fuji">
+			@templ.Raw(fujiArt)
+		</span>
+		<a class="wordmark" href="/"><span class="wordmark-ja" lang="ja">段取り</span><span class="wordmark-latin">Dandori</span></a>
+	</div>
+}
+
+// ramp dithers down through colours, each to the next in four steps.
+templ ramp(colours []string) {
+	<div class="ramp" aria-hidden="true">
+		for _, step := range ditherSteps(colours) {
+			<div class={ step }></div>
+		}
+	</div>
 }
 
 // tab is one link of the shell; aux ones sit apart, at the rail's foot.
