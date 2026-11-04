@@ -16,10 +16,10 @@ const DefaultZone = "Europe/Rome"
 // Clock tells the time in the installation's zone, and beats on it.
 type Clock interface {
 	Now() time.Time
-	// Every calls beat with the time each time the clock passes a multiple of d (14:00,
-	// 14:05 for five minutes), from now until ctx ends. A clock that passes several at
-	// once, as a machine waking up does, beats once. It returns at once.
-	Every(ctx context.Context, d time.Duration, beat func(now time.Time))
+	// Every calls beat each time the clock passes a multiple of d (14:00, 14:05 for five
+	// minutes), with that multiple, until ctx ends; it returns at once. A clock passing
+	// several at once, as a machine waking up does, beats once, with the latest.
+	Every(ctx context.Context, d time.Duration, beat func(at time.Time))
 }
 
 // Real is the machine's time, told in loc.
@@ -29,7 +29,7 @@ type real struct{ loc *time.Location }
 
 func (r real) Now() time.Time { return time.Now().In(r.loc) }
 
-func (r real) Every(ctx context.Context, d time.Duration, beat func(now time.Time)) {
+func (r real) Every(ctx context.Context, d time.Duration, beat func(at time.Time)) {
 	go func() {
 		for {
 			timer := time.NewTimer(time.Until(r.Now().Truncate(d).Add(d)))
@@ -38,7 +38,7 @@ func (r real) Every(ctx context.Context, d time.Duration, beat func(now time.Tim
 				timer.Stop()
 				return
 			case <-timer.C:
-				beat(r.Now())
+				beat(r.Now().Truncate(d))
 			}
 		}
 	}()
@@ -56,7 +56,7 @@ type Manual struct {
 type manualBeat struct {
 	ctx  context.Context
 	d    time.Duration
-	beat func(now time.Time)
+	beat func(at time.Time)
 }
 
 // NewManual returns a clock standing at now.
@@ -70,25 +70,25 @@ func (m *Manual) Now() time.Time {
 }
 
 // Set moves the clock to now, and beats each beat whose interval has a multiple since the
-// time it stood at, up to now.
+// time it stood at, up to now, with the latest.
 func (m *Manual) Set(now time.Time) {
 	m.mu.Lock()
 	was := m.now
 	m.now = now
-	var due []func(time.Time)
+	var due []func()
 	for _, b := range m.beats {
-		if b.ctx.Err() == nil && now.Truncate(b.d).After(was) {
-			due = append(due, b.beat)
+		if at := now.Truncate(b.d); b.ctx.Err() == nil && at.After(was) {
+			due = append(due, func() { b.beat(at) })
 		}
 	}
 	m.mu.Unlock()
 	for _, beat := range due {
-		beat(now)
+		beat()
 	}
 }
 
 // Every beats beat whenever Set passes a multiple of d, until ctx ends.
-func (m *Manual) Every(ctx context.Context, d time.Duration, beat func(now time.Time)) {
+func (m *Manual) Every(ctx context.Context, d time.Duration, beat func(at time.Time)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.beats = append(m.beats, manualBeat{ctx, d, beat})

@@ -41,8 +41,8 @@ type Harness struct {
 	// Client is the User's browser: it keeps cookies.
 	Client *http.Client
 	// Clock is the app's clock, standing at Monday 2 November 2026 in
-	// clock.DefaultZone until the test moves it. Moving it past a beat
-	// runs the scheduler before Set returns.
+	// clock.DefaultZone until the test moves it. Moving it past a
+	// beat runs the scheduler before Set returns.
 	Clock *clock.Manual
 	// Auth is the fake Supabase Auth the app signs Users in through.
 	Auth *FakeAuth

@@ -73,7 +73,7 @@ func (a *App) Close() { a.pool.Close() }
 // Schedule starts the scheduler, which beats on the app's clock every kitchen.BeatEvery
 // and brings every User's kitchen up to now, until ctx ends.
 func (a *App) Schedule(ctx context.Context) {
-	a.clock.Every(ctx, kitchen.BeatEvery, func(now time.Time) { a.kitchen.Beat(ctx, now) })
+	a.clock.Every(ctx, kitchen.BeatEvery, func(at time.Time) { a.kitchen.Beat(ctx, at) })
 }
 
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
@@ -82,10 +82,10 @@ func (a *App) Schedule(ctx context.Context) {
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
-	upToNow := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
-	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(upToNow.UpToNow(h)) }
+	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
+	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
-		return signIn.SignedIn(upToNow.UpToNow(prof.LanguageChosen(h)))
+		return signIn.SignedIn(kit.UpToNow(prof.LanguageChosen(h)))
 	}
 	mux := http.NewServeMux()
 	web.Assets(mux)

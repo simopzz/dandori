@@ -33,9 +33,9 @@ func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveUpTo(ctx, tx, now) })
 }
 
-// Beat brings every User's kitchen up to now, as the scheduler does, and records the beat
+// Beat brings every User's kitchen up to at, the scheduler's beat, and records the beat
 // for each. One User's failure is logged and doesn't stop the others.
-func (s *Service) Beat(ctx context.Context, now time.Time) {
+func (s *Service) Beat(ctx context.Context, at time.Time) {
 	users, err := loadUserIDs(ctx, s.pool)
 	if err != nil {
 		s.log.Error("kitchen beat: list the Users", "err", err)
@@ -43,10 +43,10 @@ func (s *Service) Beat(ctx context.Context, now time.Time) {
 	}
 	for _, id := range users {
 		err := db.AsUser(db.WithUser(ctx, id), s.pool, func(tx pgx.Tx) error {
-			if err := saveUpTo(ctx, tx, now); err != nil {
+			if err := saveUpTo(ctx, tx, at); err != nil {
 				return err
 			}
-			return saveBeat(ctx, tx, now)
+			return saveBeat(ctx, tx, at)
 		})
 		if err != nil {
 			s.log.Error("kitchen beat", "user", id, "err", err)
