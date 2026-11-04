@@ -16,7 +16,7 @@ import (
 
 // ErrLanguageStays is a change of Language once the kitchen holds a food
 // term.
-var ErrLanguageStays = errors.New("Food Terms are written in the Language, so it stays")
+var ErrLanguageStays = errors.New("the User has written Food Terms in the Language, so it stays")
 
 // Service is the signed-in User's Profile.
 type Service struct {
