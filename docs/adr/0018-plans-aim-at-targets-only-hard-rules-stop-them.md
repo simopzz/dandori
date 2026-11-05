@@ -8,7 +8,7 @@ The Targets are aimed at on average over the days the Plan Proposal plans, Meal 
 
 - **v1's gate, loosened tolerances**: a wider band still kills a Run at its edge, and still asks the LLM to do the arithmetic.
 - **Trailing seven days, soft**: makes the planned days make up for days already eaten, a stricter weekly budget that is much harder to hit with whole Portions. The trailing seven days stay on the Plan page, for information.
-- **A solver sizing Portions**: hits the numbers exactly, but Portions stop being what a Recipe makes, which reaches into the Ledger, the Grocery List and every Recipe.
+- **A solver sizing Portions**: hits the numbers exactly, but Dandori would decide what is cooked, and Portions would come in any size. Instead the planner chooses each Prep Session's Portion size, between 0.75× and 1.5× of the Recipe as written, and `check_plan` shows what that does: a "serves 4" Recipe at 450 kcal can then fill a 700 kcal dinner, which whole Portions at the written size never could.
 
 ## Consequences
 
