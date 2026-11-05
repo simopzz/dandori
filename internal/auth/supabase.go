@@ -18,6 +18,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/clock"
 )
@@ -36,8 +39,34 @@ type supabase struct {
 	fetched time.Time      // when keys were last fetched
 }
 
-func newSupabase(cfg Config, c clock.Clock) *supabase {
-	return &supabase{url: cfg.SupabaseURL, apiKey: cfg.PublishableKey, clock: c, http: &http.Client{Timeout: 10 * time.Second}}
+// newSupabase makes each call a client span under the request that made it,
+// named for the call. Its attributes are otelhttp's: never a header or a body,
+// so never a token, the API key or an email. No traceparent header goes to
+// Supabase.
+func newSupabase(cfg Config, c clock.Clock, tp trace.TracerProvider) *supabase {
+	transport := otelhttp.NewTransport(http.DefaultTransport,
+		otelhttp.WithTracerProvider(tp),
+		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string { return callName(r) }))
+	return &supabase{url: cfg.SupabaseURL, apiKey: cfg.PublishableKey, clock: c, http: &http.Client{Timeout: 10 * time.Second, Transport: transport}}
+}
+
+// callName names a call to Supabase Auth's API for its span.
+func callName(r *http.Request) string {
+	switch r.URL.Path {
+	case "/auth/v1/.well-known/jwks.json":
+		return "supabase fetch JWKS"
+	case "/auth/v1/token":
+		return "supabase renew session"
+	case "/auth/v1/otp":
+		return "supabase send magic link"
+	case "/auth/v1/verify":
+		return "supabase verify link"
+	case "/auth/v1/logout":
+		return "supabase sign out"
+	default:
+		return "supabase " + r.Method
+	}
 }
 
 // session is what Supabase Auth answers a redeemed link or a refresh with.

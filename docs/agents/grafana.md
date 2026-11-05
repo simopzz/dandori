@@ -10,6 +10,7 @@ The server's spans and logs go over OTLP to a Grafana Cloud stack in the EU (`in
 | Where from | `resource.deployment.environment.name`: `"prod"` (the server) or `"dev"` (`mise run dev`). Filter on it in every query and panel. |
 | Request spans | server spans named for the route, e.g. `GET /profile`, `GET /{$}` for Home; `http.route` and the status code as attributes. `/healthz` has none. |
 | Query spans | client spans under the request or beat, named for the SQL's operation (`SELECT`, `BEGIN`, …), with the SQL but never its arguments. |
+| Supabase spans | client spans under the request that called Supabase Auth, named for the call: `supabase fetch JWKS` (a fresh server's, or a key it hasn't seen, at most once a minute), `supabase renew session`, `supabase send magic link`, `supabase verify link`, `supabase sign out`. The URL and status code as attributes, never a token, the API key or an email. A 4xx Supabase refused is an error span. |
 | Beat spans | `kitchen beat`, every five minutes on the clock, with its queries under it. |
 | Logs | Loki, carrying `trace_id` and `span_id` when logged in a span. Few for now: `serving` at startup, and errors. Find the labels with `list_loki_label_names` rather than guessing them. |
 
@@ -22,6 +23,7 @@ TraceQL, through the Tempo data source's tools:
 ```
 { resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && kind = server }
 { resource.service.name = "dandori" && name = "kitchen beat" }
+{ resource.service.name = "dandori" && kind = client && name =~ "supabase .*" }
 ```
 
 Request rate and latency per route are TraceQL metrics over the server spans:
