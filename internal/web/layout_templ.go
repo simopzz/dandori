@@ -11,9 +11,9 @@ import templruntime "github.com/a-h/templ/runtime"
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
-// NoTab is a page outside every tab, such as Today. SignedOut is a page before the User is
-// signed in and has chosen their Language, whose shell has no tabs to lead anywhere yet.
-// Each feature adds its tab here, and to the shell in Layout, as it lands.
+// NoTab is a page outside every tab, such as Today. SignedOut is a page before the User
+// is signed in and has chosen their Language, whose shell has no tabs to lead anywhere
+// yet. Each feature adds its tab here, and to the shell in Layout, as it lands.
 const (
 	NoTab      Tab = ""
 	SignedOut  Tab = "signed-out"
@@ -148,10 +148,9 @@ func Layout(title string, current Tab) templ.Component {
 	})
 }
 
-// sky is the README banner's dusk: a dithered ramp down through colours, the sun
-// setting behind Fuji, and the wordmark linking Today. It is the masthead above each
-// page on a phone and the top of the rail on desktop, each hidden where the other
-// shows.
+// sky is the README banner's dusk: a dithered ramp down through colours, the sun setting
+// behind Fuji, and the wordmark linking Today. It is the masthead above each page on a
+// phone and the top of the rail on desktop, each hidden where the other shows.
 func sky(class string, colours []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -328,7 +327,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var15 templ.SafeURL
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 88, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 87, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -359,7 +358,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 94, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 93, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {

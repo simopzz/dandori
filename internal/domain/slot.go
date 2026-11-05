@@ -55,9 +55,9 @@ type Today struct {
 }
 
 // TodayAt is the day's Slots at at, by times. A Slot is now from its time of day up to
-// and including NowFor after, to the minute; the latest such is First. Otherwise First
-// is the next Slot, tomorrow's breakfast once dinner's hour is past, and a dinner whose
-// hour runs past midnight is still now after it.
+// and including NowFor after, to the minute; the latest such is First. Otherwise First is
+// the next Slot, tomorrow's breakfast once dinner's hour is past, and a dinner whose hour
+// runs past midnight is still now after it.
 func TodayAt(at time.Time, times SlotTimes) Today {
 	y, m, d := at.Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, at.Location())

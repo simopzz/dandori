@@ -13,11 +13,7 @@ import (
 templ page(now time.Time, d Day) {
 	@web.Layout(web.T(ctx, msgTodayTitle), web.NoTab) {
 		@web.PageHeader("今日", web.T(ctx, msgToday), now)
-		@web.Section(1, firstText(ctx, now, d)) {
-			@web.Empty() {
-				{ web.T(ctx, msgNoCycle) }
-			}
-		}
+		@web.Section(1, firstText(ctx, now, d))
 		if len(d.Slots.Later) > 0 {
 			@web.Disclosure(web.T(ctx, msgLaterToday)) {
 				@web.Rows() {
@@ -29,6 +25,9 @@ templ page(now time.Time, d Day) {
 					}
 				}
 			}
+		}
+		@web.Empty() {
+			{ web.T(ctx, msgNoCycle) }
 		}
 		@kitchen.Status(now, d.Beat, d.Beaten)
 	}
@@ -42,7 +41,7 @@ func firstText(ctx context.Context, now time.Time, d Day) string {
 	switch {
 	case d.Slots.Now:
 		return web.Tf(ctx, msgNowAt, kind, at)
-	case first.On.Day() != now.Day():
+	case first.On.After(now):
 		return web.Tf(ctx, msgNextTomorrowAt, kind, at)
 	default:
 		return web.Tf(ctx, msgNextAt, kind, at)
