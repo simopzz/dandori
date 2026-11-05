@@ -14,6 +14,8 @@ services:
       DANDORI_SUPABASE_PUBLISHABLE_KEY: ${DANDORI_SUPABASE_PUBLISHABLE_KEY:?}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?}
       OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?}
+      # Tells production's spans and logs from those of `mise run dev`, tagged dev.
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=prod
 
   caddy:
     image: caddy:2.11.7-alpine
