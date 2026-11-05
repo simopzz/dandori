@@ -103,8 +103,8 @@ section rule is two flat strokes, not a blend).
 The sun, Fuji and its tree line are bitmaps in `pixels.go`, rendered on the
 server as inline SVG, one path per colour, each filled by a `px-*` class from a
 `--color-sky-*` token. There is no runtime JS for presentation but the busy
-button's (see [Busy](#busy)). The sun and Fuji
-appear in the sky; the sun alone is the **seal** (`Seal`) on an urgent row.
+button's (see [Busy](#busy)). The sun and Fuji appear in the sky; the sun
+alone is the **seal** (`Seal`) on an urgent row.
 
 Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
 and `aria-hidden`.
@@ -234,8 +234,8 @@ and closing.
 - **Do** use tokens for every colour, space and radius.
 - **Do** let space separate things: hairlines and section rules, not boxes.
 - **Do** keep dithering to the sky, the veil, the chosen segment, a
-  button's hover and the busy state, and the banner's colours other than navy to the sky and
-  the pixel art.
+  button's hover and the busy state, and the banner's colours other than
+  navy to the sky and the pixel art.
 - **Do** give every form one primary `Button`; everything else is a
   `TextButton` or `DestructiveButton`.
 - **Don't** write a colour value outside the token block, or in a template.

@@ -8,7 +8,7 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// A write slow to answer shows the progress bar and the pressed button busy, both gone
+// A write slow to answer shows the busy bar and the pressed button busy, both gone
 // once it lands.
 func TestBrowserShowsASlowWriteIsBusy(t *testing.T) {
 	b := signedUpBrowser(t)
@@ -18,7 +18,7 @@ func TestBrowserShowsASlowWriteIsBusy(t *testing.T) {
 	b.ChooseLanguage(t, "English", "Save")
 	expect := playwright.NewPlaywrightAssertions()
 	if err := expect.Locator(busyBar(b)).ToBeVisible(); err != nil {
-		t.Errorf("the progress bar doesn't show while the write is slow: %v", err)
+		t.Errorf("the busy bar doesn't show while the write is slow: %v", err)
 	}
 	if err := expect.Locator(save(b)).ToHaveAttribute("aria-busy", "true"); err != nil {
 		t.Errorf("Save isn't busy while the write is slow: %v", err)
@@ -27,14 +27,14 @@ func TestBrowserShowsASlowWriteIsBusy(t *testing.T) {
 	held.Release()
 	b.IsAt(t, "/profile?saved")
 	if err := expect.Locator(busyBar(b)).ToBeHidden(); err != nil {
-		t.Errorf("the progress bar stays after the write: %v", err)
+		t.Errorf("the busy bar stays after the write: %v", err)
 	}
 	if err := expect.Locator(save(b)).Not().ToHaveAttribute("aria-busy", "true"); err != nil {
 		t.Errorf("Save stays busy after the write: %v", err)
 	}
 }
 
-// A slow boosted navigation shows the progress bar too, not only a form's post.
+// A slow boosted navigation shows the busy bar too, not only a form's post.
 func TestBrowserShowsASlowNavigationIsBusy(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/")
@@ -45,13 +45,13 @@ func TestBrowserShowsASlowNavigationIsBusy(t *testing.T) {
 	}
 	expect := playwright.NewPlaywrightAssertions()
 	if err := expect.Locator(busyBar(b)).ToBeVisible(); err != nil {
-		t.Errorf("the progress bar doesn't show while the navigation is slow: %v", err)
+		t.Errorf("the busy bar doesn't show while the navigation is slow: %v", err)
 	}
 
 	held.Release()
 	b.IsAt(t, "/profile")
 	if err := expect.Locator(busyBar(b)).ToBeHidden(); err != nil {
-		t.Errorf("the progress bar stays after the navigation: %v", err)
+		t.Errorf("the busy bar stays after the navigation: %v", err)
 	}
 }
 
@@ -60,17 +60,17 @@ func TestBrowserShowsASlowNavigationIsBusy(t *testing.T) {
 func TestBrowserShowsNothingForAQuickWrite(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")
-	if _, err := b.Evaluate(`() => {
+	if _, err := b.Evaluate(`([bar, busy]) => {
 		window.sawBusy = false;
 		const watch = () => {
-			const bar = document.querySelector(".busy-bar");
-			if ((bar && getComputedStyle(bar).visibility === "visible") || document.querySelector("[aria-busy=true]")) {
+			const shown = document.querySelector(bar);
+			if ((shown && getComputedStyle(shown).visibility === "visible") || document.querySelector(busy)) {
 				window.sawBusy = true;
 			}
 			requestAnimationFrame(watch);
 		};
 		watch();
-	}`); err != nil {
+	}`, []string{busyBarSelector, busyButtonSelector}); err != nil {
 		t.Fatalf("watch for the busy state: %v", err)
 	}
 
@@ -79,6 +79,30 @@ func TestBrowserShowsNothingForAQuickWrite(t *testing.T) {
 	b.Sees(t, "Profile saved.")
 	if saw, err := b.Evaluate(`window.sawBusy`); err != nil || saw != false {
 		t.Errorf("a quick write showed the busy state (saw %v, err %v)", saw, err)
+	}
+}
+
+// A slow write that fails takes the busy state down with it, and frees Save to try again.
+func TestBrowserShowsAFailedWriteIsNoLongerBusy(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/profile")
+	held := b.Hold(t, "/profile/language")
+
+	b.ChooseLanguage(t, "English", "Save")
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(busyBar(b)).ToBeVisible(); err != nil {
+		t.Fatalf("the busy bar doesn't show while the write is slow: %v", err)
+	}
+
+	held.Fail()
+	if err := expect.Locator(busyBar(b)).ToBeHidden(); err != nil {
+		t.Errorf("the busy bar stays after the write failed: %v", err)
+	}
+	if err := expect.Locator(save(b)).Not().ToHaveAttribute("aria-busy", "true"); err != nil {
+		t.Errorf("Save stays busy after the write failed: %v", err)
+	}
+	if err := expect.Locator(save(b)).ToBeEnabled(); err != nil {
+		t.Errorf("Save stays disabled after the write failed: %v", err)
 	}
 }
 
@@ -110,7 +134,13 @@ func signedUpBrowser(t *testing.T) *apptest.Browser {
 	return b
 }
 
-func busyBar(b *apptest.Browser) playwright.Locator { return b.Locator(".busy-bar") }
+// The busy bar, and a button marked busy.
+const (
+	busyBarSelector    = ".busy-bar"
+	busyButtonSelector = "[aria-busy=true]"
+)
+
+func busyBar(b *apptest.Browser) playwright.Locator { return b.Locator(busyBarSelector) }
 
 func save(b *apptest.Browser) playwright.Locator {
 	return b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Save"})
