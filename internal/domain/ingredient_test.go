@@ -7,7 +7,7 @@ import (
 )
 
 // Two names are one Ingredient when they normalise alike: case, spaces and apostrophes
-// don't count, nor do plurals or size and grade words, in the User's Language.
+// don't count, nor do size and grade words, in the User's Language.
 func TestIngredientNamesOfOneFoodNormaliseAlike(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -16,21 +16,10 @@ func TestIngredientNamesOfOneFoodNormaliseAlike(t *testing.T) {
 	}{
 		{"case and spaces", domain.English, "  Rolled   Oats ", "rolled oats"},
 		{"a typographic apostrophe", domain.Italian, "fiocchi d’avena", "fiocchi d'avena"},
-		{"a plural in -s", domain.English, "eggs", "egg"},
-		{"a plural in -es", domain.English, "tomatoes", "tomato"},
-		{"a plural in -ies", domain.English, "berries", "berry"},
-		{"a plural of a word ending in e", domain.English, "cheeses", "cheese"},
-		{"a size word", domain.English, "large eggs", "egg"},
+		{"a size word", domain.English, "Large egg", "egg"},
 		{"a hyphenated size", domain.English, "extra-large egg", "egg"},
 		{"a grade", domain.English, "extra virgin olive oil", "olive oil"},
-		{"an Italian plural in -i", domain.Italian, "pomodori", "pomodoro"},
-		{"an Italian plural in -e", domain.Italian, "carote", "carota"},
-		{"an Italian irregular plural", domain.Italian, "uova", "uovo"},
-		{"an Italian plural in -chi", domain.Italian, "funghi", "fungo"},
-		{"an Italian plural in -che", domain.Italian, "pesche", "pesca"},
-		{"an Italian -cia plural", domain.Italian, "arance", "arancia"},
-		{"an Italian -io plural", domain.Italian, "oli", "olio"},
-		{"an Italian size word", domain.Italian, "uova grandi", "uovo"},
+		{"an Italian size word", domain.Italian, "uovo grande", "uovo"},
 		{"an Italian grade", domain.Italian, "olio extravergine d'oliva", "olio d'oliva"},
 		{"an Italian grade in two words", domain.Italian, "olio extra vergine d'oliva", "olio d'oliva"},
 	}
@@ -44,7 +33,9 @@ func TestIngredientNamesOfOneFoodNormaliseAlike(t *testing.T) {
 	}
 }
 
-// Nutritionally different foods stay apart, even when they share a word.
+// Different foods stay apart, even when they share a word or all but a letter, and so do
+// a singular and its plural: no rule tells them from two foods, so only a stem suggests
+// they are one.
 func TestIngredientNamesOfDifferentFoodsNormaliseApart(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -54,9 +45,11 @@ func TestIngredientNamesOfDifferentFoodsNormaliseApart(t *testing.T) {
 		{"egg white is not egg", domain.English, "egg white", "egg"},
 		{"minced chicken is not chicken breast", domain.English, "minced chicken", "chicken breast"},
 		{"fresh pasta is not pasta", domain.Italian, "pasta fresca", "pasta"},
-		{"uova is not uva", domain.Italian, "uova", "uva"},
+		{"pesce is not pesca", domain.Italian, "pesce", "pesca"},
 		{"petto di tacchino is not petto di pollo", domain.Italian, "petto di tacchino", "petto di pollo"},
 		{"word order counts", domain.Italian, "riso basmati", "basmati riso"},
+		{"a plural", domain.English, "eggs", "egg"},
+		{"an Italian plural", domain.Italian, "uova", "uovo"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -65,6 +58,44 @@ func TestIngredientNamesOfDifferentFoodsNormaliseApart(t *testing.T) {
 				t.Errorf("%q and %q both normalise to %q, want them apart", tt.a, tt.b, a)
 			}
 		})
+	}
+}
+
+// A singular and its plural share a stem, size and grade words left out, in the User's
+// Language. So may two foods: "pesce" and "pesca" do, which is why a stem only suggests.
+func TestASingularAndItsPluralShareAStem(t *testing.T) {
+	tests := []struct {
+		name     string
+		language domain.Language
+		a, b     string
+	}{
+		{"a plural in -s", domain.English, "eggs", "egg"},
+		{"a plural in -es", domain.English, "tomatoes", "tomato"},
+		{"a plural in -ies", domain.English, "berries", "berry"},
+		{"a plural of a word ending in e", domain.English, "cheeses", "cheese"},
+		{"a plural with a size word", domain.English, "large eggs", "egg"},
+		{"an Italian plural in -i", domain.Italian, "pomodori", "pomodoro"},
+		{"an Italian plural in -e", domain.Italian, "carote", "carota"},
+		{"an Italian irregular plural", domain.Italian, "uova", "uovo"},
+		{"an Italian plural in -chi", domain.Italian, "funghi", "fungo"},
+		{"an Italian plural in -che", domain.Italian, "pesche", "pesca"},
+		{"an Italian -cia plural", domain.Italian, "arance", "arancia"},
+		{"an Italian -io plural", domain.Italian, "oli", "olio"},
+		{"an Italian plural with a size word", domain.Italian, "uova grandi", "uovo"},
+		{"two foods", domain.Italian, "pesce", "pesca"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, b := domain.IngredientStem(tt.language, tt.a), domain.IngredientStem(tt.language, tt.b)
+			if a != b {
+				t.Errorf("%q has the stem %q and %q %q, want them alike", tt.a, a, tt.b, b)
+			}
+		})
+	}
+	for _, apart := range [][2]string{{"uova", "uva"}, {"egg white", "egg"}, {"pasta fresca", "pasta"}} {
+		if a, b := domain.IngredientStem(domain.Italian, apart[0]), domain.IngredientStem(domain.Italian, apart[1]); a == b {
+			t.Errorf("%q and %q share the stem %q, want them apart", apart[0], apart[1], a)
+		}
 	}
 }
 

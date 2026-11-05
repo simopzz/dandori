@@ -122,21 +122,35 @@ func (i Ingredient) Problems() map[string]Problem {
 // NormaliseIngredientName is the key that identifies an Ingredient named name by a User
 // speaking l: two names with one key are one food, and a User's Ingredients each have
 // their own. Case, spaces and typographic apostrophes don't count, as in v1, nor do size
-// and grade words ("large eggs", "extra virgin olive oil"), and each word is reduced to a
-// stem its singular and plural share. The key is never shown, so it needn't be a word:
-// "uova" and "uovo" are both "uov".
+// and grade words ("large egg", "extra virgin olive oil"). Plurals do: telling them by
+// rule also merges different foods ("pesce" and "pesca"), so IngredientStem only
+// suggests them.
 func NormaliseIngredientName(l Language, name string) string {
-	words := strings.Fields(strings.ToLower(typographicApostrophes.Replace(name)))
-	if kept := withoutSizeWords(l, words); len(kept) > 0 {
-		words = kept
-	}
-	stem := stems[l]
+	return strings.Join(nameWords(l, name), " ")
+}
+
+// IngredientStem is name, normalised as NormaliseIngredientName does, with each word
+// reduced to a stem its singular and plural share: "uova" and "uovo" are both "uov".
+// Different foods may share one too ("pesce" and "pesca" are both "pesc"), so two names
+// with one stem are only likely one food, for the User to confirm.
+func IngredientStem(l Language, name string) string {
+	words, stem := nameWords(l, name), stems[l]
 	for i, w := range words {
 		if len([]rune(w)) > 2 {
 			words[i] = stem(w)
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+// nameWords are name's words in lower case, its apostrophes straight and l's size and
+// grade words left out, unless they are all it has.
+func nameWords(l Language, name string) []string {
+	words := strings.Fields(strings.ToLower(typographicApostrophes.Replace(name)))
+	if kept := withoutSizeWords(l, words); len(kept) > 0 {
+		return kept
+	}
+	return words
 }
 
 // typographicApostrophes folds the apostrophes phones type into a straight one, so
@@ -196,7 +210,7 @@ func englishStem(w string) string {
 // keeps a -chi or -ghi plural hard and the i of a -cia or -io singular, so "funghi" and
 // "fungo" are both "fung", and "arance" and "arancia" "aranc".
 func italianStem(w string) string {
-	if strings.ContainsAny(w[len(w)-1:], "aeio") {
+	if strings.IndexByte("aeio", w[len(w)-1]) >= 0 {
 		w = w[:len(w)-1]
 	}
 	if strings.HasSuffix(w, "ch") || strings.HasSuffix(w, "gh") {

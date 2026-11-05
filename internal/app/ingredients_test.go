@@ -82,8 +82,9 @@ func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {
 	s.Sees("Give it a name.")
 }
 
-// One food is one Ingredient: a name that normalises as an existing one's, a plural or
-// with a size or grade word, is refused on the name, naming the one the User has.
+// One food is one Ingredient: a name that normalises as an existing one's, with a size
+// or grade word, is refused on the name, naming the one the User has. A plural, which no
+// rule tells from another food, is added.
 func TestAnIngredientOfAFoodTheUserHasIsRefused(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -93,12 +94,12 @@ func TestAnIngredientOfAFoodTheUserHasIsRefused(t *testing.T) {
 	s.AddsIngredient(egg)
 
 	large := egg
-	large.Name = "Large Eggs"
+	large.Name = "Large Egg"
 	s.AddsIngredient(large)
 	s.IsRefused()
 	s.Sees("You already have egg: one food is one Ingredient.")
-	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "Large Eggs" {
-		t.Errorf("the refused add form holds name %q, want Large Eggs", got)
+	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "Large Egg" {
+		t.Errorf("the refused add form holds name %q, want Large Egg", got)
 	}
 
 	white := egg
@@ -107,7 +108,8 @@ func TestAnIngredientOfAFoodTheUserHasIsRefused(t *testing.T) {
 	s.Sees("Added egg white.")
 }
 
-// Italian names are normalised as Italian, and values shown with a decimal comma.
+// Italian names are normalised as Italian, and values shown with a decimal comma. Fish
+// is not peach, though only a letter tells them apart.
 func TestIngredientsInItalian(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -121,10 +123,18 @@ func TestIngredientsInItalian(t *testing.T) {
 	s.Sees("uovo frigo per pezzo: 70 kcal proteine 6,3 g carboidrati 0,4 g grassi 4,8 g fibre – non noto zuccheri – non noto")
 
 	s.AddsIngredient(apptest.Ingredient{
-		Name: "Uova grandi", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6", Carbs: "0", Fat: "5",
+		Name: "Uovo grande", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6", Carbs: "0", Fat: "5",
 	})
 	s.IsRefused()
 	s.Sees("Hai già uovo: un cibo è un solo Ingrediente.")
+
+	peach := apptest.Ingredient{Unit: "g", Usual: "fridge", Kcal: "39", Protein: "0.9", Carbs: "9.5", Fat: "0.3"}
+	peach.Name = "pesca"
+	s.AddsIngredient(peach)
+	fish := peach
+	fish.Name, fish.Kcal = "pesce", "120"
+	s.AddsIngredient(fish)
+	s.Sees("Aggiunto: pesce.")
 }
 
 // Posted from the side sheet by htmx, the add form answers with the sheet's body alone:
