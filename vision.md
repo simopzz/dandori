@@ -1,60 +1,46 @@
-> **Note:** This is the original pitch and is kept for its narrative. Where it differs from the current design, `GLOSSARY.md`, `docs/adr/` and the GitHub issues take precedence. Notable differences: planning is per Cycle (~10 days between deliveries) rather than per week; there is no separate Freezer Stash (Portions and Stock Items have a Storage Location); replanning happens through approved Plan Proposals; the guided profiler and Weight Check-ins come in v2; Cooking Mode is v3; all food is prepared in Prep Sessions that yield Portions, including breakfast, snacks and Ingredients eaten as they are; and planning is grounded in a locally stored Known Catalog.
+# Vision
 
-# Product Vision & Architectural Concept
+> v1's original pitch is kept on `main`. Where this differs from `GLOSSARY.md` or `docs/adr/`, those win.
 
-Dandori is an intelligent, adaptive nutritional assistant and agentic co-pilot designed for individuals who want to eat healthy, structured meals without turning meal planning and cooking into a second full-time job. Unlike traditional meal planning applications — which are rigid, static, and focused purely on theoretical planning — Dandori acts as a real-time co-pilot for your kitchen, capable of orchestrating grocery delivery, tracking pantry and freezer stocks, and dynamically reacting to everyday schedule changes.
+Dandori is a meal-planning co-pilot for one person cooking for themselves, who wants to eat structured, healthy meals without planning and cooking becoming a second job. It plans batch-cooked meals around one supermarket Delivery at a time, knows what is in the kitchen and when, tells you what to do today, and adapts when the week doesn't go to plan. A few invited Users each have their own Dandori: their own kitchen, Recipes and Language, sharing nothing.
 
-## Core Philosophy & Operational Workflow
+## Ideas
 
-1. Interactive Onboarding & Goal Profiling
-For users who do not know their exact caloric or macronutrient requirements, Dandori begins with a guided, conversational onboarding profiler. By asking targeted questions regarding body metrics, lifestyle, daily movement, and health goals, the system calculates a personalized baseline for daily calories and macronutrient splits (protein, carbs, fats).
+- **Cook once, eat three times.** A dinner yields three Portions: one now, one for lunch two days later, one for the freezer.
+- **Low-care cooking.** Recipes where the oven or the Instant Pot does the work: a few active minutes, the rest unattended.
+- **Plan per Delivery.** A Cycle is what one Delivery has to last, about ten days, to keep delivery costs down.
+- **The agent proposes, you approve.** The Plan changes only through a Plan Proposal you approve, and you see every step the agent takes.
+- **What wasn't contradicted happened.** Dandori assumes the Plan went as planned at each Slot's time. You correct only what went otherwise.
+- **Targets are aimed at, not enforced.** A Plan aims at your calories and protein over the days it plans, and shows where it lands. It's your call to approve one that misses.
+- **Nothing is bought for you.** Dandori never checks out.
 
-2. Low-Care Cooking & Asymmetric Batching ("Cook 1, Eat 3")
-Recognizing that weekday lunch breaks offer far less time than evening dinners, Dandori shifts the heavy lifting to dinner sessions while keeping active kitchen time to a minimum:
+## A Cycle, week to week
 
-- "Low-Care" Appliance-First Recipes: The engine prioritizes recipes utilizing appliances that require minimal active supervision — such as Microwave Ovens, Electric Ovens, Instant Pots, Air Fryers, and Slow Cookers. Prep work is capped at 10–15 minutes, letting appliances handle the rest passively.
+1. **Three days before the next Delivery**, Today reminds you to plan the next Cycle. The planner reads your Profile, Planning Brief, the Recipe Library, what the kitchen will hold when the Delivery arrives and the Exceptions you've logged ahead, and proposes a Plan: Prep Sessions, which Portion fills each Slot, and what goes in the freezer.
+2. **You approve it**, or reject it with a Planning Note saying what to change, and it plans again.
+3. **You order.** The Grocery List is what the Plan needs beyond what the kitchen will hold, with Staples to check. You fill the supermarket cart and mark the Delivery ordered.
+4. **The Delivery arrives.** Today tells you where everything goes: most of it in its usual place, some of a fresh Ingredient used late in the Cycle in the freezer.
+5. **Every day**, Today shows the day's Slots, the next one first: what to eat, when to start preparing and with what, and what to take out of the freezer tonight. It lists what it assumed since you last looked, so you can correct a snack you forgot or a dinner you skipped.
+6. **When the week changes**, you log an Exception: a Meal Out, a skipped Slot, a swap, a Prep Session not prepared, a Portion thrown away. If the Plan relied on it, a Plan Proposal repairs the rest.
+7. **What carries over** (Portions in the freezer, stock left) is what the next Cycle's Plan starts from.
 
-- Asymmetric Portion Allocation: When cooking dinner, the system defaults to generating 3 portions:
+## Features
 
-    * Portion 1: Consumed immediately for dinner.
+**M1: one real Cycle on v2, v1 retired**
 
-    * Portion 2: Scheduled as a quick lunch 2 days later (staggered to avoid back-to-back meal repetition).
+- Ingredients with their nutrition (calories, protein, carbs, fat, fibre, sugar), usual Storage Location and Staples. The Kitchen Ledger, and Counts to correct it.
+- Recipes pasted and parsed by the agent into Recipe Drafts you check, with active and total minutes and the kinds of Slot they suit. Every Run with its live Trace.
+- The Profile: Targets, exclusions and allergies, the appliances you own, Slot times, the Meal Out estimate, and the Planning Brief.
+- Cycles, Deliveries, the planner and Plan Proposals, planning the next Cycle against what carries over.
+- The Grocery List, filled into the cart by hand.
+- The Plan over time on Today: preparing, thawing, putting away, and what was assumed.
+- Exceptions, and the Plan Proposals that repair around them.
 
-    * Portion 3: Tagged and added to the Freezer Stash for zero-prep retrieval on busy days.
+**M2**
 
-3. Real-Time Grocery E-Commerce & Playwright MCP Cart Automation
-To bridge the gap between meal plans and store availability, Dandori integrates directly with online grocery stores (e.g., local supermarket delivery platforms). Driven by a throttled, rate-limited Playwright MCP (Model Context Protocol) Server, the agent safely browses live store catalogs, verifies actual product availability, unit prices, and package sizes, and automatically populates your online shopping cart — grounding every generated recipe in items you can actually buy and deliver.
+- The Known Catalog and Product Mapping, read from the supermarket through a browser extension, and Cart Fill through the same extension, stopping at the cart.
+- The Kitchen Check before planning, Shortfalls, Delivery reports, Plan Proposals that move a Cycle's end date, and Ingredients linked to your exclusions and allergies.
 
-4. Dynamic Event Recalibration
-When real-life interruptions occur — a last-minute dinner out, an unexpected late meeting, or an unconsumed leftover — the user simply inputs the event. The AI agent instantly recalculates the remainder of the week's meal schedule, reallocating existing pantry and freezer items to guarantee zero food waste while maintaining target weekly nutritional macros.
+**Later**
 
-5. Hands-Free Kitchen "Cooking Mode"
-When it is time to cook, Dandori transitions into a distraction-free interface optimized for smartphones and tablets resting on kitchen counters:
-
-Screen Keep-Alive: Uses the HTML5 Web Screen Wake Lock API to keep the screen active continuously, eliminating the need to unlock the device with wet or messy hands.
-
-High-Contrast Layout: Features large typography, exact session-adjusted ingredient quantities, step-by-step instructions, and integrated hands-free timers.
-
-## Complete Key Feature List
-
-- Guided Macro & Calorie Profiler: Interactive questionnaire estimating daily caloric needs and macronutrient distribution targets based on individual physical metrics and goals.
-
-- "Cook 1, Eat 3" Asymmetric Batching Engine: Automated scheduling that yields an immediate dinner portion, a deferred lunch portion (staggered 2+ days to prevent monotony), and a frozen portion.
-
-- Low-Care Appliance Optimization: Priority filtering for recipes optimized for Microwave, Electric Oven, Instant Pot, and Air Fryer, minimizing active stovetop management.
-
-- Pantry & Freezer Stash Inventory Tracker: Digital tracking for fresh pantry items, expiration dates, and frozen prepared portions ready for rapid microwave or oven reheating.
-
-- Playwright MCP Grocery Cart Automation: Rate-limited local browser agent that searches live supermarket catalogs, verifies stock, and auto-fills online delivery carts with exact recipe ingredients.
-
-- Dynamic Event Recalibration Engine: Real-time schedule realignment triggered by last-minute events (eating out, schedule changes, leftover variations) with zero-waste optimization.
-
-- Smart Consolidated Grocery List: Aggregated shopping list categorized by supermarket aisle, cross-referenced with existing pantry inventory to avoid duplicate purchases.
-
-- Hands-Free Cooking Mode with Screen Keep-Alive: Full-screen kitchen display utilizing the Web Screen Wake Lock API to lock the display on, featuring step-by-step instructions, session portioning, and active timers.
-
-- One-Tap Swap & Substitute: Fast substitution of individual ingredients or full meals with nutritionally equivalent alternatives based on live supermarket availability.
-
-- Semantic Vector Recipe Search: Natural language search powered by PostgreSQL pgvector, filtering recipes by available pantry/freezer ingredients, low-care appliance type, prep time, or current cravings.
-
-- Agent Execution Trace Panel (Portfolio Showcase): Developer-centric interface displaying the AI agent's step-by-step chain-of-thought, Playwright interactions, and MCP tool invocations in real time.
+- Browsing earlier Cycles, Weight Check-ins and Target Proposals, a guided profiler for Targets, Cooking Mode with the screen kept on and timers, and searching Recipes by meaning.

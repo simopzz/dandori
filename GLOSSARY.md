@@ -49,7 +49,7 @@ _Avoid_: Eating out, craving, cheat meal
 ### Cooking and food
 
 **Recipe**:
-A reusable description of a dish: its Ingredients with their quantities, steps, required appliances, how many Portions it makes as written, and the kinds of Slot its Portions may be eaten at (a breakfast Recipe may also fill a snack, never a lunch).
+A reusable description of a dish: its Ingredients with their quantities, steps, required appliances, how many Portions it makes as written, the kinds of Slot its Portions may be eaten at (a breakfast Recipe may also fill a snack, never a lunch), and two times: its active minutes, spent at it, and its total minutes, from starting to eating, the appliances' unattended time included.
 _Avoid_: Dish
 
 **Recipe Draft**:
@@ -69,7 +69,7 @@ One ready-to-eat serving produced by a Prep Session, kept in a Storage Location 
 _Avoid_: Serving, leftover
 
 **Ingredient**:
-A food as such (chicken breast, rolled oats), measured in one unit (grams, millilitres or pieces), with its nutritional values per 100 g, per 100 ml or per piece; what a Recipe lists and what a Stock Item is a quantity of. It is measured as it goes into a dish: drained, for food packed in liquid.
+A food as such (chicken breast, rolled oats), measured in one unit (grams, millilitres or pieces), with its nutritional values (calories, protein, carbs, fat, fibre and sugar) per 100 g, per 100 ml or per piece, and the Storage Location it is usually kept in; what a Recipe lists and what a Stock Item is a quantity of. It is measured as it goes into a dish: drained, for food packed in liquid.
 _Avoid_: Pantry item, product
 
 **Kitchen Ledger**:
@@ -77,7 +77,7 @@ The record of every Movement in the kitchen, in the order they happen; what the 
 _Avoid_: Inventory log, history
 
 **Movement**:
-One change to what the kitchen holds, with when it happened and what caused it: Stock Items seeded, delivered, used up by a Prep Session, corrected or discarded; Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report); nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
+One change to what the kitchen holds, with when it happened and what caused it: Stock Items seeded, delivered, put away or moved between Storage Locations, used up by a Prep Session, corrected or discarded; Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report); nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
 _Avoid_: Transaction, delta, stock change
 
 **Today**:
@@ -123,16 +123,12 @@ _Avoid_: Account, tenant, household
 ### Goals
 
 **Profile**:
-The user's stored settings: their Language, and for nutrition the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, the Untracked Allowance, and the time of day of each kind of Slot.
+The user's stored settings: their Language, and for nutrition the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, and the time of day of each kind of Slot; and the kitchen appliances they own, the only ones a Plan's Recipes may need.
 _Avoid_: Settings, preferences
 
 **Target**:
-A daily calorie or macro goal held in the Profile.
+A daily goal held in the Profile, each with its direction: calories as a range, protein and fibre as floors, sugar as a ceiling. Carbs and fat have none: they are shown, never aimed at.
 _Avoid_: Goal, budget
-
-**Untracked Allowance**:
-A fixed daily amount of calories and macros the user expects to eat outside the Plan, reserved before Slots are filled.
-_Avoid_: Buffer, fudge factor
 
 **Target Proposal**:
 A suggested change to the Targets, produced by the agent, that takes effect only when the user approves it.
@@ -161,7 +157,7 @@ The user-editable link from an Ingredient to the Catalog Product preferred for b
 _Avoid_: Product match, SKU mapping
 
 **Grocery List**:
-What a Cycle's Plan needs minus the stock the kitchen will hold when its Delivery arrives (the Stock Items left once the current Cycle's Prep Sessions have used theirs up), rounded up to whole Catalog Products through each Ingredient's Product Mapping, grouped by aisle. An Ingredient with no Product Mapping is flagged and listed at what is needed. It follows the Plan until its Delivery is marked ordered, which fixes it; so a Delivery is marked ordered only once its Cycle has a Plan. Once its Delivery arrives, everything on it becomes Stock Items, the rounding surplus included, each in the Storage Location its aisle suggests.
+What a Cycle's Plan needs minus the stock the kitchen will hold when its Delivery arrives (the Stock Items left once the current Cycle's Prep Sessions have used theirs up), rounded up to whole Catalog Products through each Ingredient's Product Mapping, grouped by aisle. An Ingredient with no Product Mapping is flagged and listed at what is needed. It follows the Plan until its Delivery is marked ordered, which fixes it; so a Delivery is marked ordered only once its Cycle has a Plan. Once its Delivery arrives, everything on it becomes Stock Items, the rounding surplus included, put away as the Plan says.
 _Avoid_: Shopping list, order
 
 **Cart Fill**:
@@ -186,12 +182,13 @@ _Avoid_: Log entry, step
 
 - A Prep Session at dinner yields three Portions by default: eaten now, eaten as lunch two days later, and a third scheduled two to three days after the second is eaten. The third is typically frozen. Other Prep Sessions yield as many Portions as their planned eating needs, often a single one eaten straight away.
 - A Prep Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Prep Sessions.
-- A Prep Session of a Recipe scales its Ingredients to the Portions the Prep Session yields: a Recipe that makes four Portions, cooked for three, uses three quarters of each Ingredient. Nutritional values per Portion are the same either way.
+- A Prep Session of a Recipe scales its Ingredients to the Portions the Prep Session yields and to their size, which it chooses between three quarters and one and a half of a Portion as the Recipe is written, the same for all of them: a Recipe that makes four Portions, cooked for three at the size written, uses three quarters of each Ingredient; cooked for three at one and a quarter, a little under one each. A Portion's nutritional values scale with its size. A Recipe keeps the Portions it makes as written, so it can be checked against where it came from.
 - Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg), or one the kitchen can't make from the other, which the Grocery List must buy as such (minced chicken is not chicken breast). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values: on its Recipe Draft, where they can be edited, or by approving a Plan Proposal that prepares the draft as it is.
 - Every Food Term is in the User's Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
-- Targets are evaluated over a trailing seven days, independent of Cycle boundaries: calories within ±5%, protein as a floor. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.
-- An Exception logged ahead is input to the planning Run when the Plan doesn't rely on it yet, and leads to a Plan Proposal like any other when it does. Its Slot gets no Portion and no Prep Session; when cooking is impossible on a day without one, the user says so in a note. A Meal Out counts toward the Targets with the Profile's default estimate unless the Exception gives its own; a skipped Slot counts as nothing. Changing or removing it works the same way. It belongs to its day and Slot kind, not to a Cycle: it outlives a moved Delivery or a dropped Cycle, and counts toward the Targets even if its day ends up between Cycles. Once its day is past it stands as what happened, unless the user changes it.
+- A Plan Proposal aims at the Targets on average over the days it plans, Meal Outs on those days included: calories within ±5%, with no planned day more than 25% off its Targets. Days already eaten are shown, as the trailing seven days, but never made up. Missing a Target never stops a Plan Proposal: it shows on it, for the user to weigh. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.
+- An Exception logged ahead is input to the planning Run when the Plan doesn't rely on it yet, and leads to a Plan Proposal like any other when it does. Its Slot gets no Portion and no Prep Session; when cooking is impossible on a day without one, the user says so in a note. A Meal Out counts toward the Targets with the Profile's default estimate unless the Exception gives its own; a skipped Slot counts as nothing. Changing or removing it works the same way. It belongs to its day and Slot kind, not to a Cycle: it outlives a moved Delivery or a dropped Cycle, and counts toward what was eaten even if its day ends up between Cycles. Once its day is past it stands as what happened, unless the user changes it.
+- A Delivery's Stock Items are put away in their Ingredient's usual Storage Location, unless the Plan splits one: some of a fresh Ingredient used late in the Cycle goes in the freezer (of 800 g chicken breast, 400 g to the freezer). Today shows where each goes once the Delivery arrives, and frozen stock is thawed like frozen Portions.
 - A Plan uses first the Stock Items that would spoil first, judging by what they are and their Storage Location (fresh fish in the fridge before rice in the pantry). Dandori records no expiry dates.
 - A Prep Session uses up its Ingredients once, from the Stock Items holding each, the oldest first, whatever their Storage Location. A Stock Item used up leaves the kitchen. Stock that falls short is used up as far as it goes, never below nothing. A correction the user makes to a Stock Item afterwards stands: it is never used up again. A Prep Session logged not prepared gives back what it used up, as it was.
 - The Plan is taken to happen as dated until an Exception says otherwise: a Prep Session is prepared from its Slot's time of day on, using up the Stock Items of its Ingredients, and a Portion is eaten once its Slot's time of day is past. Until then they are planned; after, assumed, until the user confirms or corrects them. Prepared Portions not yet eaten, and Stock Items, are what the kitchen holds.
@@ -209,6 +206,6 @@ _Avoid_: Log entry, step
 - A Delivery arriving before the current Cycle's end date closes that Cycle early, and what is left carries over as Portions without a Slot and Stock Items. Its Plan Proposals still pending are rejected, and its planning Run going is cancelled, since its Plan no longer changes: they were not replaced, their Cycle closed, and the Run names the Delivery that closed it.
 - An upcoming Cycle's Delivery can be moved until it arrives. A move, or a Plan Proposal approved in the current Cycle that changes what will carry over, leaves the upcoming Cycle's Plan needing a new Plan Proposal; it never changes silently. Once its Delivery is ordered, that Plan Proposal must make do with what is ordered and what carries over.
 - An upcoming Cycle can be cancelled, by dropping it while its Delivery is tentative or by reporting the Delivery cancelled once ordered. It is dropped with its Plan Proposals, and its planning Run going is cancelled, since its Cycle was dropped; the current Cycle's pending Plan Proposal stays. Its days become days between Cycles.
-- Cycles may have days between them. Those days have no Plan and no Slots, but what is eaten on them still counts toward the Targets.
+- Cycles may have days between them. Those days have no Plan and no Slots, but what is eaten on them still counts toward what was eaten, shown against the Targets.
 - Cancelling a Run rolls nothing back: what it already did (products in the cart, Catalog Products seeded) stays, and running it again finishes the work. A cancelled planning Run produces no Plan Proposal.
 - A Run still going when Dandori stops counts as failed, not cancelled: only the user cancels a Run, or, for a planning Run, whatever would replace its Plan Proposal or ends its Cycle (a Delivery closing it, or the Cycle dropped), and the Run names it.
