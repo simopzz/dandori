@@ -6,8 +6,10 @@
 //
 // Configuration comes from the environment: DANDORI_DATABASE_URL,
 // DANDORI_SUPABASE_URL and DANDORI_SUPABASE_PUBLISHABLE_KEY (required to
-// serve), DANDORI_ADDR (default 127.0.0.1:8080) and DANDORI_TIMEZONE, the
-// zone a day starts and ends in (default Europe/Rome).
+// serve), DANDORI_ADDR (default 127.0.0.1:8080), DANDORI_TIMEZONE, the
+// zone a day starts and ends in (default Europe/Rome), and
+// OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, where spans and
+// logs go and the token they are sent with (unset, they go nowhere).
 package main
 
 import (
@@ -24,6 +26,7 @@ import (
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
+	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 func main() {
@@ -66,7 +69,20 @@ func run(log *slog.Logger, args []string) error {
 				return fmt.Errorf("%s is not set", name)
 			}
 		}
-		return serve(ctx, log, cfg, addr)
+		tel, err := telemetry.Setup(ctx)
+		if err != nil {
+			return fmt.Errorf("telemetry: %w", err)
+		}
+		defer func() {
+			// ctx has ended by now: what is still buffered gets a moment of its own.
+			flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := tel.Shutdown(flushCtx); err != nil {
+				log.Warn("flush telemetry", "err", err)
+			}
+		}()
+		cfg.Tracing = tel.Tracing
+		return serve(ctx, telemetry.Logger(os.Stderr, tel.Logs), cfg, addr)
 	case "healthcheck":
 		return healthcheck(ctx, addr)
 	default:

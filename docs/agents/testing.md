@@ -6,7 +6,7 @@ Time is an input (ADR-0014): the app reads it only from the `clock.Clock` it is 
 
 ## Seam 1: the app over HTTP
 
-`internal/app/*_test.go`. `apptest.Start` boots the whole app in-process against its own freshly migrated Postgres + pgvector database, cloned per test; start the server once with `mise run testdb`. The app runs on `h.Clock`, a `clock.Manual` standing at the start of Monday 2 November 2026 in `clock.DefaultZone` (Europe/Rome) until the test moves it. The scheduler beats on that clock too: moving it past a multiple of five minutes runs the beat for every User before the move returns, once however many it passes. Assert on what the User sees, and reach into the database with `h.Exec` only to stand in for something no page does yet, or for a failure; `h.Logged()` is what the app has logged. Seam 1 has two layers.
+`internal/app/*_test.go`. `apptest.Start` boots the whole app in-process against its own freshly migrated Postgres + pgvector database, cloned per test; start the server once with `mise run testdb`. The app runs on `h.Clock`, a `clock.Manual` standing at the start of Monday 2 November 2026 in `clock.DefaultZone` (Europe/Rome) until the test moves it. The scheduler beats on that clock too: moving it past a multiple of five minutes runs the beat for every User before the move returns, once however many it passes. Assert on what the User sees, and reach into the database with `h.Exec` only to stand in for something no page does yet, or for a failure; `h.Logged()` is what the app has logged. The app makes no spans unless a test gives it a tracer provider through `apptest.WithConfig`, as `spans_test.go` does with an in-memory exporter. Seam 1 has two layers.
 
 ### Scenarios (the bulk)
 

@@ -28,7 +28,7 @@ func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l, ok, err := h.Service.Language(r.Context())
 		if err != nil {
-			httpx.ServerError(w, h.Log, "load the User's Language", err)
+			httpx.ServerError(w, r, h.Log, "load the User's Language", err)
 			return
 		}
 		if !ok {
@@ -86,7 +86,7 @@ func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) goneHomeIfChosen(w http.ResponseWriter, r *http.Request) bool {
 	_, ok, err := h.Service.Language(r.Context())
 	if err != nil {
-		httpx.ServerError(w, h.Log, "load the User's Language", err)
+		httpx.ServerError(w, r, h.Log, "load the User's Language", err)
 		return true
 	}
 	if ok {
@@ -104,7 +104,7 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 		return false
 	}
 	if err != nil {
-		httpx.ServerError(w, h.Log, "set the User's Language", err)
+		httpx.ServerError(w, r, h.Log, "set the User's Language", err)
 		return false
 	}
 	web.KeepLanguage(w, r, l)
@@ -114,7 +114,7 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status int, f LanguageForm) {
 	email, err := h.Email(r.Context())
 	if err != nil {
-		httpx.ServerError(w, h.Log, "load the User's email", err)
+		httpx.ServerError(w, r, h.Log, "load the User's email", err)
 		return
 	}
 	httpx.Render(w, r, h.Log, status, profilePage(h.Clock.Now(), email, f))

@@ -45,7 +45,7 @@ func (h Handlers) SignedIn(next http.Handler) http.Handler {
 			return
 		}
 		if err != nil {
-			httpx.ServerError(w, h.Log, "authenticate", err)
+			httpx.ServerError(w, r, h.Log, "authenticate", err)
 			return
 		}
 		if renewed != nil {
@@ -66,7 +66,7 @@ func (h Handlers) SendLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.SendMagicLink(r.Context(), email, origin(r)+"/auth/confirm"); err != nil {
-		h.Log.Error("send magic link", "err", err)
+		h.Log.ErrorContext(r.Context(), "send magic link", "err", err)
 		httpx.Render(w, r, h.Log, http.StatusBadGateway, signInPage(h.Clock.Now(), SignInForm{Email: email, Failed: true}))
 		return
 	}
@@ -100,7 +100,7 @@ func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		httpx.ServerError(w, h.Log, "redeem magic link", err)
+		httpx.ServerError(w, r, h.Log, "redeem magic link", err)
 		return
 	}
 	keepSession(w, r, tokens)
@@ -112,7 +112,7 @@ func (h Handlers) SignOut(w http.ResponseWriter, r *http.Request) {
 		// Signing out on this browser goes ahead even if Supabase can't
 		// revoke the session.
 		if err := h.Service.SignOut(r.Context(), tokens); err != nil {
-			h.Log.Warn("revoke session", "err", err)
+			h.Log.WarnContext(r.Context(), "revoke session", "err", err)
 		}
 	}
 	clearSession(w, r)
