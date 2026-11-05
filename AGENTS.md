@@ -37,3 +37,7 @@ Any UI work follows the design system in `docs/design.md`: build pages from the 
 ### Browser
 
 Diagnosing a page in a browser, whether a style that won't apply, a slow load or swap, an accessibility failure or a leak, goes through the `chrome-devtools` MCP server in `.mcp.json`. Clicking through and screenshots go through `playwright-brave`. See `docs/agents/browser-tools.md` before opening either.
+
+### Grafana
+
+What the server did, in production or a `mise run dev` run (a slow request, an error, a beat), and dashboards of it, go through the `grafana` MCP server in `.mcp.json`: Grafana Cloud, where its spans and logs land. See `docs/agents/grafana.md` before querying.
