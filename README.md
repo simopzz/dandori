@@ -8,15 +8,15 @@
 
 - **Cook once, eat three times.** A dinner yields three portions: one eaten now, one as lunch two days later, one for the freezer.
 - **Plan per delivery.** Planning covers one grocery delivery at a time (a Cycle), to keep delivery costs down.
-- **The agent proposes, you approve.** Changes to the plan, such as a meal out, only take effect once you accept them.
-- **Nothing is bought for you.** Cart Fill stops at the cart; there is no checkout.
-- **See what the agent does.** Every agent run has a live trace of its steps.
+- **Today tells you what to do.** What to eat next, when to start cooking, what to thaw tonight. What Dandori assumed happened is there to correct.
+- **The agent proposes, you approve.** Changes to the plan, such as a meal out, only take effect once you accept them, and every agent run has a live trace of its steps.
+- **Nothing is bought for you.** There is no checkout.
 
-The original pitch is in [vision.md](vision.md); the current terminology is in [GLOSSARY.md](GLOSSARY.md) and design decisions are in [docs/adr](docs/adr).
+What it's for and where it's going is in [vision.md](vision.md); the terminology is in [GLOSSARY.md](GLOSSARY.md) and design decisions are in [docs/adr](docs/adr).
 
 ## Status
 
-This is v2, a new codebase (see [ADR-0014](docs/adr/0014-v2-is-a-new-codebase.md)); v1 is frozen on `main`. So far v2 is a binary that deploys to [dandori.simopzz.com](https://dandori.simopzz.com) on every merge to `v2` that changes what runs. Next is the walking skeleton: sign-in by invite, a Profile with Language, an empty Today, the scheduler and a controlled clock. Then v1's features are ported one at a time.
+This is v2, a new codebase (see [ADR-0014](docs/adr/0014-v2-is-a-new-codebase.md)); v1 is frozen on `main`. The walking skeleton is done: an invited User signs in at [dandori.simopzz.com](https://dandori.simopzz.com) by magic link, picks their Language and sees an empty Today, deployed on every merge to `v2`. Next is milestone M1, one real Cycle on v2: Ingredients and the Kitchen Ledger first, then Recipes, the Profile, planning, the Grocery List, the Plan over time and Exceptions.
 
 ## Stack
 
