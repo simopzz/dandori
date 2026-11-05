@@ -47,7 +47,7 @@ templ sheetBody(ings []domain.Ingredient, f AddForm) {
 		}
 	}
 	@addForm(f)
-	@web.Section(2, web.T(ctx, msgYourIngredients)) {
+	@web.Section(0, web.T(ctx, msgYourIngredients)) {
 		if len(ings) == 0 {
 			@web.Empty() {
 				{ web.T(ctx, msgNoIngredients) }
@@ -62,8 +62,10 @@ templ sheetBody(ings []domain.Ingredient, f AddForm) {
 								{ web.T(ctx, msgStaple) }
 							}
 						}
-						<span class="row-meta">{ nutritionText(ctx, ing) }</span>
-						<span class="row-meta">{ web.T(ctx, storageLocationNames[ing.Usual]) }</span>
+						<span class="row-meta">
+							<span>{ web.T(ctx, storageLocationNames[ing.Usual]) }</span>
+							@nutritionFacts(ing)
+						</span>
 					}
 				}
 			}
@@ -81,7 +83,7 @@ templ addForm(f AddForm) {
 		hx-target={ "#" + web.SideSheetBody(sheetID) }
 		hx-swap="innerHTML"
 	>
-		@web.FieldGroup(1, web.T(ctx, msgAddIngredient)) {
+		@web.FieldGroup(0, web.T(ctx, msgAddIngredient)) {
 			<div class="stack">
 				@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
 					<input name="name" value={ f.Name } required autocomplete="off" { invalid(f.Errs["name"])... }/>
@@ -109,7 +111,7 @@ templ addForm(f AddForm) {
 				}
 				@web.FieldRow() {
 					for _, n := range nutrients {
-						@web.Field(web.T(ctx, nutrientNames[n]), web.T(ctx, nutrientHint(n)), f.Errs[n]) {
+						@web.Field(web.T(ctx, nutrientNames[n]), "", f.Errs[n]) {
 							<input
 								type="number"
 								inputmode="decimal"
@@ -141,18 +143,6 @@ var nutrientNames = map[string]web.Message{
 	"kcal": msgKcal, "protein": msgProtein, "carbs": msgCarbs, "fat": msgFat, "fibre": msgFibre, "sugar": msgSugar,
 }
 
-// nutrientHint is what follows a nutritional value's label: its unit, and whether it may
-// be left blank.
-func nutrientHint(field string) web.Message {
-	switch field {
-	case "kcal":
-		return msgKcalHint
-	case "fibre", "sugar":
-		return msgGramsOptional
-	}
-	return msgGramsHint
-}
-
 // invalid marks a control aria-invalid when err says why its value was refused.
 func invalid(err string) templ.Attributes {
 	if err == "" {
@@ -161,19 +151,36 @@ func invalid(err string) templ.Attributes {
 	return templ.Attributes{"aria-invalid": "true"}
 }
 
-// nutritionText is ing's nutritional values, per its unit, unknown ones said so.
-func nutritionText(ctx context.Context, ing domain.Ingredient) string {
-	n := ing.Nutrition
-	return web.Tf(ctx, msgNutritionLine, web.T(ctx, perUnit[ing.Unit]), number(ctx, n.Kcal.Value),
-		grams(ctx, n.Protein), grams(ctx, n.Carbs), grams(ctx, n.Fat), grams(ctx, n.Fibre), grams(ctx, n.Sugar))
+// nutritionFacts are ing's nutritional values, per its unit, one span each for a row's
+// details: calories, then grams of the rest, an unknown one a dash that a screen reader
+// says is unknown.
+templ nutritionFacts(ing domain.Ingredient) {
+	<span>{ web.T(ctx, perUnit[ing.Unit]) }: { web.Tf(ctx, msgKcalValue, number(ctx, ing.Nutrition.Kcal.Value)) }</span>
+	for _, g := range gramFacts(ing.Nutrition) {
+		<span>
+			{ web.T(ctx, g.name) + " " }
+			if g.amount.Known {
+				{ web.Tf(ctx, msgGrams, number(ctx, g.amount.Value)) }
+			} else {
+				<span aria-hidden="true">–</span>
+				<span class="sr-only">{ web.T(ctx, msgUnknown) }</span>
+			}
+		</span>
+	}
 }
 
-// grams is a in grams, or unknown.
-func grams(ctx context.Context, a domain.Amount) string {
-	if !a.Known {
-		return web.T(ctx, msgUnknown)
+// gramFact is one of an Ingredient's nutritional values in grams, with its name.
+type gramFact struct {
+	name   web.Message
+	amount domain.Amount
+}
+
+// gramFacts are n's values in grams, in the order a row shows them.
+func gramFacts(n domain.Nutrition) []gramFact {
+	return []gramFact{
+		{msgProteinShort, n.Protein}, {msgCarbsShort, n.Carbs}, {msgFatShort, n.Fat},
+		{msgFibreShort, n.Fibre}, {msgSugarShort, n.Sugar},
 	}
-	return web.Tf(ctx, msgGrams, number(ctx, a.Value))
 }
 
 // number is v as the User's Language writes it, a decimal comma in Italian.

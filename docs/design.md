@@ -159,8 +159,8 @@ elements themselves.
 | --- | --- |
 | `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
-| `Section(num, title)` | A numbered group of a page's content. |
-| `FieldGroup(num, legend)` | A numbered group of a form's fields. |
+| `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small vermilion square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
+| `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
 | `Hint()` | A quiet paragraph explaining what follows. |
 | `Empty()` | What a list says when it has nothing in it. |
 | `Disclosure(summary)` | A group of a page's content a click away (the day's later Slots on Today): a quiet summary line with a chevron, closed until opened. |
@@ -185,8 +185,8 @@ elements themselves.
 | `Notice()` | Something happened as asked ("Profile saved."). |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop, over a navy dithered veil. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
-| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil. Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
-| `SideSheetLink(id, href, src)` | Opens the `SideSheet` `id`, loading its body from `src`, a fragment. Without htmx it is a plain link to `href`, a page of the same content. A form in the sheet swaps the body (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, the sheet staying open. |
+| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil. Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
+| `SideSheetLink(id, href, src)` | Opens the `SideSheet` `id`, loading its body from `src`, a fragment, and focuses its first field. Without htmx it is a plain link to `href`, a page of the same content. A form in the sheet swaps the body (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, the sheet staying open. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
 | `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |

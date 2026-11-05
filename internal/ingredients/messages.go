@@ -19,26 +19,25 @@ var (
 	msgUsual            = web.Message{En: "Usually kept in", It: "Di solito in"}
 	msgChoose           = web.Message{En: "Choose…", It: "Scegli…"}
 	msgNutritionHint    = web.Message{
-		En: "Per 100 g, per 100 ml or per piece, to match the unit, as on the label.",
-		It: "Per 100 g, per 100 ml o per pezzo, secondo l'unità, come in etichetta.",
+		En: "Per 100 g, per 100 ml or per piece, to match the unit, as on the label: calories in kcal, the rest in grams. Fibre and sugar may be left blank.",
+		It: "Per 100 g, per 100 ml o per pezzo, secondo l'unità, come in etichetta: calorie in kcal, il resto in grammi. Fibre e zuccheri si possono lasciare vuoti.",
 	}
-	msgKcal          = web.Message{En: "Calories", It: "Calorie"}
-	msgProtein       = web.Message{En: "Protein", It: "Proteine"}
-	msgCarbs         = web.Message{En: "Carbs", It: "Carboidrati"}
-	msgFat           = web.Message{En: "Fat", It: "Grassi"}
-	msgFibre         = web.Message{En: "Fibre", It: "Fibre"}
-	msgSugar         = web.Message{En: "Sugar", It: "Zuccheri"}
-	msgGramsHint     = web.Message{En: "g", It: "g"}
-	msgKcalHint      = web.Message{En: "kcal", It: "kcal"}
-	msgGramsOptional = web.Message{En: "g, optional", It: "g, facoltativo"}
-	msgStaple        = web.Message{En: "Staple", It: "Base"}
-	msgStapleHint    = web.Message{En: "always in the kitchen, never counted", It: "sempre in cucina, mai contata"}
-	msgNutritionLine = web.Message{
-		En: "%s: %s kcal, protein %s, carbs %s, fat %s, fibre %s, sugar %s",
-		It: "%s: %s kcal, proteine: %s, carboidrati: %s, grassi: %s, fibre: %s, zuccheri: %s",
-	}
-	msgGrams   = web.Message{En: "%s g", It: "%s g"}
-	msgUnknown = web.Message{En: "unknown", It: "sconosciuto"}
+	msgKcal         = web.Message{En: "Calories", It: "Calorie"}
+	msgProtein      = web.Message{En: "Protein", It: "Proteine"}
+	msgCarbs        = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat          = web.Message{En: "Fat", It: "Grassi"}
+	msgFibre        = web.Message{En: "Fibre", It: "Fibre"}
+	msgSugar        = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgStaple       = web.Message{En: "Staple", It: "Base"}
+	msgStapleHint   = web.Message{En: "always there, never counted", It: "sempre in casa, mai contata"}
+	msgKcalValue    = web.Message{En: "%s kcal", It: "%s kcal"}
+	msgProteinShort = web.Message{En: "protein", It: "proteine"}
+	msgCarbsShort   = web.Message{En: "carbs", It: "carboidrati"}
+	msgFatShort     = web.Message{En: "fat", It: "grassi"}
+	msgFibreShort   = web.Message{En: "fibre", It: "fibre"}
+	msgSugarShort   = web.Message{En: "sugar", It: "zuccheri"}
+	msgGrams        = web.Message{En: "%s g", It: "%s g"}
+	msgUnknown      = web.Message{En: "unknown", It: "non noto"}
 
 	msgNameRequired  = web.Message{En: "Give it a name.", It: "Dagli un nome."}
 	msgUnitRequired  = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}

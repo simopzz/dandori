@@ -111,8 +111,8 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 	}
 }
 
-// The Ingredients side sheet opens from the Kitchen page, over it, and adds an Ingredient
-// there: the sheet stays open, the Ingredient listed and the form cleared. An add refused
+// The Ingredients side sheet opens from the Kitchen page, over it, focused on its first
+// field, and adds an Ingredient there: the sheet stays open, the Ingredient listed and the form cleared. An add refused
 // shows why with focus on the field, the sheet still open and the page under it the same.
 func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
@@ -128,6 +128,9 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	expect := playwright.NewPlaywrightAssertions()
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Fatalf("the Ingredients sheet doesn't open: %v", err)
+	}
+	if err := expect.Locator(sheet.GetByLabel("Name")).ToBeFocused(); err != nil {
+		t.Errorf("opening the sheet doesn't focus its first field: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 
@@ -148,10 +151,10 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 		fill("Name", "egg")
 		choose("Unit", "piece")
 		choose("Usually kept in", "fridge")
-		fill("Calories (kcal)", "70")
-		fill("Protein (g)", "6.3")
-		fill("Carbs (g)", "0.4")
-		fill("Fat (g)", "4.8")
+		fill("Calories", "70")
+		fill("Protein", "6.3")
+		fill("Carbs", "0.4")
+		fill("Fat", "4.8")
 		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"}).Click(); err != nil {
 			t.Fatalf("add egg: %v", err)
 		}
@@ -161,7 +164,7 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("Added egg."); err != nil {
 		t.Fatalf("the sheet doesn't confirm egg was added: %v", err)
 	}
-	if err := expect.Locator(sheet).ToContainText("egg per piece: 70 kcal"); err != nil {
+	if err := expect.Locator(sheet).ToContainText("per piece: 70 kcal"); err != nil {
 		t.Errorf("the sheet doesn't list egg: %v", err)
 	}
 	if err := expect.Locator(sheet.GetByLabel("Name")).ToHaveValue(""); err != nil {

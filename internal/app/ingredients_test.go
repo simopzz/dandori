@@ -27,7 +27,7 @@ func TestAddingIngredients(t *testing.T) {
 	s.AddsIngredient(egg)
 	s.IsAt("/ingredients")
 	s.Sees("Added egg.")
-	s.Sees("egg per piece: 70 kcal, protein 6.3 g, carbs 0.4 g, fat 4.8 g, fibre unknown, sugar unknown fridge")
+	s.Sees("egg fridge per piece: 70 kcal protein 6.3 g carbs 0.4 g fat 4.8 g fibre – unknown sugar – unknown")
 	s.DoesNotSee("No Ingredients yet.")
 
 	s.AddsIngredient(apptest.Ingredient{
@@ -38,11 +38,11 @@ func TestAddingIngredients(t *testing.T) {
 		Name: "olive oil", Unit: "ml", Usual: "pantry", Kcal: "824", Protein: "0", Carbs: "0", Fat: "91.6", Staple: true,
 	})
 	s.Sees("Added olive oil.")
-	s.Sees("egg per piece: 70 kcal")
-	s.Sees("olive oil Staple per 100 ml: 824 kcal, protein 0 g, carbs 0 g, fat 91.6 g, fibre unknown, sugar unknown pantry")
-	s.Sees("Rolled oats per 100 g: 372 kcal, protein 13.5 g, carbs 58.7 g, fat 7 g, fibre 10.1 g, sugar 0 g pantry")
+	s.Sees("egg fridge per piece: 70 kcal")
+	s.Sees("olive oil Staple pantry per 100 ml: 824 kcal protein 0 g carbs 0 g fat 91.6 g fibre – unknown sugar – unknown")
+	s.Sees("Rolled oats pantry per 100 g: 372 kcal protein 13.5 g carbs 58.7 g fat 7 g fibre 10.1 g sugar 0 g")
 	shown, last := apptest.Text(s.Page().Body), -1
-	for _, name := range []string{"egg per", "olive oil Staple", "Rolled oats per"} {
+	for _, name := range []string{"egg fridge", "olive oil Staple", "Rolled oats pantry"} {
 		at := strings.Index(shown, name)
 		if at < 0 {
 			t.Fatalf("the Ingredients don't show %q: %s", name, shown)
@@ -118,7 +118,7 @@ func TestIngredientsInItalian(t *testing.T) {
 		Name: "uovo", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6,3", Carbs: "0.4", Fat: "4.8",
 	})
 	s.Sees("Aggiunto: uovo.")
-	s.Sees("uovo per pezzo: 70 kcal, proteine: 6,3 g, carboidrati: 0,4 g, grassi: 4,8 g, fibre: sconosciuto, zuccheri: sconosciuto frigo")
+	s.Sees("uovo frigo per pezzo: 70 kcal proteine 6,3 g carboidrati 0,4 g grassi 4,8 g fibre – non noto zuccheri – non noto")
 
 	s.AddsIngredient(apptest.Ingredient{
 		Name: "Uova grandi", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6", Carbs: "0", Fat: "5",
@@ -145,7 +145,7 @@ func TestTheIngredientsSheetAddsInPlace(t *testing.T) {
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("adding from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
 	}
-	if shown := apptest.Text(added.Body); !strings.Contains(shown, "Added egg.") || !strings.Contains(shown, "egg per piece") {
+	if shown := apptest.Text(added.Body); !strings.Contains(shown, "Added egg.") || !strings.Contains(shown, "egg fridge per piece") {
 		t.Errorf("the sheet after adding egg shows: %s", shown)
 	}
 	if got := apptest.Form(t, added.Body, "ingredient-add").Get("name"); got != "" {
