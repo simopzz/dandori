@@ -166,6 +166,19 @@ templ CellField(label, err string) {
 	</label>
 }
 
+// Check is a checkbox, the child, before its label; hint, when set, follows the label.
+templ Check(label, hint string) {
+	<label class="check">
+		{ children... }
+		<span>
+			{ label }
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
+		</span>
+	</label>
+}
+
 // FieldError is why a value was rejected, or nothing.
 templ FieldError(err string) {
 	if err != "" {
@@ -287,6 +300,44 @@ templ AddSheet(id, title string, open bool) {
 			}
 		</script>
 	}
+}
+
+// SideSheet is a sheet of content any page can open without leaving it, over the veil:
+// from the right on desktop, from the bottom on a phone. Its body is empty until a
+// SideSheetLink loads it. Each swap into the body opens the sheet, if it isn't open, and
+// focuses the first field marked aria-invalid, so a rejected form in it is shown again
+// in place.
+templ SideSheet(id, title string) {
+	<div id={ id } class="sheet side-sheet" popover role="dialog" aria-labelledby={ id + "-title" }>
+		<div class="sheet-head">
+			<h2 id={ id + "-title" }>{ title }</h2>
+			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">{ T(ctx, msgClose) }</button>
+		</div>
+		<div
+			id={ SideSheetBody(id) }
+			hx-on:htmx:after:swap="const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); this.querySelector('[aria-invalid=true]')?.focus()"
+		></div>
+	</div>
+}
+
+// SideSheetBody is the id of the body of the SideSheet id, which a form in it targets.
+func SideSheetBody(id string) string { return id + "-body" }
+
+// SideSheetLink opens the SideSheet id with its body loaded from src, a fragment. Without
+// htmx it is a plain link to href, a page of the same content. htmx tells the swap to the
+// link, so the link opens the sheet; a form in the body, swapped away, has htmx tell the
+// body instead.
+templ SideSheetLink(id string, href, src templ.SafeURL) {
+	<a
+		href={ href }
+		hx-get={ string(src) }
+		hx-target={ "#" + SideSheetBody(id) }
+		hx-swap="innerHTML"
+		data-sheet={ id }
+		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.matches(':popover-open')) s.showPopover()"
+	>
+		{ children... }
+	</a>
 }
 
 // LanguageSwitch switches the pages before signing in between Languages, each named in

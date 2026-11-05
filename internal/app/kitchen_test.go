@@ -7,6 +7,23 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
+// Today links to the Kitchen page, which tells a new kitchen how to start and opens the
+// Ingredients from its header.
+func TestTodayLinksToTheKitchenPage(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+
+	s.Follows("Open your kitchen")
+	s.IsAt("/kitchen")
+	s.Sees("Kitchen")
+	s.Sees("Nothing in your kitchen yet. Add your Ingredients to start.")
+	s.Follows("Ingredients")
+	s.IsAt("/ingredients")
+	s.Sees("No Ingredients yet.")
+}
+
 // The scheduler beats every five minutes on the clock and brings every User's kitchen up
 // to now, whether or not they have a page open: each one's Today shows the last beat,
 // which a page opened in between leaves as it was.

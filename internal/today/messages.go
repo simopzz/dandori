@@ -14,6 +14,7 @@ var (
 	msgNextTomorrowAt = web.Message{En: "Next: %s tomorrow at %s", It: "A seguire: %s domani alle %s"}
 	msgLaterToday     = web.Message{En: "Later today", It: "Più tardi oggi"}
 	msgNoCycle        = web.Message{En: "No Cycle yet.", It: "Ancora nessun Ciclo."}
+	msgOpenKitchen    = web.Message{En: "Open your kitchen", It: "Apri la tua cucina"}
 )
 
 // slotKindNames are each SlotKind's name, as a page shows it.

@@ -11,6 +11,7 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
 )
 
 // loadLanguage reads the signed-in User's Language, if they have chosen one. It has no
@@ -60,8 +61,8 @@ func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	return err
 }
 
-// loadFoodTerms is the Food Terms the signed-in User has written: none yet, until a slice
-// brings one.
-func loadFoodTerms(context.Context, db.Querier) (domain.FoodTerms, error) {
-	return domain.FoodTerms{}, nil
+// loadFoodTerms is the Food Terms the signed-in User has written: their Ingredients.
+func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) {
+	n, err := ingredients.CountIngredients(ctx, q)
+	return domain.FoodTerms{Ingredients: n}, err
 }

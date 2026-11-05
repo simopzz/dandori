@@ -9,7 +9,7 @@ import (
 )
 
 // Handlers bring the signed-in User's kitchen up to now before every page, so a page is
-// never wrong because the scheduler was late.
+// never wrong because the scheduler was late, and serve the Kitchen page.
 type Handlers struct {
 	Service *Service
 	Clock   clock.Clock
@@ -25,4 +25,9 @@ func (h Handlers) UpToNow(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Show is the Kitchen page.
+func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
+	httpx.Render(w, r, h.Log, http.StatusOK, page(h.Clock.Now()))
 }

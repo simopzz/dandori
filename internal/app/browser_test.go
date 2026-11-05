@@ -110,3 +110,80 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 		t.Error("Today is wider than a phone's screen")
 	}
 }
+
+// The Ingredients side sheet opens from the Kitchen page, over it, and adds an Ingredient
+// there: the sheet stays open, the Ingredient listed and the form cleared. An add refused
+// shows why with focus on the field, the sheet still open and the page under it the same.
+func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/")
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Open your kitchen"}).Click(); err != nil {
+		t.Fatalf("follow the link to the kitchen: %v", err)
+	}
+	b.IsAt(t, "/kitchen")
+	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).Click(); err != nil {
+		t.Fatalf("open the Ingredients: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
+		t.Fatalf("the Ingredients sheet doesn't open: %v", err)
+	}
+	b.IsAt(t, "/kitchen")
+
+	fill := func(label, value string) {
+		t.Helper()
+		if err := sheet.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
+			t.Fatalf("fill %s: %v", label, err)
+		}
+	}
+	choose := func(label, option string) {
+		t.Helper()
+		if _, err := sheet.GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
+			t.Fatalf("choose %s: %v", label, err)
+		}
+	}
+	addEgg := func() {
+		t.Helper()
+		fill("Name", "egg")
+		choose("Unit", "piece")
+		choose("Usually kept in", "fridge")
+		fill("Calories (kcal)", "70")
+		fill("Protein (g)", "6.3")
+		fill("Carbs (g)", "0.4")
+		fill("Fat (g)", "4.8")
+		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"}).Click(); err != nil {
+			t.Fatalf("add egg: %v", err)
+		}
+	}
+
+	addEgg()
+	if err := expect.Locator(sheet).ToContainText("Added egg."); err != nil {
+		t.Fatalf("the sheet doesn't confirm egg was added: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("egg per piece: 70 kcal"); err != nil {
+		t.Errorf("the sheet doesn't list egg: %v", err)
+	}
+	if err := expect.Locator(sheet.GetByLabel("Name")).ToHaveValue(""); err != nil {
+		t.Errorf("the add form isn't cleared after adding: %v", err)
+	}
+	b.IsAt(t, "/kitchen")
+
+	addEgg()
+	if err := expect.Locator(sheet).ToContainText("You already have egg"); err != nil {
+		t.Fatalf("the sheet doesn't refuse egg again: %v", err)
+	}
+	if err := expect.Locator(sheet.GetByLabel("Name")).ToBeFocused(); err != nil {
+		t.Errorf("the refused name isn't focused: %v", err)
+	}
+	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
+		t.Errorf("the sheet closes on a refused add: %v", err)
+	}
+	b.IsAt(t, "/kitchen")
+	b.Sees(t, "Nothing in your kitchen yet.")
+
+	b.Click(t, "Close")
+	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+		t.Errorf("the sheet doesn't close: %v", err)
+	}
+}
