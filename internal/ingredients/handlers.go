@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"github.com/simopzz/dandori/internal/clock"
+	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -20,9 +22,14 @@ type Handlers struct {
 }
 
 // Show is the Ingredients page, searched for its query q, confirming the Ingredient just
-// added, if any.
+// added, if any, or searched for the one just picked.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, http.StatusOK, AddForm{Added: r.URL.Query().Get("added")}, r.URL.Query().Get("q"), false)
+	query := r.URL.Query()
+	f, q := AddForm{Added: query.Get("added"), Picked: query.Get("picked")}, query.Get("q")
+	if f.Picked != "" {
+		q = f.Picked
+	}
+	h.render(w, r, http.StatusOK, f, q, false)
 }
 
 // ShowSheet is the side sheet's body.
@@ -44,13 +51,17 @@ func (h Handlers) ShowList(w http.ResponseWriter, r *http.Request) {
 
 // Add adds an Ingredient. Posted from the side sheet by htmx, it answers with the sheet's
 // body, so the page under it stays: the add form cleared once it is added, or as typed
-// with why it was refused. A plain post lands on the Ingredients page. A name close to
-// an Ingredient's is refused with that one suggested: the User picks it, which adds
-// nothing and searches for it, or confirms the name they typed.
+// with why it was refused. A plain post lands on the Ingredients page. A name close to an
+// Ingredient's is refused with that one suggested: the User picks it, which adds nothing
+// and searches for it, or confirms the name they typed.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	fragment := httpx.IsHTMX(r)
 	if picked := r.PostFormValue("pick"); picked != "" {
-		h.render(w, r, http.StatusOK, AddForm{Picked: picked}, picked, fragment)
+		if !fragment {
+			http.Redirect(w, r, "/ingredients?picked="+url.QueryEscape(picked), http.StatusSeeOther)
+			return
+		}
+		h.render(w, r, http.StatusOK, AddForm{Picked: picked}, picked, true)
 		return
 	}
 	ing, f := parseAddForm(r)
@@ -83,12 +94,16 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 }
 
 // render answers with f and the User's Ingredients a search for q finds, as the sheet's
-// body when fragment is set, else as the Ingredients page.
+// body when fragment is set, else as the Ingredients page. f's Picked is confirmed only
+// if the User has an Ingredient of that name.
 func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, f AddForm, q string, fragment bool) {
 	ings, err := h.Service.Search(r.Context(), q)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 		return
+	}
+	if !slices.ContainsFunc(ings, func(ing domain.Ingredient) bool { return ing.Name == f.Picked }) {
+		f.Picked = ""
 	}
 	if fragment {
 		httpx.Render(w, r, h.Log, status, sheetBody(ings, f, q))

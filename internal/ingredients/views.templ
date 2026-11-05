@@ -64,8 +64,7 @@ templ sheetBody(ings []domain.Ingredient, f AddForm, q string) {
 const listID = "ingredient-list"
 
 // searchForm searches the User's Ingredients as they type, swapping the list alone when
-// htmx sends it, so the field keeps its focus; without htmx it opens the Ingredients
-// page searched.
+// htmx sends it, so the field keeps its focus; without htmx it opens the page searched.
 templ searchForm(q string) {
 	<form
 		id="ingredient-search"
@@ -83,8 +82,8 @@ templ searchForm(q string) {
 	</form>
 }
 
-// list is the User's Ingredients a search for q found, Staples marked, or why there are
-// none.
+// list is the User's Ingredients a search for q found, Staples marked, or why there
+// are none.
 templ list(ings []domain.Ingredient, q string) {
 	if len(ings) == 0 {
 		@web.Empty() {

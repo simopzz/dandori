@@ -69,8 +69,8 @@ func TestClosestIngredientBreaksATieByName(t *testing.T) {
 	}
 }
 
-// A search finds the names that contain what was typed, or are spelled alike, whole or
-// in a run of their words, most alike first; a blank one finds every name, in order.
+// A search finds the names that contain what was typed, or spelled alike, whole or in a
+// run of their words, most alike first; a blank one finds every name, in order.
 func TestSearchingIngredientsByName(t *testing.T) {
 	names := []string{"egg", "egg white", "fiocchi d'avena", "petto di pollo", "polenta", "riso basmati", "zucchine"}
 	tests := []struct {

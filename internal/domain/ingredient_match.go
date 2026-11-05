@@ -44,7 +44,7 @@ func ClosestIngredient(l Language, name string, known []string) (string, bool) {
 // Ingredient. A blank query finds every name.
 func SearchIngredients(query string, names []string) []int {
 	query = fold(query)
-	found := []int{}
+	var found []int
 	scores := map[int]float64{}
 	for i, name := range names {
 		if query == "" {
@@ -58,9 +58,6 @@ func SearchIngredients(query string, names []string) []int {
 		}
 	}
 	slices.SortStableFunc(found, func(a, b int) int { return cmp.Compare(scores[b], scores[a]) })
-	if len(found) == 0 {
-		return nil
-	}
 	return found
 }
 

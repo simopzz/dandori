@@ -216,6 +216,7 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 	}
 
 	s.Presses("ingredient-add", "Use egg")
+	s.IsAt("/ingredients")
 	s.Sees("egg is already one of your Ingredients.")
 	s.DoesNotSee("eggs")
 	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "" {
@@ -237,7 +238,8 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 }
 
 // The suggestion, picking it and confirming the name typed each answer with the side
-// sheet's body alone when htmx posts them.
+// sheet's body alone when htmx posts them. Picking a name the User has no Ingredient of
+// confirms nothing.
 func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -264,6 +266,11 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 	}
 	if shown := apptest.Text(picked.Body); !strings.Contains(shown, "egg is already one of your Ingredients.") || strings.Contains(shown, "eggs") {
 		t.Errorf("the sheet after picking egg shows: %s", shown)
+	}
+
+	pick.Values.Set("pick", "salmone")
+	if shown := apptest.Text(s.HTMXPostForm(t, pick.Action, pick.Values).Body); strings.Contains(shown, "already one of your Ingredients") {
+		t.Errorf("picking an Ingredient the User doesn't have confirms it: %s", shown)
 	}
 
 	confirm := apptest.Press(t, suggested.Body, "ingredient-add", "Add eggs anyway")

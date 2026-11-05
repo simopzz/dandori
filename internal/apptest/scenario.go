@@ -247,8 +247,8 @@ func (s *Scenario) Presses(id, label string) {
 	s.record(fmt.Sprintf("presses %q: %d %s", label, s.page.StatusCode, s.page.Path))
 }
 
-// SearchesIngredients searches the Ingredients for query with the search form on the
-// page open, as a browser without htmx.
+// SearchesIngredients searches the Ingredients for query with the page's search form,
+// as a browser without htmx.
 func (s *Scenario) SearchesIngredients(query string) {
 	s.t.Helper()
 	form := Form(s.t, s.page.Body, "ingredient-search")
