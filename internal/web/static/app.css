@@ -589,12 +589,16 @@ body:has(.htmx-request) .busy-bar { visibility: visible; transition: visibility 
 .busy-bar::before {
   content: "";
   position: absolute;
-  inset: 0 auto 0 -30%;
+  inset: 0 auto 0 0;
   width: 30%;
-  animation: busy-slide 1.2s steps(26) infinite;
+  transform: translateX(-100%);
 }
 
-@keyframes busy-slide { to { left: 100%; } }
+/* The block slides from off the left edge to off the right, starting as the bar
+   shows, so it never appears midway; a transform, so a busy page doesn't stall it. */
+body:has(.htmx-request) .busy-bar::before { animation: busy-slide 1.4s cubic-bezier(0.4, 0, 0.6, 1) 300ms infinite; }
+
+@keyframes busy-slide { to { transform: translateX(calc(100% / 0.3)); } }
 
 .btn[aria-busy="true"] { cursor: progress; animation: busy-step 0.4s steps(2) infinite; }
 
@@ -608,7 +612,7 @@ body:has(.htmx-request) .busy-bar { visibility: visible; transition: visibility 
 
 /* Without motion the bar is still and whole, and still waits its 300 ms. */
 @media (prefers-reduced-motion: reduce) {
-  .busy-bar::before { left: 0; width: 100%; }
+  .busy-bar::before { width: 100%; transform: none; }
 
   body:has(.htmx-request) .busy-bar { transition: visibility 0s 300ms !important; }
 }
