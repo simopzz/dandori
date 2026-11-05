@@ -3,6 +3,8 @@ package apptest
 import (
 	"net/http"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -68,6 +70,52 @@ func (b *Browser) SetClock(t testing.TB, now time.Time) {
 		t.Fatalf("set the clock: status %d: %s", res.Status(), body)
 	}
 }
+
+// Held is the browser's requests to one path, held back as a server slow to answer would,
+// until Release lets them through or Fail drops them.
+type Held struct {
+	release chan struct{}
+	once    sync.Once
+	fail    atomic.Bool
+	count   atomic.Int32
+}
+
+// Hold holds every request the browser makes to path, from now until the returned Held
+// is released, and releases them when the test ends.
+func (b *Browser) Hold(t testing.TB, path string) *Held {
+	t.Helper()
+	h := &Held{release: make(chan struct{})}
+	err := b.Route(b.url+path, func(r playwright.Route) {
+		h.count.Add(1)
+		<-h.release
+		if h.fail.Load() {
+			if err := r.Abort(); err != nil {
+				t.Logf("drop %s: %v", path, err)
+			}
+			return
+		}
+		if err := r.Continue(); err != nil {
+			t.Logf("let %s through: %v", path, err)
+		}
+	})
+	if err != nil {
+		t.Fatalf("hold %s: %v", path, err)
+	}
+	t.Cleanup(h.Release)
+	return h
+}
+
+// Release lets the held requests through, and any made after.
+func (h *Held) Release() { h.once.Do(func() { close(h.release) }) }
+
+// Fail drops the held requests, and any made after, as a lost connection would.
+func (h *Held) Fail() {
+	h.fail.Store(true)
+	h.Release()
+}
+
+// Count is how many requests were held.
+func (h *Held) Count() int { return int(h.count.Load()) }
 
 // Open goes to path, as typed into the address bar.
 func (b *Browser) Open(t testing.TB, path string) {

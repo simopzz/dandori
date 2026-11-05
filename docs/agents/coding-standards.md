@@ -62,10 +62,12 @@ Rules code review checks against. Each says what it protects.
   tell failure from success.*
 - **A write can't be submitted twice.** `hx-disable` on `<body>` disables a
   form's buttons while its request is in flight; a form that opts out of
-  the boost keeps the same. A request slow in itself shows an
-  `hx-indicator`; work that calls the model runs as a Run and shows its
-  Trace instead. *Protects: no duplicate writes, and the user knows
-  something is happening.*
+  the boost keeps the same. *Protects: no duplicate writes.*
+- **A slow request shows the shared busy state**, not an `hx-indicator` of
+  its own: `Layout`'s busy bar and the pressed button, after 300 ms
+  ([Busy](../design.md#busy)). Work that calls the model runs as a Run and
+  shows its Trace instead. *Protects: the user knows something is
+  happening, the same way on every page.*
 - **Use a shipped extension before writing JS.** Streaming, preloading and
   similar behaviour come from htmx's own extensions (`hx-sse.js` for SSE),
   vendored next to `htmx.min.js`; a JS island is for what htmx can't do

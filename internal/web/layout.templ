@@ -16,7 +16,8 @@ const (
 // dusk sky on a phone), the navigation (bottom tabs on a phone, a rail under the sky
 // on desktop) with the page's tab marked, and the page's content. Every link and
 // form is boosted, with a form's buttons disabled while its request is in flight;
-// ADR 0009 says why a rejection keeps its address and why settling is off.
+// ADR 0009 says why a rejection keeps its address and why settling is off. A request
+// slower than 300 ms shows the busy bar along the top, and its pressed button busy.
 templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
 	<html lang={ string(LanguageOf(ctx)) }>
@@ -36,6 +37,8 @@ templ Layout(title string, current Tab) {
 			</script>
 		</head>
 		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
+			<div class="busy-bar" aria-hidden="true"></div>
+			@busyButton()
 			<header class="masthead">
 				@sky("masthead-sky", []string{"cream", "peach", "salmon"})
 				@ramp([]string{"deep", "paper"})
@@ -53,6 +56,25 @@ templ Layout(title string, current Tab) {
 			</main>
 		</body>
 	</html>
+}
+
+// busyButton marks the button that sent a request, the form's submitter or the button
+// itself, aria-busy once the request has taken 300 ms (the busy bar's delay in app.css)
+// until it ends. CSS can't tell which button was pressed, so this is the one script for
+// presentation (docs/design.md).
+templ busyButton() {
+	<script>
+		document.addEventListener("htmx:before:request", (e) => {
+			const ctx = e.detail.ctx, source = ctx.sourceElement;
+			const button = ctx.sourceEvent?.submitter || (source.matches("button") ? source : null);
+			if (!button) return;
+			const timer = setTimeout(() => button.setAttribute("aria-busy", "true"), 300);
+			source.addEventListener("htmx:finally:request", () => {
+				clearTimeout(timer);
+				button.removeAttribute("aria-busy");
+			}, { once: true });
+		});
+	</script>
 }
 
 // sky is the README banner's dusk: a dithered ramp down through colours, the sun setting

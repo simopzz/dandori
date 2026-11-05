@@ -85,13 +85,14 @@ square pixels of two colours, built in CSS from tokens, at four densities
 `--dither-under`, and `--dither-pixel` the size of a pixel. A ramp steps from
 one colour to the next through all four.
 
-It may go in four places only:
+It may go in five places only:
 
 - **the sky**: the masthead's dusk on a phone, cream to peach to salmon, then
   deep navy dithering down into the paper; the rail's, paper to salmon;
 - **the veil** behind an open sheet: a navy checker over the page;
 - **the chosen segment**: navy and slate;
-- **a primary button's hover**: navy and slate.
+- **a primary button's hover**: navy and slate;
+- **a busy primary button**: navy and slate (see [Busy](#busy)).
 
 Rows, forms and reading text stay flat paper. Smooth gradients are out (the
 section rule is two flat strokes, not a blend).
@@ -100,8 +101,9 @@ section rule is two flat strokes, not a blend).
 
 The sun, Fuji and its tree line are bitmaps in `pixels.go`, rendered on the
 server as inline SVG, one path per colour, each filled by a `px-*` class from a
-`--color-sky-*` token. There is no runtime JS for presentation. The sun and Fuji
-appear in the sky; the sun alone is the **seal** (`Seal`) on an urgent row.
+`--color-sky-*` token. There is no runtime JS for presentation but the busy
+button's (see [Busy](#busy)). The sun and Fuji appear in the sky; the sun
+alone is the **seal** (`Seal`) on an urgent row.
 
 Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
 and `aria-hidden`.
@@ -127,6 +129,26 @@ and `aria-hidden`.
   number, then navy. In a form, use `FieldGroup`, its fieldset twin.
 - **Lists are `Rows`**: lines separated by hairlines, the name first,
   quantities in tabular numbers.
+
+## Busy
+
+A request that takes time shows it, the same way on every page, once it has
+taken **300 ms**, so a quick click doesn't flicker; both go when it ends,
+answered or failed. Neither needs anything from a page.
+
+- **The busy bar**: a 5px bar across the whole top of the screen, over the
+  rail on desktop, where navy and slate blocks march steadily to the right
+  while any htmx request is in flight, boosted navigation included. It is
+  `Layout`'s, shown by CSS while an element holds htmx's `htmx-request`.
+- **The pressed button**: on top of being disabled (`hx-disable` on `<body>`),
+  the button that sent the request, a form's submitter, is marked
+  `aria-busy="true"`: a primary `Button`'s hover dither steps along, a
+  `TextButton` or `DestructiveButton` turns soft ink with a dotted underline.
+  CSS can't tell which button was pressed, so `Layout`'s `busyButton` script
+  marks it: the one script for presentation.
+
+Don't add an `hx-indicator` of a page's own for a slow request. Work that calls
+the model is a Run, and shows its Trace instead.
 
 ## Components
 
@@ -194,7 +216,9 @@ and closing.
 - Focus is always visible: a 2px vermilion ring on every control, inputs
   included, so a focused field stands out from an invalid one. On the navy
   tabs the ring is salmon (5.8:1), as vermilion there is about 2:1.
-- `prefers-reduced-motion` turns off transitions and animations.
+- `prefers-reduced-motion` turns off transitions and animations: the busy
+  bar's blocks and a busy button's dither stand still.
+  The bar still waits its 300 ms.
 - Meaning is never carried by colour alone: an error says what is wrong and
   is marked `!`, an invalid field has a thicker underline and
   `aria-invalid`, an urgent row has the pixel seal *and* text, the current tab
@@ -208,9 +232,9 @@ and closing.
   `internal/web` when a piece will recur, and catalogue it here.
 - **Do** use tokens for every colour, space and radius.
 - **Do** let space separate things: hairlines and section rules, not boxes.
-- **Do** keep dithering to the sky, the veil, the chosen segment and a
-  button's hover, and the banner's colours other than navy to the sky and
-  the pixel art.
+- **Do** keep dithering to the sky, the veil, the chosen segment, a
+  button's hover and a busy button, and the banner's colours other than
+  navy to the sky and the pixel art.
 - **Do** give every form one primary `Button`; everything else is a
   `TextButton` or `DestructiveButton`.
 - **Don't** write a colour value outside the token block, or in a template.
@@ -219,5 +243,6 @@ and closing.
 - **Don't** use the accent for anything that doesn't need attention.
 - **Don't** add rounded corners, stepped corners, shadows, smooth gradients or
   a second accent.
-- **Don't** add an icon font, a stroke icon or runtime JS for presentation.
+- **Don't** add an icon font, a stroke icon or runtime JS for presentation
+  (the busy button's script is the one exception).
 - **Don't** set body text, labels or rows in the pixel face.
