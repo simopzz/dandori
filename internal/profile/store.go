@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"errors"
+	"maps"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -26,13 +27,17 @@ func loadLanguage(ctx context.Context, q db.Querier) (domain.Language, bool, err
 	return domain.Language(code), true, nil
 }
 
-// loadSlotTimes reads the signed-in User's times of day of each kind of Slot. It has no
-// WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
+// loadSlotTimes reads the signed-in User's times of day of each kind of Slot: the
+// defaults until they set theirs. It has no WHERE on purpose: run in db.AsUser,
+// row-level security leaves only their row.
 func loadSlotTimes(ctx context.Context, q db.Querier) (domain.SlotTimes, error) {
 	var b, l, s, d pgtype.Time
 	err := q.QueryRow(ctx, `SELECT breakfast_at, lunch_at, snack_at, dinner_at FROM profile`).Scan(&b, &l, &s, &d)
 	if err != nil {
 		return nil, err
+	}
+	if !b.Valid {
+		return maps.Clone(domain.DefaultSlotTimes), nil
 	}
 	return domain.SlotTimes{
 		domain.Breakfast: timeOfDay(b), domain.Lunch: timeOfDay(l),

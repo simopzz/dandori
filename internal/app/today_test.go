@@ -40,6 +40,36 @@ func TestTodayShowsTheSlotNowOrNext(t *testing.T) {
 	s.Sees("Next: breakfast tomorrow at 08:00")
 }
 
+// Opened through a whole day, Today moves from each Slot to the next: each is now for an
+// hour after its time of day, its last minute included, and the next one is next until
+// then. After midnight, breakfast is next today again.
+func TestTodayThroughADay(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+
+	for _, step := range []struct{ at, sees string }{
+		{"Mon 09:00", "Now: breakfast at 08:00"},
+		{"Mon 09:01", "Next: lunch at 13:00"},
+		{"Mon 11:00", "Next: lunch at 13:00"},
+		{"Mon 13:00", "Now: lunch at 13:00"},
+		{"Mon 14:01", "Next: snack at 17:00"},
+		{"Mon 17:30", "Now: snack at 17:00"},
+		{"Mon 18:30", "Next: dinner at 20:00"},
+		{"Mon 20:00", "Now: dinner at 20:00"},
+		{"Mon 23:59", "Next: breakfast tomorrow at 08:00"},
+		{"Tue 00:00", "Next: breakfast at 08:00"},
+		{"Tue 06:00", "Next: breakfast at 08:00"},
+	} {
+		s.At(step.at)
+		s.Open("/")
+		s.Sees(step.sees)
+	}
+	s.Sees("Tuesday 3 November")
+	s.Sees("Later today lunch 13:00 snack 17:00 dinner 20:00")
+}
+
 // Today follows the Profile's times of day, not the defaults.
 func TestTodayFollowsTheProfilesTimesOfDay(t *testing.T) {
 	s := apptest.NewScenario(t)
