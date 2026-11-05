@@ -1,5 +1,6 @@
 // Package profile is the User's Profile: for now, their Language, chosen at their first
-// sign-in and changeable until they have written a Food Term (ADR-0015).
+// sign-in and changeable until they have written a Food Term (ADR-0015), and the time of
+// day of each kind of Slot.
 package profile
 
 import (
@@ -31,6 +32,16 @@ func (s *Service) Language(ctx context.Context) (l domain.Language, ok bool, err
 		return err
 	})
 	return l, ok, err
+}
+
+// SlotTimes is the signed-in User's time of day of each kind of Slot, which they have
+// once they have chosen their Language.
+func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		t, err = loadSlotTimes(ctx, tx)
+		return err
+	})
+	return t, err
 }
 
 // SetLanguage chooses the signed-in User's Language, or changes it while they have

@@ -3,8 +3,10 @@ package profile
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
@@ -22,6 +24,25 @@ func loadLanguage(ctx context.Context, q db.Querier) (domain.Language, bool, err
 		return "", false, err
 	}
 	return domain.Language(code), true, nil
+}
+
+// loadSlotTimes reads the signed-in User's times of day of each kind of Slot. It has no
+// WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
+func loadSlotTimes(ctx context.Context, q db.Querier) (domain.SlotTimes, error) {
+	var b, l, s, d pgtype.Time
+	err := q.QueryRow(ctx, `SELECT breakfast_at, lunch_at, snack_at, dinner_at FROM profile`).Scan(&b, &l, &s, &d)
+	if err != nil {
+		return nil, err
+	}
+	return domain.SlotTimes{
+		domain.Breakfast: timeOfDay(b), domain.Lunch: timeOfDay(l),
+		domain.Snack: timeOfDay(s), domain.Dinner: timeOfDay(d),
+	}, nil
+}
+
+// timeOfDay is t to the minute.
+func timeOfDay(t pgtype.Time) domain.TimeOfDay {
+	return domain.TimeOfDay(time.Duration(t.Microseconds) * time.Microsecond / time.Minute)
 }
 
 // saveLanguage creates the signed-in User's Profile with Language l, or changes the
