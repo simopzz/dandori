@@ -62,7 +62,7 @@ func TestAppShellLinksAnInstallableManifest(t *testing.T) {
 	}
 }
 
-func TestHomeIsServedInTheAppShell(t *testing.T) {
+func TestTodayIsServedInTheAppShell(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	h.SignUp(t, "ada@example.com")
@@ -71,14 +71,14 @@ func TestHomeIsServedInTheAppShell(t *testing.T) {
 	if page.StatusCode != http.StatusOK || page.Path != "/" {
 		t.Fatalf("GET / = %d at %s, want 200 at /", page.StatusCode, page.Path)
 	}
-	if got := apptest.Text(page.Body); !strings.Contains(got, "Dandori") {
-		t.Errorf("Home does not show Dandori: %s", got)
+	if got := apptest.Text(page.Body); !strings.Contains(got, "Today") {
+		t.Errorf("/ does not show Today: %s", got)
 	}
 	if !strings.Contains(page.Body, `<nav class="shell"`) {
-		t.Errorf("Home is not rendered in the app shell:\n%s", page.Body)
+		t.Errorf("Today is not rendered in the app shell:\n%s", page.Body)
 	}
 	if strings.Contains(page.Body, `aria-current="page"`) {
-		t.Errorf("Home marks a tab as current:\n%s", page.Body)
+		t.Errorf("Today marks a tab as current:\n%s", page.Body)
 	}
 }
 

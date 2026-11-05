@@ -40,9 +40,9 @@ func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
 }
 
 // ShowChoice asks a signed-in User for their Language, with the one the pages were
-// switched to chosen. One who has chosen goes Home.
+// switched to chosen. One who has chosen goes to Today.
 func (h Handlers) ShowChoice(w http.ResponseWriter, r *http.Request) {
-	if h.goneHomeIfChosen(w, r) {
+	if h.goneToTodayIfChosen(w, r) {
 		return
 	}
 	httpx.Render(w, r, h.Log, http.StatusOK, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context())}))
@@ -50,7 +50,7 @@ func (h Handlers) ShowChoice(w http.ResponseWriter, r *http.Request) {
 
 // Choose makes the first choice of Language; changing it later is the Profile's.
 func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
-	if h.goneHomeIfChosen(w, r) {
+	if h.goneToTodayIfChosen(w, r) {
 		return
 	}
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
@@ -81,9 +81,9 @@ func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
 }
 
-// goneHomeIfChosen sends a User who has chosen their Language Home, and reports whether
-// it did, or answered with an error.
-func (h Handlers) goneHomeIfChosen(w http.ResponseWriter, r *http.Request) bool {
+// goneToTodayIfChosen sends a User who has chosen their Language to Today, and reports
+// whether it did, or answered with an error.
+func (h Handlers) goneToTodayIfChosen(w http.ResponseWriter, r *http.Request) bool {
 	_, ok, err := h.Service.Language(r.Context())
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Language", err)

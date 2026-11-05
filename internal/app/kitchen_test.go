@@ -8,7 +8,7 @@ import (
 )
 
 // The scheduler beats every five minutes on the clock and brings every User's kitchen up
-// to now, whether or not they have a page open: each one's Home shows the last beat,
+// to now, whether or not they have a page open: each one's Today shows the last beat,
 // which a page opened in between leaves as it was.
 func TestTheSchedulerBringsEveryUsersKitchenUpToNow(t *testing.T) {
 	s := apptest.NewScenario(t)

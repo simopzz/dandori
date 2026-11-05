@@ -57,6 +57,18 @@ templ Empty() {
 	<p class="empty">{ children... }</p>
 }
 
+// Disclosure is a group of a page's content a click away, under summary: closed until the
+// User opens it.
+templ Disclosure(summary string) {
+	<details class="disclosure section">
+		<summary>
+			<span>{ summary }</span>
+			@Icon("chevron-down")
+		</summary>
+		{ children... }
+	</details>
+}
+
 // Rows is a list of Rows or EditRows.
 templ Rows() {
 	<ul class="rows">

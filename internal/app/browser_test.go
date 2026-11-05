@@ -77,3 +77,36 @@ func TestBrowserChoosesALanguage(t *testing.T) {
 	b.IsAt(t, "/profile?saved")
 	b.Sees(t, "Profile saved.")
 }
+
+// Today on a phone-sized screen: the Slot now, the day's later ones a click away, and
+// nothing wider than the screen.
+func TestBrowserTodayRendersOnAPhone(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	if err := b.SetViewportSize(390, 844); err != nil {
+		t.Fatalf("size the page as a phone: %v", err)
+	}
+	b.SignUp(t, "ada@example.com")
+	b.SetClock(t, time.Date(2026, time.November, 2, 13, 30, 0, 0, h.Clock.Now().Location()))
+
+	b.Open(t, "/")
+	b.Sees(t, "Now: lunch at 13:00")
+	later := b.GetByText("dinner", playwright.PageGetByTextOptions{Exact: playwright.Bool(true)})
+	if visible, err := later.IsVisible(); err != nil || visible {
+		t.Errorf("the day's later Slots show before a click (visible %v, err %v)", visible, err)
+	}
+	if err := b.GetByText("Later today").Click(); err != nil {
+		t.Fatalf("open the day's later Slots: %v", err)
+	}
+	if err := later.WaitFor(); err != nil {
+		t.Errorf("the day's later Slots don't show after a click: %v", err)
+	}
+	wide, err := b.Evaluate(`document.documentElement.scrollWidth > window.innerWidth`)
+	if err != nil {
+		t.Fatalf("measure the page: %v", err)
+	}
+	if wide == true {
+		t.Error("Today is wider than a phone's screen")
+	}
+}

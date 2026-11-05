@@ -1,0 +1,49 @@
+package today
+
+import (
+	"context"
+	"time"
+
+	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// page is Today at now: the Slot now or next, what fills it (no Cycle yet), the day's
+// later Slots a click away, and how up to date the kitchen is.
+templ page(now time.Time, d Day) {
+	@web.Layout(web.T(ctx, msgTodayTitle), web.NoTab) {
+		@web.PageHeader("今日", web.T(ctx, msgToday), now)
+		@web.Section(1, firstText(ctx, now, d))
+		if len(d.Slots.Later) > 0 {
+			@web.Disclosure(web.T(ctx, msgLaterToday)) {
+				@web.Rows() {
+					for _, s := range d.Slots.Later {
+						@web.Row() {
+							<span class="row-title">{ web.T(ctx, slotKindNames[s.Kind]) }</span>
+							<span class="row-figure">{ d.Times[s.Kind].String() }</span>
+						}
+					}
+				}
+			}
+		}
+		@web.Empty() {
+			{ web.T(ctx, msgNoCycle) }
+		}
+		@kitchen.Status(now, d.Beat, d.Beaten)
+	}
+}
+
+// firstText says which Slot is now, or next, and its time of day: tomorrow's, once the
+// day's last is past.
+func firstText(ctx context.Context, now time.Time, d Day) string {
+	first := d.Slots.First
+	kind, at := web.T(ctx, slotKindNames[first.Kind]), d.Times[first.Kind].String()
+	switch {
+	case d.Slots.Now:
+		return web.Tf(ctx, msgNowAt, kind, at)
+	case first.On.After(now):
+		return web.Tf(ctx, msgNextTomorrowAt, kind, at)
+	default:
+		return web.Tf(ctx, msgNextAt, kind, at)
+	}
+}

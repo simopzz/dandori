@@ -149,6 +149,18 @@ func (s *Scenario) SwitchesTo(email string) {
 	s.SignsIn(email)
 }
 
+// HasTimesOfDay sets the Profile of the User signed in as email to these times of day of
+// breakfast, lunch, snack and dinner, each HH:MM. It stands in for the Profile's form,
+// until one changes them.
+func (s *Scenario) HasTimesOfDay(email, breakfast, lunch, snack, dinner string) {
+	s.t.Helper()
+	s.Exec(s.t, `
+		UPDATE profile SET breakfast_at = $2, lunch_at = $3, snack_at = $4, dinner_at = $5
+		WHERE user_id = (SELECT id FROM "user" WHERE email = $1)`,
+		email, breakfast, lunch, snack, dinner)
+	s.record(fmt.Sprintf("has times of day %s, %s, %s, %s", breakfast, lunch, snack, dinner))
+}
+
 // Follows follows the link on the page open that shows text.
 func (s *Scenario) Follows(text string) {
 	s.t.Helper()

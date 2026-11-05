@@ -22,9 +22,9 @@ import (
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
-	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/profile"
+	"github.com/simopzz/dandori/internal/today"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -49,6 +49,7 @@ type App struct {
 	auth    *auth.Service
 	profile *profile.Service
 	kitchen *kitchen.Service
+	today   *today.Service
 }
 
 // New creates the app once its database is reachable and migrated. It
@@ -67,6 +68,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 		return nil, err
 	}
 	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
+	a.today = today.New(a.profile, a.kitchen)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -103,6 +105,7 @@ func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
 	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
+	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
 		return signIn.SignedIn(kit.UpToNow(prof.LanguageChosen(h)))
@@ -118,7 +121,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /sign-out", signIn.SignOut)
 	mux.Handle("GET /language", choosing(prof.ShowChoice))
 	mux.Handle("POST /language", choosing(prof.Choose))
-	mux.Handle("GET /{$}", signedIn(a.home))
+	mux.Handle("GET /{$}", signedIn(day.Show))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	return otelhttp.NewHandler(web.Languages(named(mux)), "request",
@@ -162,14 +165,4 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"database": status})
-}
-
-func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	beat, ok, err := a.kitchen.LastBeat(r.Context())
-	if err != nil {
-		httpx.ServerError(w, r, a.log, "load the kitchen's last beat", err)
-		return
-	}
-	now := a.clock.Now()
-	httpx.Render(w, r, a.log, http.StatusOK, web.Home(now, kitchen.Status(now, beat, ok)))
 }

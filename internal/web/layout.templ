@@ -1,13 +1,11 @@
 package web
 
-import "time"
-
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
-// NoTab is a page outside every tab, such as Home. SignedOut is a page before the User is
-// signed in and has chosen their Language, whose shell has no tabs to lead anywhere yet.
-// Each feature adds its tab here, and to the shell in Layout, as it lands.
+// NoTab is a page outside every tab, such as Today. SignedOut is a page before the User
+// is signed in and has chosen their Language, whose shell has no tabs to lead anywhere
+// yet. Each feature adds its tab here, and to the shell in Layout, as it lands.
 const (
 	NoTab      Tab = ""
 	SignedOut  Tab = "signed-out"
@@ -57,10 +55,9 @@ templ Layout(title string, current Tab) {
 	</html>
 }
 
-// sky is the README banner's dusk: a dithered ramp down through colours, the sun
-// setting behind Fuji, and the wordmark linking Home. It is the masthead above each
-// page on a phone and the top of the rail on desktop, each hidden where the other
-// shows.
+// sky is the README banner's dusk: a dithered ramp down through colours, the sun setting
+// behind Fuji, and the wordmark linking Today. It is the masthead above each page on a
+// phone and the top of the rail on desktop, each hidden where the other shows.
 templ sky(class string, colours []string) {
 	<div class={ "sky", class }>
 		@ramp(colours)
@@ -95,14 +92,4 @@ templ tab(t, current Tab, icon, label string, aux bool) {
 		@Icon(icon)
 		<span>{ label }</span>
 	</a>
-}
-
-// Home is the app shell's landing page. status says how up to date the kitchen is.
-templ Home(today time.Time, status templ.Component) {
-	@Layout("Dandori", NoTab) {
-		@PageHeader("段取り", "Dandori", today) {
-			<p class="lede">{ T(ctx, msgHomeLede) }</p>
-		}
-		@status
-	}
 }

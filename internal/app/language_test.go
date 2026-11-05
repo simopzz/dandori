@@ -119,8 +119,8 @@ func TestTheProfileRefusesAnotherLanguageKeepingTheUsers(t *testing.T) {
 	}
 }
 
-// The Language is chosen once at the first sign-in: the choice, posted again, goes Home
-// and changes nothing; changing it is the Profile's.
+// The Language is chosen once at the first sign-in: the choice, posted again, goes to
+// Today and changes nothing; changing it is the Profile's.
 func TestTheLanguageIsChosenOnce(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
