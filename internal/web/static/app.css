@@ -409,6 +409,9 @@ legend.section-heading + * { clear: both; }
 
 .num { font: 400 0.8rem var(--font-body); letter-spacing: 0.1em; color: var(--color-accent); }
 
+/* mark: an unnumbered Section's square seal, in the number's place */
+.mark { flex: none; width: calc(3 * var(--pixel)); height: calc(3 * var(--pixel)); background: var(--color-accent); }
+
 .hint { color: var(--color-text-soft); font-size: 0.9rem; }
 
 .empty { color: var(--color-text-soft); margin: var(--space-4) 0; }
@@ -533,7 +536,12 @@ a.row-title:hover { text-decoration: underline; }
 
 .field-error::before { content: "! "; font-weight: 700; }
 
-.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-4); }
+/* check: a checkbox before its label, the whole line its target */
+.check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap); cursor: pointer; }
+
+.check input { width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; flex: none; accent-color: var(--color-fill); }
+
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: var(--space-4); }
 
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: var(--space-5) 0 0; }
 
@@ -699,6 +707,16 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
   .fab { bottom: var(--space-6); right: var(--space-6); }
 
   .sheet { margin: auto; width: 28rem; border: 1px solid var(--color-rule-strong); }
+
+  /* side: a sheet any page opens, from the right at the screen's full height */
+  .side-sheet {
+    margin: 0 0 0 auto;
+    width: min(48rem, 60vw);
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-left: 1px solid var(--color-rule-strong);
+  }
 }
 
 /* Recipe Draft form: its Ingredient grid and step list */

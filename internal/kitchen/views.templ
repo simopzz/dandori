@@ -4,8 +4,25 @@ import (
 	"context"
 	"time"
 
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
 )
+
+// page is the Kitchen page at now: what the kitchen holds, nothing yet, and the
+// Ingredients a click away in their side sheet.
+templ page(now time.Time) {
+	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
+			<p class="lede">
+				@ingredients.SheetLink()
+			</p>
+		}
+		@web.Empty() {
+			{ web.T(ctx, msgEmptyKitchen) }
+		}
+		@ingredients.Sheet()
+	}
+}
 
 // Status says when the scheduler last brought the User's kitchen up to now, at, told in
 // now's zone, with its date unless it was today. Before its first beat, ok is false and

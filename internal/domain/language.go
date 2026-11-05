@@ -26,10 +26,12 @@ func ParseLanguage(code string) (Language, bool) {
 // FoodTerms are the Food Terms a User has written, each in their Language. Each slice
 // that brings one (Ingredients, Recipes, the Profile's exclusions) adds its count here
 // and to Any.
-type FoodTerms struct{}
+type FoodTerms struct {
+	Ingredients int
+}
 
 // Any reports whether the User has written any Food Term.
-func (f FoodTerms) Any() bool { return false }
+func (f FoodTerms) Any() bool { return f.Ingredients > 0 }
 
 // LanguageCanChange reports whether a User who has written f can still change their
 // Language: only until they have written a Food Term, since an Ingredient is identified

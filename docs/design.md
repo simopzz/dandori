@@ -24,7 +24,7 @@ that reassigns them (the test allows literals in any `:root` block).
 | Token | Value | Use |
 | --- | --- | --- |
 | `--color-bg` | `#fdfcfa` paper | the page |
-| `--color-surface` | `#ffffff` | raised things: the add sheet, trace details, an open `EditRow` |
+| `--color-surface` | `#ffffff` | raised things: the add and side sheets, trace details, an open `EditRow` |
 | `--color-text` | `#1a1a18` sumi ink | text |
 | `--color-text-soft` | `#5c5a54` soft ink | labels, hints, metadata |
 | `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
@@ -119,7 +119,7 @@ and `aria-hidden`.
   paper. From 900px, a left rail whose top is the same sky with the vertical
   wordmark, then the tabs, and Runs at the rail's foot. Before the Language is
   chosen there are no tabs: a phone shows no bar, desktop the rail's sky alone.
-  Tabs are Plan, Recipes, Stock, Catalog and Profile; Runs is secondary. A page passes its
+  Tabs are Plan, Recipes, Kitchen, Catalog and Profile; Runs is secondary. A page passes its
   `Tab` to `Layout`, which marks it `aria-current="page"`.
 - **Every page opens with a `PageHeader`**: a letter-spaced eyebrow with the
   page's Japanese name and today's date (`在庫 · Sunday 25 October`) and a large
@@ -159,8 +159,8 @@ elements themselves.
 | --- | --- |
 | `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
-| `Section(num, title)` | A numbered group of a page's content. |
-| `FieldGroup(num, legend)` | A numbered group of a form's fields. |
+| `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small vermilion square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
+| `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
 | `Hint()` | A quiet paragraph explaining what follows. |
 | `Empty()` | What a list says when it has nothing in it. |
 | `Disclosure(summary)` | A group of a page's content a click away (the day's later Slots on Today): a quiet summary line with a chevron, closed until opened. |
@@ -172,6 +172,7 @@ elements themselves.
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window). |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
+| `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
@@ -184,6 +185,8 @@ elements themselves.
 | `Notice()` | Something happened as asked ("Profile saved."). |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop, over a navy dithered veil. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
+| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil. Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
+| `SideSheetLink(id, href, src)` | Opens the `SideSheet` `id`, loading its body from `src`, a fragment, and focuses its first field. Without htmx it is a plain link to `href`, a page of the same content. A form in the sheet swaps the body (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, the sheet staying open. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
 | `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |

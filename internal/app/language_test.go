@@ -135,3 +135,23 @@ func TestTheLanguageIsChosenOnce(t *testing.T) {
 	s.Open("/")
 	s.Sees("Monday 2 November")
 }
+
+// Once the User has added an Ingredient, their Language stays: the Profile refuses a
+// change, keeping the one they have.
+func TestTheLanguageStaysOnceTheUserHasAnIngredient(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+	s.AddsIngredient(apptest.Ingredient{
+		Name: "egg", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6.3", Carbs: "0.4", Fat: "4.8",
+	})
+
+	s.Open("/profile")
+	s.ChangesLanguage("Italiano")
+	s.IsRefused()
+	s.Sees("Your kitchen already holds Ingredients or Recipes in this Language, so it stays.")
+	s.Open("/")
+	s.Sees("Monday 2 November")
+}

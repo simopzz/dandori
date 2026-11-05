@@ -204,3 +204,46 @@ const stamp = "Mon 2 Jan 15:04"
 func (s *Scenario) record(step string) {
 	s.timeline = append(s.timeline, s.Clock.Now().Format(stamp)+"  "+step)
 }
+
+// Ingredient is an Ingredient as the add form takes it, each value as typed: one left ""
+// is posted blank.
+type Ingredient struct {
+	Name, Unit, Usual                       string
+	Kcal, Protein, Carbs, Fat, Fibre, Sugar string
+	Staple                                  bool
+}
+
+// Fill sets f, the add form, to ing.
+func (ing Ingredient) Fill(f FormData) {
+	for field, v := range map[string]string{
+		"name": ing.Name, "unit": ing.Unit, "usual": ing.Usual,
+		"kcal": ing.Kcal, "protein": ing.Protein, "carbs": ing.Carbs, "fat": ing.Fat,
+		"fibre": ing.Fibre, "sugar": ing.Sugar,
+	} {
+		f.Values.Set(field, v)
+	}
+	f.Values.Del("staple")
+	if ing.Staple {
+		f.Values.Set("staple", "on")
+	}
+}
+
+// AddsIngredient adds ing with the add form on the page open, posted as a browser
+// without htmx.
+func (s *Scenario) AddsIngredient(ing Ingredient) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "ingredient-add")
+	ing.Fill(form)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("adds the Ingredient %q: %d %s", ing.Name, s.page.StatusCode, s.page.Path))
+}
+
+// IsRefused checks the last form posted was refused, answered with 422.
+func (s *Scenario) IsRefused() {
+	s.t.Helper()
+	if s.page.StatusCode != http.StatusUnprocessableEntity {
+		s.record(fmt.Sprintf("is not refused: %d", s.page.StatusCode))
+		s.t.Fatalf("the post answered %d, want 422:\n%s", s.page.StatusCode, s.page.Body)
+	}
+	s.record("is refused")
+}

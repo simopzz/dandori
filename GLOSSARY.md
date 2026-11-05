@@ -65,11 +65,11 @@ One preparation of food that yields one or more Portions: cooking or assembling 
 _Avoid_: Cook session, batch, meal prep, direct meal
 
 **Portion**:
-One ready-to-eat serving produced by a Prep Session, kept in a Storage Location and assigned to at most one Slot.
+One ready-to-eat serving produced by a Prep Session, or brought in ready-made (someone else cooked it), with a name and estimated nutritional values; kept in a Storage Location and assigned to at most one Slot.
 _Avoid_: Serving, leftover
 
 **Ingredient**:
-A food as such (chicken breast, rolled oats), measured in one unit (grams, millilitres or pieces), with its nutritional values (calories, protein, carbs, fat, fibre and sugar) per 100 g, per 100 ml or per piece, and the Storage Location it is usually kept in; what a Recipe lists and what a Stock Item is a quantity of. It is measured as it goes into a dish: drained, for food packed in liquid.
+A food as such (chicken breast, rolled oats), measured in one unit (grams, millilitres or pieces), with its nutritional values (calories, protein, carbs, fat, fibre and sugar, the last two possibly unknown, which is never zero) per 100 g, per 100 ml or per piece, and the Storage Location it is usually kept in; what a Recipe lists and what a Stock Item is a quantity of. It is measured as it goes into a dish: drained, for food packed in liquid.
 _Avoid_: Pantry item, product
 
 **Kitchen Ledger**:
@@ -77,7 +77,7 @@ The record of every Movement in the kitchen, in the order they happen; what the 
 _Avoid_: Inventory log, history
 
 **Movement**:
-One change to what the kitchen holds, with when it happened and what caused it: Stock Items seeded, delivered, put away or moved between Storage Locations, used up by a Prep Session, corrected or discarded; Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report); nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
+One change to what the kitchen holds, with when it happened and what caused it: Stock Items delivered, put away or moved between Storage Locations, used up by a Prep Session, or counted (spoiled stock included); Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report), with a note of theirs if they like; nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
 _Avoid_: Transaction, delta, stock change
 
 **Today**:
@@ -93,11 +93,11 @@ A correction the user makes by saying how much of a Stock Item, or how many Port
 _Avoid_: Adjustment, delta entry
 
 **Staple**:
-An Ingredient the user marks as always in the kitchen and too fiddly to weigh, such as olive oil, salt or spices. It counts toward nutrition like any other, but no Stock Item holds it and no Grocery List buys it: the Grocery List reminds the user to check there is still some.
+An Ingredient the user marks as always in the kitchen and too fiddly to weigh, such as olive oil, salt or spices. It counts toward nutrition like any other, but no Stock Item holds it and no Grocery List buys it: the Grocery List reminds the user to check there is still some. Marking an Ingredient a Staple counts what stock of it the kitchen holds to nothing; unmarking it starts it from nothing.
 _Avoid_: Pantry basic, condiment
 
 **Stock Item**:
-A quantity of one Ingredient held in a Storage Location. It has no expiry date: the user watches for spoiled food and corrects the Stock Item.
+A quantity of one Ingredient held in a Storage Location: there is one per Ingredient and Storage Location, whenever its stock arrived, and how old that stock is the Kitchen Ledger tells. It has no expiry date: the user watches for spoiled food and corrects the Stock Item.
 _Avoid_: Inventory, pantry item
 
 **Shortfall**:

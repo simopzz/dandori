@@ -22,6 +22,7 @@ import (
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/today"
@@ -43,14 +44,15 @@ type Config struct {
 
 // App is a running Dandori instance.
 type App struct {
-	pool    *pgxpool.Pool
-	clock   clock.Clock
-	spans   trace.TracerProvider
-	log     *slog.Logger
-	auth    *auth.Service
-	profile *profile.Service
-	kitchen *kitchen.Service
-	today   *today.Service
+	pool        *pgxpool.Pool
+	clock       clock.Clock
+	spans       trace.TracerProvider
+	log         *slog.Logger
+	auth        *auth.Service
+	profile     *profile.Service
+	ingredients *ingredients.Service
+	kitchen     *kitchen.Service
+	today       *today.Service
 }
 
 // New creates the app once its database is reachable and migrated. It
@@ -68,7 +70,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool), kitchen: kitchen.New(pool, log)}
 	a.today = today.New(a.profile, a.kitchen)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
@@ -106,6 +108,7 @@ func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
 	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
+	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
@@ -125,6 +128,10 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /{$}", signedIn(day.Show))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
+	mux.Handle("GET /kitchen", signedIn(kit.Show))
+	mux.Handle("GET /ingredients", signedIn(ings.Show))
+	mux.Handle("GET /ingredients/sheet", signedIn(ings.ShowSheet))
+	mux.Handle("POST /ingredients", signedIn(ings.Add))
 	return otelhttp.NewHandler(web.Languages(named(mux)), "request",
 		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),

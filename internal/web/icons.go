@@ -76,7 +76,7 @@ var icons = map[string][]string{
 		"..........",
 		"..........",
 	},
-	// Stock: a labelled crate.
+	// Kitchen: a labelled crate.
 	"package": {
 		"..######..",
 		"..#....#..",
