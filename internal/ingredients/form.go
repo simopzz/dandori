@@ -20,6 +20,9 @@ type AddForm struct {
 	Staple bool
 	Errs   map[string]string
 	Added  string
+	// Suggested is the Ingredient the name typed is close to, which the User may have
+	// meant; Picked is the one they said they meant, adding nothing.
+	Suggested, Picked string
 }
 
 // parseAddForm reads the add form posted in r as an Ingredient, and the form as typed

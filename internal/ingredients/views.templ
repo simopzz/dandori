@@ -29,44 +29,85 @@ templ SheetLink() {
 
 // page is the Ingredients as a page of their own, for a browser without htmx: the side
 // sheet's body, under the page's header.
-templ page(today time.Time, ings []domain.Ingredient, f AddForm) {
+templ page(today time.Time, ings []domain.Ingredient, f AddForm, q string) {
 	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
 		@web.PageHeader("食材", web.T(ctx, msgIngredients), today)
 		<div id={ web.SideSheetBody(sheetID) }>
-			@sheetBody(ings, f)
+			@sheetBody(ings, f, q)
 		</div>
 	}
 }
 
-// sheetBody is what the Ingredients side sheet shows: the Ingredient just added, if any,
-// the add form, and the User's Ingredients, Staples marked.
-templ sheetBody(ings []domain.Ingredient, f AddForm) {
+// sheetBody is what the Ingredients side sheet shows: the Ingredient just added or
+// picked, if any, the add form, and the search of the User's Ingredients for q.
+templ sheetBody(ings []domain.Ingredient, f AddForm, q string) {
 	if f.Added != "" {
 		@web.Notice() {
 			{ web.Tf(ctx, msgAdded, f.Added) }
 		}
 	}
+	if f.Picked != "" {
+		@web.Notice() {
+			{ web.Tf(ctx, msgPicked, f.Picked) }
+		}
+	}
 	@addForm(f)
 	@web.Section(0, web.T(ctx, msgYourIngredients)) {
-		if len(ings) == 0 {
-			@web.Empty() {
+		@searchForm(q)
+		<div id={ listID }>
+			@list(ings, q)
+		</div>
+	}
+}
+
+// listID is the id of the list a search swaps.
+const listID = "ingredient-list"
+
+// searchForm searches the User's Ingredients as they type, swapping the list alone when
+// htmx sends it, so the field keeps its focus; without htmx it opens the Ingredients
+// page searched.
+templ searchForm(q string) {
+	<form
+		id="ingredient-search"
+		role="search"
+		method="get"
+		action="/ingredients"
+		hx-get="/ingredients/list"
+		hx-trigger="submit, input delay:300ms"
+		hx-target={ "#" + listID }
+		hx-swap="innerHTML"
+	>
+		@web.Field(web.T(ctx, msgSearch), "", "") {
+			<input type="search" name="q" value={ q } autocomplete="off"/>
+		}
+	</form>
+}
+
+// list is the User's Ingredients a search for q found, Staples marked, or why there are
+// none.
+templ list(ings []domain.Ingredient, q string) {
+	if len(ings) == 0 {
+		@web.Empty() {
+			if q == "" {
 				{ web.T(ctx, msgNoIngredients) }
+			} else {
+				{ web.Tf(ctx, msgNoMatch, q) }
 			}
-		} else {
-			@web.Rows() {
-				for _, ing := range ings {
-					@web.Row() {
-						<span class="row-title">{ ing.Name }</span>
-						if ing.Staple {
-							@web.Tag(false, "") {
-								{ web.T(ctx, msgStaple) }
-							}
+		}
+	} else {
+		@web.Rows() {
+			for _, ing := range ings {
+				@web.Row() {
+					<span class="row-title">{ ing.Name }</span>
+					if ing.Staple {
+						@web.Tag(false, "") {
+							{ web.T(ctx, msgStaple) }
 						}
-						<span class="row-meta">
-							<span>{ web.T(ctx, storageLocationNames[ing.Usual]) }</span>
-							@nutritionFacts(ing)
-						</span>
 					}
+					<span class="row-meta">
+						<span>{ web.T(ctx, storageLocationNames[ing.Usual]) }</span>
+						@nutritionFacts(ing)
+					</span>
 				}
 			}
 		}
@@ -128,9 +169,21 @@ templ addForm(f AddForm) {
 				@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
 					<input type="checkbox" name="staple" value="on" checked?={ f.Staple }/>
 				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgAdd) }
+				if f.Suggested != "" {
+					<input type="hidden" name="confirm" value={ f.Name }/>
+					@web.Actions() {
+						@web.Button(templ.Attributes{"type": "submit"}) {
+							{ web.Tf(ctx, msgAddAnyway, f.Name) }
+						}
+						@web.TextButton(templ.Attributes{"type": "submit", "name": "pick", "value": f.Suggested}) {
+							{ web.Tf(ctx, msgPick, f.Suggested) }
+						}
+					}
+				} else {
+					@web.Actions() {
+						@web.Button(templ.Attributes{"type": "submit"}) {
+							{ web.T(ctx, msgAdd) }
+						}
 					}
 				}
 			</div>

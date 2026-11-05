@@ -251,6 +251,17 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }
 
+// HTMXGet requests path from the app as HTMX does, marked with HX-Request.
+func (h *Harness) HTMXGet(t testing.TB, path string) Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, h.URL+path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("HX-Request", "true")
+	return h.do(t, req)
+}
+
 // PostForm submits form to path, as a browser does without HTMX, following
 // any redirect.
 func (h *Harness) PostForm(t testing.TB, path string, form url.Values) Response {

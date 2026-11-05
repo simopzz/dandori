@@ -312,7 +312,8 @@ templ AddSheet(id, title string, open bool) {
 // from the right on desktop, from the bottom on a phone. Its body is empty until a
 // SideSheetLink loads it. Each swap into the body opens the sheet, if it isn't open, and
 // focuses the first field marked aria-invalid, so a rejected form in it is shown again
-// in place.
+// in place. A swap into part of the body, such as a search's results, leaves the focus
+// where it is.
 templ SideSheet(id, title string) {
 	<div id={ id } class="sheet side-sheet" popover role="dialog" aria-labelledby={ id + "-title" }>
 		<div class="sheet-head">
@@ -322,7 +323,7 @@ templ SideSheet(id, title string) {
 		<div
 			id={ SideSheetBody(id) }
 			class="sheet-body"
-			hx-on:htmx:after:swap="const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); this.querySelector('[aria-invalid=true]')?.focus()"
+			hx-on:htmx:after:swap="if (event.detail.ctx.target !== this) return; const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); this.querySelector('[aria-invalid=true]')?.focus()"
 		></div>
 	</div>
 }

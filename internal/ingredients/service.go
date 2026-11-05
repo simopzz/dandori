@@ -22,6 +22,14 @@ func (e *NameTakenError) Error() string {
 	return fmt.Sprintf("the User already has the Ingredient %q", e.Existing)
 }
 
+// SuggestedError is an Ingredient not added because its name is close to the name of one
+// the User has, Closest, which they may have meant.
+type SuggestedError struct{ Closest string }
+
+func (e *SuggestedError) Error() string {
+	return fmt.Sprintf("the User may have meant the Ingredient %q", e.Closest)
+}
+
 // Service is the signed-in User's Ingredients.
 type Service struct {
 	pool *pgxpool.Pool
@@ -31,10 +39,21 @@ type Service struct {
 func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
 // Add adds ing, which has no Problems, for the signed-in User, whose Language is l. One
-// whose name normalises as another's is a *NameTakenError.
-func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredient) error {
+// whose name normalises as another's is a *NameTakenError. One whose name is only close
+// to another's is a *SuggestedError, unless confirmed says the User meant the name typed.
+func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredient, confirmed bool) error {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		if !confirmed {
+			known, err := loadIngredients(ctx, tx)
+			if err != nil {
+				return err
+			}
+			closest, ok := domain.ClosestIngredient(l, ing.Name, names(known))
+			if ok && domain.NormaliseIngredientName(l, closest) != normalised {
+				return &SuggestedError{Closest: closest}
+			}
+		}
 		added, err := saveIngredient(ctx, tx, ing, normalised)
 		if err != nil || added {
 			return err
@@ -54,4 +73,28 @@ func (s *Service) List(ctx context.Context) (ings []domain.Ingredient, err error
 		return err
 	})
 	return ings, err
+}
+
+// Search is the signed-in User's Ingredients a search for query finds by spelling, the
+// most alike first, so a typo still finds the Ingredient: every one, by name, for a blank
+// query. Every feature that finds an Ingredient as the User types searches here.
+func (s *Service) Search(ctx context.Context, query string) ([]domain.Ingredient, error) {
+	ings, err := s.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var found []domain.Ingredient
+	for _, i := range domain.SearchIngredients(query, names(ings)) {
+		found = append(found, ings[i])
+	}
+	return found, nil
+}
+
+// names are ings' names, in their order.
+func names(ings []domain.Ingredient) []string {
+	ns := make([]string, len(ings))
+	for i, ing := range ings {
+		ns[i] = ing.Name
+	}
+	return ns
 }

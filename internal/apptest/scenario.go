@@ -238,6 +238,25 @@ func (s *Scenario) AddsIngredient(ing Ingredient) {
 	s.record(fmt.Sprintf("adds the Ingredient %q: %d %s", ing.Name, s.page.StatusCode, s.page.Path))
 }
 
+// Presses submits the form with id on the page open as it is shown, with its button
+// labelled label, posted as a browser without htmx.
+func (s *Scenario) Presses(id, label string) {
+	s.t.Helper()
+	form := Press(s.t, s.page.Body, id, label)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("presses %q: %d %s", label, s.page.StatusCode, s.page.Path))
+}
+
+// SearchesIngredients searches the Ingredients for query with the search form on the
+// page open, as a browser without htmx.
+func (s *Scenario) SearchesIngredients(query string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "ingredient-search")
+	form.Values.Set("q", query)
+	s.page = s.Get(s.t, form.Action+"?"+form.Values.Encode())
+	s.record(fmt.Sprintf("searches the Ingredients for %q: %d %s", query, s.page.StatusCode, s.page.Path))
+}
+
 // IsRefused checks the last form posted was refused, answered with 422.
 func (s *Scenario) IsRefused() {
 	s.t.Helper()

@@ -190,3 +190,82 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 		t.Errorf("the sheet doesn't close: %v", err)
 	}
 }
+
+// In the side sheet, a near miss suggests the Ingredient it meant, and picking it adds
+// nothing and finds it. The search ranks as the User types, keeping their focus even
+// while a field of the add form is refused.
+func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).Click(); err != nil {
+		t.Fatalf("open the Ingredients: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
+	expect := playwright.NewPlaywrightAssertions()
+	add := func(name, button string) {
+		t.Helper()
+		for label, value := range map[string]string{"Name": name, "Calories": "70", "Protein": "6.3", "Carbs": "0.4", "Fat": "4.8"} {
+			if err := sheet.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
+				t.Fatalf("fill %s: %v", label, err)
+			}
+		}
+		for label, option := range map[string]string{"Unit": "piece", "Usually kept in": "fridge"} {
+			if _, err := sheet.GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
+				t.Fatalf("choose %s: %v", label, err)
+			}
+		}
+		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: button}).Click(); err != nil {
+			t.Fatalf("press %s: %v", button, err)
+		}
+	}
+
+	add("egg", "Add")
+	if err := expect.Locator(sheet).ToContainText("Added egg."); err != nil {
+		t.Fatalf("the sheet doesn't add egg: %v", err)
+	}
+	add("eggs", "Add")
+	if err := expect.Locator(sheet).ToContainText("Did you mean egg?"); err != nil {
+		t.Fatalf("the sheet doesn't suggest egg: %v", err)
+	}
+	if err := expect.Locator(sheet.GetByLabel("Name")).ToBeFocused(); err != nil {
+		t.Errorf("the name suggesting egg isn't focused: %v", err)
+	}
+	search := sheet.GetByRole("searchbox", playwright.LocatorGetByRoleOptions{Name: "Search"})
+	if err := search.PressSequentially("zz"); err != nil {
+		t.Fatalf("search for zz: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("No Ingredient is like zz."); err != nil {
+		t.Fatalf("searching for zz doesn't say nothing is like it: %v", err)
+	}
+	if err := expect.Locator(search).ToBeFocused(); err != nil {
+		t.Errorf("searching moves the focus to the refused name: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Use egg"}).Click(); err != nil {
+		t.Fatalf("pick egg: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("egg is already one of your Ingredients."); err != nil {
+		t.Fatalf("the sheet doesn't confirm egg was picked: %v", err)
+	}
+	b.IsAt(t, "/kitchen")
+
+	add("petto di pollo", "Add")
+	if err := expect.Locator(sheet).ToContainText("Added petto di pollo."); err != nil {
+		t.Fatalf("the sheet doesn't add petto di pollo: %v", err)
+	}
+	if err := search.Fill(""); err != nil {
+		t.Fatalf("clear the search: %v", err)
+	}
+	if err := search.PressSequentially("polo"); err != nil {
+		t.Fatalf("search for polo: %v", err)
+	}
+	results := sheet.Locator("#ingredient-list")
+	if err := expect.Locator(results).Not().ToContainText("egg"); err != nil {
+		t.Errorf("searching for polo still lists egg: %v", err)
+	}
+	if err := expect.Locator(results).ToContainText("petto di pollo"); err != nil {
+		t.Errorf("searching for polo doesn't find petto di pollo: %v", err)
+	}
+	if err := expect.Locator(search).ToBeFocused(); err != nil {
+		t.Errorf("the search loses its focus as the User types: %v", err)
+	}
+}
