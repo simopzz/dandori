@@ -26,8 +26,8 @@ import (
 
 // Telemetry is where the app's spans and logs go.
 type Telemetry struct {
-	// Tracing makes the spans; without an endpoint, it makes none.
-	Tracing trace.TracerProvider
+	// Spans makes the spans; without an endpoint, it makes none.
+	Spans trace.TracerProvider
 	// Logs takes the log records to send; nil without an endpoint.
 	Logs     log.LoggerProvider
 	shutdown []func(context.Context) error
@@ -37,10 +37,11 @@ type Telemetry struct {
 // and its headers themselves.
 func Setup(ctx context.Context) (*Telemetry, error) {
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" {
-		return &Telemetry{Tracing: noop.NewTracerProvider()}, nil
+		return &Telemetry{Spans: noop.NewTracerProvider()}, nil
 	}
-	res, err := resource.New(ctx, resource.WithTelemetrySDK(), resource.WithFromEnv(),
-		resource.WithAttributes(attribute.String("service.name", "dandori")))
+	// The environment's OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES, last, win.
+	res, err := resource.New(ctx, resource.WithTelemetrySDK(),
+		resource.WithAttributes(attribute.String("service.name", "dandori")), resource.WithFromEnv())
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +55,7 @@ func Setup(ctx context.Context) (*Telemetry, error) {
 	}
 	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(spans), sdktrace.WithResource(res))
 	lp := sdklog.NewLoggerProvider(sdklog.WithProcessor(sdklog.NewBatchProcessor(records)), sdklog.WithResource(res))
-	return &Telemetry{Tracing: tp, Logs: lp, shutdown: []func(context.Context) error{tp.Shutdown, lp.Shutdown}}, nil
+	return &Telemetry{Spans: tp, Logs: lp, shutdown: []func(context.Context) error{tp.Shutdown, lp.Shutdown}}, nil
 }
 
 // Shutdown sends what is still buffered and stops exporting.
@@ -66,8 +67,8 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Logger logs as text to w and, with logs, over OTLP too. A line logged with the context
-// of a span names its trace_id and span_id, so it links to the span.
+// Logger logs as text to w and, with logs, over OTLP too. A line logged with a span's
+// context carries the span's ids, trace_id and span_id, so it links to the span.
 func Logger(w io.Writer, logs log.LoggerProvider) *slog.Logger {
 	var h slog.Handler = withIDs{slog.NewTextHandler(w, nil)}
 	if logs != nil {
@@ -76,7 +77,7 @@ func Logger(w io.Writer, logs log.LoggerProvider) *slog.Logger {
 	return slog.New(h)
 }
 
-// withIDs adds the trace and span ids of the context's span to each record.
+// withIDs adds the ids of the context's span to each record.
 type withIDs struct{ slog.Handler }
 
 func (h withIDs) Handle(ctx context.Context, r slog.Record) error {

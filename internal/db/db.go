@@ -32,9 +32,8 @@ type Querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// Open creates a connection pool without connecting; the first query
-// connects. Every query is a span from tp, with its SQL but not its
-// arguments, which hold the Users' data.
+// Open creates a connection pool without connecting; the first query connects. Every
+// query is a span from tp, with its SQL but not its arguments: they hold Users' data.
 func Open(ctx context.Context, url string, tp trace.TracerProvider) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {

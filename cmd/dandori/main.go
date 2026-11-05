@@ -4,12 +4,11 @@
 //	dandori healthcheck ask the app serving on DANDORI_ADDR whether it is
 //	                    healthy, for the container's health check
 //
-// Configuration comes from the environment: DANDORI_DATABASE_URL,
-// DANDORI_SUPABASE_URL and DANDORI_SUPABASE_PUBLISHABLE_KEY (required to
-// serve), DANDORI_ADDR (default 127.0.0.1:8080), DANDORI_TIMEZONE, the
-// zone a day starts and ends in (default Europe/Rome), and
-// OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, where spans and
-// logs go and the token they are sent with (unset, they go nowhere).
+// Configuration comes from the environment: DANDORI_DATABASE_URL, DANDORI_SUPABASE_URL
+// and DANDORI_SUPABASE_PUBLISHABLE_KEY (required to serve), DANDORI_ADDR (default
+// 127.0.0.1:8080), DANDORI_TIMEZONE, the zone a day starts and ends in (default
+// Europe/Rome), and OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, where
+// spans and logs go and the token they are sent with (unset, they go nowhere).
 package main
 
 import (
@@ -81,7 +80,7 @@ func run(log *slog.Logger, args []string) error {
 				log.Warn("flush telemetry", "err", err)
 			}
 		}()
-		cfg.Tracing = tel.Tracing
+		cfg.Spans = tel.Spans
 		return serve(ctx, telemetry.Logger(os.Stderr, tel.Logs), cfg, addr)
 	case "healthcheck":
 		return healthcheck(ctx, addr)

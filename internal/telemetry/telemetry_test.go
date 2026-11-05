@@ -15,7 +15,7 @@ import (
 	"github.com/simopzz/dandori/internal/telemetry"
 )
 
-// A line logged inside a span names its trace and span, both on stderr and in the record
+// A line logged inside a span carries the span's ids, both on stderr and in the record
 // sent over OTLP, so Grafana links it to the span.
 func TestALogLineInASpanCarriesItsIDs(t *testing.T) {
 	records := &recordExporter{}
@@ -37,7 +37,7 @@ func TestALogLineInASpanCarriesItsIDs(t *testing.T) {
 		t.Fatalf("exported %d records, want 1", len(got))
 	}
 	if got[0].TraceID() != traceID || got[0].SpanID() != spanID {
-		t.Errorf("record carries trace %s span %s, want %s %s", got[0].TraceID(), got[0].SpanID(), traceID, spanID)
+		t.Errorf("record carries ids %s/%s, want the span's %s/%s", got[0].TraceID(), got[0].SpanID(), traceID, spanID)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestWithoutAnEndpointNothingIsExported(t *testing.T) {
 	if tel.Logs != nil {
 		t.Error("Setup made a log provider without an endpoint")
 	}
-	_, span := tel.Tracing.Tracer("test").Start(t.Context(), "request")
+	_, span := tel.Spans.Tracer("test").Start(t.Context(), "request")
 	if span.IsRecording() {
 		t.Error("Setup records spans without an endpoint")
 	}
@@ -84,7 +84,7 @@ func TestWithAnEndpointSpansAndLogsAreSentThere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, span := tel.Tracing.Tracer("test").Start(t.Context(), "request")
+	ctx, span := tel.Spans.Tracer("test").Start(t.Context(), "request")
 	telemetry.Logger(&bytes.Buffer{}, tel.Logs).InfoContext(ctx, "hello")
 	span.End()
 	if err := tel.Shutdown(t.Context()); err != nil {

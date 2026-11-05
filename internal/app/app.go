@@ -36,16 +36,15 @@ type Config struct {
 	Clock clock.Clock
 	// Auth is the Supabase Auth Users sign in through.
 	Auth auth.Config
-	// Tracing makes the spans of every request, query and beat; without one,
-	// none are made.
-	Tracing trace.TracerProvider
+	// Spans makes the spans of every request, query and beat; without it, none are made.
+	Spans trace.TracerProvider
 }
 
 // App is a running Dandori instance.
 type App struct {
 	pool    *pgxpool.Pool
 	clock   clock.Clock
-	tracing trace.TracerProvider
+	spans   trace.TracerProvider
 	log     *slog.Logger
 	auth    *auth.Service
 	profile *profile.Service
@@ -59,15 +58,15 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if cfg.Clock == nil {
 		return nil, errors.New("app.Config has no Clock")
 	}
-	tracing := cfg.Tracing
-	if tracing == nil {
-		tracing = noop.NewTracerProvider()
+	spans := cfg.Spans
+	if spans == nil {
+		spans = noop.NewTracerProvider()
 	}
-	pool, err := db.Open(ctx, cfg.DatabaseURL, tracing)
+	pool, err := db.Open(ctx, cfg.DatabaseURL, spans)
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, tracing: tracing, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -87,7 +86,7 @@ func (a *App) Close() { a.pool.Close() }
 // Schedule starts the scheduler, which beats on the app's clock every kitchen.BeatEvery
 // and brings every User's kitchen up to now, until ctx ends. Each beat is a span.
 func (a *App) Schedule(ctx context.Context) {
-	tracer := a.tracing.Tracer("github.com/simopzz/dandori/internal/app")
+	tracer := a.spans.Tracer("github.com/simopzz/dandori/internal/app")
 	a.clock.Every(ctx, kitchen.BeatEvery, func(at time.Time) {
 		ctx, span := tracer.Start(ctx, "kitchen beat")
 		defer span.End()
@@ -97,9 +96,9 @@ func (a *App) Schedule(ctx context.Context) {
 
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
-// were switched to. Every signed-in page first brings the User's kitchen up to now.
-// Every request but the health check is a span, the root of its own trace: a traceparent
-// sent from the internet is ignored.
+// were switched to. Every signed-in page first brings the User's kitchen up to now. Every
+// request but the health check is a span with no parent: one a traceparent header names,
+// sent from the internet, is ignored.
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
@@ -123,7 +122,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	return otelhttp.NewHandler(web.Languages(named(mux)), "request",
-		otelhttp.WithTracerProvider(a.tracing),
+		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
 		otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" }))
 }
