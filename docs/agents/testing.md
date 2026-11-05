@@ -26,7 +26,7 @@ Every page but sign-in needs a signed-in User. `apptest` starts a fake Supabase 
 
 ### Browser tests (a few per page)
 
-`h.Browser(t)` opens a headless Chromium on the app through playwright-go, for each page's main path as the User gets it, with htmx, CSS and scripts: `Open`, `Sees`, and the rest of `playwright.Page`. It sets the clock with `SetClock`, which posts to `POST /_test/clock`: a switch only `apptest` serves, so the production binary, which `cmd/dandori`'s guardrail checks never links `apptest`, has none. Install the browser once with `mise run browsers`. Without it, browser tests skip locally and fail in CI, which installs it.
+`h.Browser(t)` opens a headless Chromium on the app through playwright-go, for each page's main path as the User gets it, with htmx, CSS and scripts: `Open`, `Sees`, and the rest of `playwright.Page`. `b.Hold(t, path)` holds the browser's requests to a path, as a slow server would, until the test calls `Release` on what it returns; `Count` is how many it held. It sets the clock with `SetClock`, which posts to `POST /_test/clock`: a switch only `apptest` serves, so the production binary, which `cmd/dandori`'s guardrail checks never links `apptest`, has none. Install the browser once with `mise run browsers`. Without it, browser tests skip locally and fail in CI, which installs it.
 
 ## Seam 2: the domain core
 
