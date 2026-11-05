@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -33,6 +32,7 @@ import (
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 // Harness is one running app with its own database.
@@ -125,7 +125,7 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if testing.Verbose() {
 		logTo = io.MultiWriter(log, os.Stderr)
 	}
-	logger := slog.New(slog.NewTextHandler(logTo, nil))
+	logger := telemetry.Logger(logTo, nil)
 	manual := clock.NewManual(time.Date(2026, time.November, 2, 0, 0, 0, 0, zone(t)))
 	fake := startFakeAuth(t, manual)
 	cfg := app.Config{
@@ -140,10 +140,15 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mux := http.NewServeMux()
-	mux.Handle("/", a.Handler())
-	mux.HandleFunc("POST /_test/clock", clockSwitch(manual))
-	srv := httptest.NewServer(mux)
+	// Not a ServeMux: the pattern it matched would name every request's span "GET /".
+	handler, setClock := a.Handler(), clockSwitch(manual)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/_test/clock" {
+			setClock(w, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
 	scheduled, stop := context.WithCancel(context.Background())
 	a.Schedule(scheduled)
 	t.Cleanup(func() {

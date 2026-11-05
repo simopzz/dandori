@@ -28,7 +28,7 @@ func Render(w http.ResponseWriter, r *http.Request, log *slog.Logger, status int
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if err := page.Render(r.Context(), w); err != nil {
-		log.Error("render", "path", r.URL.Path, "err", err)
+		log.ErrorContext(r.Context(), "render", "path", r.URL.Path, "err", err)
 	}
 }
 
@@ -38,8 +38,8 @@ func Secure(r *http.Request) bool {
 	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
-// ServerError logs err as what failed and answers 500 without its details.
-func ServerError(w http.ResponseWriter, log *slog.Logger, what string, err error) {
-	log.Error(what, "err", err)
+// ServerError logs err as what failed, in r's span, and answers 500 without its details.
+func ServerError(w http.ResponseWriter, r *http.Request, log *slog.Logger, what string, err error) {
+	log.ErrorContext(r.Context(), what, "err", err)
 	http.Error(w, "Something went wrong; see the server log.", http.StatusInternalServerError)
 }

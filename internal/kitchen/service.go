@@ -38,7 +38,7 @@ func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
 func (s *Service) Beat(ctx context.Context, at time.Time) {
 	users, err := loadUserIDs(ctx, s.pool)
 	if err != nil {
-		s.log.Error("kitchen beat: list the Users", "err", err)
+		s.log.ErrorContext(ctx, "kitchen beat: list the Users", "err", err)
 		return
 	}
 	for _, id := range users {
@@ -49,7 +49,7 @@ func (s *Service) Beat(ctx context.Context, at time.Time) {
 			return saveBeat(ctx, tx, at)
 		})
 		if err != nil {
-			s.log.Error("kitchen beat", "user", id, "err", err)
+			s.log.ErrorContext(ctx, "kitchen beat", "user", id, "err", err)
 		}
 	}
 }

@@ -1,8 +1,9 @@
 # Dandori on the VPS (ADR-0017): the app behind Caddy, which gets and
 # renews the TLS certificate. CI copies this file and the Caddyfile to
 # /srv/dandori and writes the .env next to them with DANDORI_IMAGE,
-# DANDORI_DOMAIN, DANDORI_DATABASE_URL and the Supabase project's URL and
-# publishable key on every deploy.
+# DANDORI_DOMAIN, DANDORI_DATABASE_URL, the Supabase project's URL and
+# publishable key, and Grafana Cloud's OTLP endpoint and token on every
+# deploy.
 services:
   app:
     image: ${DANDORI_IMAGE:?}
@@ -11,6 +12,10 @@ services:
       DANDORI_DATABASE_URL: ${DANDORI_DATABASE_URL:?}
       DANDORI_SUPABASE_URL: ${DANDORI_SUPABASE_URL:?}
       DANDORI_SUPABASE_PUBLISHABLE_KEY: ${DANDORI_SUPABASE_PUBLISHABLE_KEY:?}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?}
+      # Tells production's spans and logs from those of `mise run dev`, tagged dev.
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=prod
 
   caddy:
     image: caddy:2.11.7-alpine

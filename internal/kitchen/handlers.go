@@ -20,7 +20,7 @@ type Handlers struct {
 func (h Handlers) UpToNow(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Service.BringUpToNow(r.Context(), h.Clock.Now()); err != nil {
-			httpx.ServerError(w, h.Log, "bring the kitchen up to now", err)
+			httpx.ServerError(w, r, h.Log, "bring the kitchen up to now", err)
 			return
 		}
 		next.ServeHTTP(w, r)

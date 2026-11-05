@@ -9,11 +9,13 @@ import (
 	"io/fs"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"go.opentelemetry.io/otel/trace"
 )
 
 //go:embed migrations/*.sql
@@ -30,9 +32,9 @@ type Querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// Open creates a connection pool without connecting; the first query
-// connects.
-func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
+// Open creates a connection pool without connecting; the first query connects. Every
+// query is a span from tp, with its SQL but not its arguments: they hold Users' data.
+func Open(ctx context.Context, url string, tp trace.TracerProvider) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
@@ -40,6 +42,7 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	if cfg.ConnConfig.ConnectTimeout == 0 {
 		cfg.ConnConfig.ConnectTimeout = 5 * time.Second
 	}
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithTracerProvider(tp), otelpgx.WithDisableAcquireTracer())
 	return pgxpool.NewWithConfig(ctx, cfg)
 }
 

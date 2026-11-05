@@ -9,9 +9,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
@@ -30,12 +36,15 @@ type Config struct {
 	Clock clock.Clock
 	// Auth is the Supabase Auth Users sign in through.
 	Auth auth.Config
+	// Spans makes the spans of every request, query and beat; without it, none are made.
+	Spans trace.TracerProvider
 }
 
 // App is a running Dandori instance.
 type App struct {
 	pool    *pgxpool.Pool
 	clock   clock.Clock
+	spans   trace.TracerProvider
 	log     *slog.Logger
 	auth    *auth.Service
 	profile *profile.Service
@@ -49,11 +58,15 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if cfg.Clock == nil {
 		return nil, errors.New("app.Config has no Clock")
 	}
-	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	spans := cfg.Spans
+	if spans == nil {
+		spans = noop.NewTracerProvider()
+	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL, spans)
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -71,14 +84,21 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 func (a *App) Close() { a.pool.Close() }
 
 // Schedule starts the scheduler, which beats on the app's clock every kitchen.BeatEvery
-// and brings every User's kitchen up to now, until ctx ends.
+// and brings every User's kitchen up to now, until ctx ends. Each beat is a span.
 func (a *App) Schedule(ctx context.Context) {
-	a.clock.Every(ctx, kitchen.BeatEvery, func(at time.Time) { a.kitchen.Beat(ctx, at) })
+	tracer := a.spans.Tracer("github.com/simopzz/dandori/internal/app")
+	a.clock.Every(ctx, kitchen.BeatEvery, func(at time.Time) {
+		ctx, span := tracer.Start(ctx, "kitchen beat")
+		defer span.End()
+		a.kitchen.Beat(ctx, at)
+	})
 }
 
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
-// were switched to. Every signed-in page first brings the User's kitchen up to now.
+// were switched to. Every signed-in page first brings the User's kitchen up to now. Every
+// request but the health check is a span with no parent: one a traceparent header names,
+// sent from the internet, is ignored.
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
@@ -101,7 +121,25 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /{$}", signedIn(a.home))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
-	return web.Languages(mux)
+	return otelhttp.NewHandler(web.Languages(named(mux)), "request",
+		otelhttp.WithTracerProvider(a.spans),
+		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
+		otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" }))
+}
+
+// named names the request's span after the route mux matched. otelhttp would, but it sees
+// only the request web.Languages copies before mux routes it.
+func named(mux *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.ServeHTTP(w, r)
+		if r.Pattern != "" {
+			span := trace.SpanFromContext(r.Context())
+			span.SetName(r.Pattern)
+			if _, route, ok := strings.Cut(r.Pattern, " "); ok {
+				span.SetAttributes(attribute.String("http.route", route))
+			}
+		}
+	})
 }
 
 func (a *App) ping(ctx context.Context) error {
@@ -118,7 +156,7 @@ func (a *App) ping(ctx context.Context) error {
 func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	status, code := "ok", http.StatusOK
 	if err := a.ping(r.Context()); err != nil {
-		a.log.Warn("health check", "err", err)
+		a.log.WarnContext(r.Context(), "health check", "err", err)
 		status, code = "unavailable", http.StatusServiceUnavailable
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -129,7 +167,7 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	beat, ok, err := a.kitchen.LastBeat(r.Context())
 	if err != nil {
-		httpx.ServerError(w, a.log, "load the kitchen's last beat", err)
+		httpx.ServerError(w, r, a.log, "load the kitchen's last beat", err)
 		return
 	}
 	now := a.clock.Now()
