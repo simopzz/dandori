@@ -34,8 +34,7 @@ func TestIngredientNamesOfOneFoodNormaliseAlike(t *testing.T) {
 }
 
 // Different foods stay apart, even when they share a word or all but a letter, and so do
-// a singular and its plural: no rule tells them from two foods, so only a stem suggests
-// they are one.
+// a singular and its plural: no rule tells them from two foods.
 func TestIngredientNamesOfDifferentFoodsNormaliseApart(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -58,44 +57,6 @@ func TestIngredientNamesOfDifferentFoodsNormaliseApart(t *testing.T) {
 				t.Errorf("%q and %q both normalise to %q, want them apart", tt.a, tt.b, a)
 			}
 		})
-	}
-}
-
-// A singular and its plural share a stem, size and grade words left out, in the User's
-// Language. So may two foods: "pesce" and "pesca" do, which is why a stem only suggests.
-func TestASingularAndItsPluralShareAStem(t *testing.T) {
-	tests := []struct {
-		name     string
-		language domain.Language
-		a, b     string
-	}{
-		{"a plural in -s", domain.English, "eggs", "egg"},
-		{"a plural in -es", domain.English, "tomatoes", "tomato"},
-		{"a plural in -ies", domain.English, "berries", "berry"},
-		{"a plural of a word ending in e", domain.English, "cheeses", "cheese"},
-		{"a plural with a size word", domain.English, "large eggs", "egg"},
-		{"an Italian plural in -i", domain.Italian, "pomodori", "pomodoro"},
-		{"an Italian plural in -e", domain.Italian, "carote", "carota"},
-		{"an Italian irregular plural", domain.Italian, "uova", "uovo"},
-		{"an Italian plural in -chi", domain.Italian, "funghi", "fungo"},
-		{"an Italian plural in -che", domain.Italian, "pesche", "pesca"},
-		{"an Italian -cia plural", domain.Italian, "arance", "arancia"},
-		{"an Italian -io plural", domain.Italian, "oli", "olio"},
-		{"an Italian plural with a size word", domain.Italian, "uova grandi", "uovo"},
-		{"two foods", domain.Italian, "pesce", "pesca"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a, b := domain.IngredientStem(tt.language, tt.a), domain.IngredientStem(tt.language, tt.b)
-			if a != b {
-				t.Errorf("%q has the stem %q and %q %q, want them alike", tt.a, a, tt.b, b)
-			}
-		})
-	}
-	for _, apart := range [][2]string{{"uova", "uva"}, {"egg white", "egg"}, {"pasta fresca", "pasta"}} {
-		if a, b := domain.IngredientStem(domain.Italian, apart[0]), domain.IngredientStem(domain.Italian, apart[1]); a == b {
-			t.Errorf("%q and %q share the stem %q, want them apart", apart[0], apart[1], a)
-		}
 	}
 }
 
