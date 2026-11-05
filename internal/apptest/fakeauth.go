@@ -45,6 +45,7 @@ type FakeAuth struct {
 	sessions  map[string]fakeSession // the session each live refresh token renews
 	revoked   map[string]bool        // the signed-out session ids
 	mail      map[string][]string
+	traced    []string // the traceparent headers the app sent, which it shouldn't
 }
 
 type link struct{ email, kind string }
@@ -68,7 +69,14 @@ func startFakeAuth(t testing.TB, c clock.Clock) *FakeAuth {
 	mux.HandleFunc("POST /auth/v1/verify", f.withKey(f.verify))
 	mux.HandleFunc("POST /auth/v1/token", f.withKey(f.token))
 	mux.HandleFunc("POST /auth/v1/logout", f.withKey(f.logout))
-	srv := httptest.NewServer(mux)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if tp := r.Header.Get("traceparent"); tp != "" {
+			f.mu.Lock()
+			f.traced = append(f.traced, tp)
+			f.mu.Unlock()
+		}
+		mux.ServeHTTP(w, r)
+	}))
 	t.Cleanup(srv.Close)
 	f.URL = srv.URL
 	return f
@@ -102,6 +110,13 @@ func (f *FakeAuth) Mail(email string) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]string(nil), f.mail[email]...)
+}
+
+// Traceparents is every traceparent header the app sent, oldest first.
+func (f *FakeAuth) Traceparents() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.traced...)
 }
 
 // sendLink emails a link to `to` with a new token hash, as Supabase's

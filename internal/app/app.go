@@ -36,7 +36,8 @@ type Config struct {
 	Clock clock.Clock
 	// Auth is the Supabase Auth Users sign in through.
 	Auth auth.Config
-	// Spans makes the spans of every request, query and beat; without it, none are made.
+	// Spans makes the spans of every request, query, beat and call to Supabase
+	// Auth; without it, none are made.
 	Spans trace.TracerProvider
 }
 
@@ -67,7 +68,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), kitchen: kitchen.New(pool, log)}
 	a.today = today.New(a.profile, a.kitchen)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()

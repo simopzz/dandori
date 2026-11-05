@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
@@ -44,9 +45,9 @@ type Service struct {
 	clock    clock.Clock
 }
 
-// New creates the Service.
-func New(pool *pgxpool.Pool, cfg Config, c clock.Clock) *Service {
-	return &Service{pool: pool, supabase: newSupabase(cfg, c), clock: c}
+// New creates the Service, whose calls to Supabase Auth are spans made by tp.
+func New(pool *pgxpool.Pool, cfg Config, c clock.Clock, tp trace.TracerProvider) *Service {
+	return &Service{pool: pool, supabase: newSupabase(cfg, c, tp), clock: c}
 }
 
 // SendMagicLink emails a magic link leading to redirectTo, if email was
