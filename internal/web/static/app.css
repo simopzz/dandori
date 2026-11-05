@@ -188,8 +188,8 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
 
 /* dithering: two colours in a stepped pattern of square pixels, at 25, 50 or
    75%, set by --dither-on over --dither-under. It may go only in the sky, the
-   veil behind a sheet, the chosen segment, a primary button's hover and the
-   busy state. */
+   veil behind a sheet, the chosen segment, a primary button's hover and a busy
+   primary button. */
 
 .dither { --dither-pixel: var(--pixel); height: calc(var(--dither-rows, 2) * var(--pixel)); background: var(--dither-under); }
 
@@ -201,7 +201,6 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
 .dither-50,
 .btn:hover,
 .btn[aria-busy="true"],
-.busy-bar::before,
 .seg input:checked + span,
 .sheet::backdrop {
   background: repeating-conic-gradient(var(--dither-on) 0 25%, var(--dither-under) 0 50%)
@@ -217,7 +216,6 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
    veil over the page. */
 .btn:hover,
 .btn[aria-busy="true"],
-.busy-bar::before,
 .seg input:checked + span { --dither-pixel: var(--pixel-fine); --dither-on: var(--color-fill-dither); --dither-under: var(--color-fill); }
 
 .sheet::backdrop { --dither-pixel: var(--pixel-fine); --dither-on: var(--color-veil); --dither-under: transparent; }
@@ -569,8 +567,8 @@ a.row-title:hover { text-decoration: underline; }
 
 .btn-danger { color: var(--color-accent); }
 
-/* busy: a request slower than 300 ms shows the bar along the top of the screen,
-   and its pressed button busy (aria-busy, set by layout.templ's busyButton after
+/* busy: a request slower than 300 ms shows the bar across the top of the screen,
+   rail included, and its pressed button busy (aria-busy, set by layout.templ's busyButton after
    the same 300 ms): a primary button's dither steps along, a text button turns
    soft with a dotted underline. */
 
@@ -578,7 +576,7 @@ a.row-title:hover { text-decoration: underline; }
   position: fixed;
   z-index: 20;
   inset: 0 0 auto;
-  height: calc(2 * var(--pixel-fine));
+  height: calc(2 * var(--pixel-fine) + 1px);
   overflow: hidden;
   visibility: hidden;
   pointer-events: none;
@@ -586,19 +584,19 @@ a.row-title:hover { text-decoration: underline; }
 
 body:has(.htmx-request) .busy-bar { visibility: visible; transition: visibility 0s 300ms; }
 
+/* Navy and slate blocks march along the whole bar, one period wider than it, so
+   the loop is seamless; a transform, so a busy page doesn't stall it. */
 .busy-bar::before {
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 30%;
-  transform: translateX(-100%);
+  inset: 0 0 0 calc(-1 * var(--busy-period));
+  --busy-period: calc(16 * var(--pixel-fine));
+  background: repeating-linear-gradient(90deg, var(--color-fill) 0 calc(var(--busy-period) / 2), var(--color-fill-dither) 0 var(--busy-period));
 }
 
-/* The block slides from off the left edge to off the right, starting as the bar
-   shows, so it never appears midway; a transform, so a busy page doesn't stall it. */
-body:has(.htmx-request) .busy-bar::before { animation: busy-slide 1.4s cubic-bezier(0.4, 0, 0.6, 1) 300ms infinite; }
+body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear infinite; }
 
-@keyframes busy-slide { to { transform: translateX(calc(100% / 0.3)); } }
+@keyframes busy-march { to { transform: translateX(var(--busy-period)); } }
 
 .btn[aria-busy="true"] { cursor: progress; animation: busy-step 0.4s steps(2) infinite; }
 
@@ -606,13 +604,9 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-slide 1.4s cubic-bez
 
 .btn-text[aria-busy="true"] { cursor: progress; color: var(--color-text-soft); text-decoration-style: dotted; }
 
-@media (min-width: 900px) {
-  .busy-bar { left: var(--rail-width); }
-}
-
 /* Without motion the bar is still and whole, and still waits its 300 ms. */
 @media (prefers-reduced-motion: reduce) {
-  .busy-bar::before { width: 100%; transform: none; }
+  .busy-bar::before { transform: none; }
 
   body:has(.htmx-request) .busy-bar { transition: visibility 0s 300ms !important; }
 }

@@ -92,8 +92,7 @@ It may go in five places only:
 - **the veil** behind an open sheet: a navy checker over the page;
 - **the chosen segment**: navy and slate;
 - **a primary button's hover**: navy and slate;
-- **the busy state**: the busy bar and a busy primary button, navy and slate
-  (see [Busy](#busy)).
+- **a busy primary button**: navy and slate (see [Busy](#busy)).
 
 Rows, forms and reading text stay flat paper. Smooth gradients are out (the
 section rule is two flat strokes, not a blend).
@@ -137,8 +136,8 @@ A request that takes time shows it, the same way on every page, once it has
 taken **300 ms**, so a quick click doesn't flicker; both go when it ends,
 answered or failed. Neither needs anything from a page.
 
-- **The busy bar**: a thin bar along the top of the screen (from the rail's
-  edge on desktop), where a short navy-and-slate dithered block slides across
+- **The busy bar**: a 5px bar across the whole top of the screen, over the
+  rail on desktop, where navy and slate blocks march steadily to the right
   while any htmx request is in flight, boosted navigation included. It is
   `Layout`'s, shown by CSS while an element holds htmx's `htmx-request`.
 - **The pressed button**: on top of being disabled (`hx-disable` on `<body>`),
@@ -218,7 +217,7 @@ and closing.
   included, so a focused field stands out from an invalid one. On the navy
   tabs the ring is salmon (5.8:1), as vermilion there is about 2:1.
 - `prefers-reduced-motion` turns off transitions and animations: the busy
-  bar stands still across the whole top, and a busy button's dither is still.
+  bar's blocks and a busy button's dither stand still.
   The bar still waits its 300 ms.
 - Meaning is never carried by colour alone: an error says what is wrong and
   is marked `!`, an invalid field has a thicker underline and
@@ -234,7 +233,7 @@ and closing.
 - **Do** use tokens for every colour, space and radius.
 - **Do** let space separate things: hairlines and section rules, not boxes.
 - **Do** keep dithering to the sky, the veil, the chosen segment, a
-  button's hover and the busy state, and the banner's colours other than
+  button's hover and a busy button, and the banner's colours other than
   navy to the sky and the pixel art.
 - **Do** give every form one primary `Button`; everything else is a
   `TextButton` or `DestructiveButton`.
