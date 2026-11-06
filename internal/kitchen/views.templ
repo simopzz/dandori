@@ -17,12 +17,15 @@ const countSheetID = "count"
 // movementsSheetID is the Movements sheet's id.
 const movementsSheetID = "movements"
 
-// stockID is the id of the list a Count refreshes.
+// moveSheetID is the Move sheet's id.
+const moveSheetID = "move"
+
+// stockID is the id of the list a Count or a move refreshes.
 const stockID = "stock"
 
 // page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
-// action opens, cleared each time it closes, and each Stock Item's Movements and the
-// Ingredients a click away in their side sheets.
+// action opens, cleared each time it closes, and each Stock Item's Movements and its
+// move, and the Ingredients, a click away in their side sheets.
 templ page(now time.Time, stock []Held, f CountForm) {
 	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
@@ -30,7 +33,7 @@ templ page(now time.Time, stock []Held, f CountForm) {
 				@ingredients.SheetLink()
 			</p>
 		}
-		<div id={ stockID } hx-get="/kitchen/stock" hx-trigger={ stockCounted + " from:body" }>
+		<div id={ stockID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body" }>
 			@stockList(now, stock)
 		</div>
 		@web.AddSheet(countSheetID, web.T(ctx, msgCount), false) {
@@ -48,6 +51,7 @@ templ page(now time.Time, stock []Held, f CountForm) {
 			></div>
 		}
 		@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
+		@web.SideSheet(moveSheetID, web.T(ctx, msgMove))
 		@ingredients.Sheet()
 	}
 }
@@ -84,11 +88,17 @@ templ stockList(now time.Time, stock []Held) {
 							}
 						</span>
 						<span class="row-figure">{ quantity(ctx, h.Item.Held, h.Ingredient.Unit) }</span>
-						<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
+						if !h.Item.Counted.IsZero() {
+							<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
+						}
 						<span class="row-action">
 							@web.SideSheetLink(countSheetID, stockItemURL("/kitchen/count", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/count/sheet", h.Ingredient.ID, h.Location)) {
 								{ web.T(ctx, msgCount) }
 								<span class="sr-only">{ h.Ingredient.Name }</span>
+							}
+							@web.SideSheetLink(moveSheetID, stockItemURL("/kitchen/move", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/move/sheet", h.Ingredient.ID, h.Location)) {
+								{ web.T(ctx, msgMove) }
+								<span class="sr-only">{ h.Ingredient.Name } { web.T(ctx, inLocations[h.Location]) }</span>
 							}
 						</span>
 					}
@@ -139,7 +149,7 @@ templ movementsBody(now time.Time, item StockItemMovements) {
 		@web.Rows() {
 			for _, m := range item.Movements {
 				@web.Row() {
-					<span class="row-title">{ web.T(ctx, causeNames[m.Cause]) }</span>
+					<span class="row-title">{ causeText(ctx, m, item.Location) }</span>
 					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, quantity(ctx, m.Before, item.Ingredient.Unit), quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
 					<span class="row-meta">
 						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
@@ -341,6 +351,87 @@ func quantityStep(unit domain.Unit) string {
 		return "0.1"
 	}
 	return "1"
+}
+
+// movePage is the form that moves a Stock Item as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header.
+templ movePage(now time.Time, f MoveForm) {
+	@web.Layout(web.T(ctx, msgMoveTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgMove), now)
+		<div id={ web.SideSheetBody(moveSheetID) }>
+			@moveForm(f)
+		</div>
+	}
+}
+
+// moveForm moves f's Stock Item, swapping the sheet's body when htmx posts it. Its target
+// starts unchosen, so stock can't go to the wrong place by default.
+templ moveForm(f MoveForm) {
+	<form
+		id="move-form"
+		method="post"
+		action="/kitchen/move"
+		hx-post="/kitchen/move"
+		hx-target={ "#" + web.SideSheetBody(moveSheetID) }
+		hx-swap="innerHTML"
+	>
+		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
+		<input type="hidden" name="location" value={ string(f.From) }/>
+		@web.FieldGroup(0, web.Tf(ctx, msgStockItem, f.Ingredient.Name, web.T(ctx, locationHeadings[f.From]))) {
+			<div class="stack">
+				@web.Field(web.T(ctx, msgMoveQuantity), "", f.Errs["quantity"]) {
+					<input
+						type="number"
+						inputmode="decimal"
+						min="0"
+						step={ quantityStep(f.Ingredient.Unit) }
+						name="quantity"
+						value={ f.Quantity }
+						required
+						autocomplete="off"
+						autofocus
+						{ ingredients.Invalid(f.Errs["quantity"])... }
+					/>
+				}
+				<div>
+					@web.Hint() {
+						{ web.T(ctx, msgMoveWhere) }
+					}
+					@web.Segmented(web.T(ctx, msgMoveWhere), "to", targetChoices(ctx, f), string(f.To), f.Errs["to"])
+				</div>
+				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+					<input name="note" value={ f.Note } autocomplete="off"/>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgMove) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// movedNotice confirms a move just saved of moved of ing, in the sheet that made it.
+templ movedNotice(ing domain.Ingredient, to domain.StorageLocation, moved domain.Quantity) {
+	@web.Notice() {
+		{ web.Tf(ctx, msgMoved, quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[to])) }
+	}
+}
+
+// targetChoices are the Storage Locations f's Stock Item can move to, each with what
+// Dandori believes it holds of the Ingredient.
+func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
+	var choices []web.Choice
+	for _, l := range domain.StorageLocations {
+		if l != f.From {
+			choices = append(choices, web.Choice{
+				Value: string(l),
+				Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
+			})
+		}
+	}
+	return choices
 }
 
 // Status says when the scheduler last brought the User's kitchen up to now, at, told in

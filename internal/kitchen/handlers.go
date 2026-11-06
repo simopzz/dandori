@@ -17,8 +17,8 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// stockCounted is the event that tells the Kitchen page to list its stock again.
-const stockCounted = "stock-counted"
+// movementSaved is the event that tells the Kitchen page to list its stock again.
+const movementSaved = "movement-saved"
 
 // Handlers bring the signed-in User's kitchen up to now before every page, so a page is
 // never wrong because the scheduler was late, and serve the Kitchen page.
@@ -55,7 +55,8 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, page(now, stock, f))
 }
 
-// ShowStock is what the Kitchen page lists alone, which it swaps in after each Count.
+// ShowStock is what the Kitchen page lists alone, which it swaps in after each
+// Count or move.
 func (h Handlers) ShowStock(w http.ResponseWriter, r *http.Request) {
 	now := h.Clock.Now()
 	stock, err := h.Service.Stock(r.Context(), now)
@@ -185,8 +186,100 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "start a Count", err)
 		return
 	}
-	w.Header().Set("HX-Trigger", stockCounted)
+	w.Header().Set("HX-Trigger", movementSaved)
 	h.answer(w, r, http.StatusOK, now, cleared)
+}
+
+// ShowMove is the form that moves a Stock Item as a page of its own, for a browser
+// without htmx.
+func (h Handlers) ShowMove(w http.ResponseWriter, r *http.Request) {
+	if f := h.startMove(w, r); f != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, movePage(h.Clock.Now(), *f))
+	}
+}
+
+// ShowMoveSheet is the Move sheet's body: the form that moves a Stock Item.
+func (h Handlers) ShowMoveSheet(w http.ResponseWriter, r *http.Request) {
+	if f := h.startMove(w, r); f != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, moveForm(*f))
+	}
+}
+
+// startMove is the form that moves the Stock Item r's query asks for, the quantity all of
+// it. Holding nothing it can't be moved; then, or on a failure, it answers r itself and
+// is nil.
+func (h Handlers) startMove(w http.ResponseWriter, r *http.Request) *MoveForm {
+	id, err := strconv.ParseInt(r.URL.Query().Get("ingredient"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return nil
+	}
+	ing, believed, ok, err := h.Service.StartCount(r.Context(), h.Clock.Now(), id)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "start a move", err)
+		return nil
+	}
+	from := domain.StorageLocation(r.URL.Query().Get("location"))
+	if !ok || believed[from] <= 0 {
+		http.NotFound(w, r)
+		return nil
+	}
+	return &MoveForm{
+		Ingredient: ing, From: from, Believed: believed,
+		Quantity: strconv.FormatFloat(believed[from].Number(), 'f', -1, 64),
+	}
+}
+
+// Move saves a move at the moment it arrives. Posted from the sheet by htmx, it answers
+// with the move confirmed, telling the page under it to list its stock again, or the form
+// as typed with why it was refused. A plain post lands on the Kitchen page.
+func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
+	ctx, now := r.Context(), h.Clock.Now()
+	id, err := strconv.ParseInt(r.PostFormValue("ingredient"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	from := domain.StorageLocation(r.PostFormValue("location"))
+	ing, ok, err := h.Service.ingredients.Find(ctx, id)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "find the Ingredient to move", err)
+		return
+	}
+	if !ok || !slices.Contains(domain.StorageLocations, from) {
+		http.NotFound(w, r)
+		return
+	}
+	moved, f := parseMoveForm(r, ing, from)
+	if len(f.Errs) == 0 {
+		var refused MoveRefused
+		err = h.Service.Move(ctx, now, id, from, f.To, moved, f.Note)
+		switch {
+		case errors.As(err, &refused):
+			f.Errs["quantity"] = refusal(ctx, refused, ing.Unit)
+		case err != nil:
+			httpx.ServerError(w, r, h.Log, "save a move", err)
+			return
+		}
+	}
+	if len(f.Errs) > 0 {
+		if f.Believed, err = h.Service.Believed(ctx, now, id); err != nil {
+			httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
+			return
+		}
+		if httpx.IsHTMX(r) {
+			httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, moveForm(f))
+			return
+		}
+		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, movePage(now, f))
+		return
+	}
+	if !httpx.IsHTMX(r) {
+		http.Redirect(w, r, "/kitchen", http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("HX-Trigger", movementSaved)
+	httpx.Render(w, r, h.Log, http.StatusOK, movedNotice(ing, f.To, moved))
 }
 
 // CountNew answers an add the User made to count the Ingredient id: its Count form, in

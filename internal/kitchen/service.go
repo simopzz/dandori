@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -72,20 +73,11 @@ func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
 	return held, err
 }
 
-// StockMovement is one Movement of a Stock Item as a page tells it: what Dandori believed
-// before and after it, and the User's note, if any.
-type StockMovement struct {
-	At            time.Time
-	Cause         domain.Cause
-	Before, After domain.Quantity
-	Note          string
-}
-
 // StockItemMovements is one Stock Item with its Movements, newest first.
 type StockItemMovements struct {
 	Ingredient domain.Ingredient
 	Location   domain.StorageLocation
-	Movements  []StockMovement
+	Movements  []domain.StockMovement
 }
 
 // StockItemMovements is the Stock Item of the Ingredient id in location with its
@@ -94,15 +86,20 @@ type StockItemMovements struct {
 func (s *Service) StockItemMovements(ctx context.Context, id int64, location domain.StorageLocation) (*StockItemMovements, error) {
 	var item *StockItemMovements
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		movements, err := loadStockMovements(ctx, tx, id, location)
-		if err != nil || len(movements) == 0 {
+		movements, err := loadMovements(ctx, tx)
+		if err != nil {
 			return err
 		}
+		touched := domain.StockMovements(movements, domain.StockKey{Ingredient: id, Location: location})
+		if len(touched) == 0 {
+			return nil
+		}
+		slices.Reverse(touched)
 		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
 		if err != nil || !ok {
 			return err
 		}
-		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: movements}
+		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: touched}
 		return nil
 	})
 	return item, err
@@ -214,21 +211,56 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 		if ing.Staple {
 			return ErrStaple
 		}
-		movements, err := loadMovements(ctx, tx)
+		believed, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: location})
 		if err != nil {
 			return err
 		}
-		// A Count that overlapped this one may have taken the lock first with a later
-		// time: what it wrote is believed all the same.
-		asOf := at
-		if n := len(movements); n > 0 && movements[n-1].At.After(asOf) {
-			asOf = movements[n-1].At
-		}
-		believed := domain.AddUp(movements, asOf)[domain.StockKey{Ingredient: id, Location: location}].Held
 		counted, err = saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
 		return err
 	})
 	return counted, err
+}
+
+// loadHeld is what the Stock Item key holds at, for a Count or a move that has hold of
+// the kitchen. One that overlapped it may have taken the lock first with a later time:
+// what that wrote is believed all the same.
+func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, error) {
+	movements, err := loadMovements(ctx, q)
+	if err != nil {
+		return 0, err
+	}
+	if n := len(movements); n > 0 && movements[n-1].At.After(at) {
+		at = movements[n-1].At
+	}
+	return domain.AddUp(movements, at)[key].Held, nil
+}
+
+// MoveRefused is a move domain.CheckMove refused: why, and what was held.
+type MoveRefused struct {
+	Problem domain.Problem
+	Held    domain.Quantity
+}
+
+func (r MoveRefused) Error() string { return "move refused: " + string(r.Problem) }
+
+// Move records at a move of moved of the Ingredient id from one Storage Location to
+// another. What is held is read here, once the kitchen is held, so a move is checked
+// against the Kitchen Ledger as it stands and not as a form showed it. A move that
+// domain.CheckMove refuses is MoveRefused, and writes nothing.
+func (s *Service) Move(ctx context.Context, at time.Time, id int64, from, to domain.StorageLocation, moved domain.Quantity, note string) error {
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := lockKitchen(ctx, tx); err != nil {
+			return err
+		}
+		held, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: from})
+		if err != nil {
+			return err
+		}
+		if problem := domain.CheckMove(held, moved); problem != "" {
+			return MoveRefused{Problem: problem, Held: held}
+		}
+		return saveMove(ctx, tx, at, id, from, to, moved, strings.TrimSpace(note))
+	})
 }
 
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it
