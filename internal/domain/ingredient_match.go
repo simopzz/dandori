@@ -41,11 +41,12 @@ func ClosestIngredient(l Language, name string, known []string) (string, bool) {
 // SearchIngredients is which of names a search for query finds, as indices into names,
 // most alike first and alike ones in the order given: those that contain query, and those
 // whose spelling is alike, whole or in a run of their words, so a typo still finds the
-// Ingredient. A blank query finds every name.
+// Ingredient. Of names alike in a run of their words, the one nearest query as a whole
+// comes first, so milk leads coconut milk. A blank query finds every name.
 func SearchIngredients(query string, names []string) []int {
 	query = fold(query)
 	var found []int
-	scores := map[int]float64{}
+	run, whole := map[int]float64{}, map[int]float64{}
 	for i, name := range names {
 		if query == "" {
 			found = append(found, i)
@@ -54,10 +55,12 @@ func SearchIngredients(query string, names []string) []int {
 		score := runSimilarity(query, name)
 		if strings.Contains(fold(name), query) || score >= searchSimilarity {
 			found = append(found, i)
-			scores[i] = score
+			run[i], whole[i] = score, similarity(trigrams(query), trigrams(name))
 		}
 	}
-	slices.SortStableFunc(found, func(a, b int) int { return cmp.Compare(scores[b], scores[a]) })
+	slices.SortStableFunc(found, func(a, b int) int {
+		return cmp.Or(cmp.Compare(run[b], run[a]), cmp.Compare(whole[b], whole[a]))
+	})
 	return found
 }
 
