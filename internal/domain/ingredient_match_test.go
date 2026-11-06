@@ -69,6 +69,39 @@ func TestClosestIngredientBreaksATieByName(t *testing.T) {
 	}
 }
 
+// One slip from a known name suggests it, however short the name, but a name of fewer
+// than three letters is too short to tell a slip from another food.
+func TestClosestIngredientSuggestsANameOneSlipAway(t *testing.T) {
+	tests := []struct {
+		name, typed, want string
+		suggested         bool
+	}{
+		{"a letter dropped", "aglo", "aglio", true},
+		{"a letter added", "agglio", "aglio", true},
+		{"a letter changed", "agkio", "aglio", true},
+		{"two letters swapped", "algio", "aglio", true},
+		{"two slips", "agkao", "", false},
+		{"too short", "ag", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := domain.ClosestIngredient(domain.Italian, tt.typed, []string{"aglio", "zucca"})
+			if got != tt.want || ok != tt.suggested {
+				t.Errorf("ClosestIngredient(%q) = %q, %v; want %q, %v", tt.typed, got, ok, tt.want, tt.suggested)
+			}
+		})
+	}
+}
+
+// A name that is a known name, as it normalises, is that one, not its neighbour a slip
+// away, so the Service can refuse it as taken.
+func TestClosestIngredientPrefersTheSameNameToOneASlipAway(t *testing.T) {
+	got, ok := domain.ClosestIngredient(domain.Italian, "Mele", []string{"mela", "mele"})
+	if !ok || got != "mele" {
+		t.Errorf(`ClosestIngredient("Mele") = %q, %v; want "mele", true`, got, ok)
+	}
+}
+
 // A search finds the names that contain what was typed, or spelled alike, whole or in a
 // run of their words, most alike first; a blank one finds every name, in order.
 func TestSearchingIngredientsByName(t *testing.T) {

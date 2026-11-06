@@ -124,8 +124,8 @@ func TestSearchingFindsANameByAnyOfItsWords(t *testing.T) {
 	}
 }
 
-// Real slips suggest the name meant, among every name of the Language: letters doubled
-// or dropped, and the accents a phone leaves off.
+// Real slips suggest the name meant, among every name of the Language: letters doubled,
+// dropped or swapped, even in a short name, and the accents a phone leaves off.
 func TestClosestIngredientFindsRealSlips(t *testing.T) {
 	tests := []struct {
 		language    domain.Language
@@ -143,6 +143,12 @@ func TestClosestIngredientFindsRealSlips(t *testing.T) {
 		{domain.Italian, "melanzana", "melanzane"},
 		{domain.Italian, "caffe", "caffè"},
 		{domain.Italian, "baccala", "baccalà"},
+		{domain.English, "slt", "salt"},
+		{domain.English, "bsail", "basil"},
+		{domain.English, "hyme", "thyme"},
+		{domain.Italian, "aglo", "aglio"},
+		{domain.Italian, "ltte", "latte"},
+		{domain.Italian, "limne", "limone"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.typed, func(t *testing.T) {
@@ -154,9 +160,9 @@ func TestClosestIngredientFindsRealSlips(t *testing.T) {
 	}
 }
 
-// What the matcher gets wrong, kept in sight. Trigrams reward shared words and shared
-// starts, so it suggests another food, which the User ignores, and a slip in a short word
-// breaks too many of its few trigrams to suggest anything, so a duplicate gets through.
+// What the matcher gets wrong, kept in sight. It suggests another food that shares words
+// or all but a letter, which the User ignores. A name more than one slip from any other,
+// or of fewer than three letters, too few to tell a slip, suggests nothing.
 func TestClosestIngredientsKnownLimits(t *testing.T) {
 	suggestsAnotherFood := []struct {
 		language    domain.Language
@@ -166,6 +172,8 @@ func TestClosestIngredientsKnownLimits(t *testing.T) {
 		{domain.English, "garlic powder", "garlic"},
 		{domain.English, "chicken stock powder", "beef stock powder"},
 		{domain.Italian, "pesce", "pesca"},
+		{domain.Italian, "pepe", "pere"},
+		{domain.Italian, "cece", "ceci"},
 		{domain.Italian, "peperoncino", "peperone"},
 		{domain.Italian, "prosciutto cotto", "prosciutto crudo"},
 		{domain.Italian, "gallette di riso", "gallette di mais"},
@@ -180,8 +188,7 @@ func TestClosestIngredientsKnownLimits(t *testing.T) {
 		language domain.Language
 		typed    string
 	}{
-		{domain.English, "slt"}, {domain.English, "bsail"}, {domain.English, "hyme"},
-		{domain.Italian, "aglo"}, {domain.Italian, "ltte"}, {domain.Italian, "limne"}, {domain.Italian, "cuscus"},
+		{domain.Italian, "cuscus"}, {domain.Italian, "agglo"}, {domain.Italian, "te"},
 	}
 	for _, tt := range misses {
 		if got, ok := domain.ClosestIngredient(tt.language, tt.typed, kitchenNames[tt.language]); ok {
@@ -203,8 +210,8 @@ func TestSlipsOfKitchenNames(t *testing.T) {
 		return "9 letters or more"
 	}
 	floors := map[string]float64{
-		"en up to 5 letters": 0.12, "en 6 to 8 letters": 0.46, "en 9 letters or more": 0.91, "en search": 0.93,
-		"it up to 5 letters": 0.15, "it 6 to 8 letters": 0.47, "it 9 letters or more": 0.86, "it search": 0.89,
+		"en up to 5 letters": 0.95, "en 6 to 8 letters": 0.99, "en 9 letters or more": 0.99, "en search": 0.94,
+		"it up to 5 letters": 0.93, "it 6 to 8 letters": 0.99, "it 9 letters or more": 0.97, "it search": 0.89,
 	}
 	for l, names := range kitchenNames {
 		total, suggested, searched := map[string]int{}, map[string]int{}, 0
@@ -240,7 +247,7 @@ func TestSlipsOfKitchenNames(t *testing.T) {
 
 // Most real names suggest no other: an Ingredient of a new food usually goes straight in.
 func TestMostKitchenNamesSuggestNoOther(t *testing.T) {
-	const ceiling = 0.13
+	const ceiling = 0.19
 	for l, names := range kitchenNames {
 		suggesting := 0
 		for _, name := range names {

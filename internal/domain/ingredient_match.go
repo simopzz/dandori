@@ -8,8 +8,8 @@ import (
 )
 
 // suggestionSimilarity is how alike a name must be to a known Ingredient's to suggest it:
-// a letter or two off, or the words in another order, but not another food that shares a
-// word ("petto di tacchino" is not "petto di pollo").
+// a letter or two off a long name, or the words in another order, but not another food
+// that shares a word ("petto di tacchino" is not "petto di pollo").
 const suggestionSimilarity = 0.5
 
 // searchSimilarity is how alike a name, or a run of its words, must be to what was typed
@@ -19,23 +19,60 @@ const searchSimilarity = 0.3
 
 // ClosestIngredient is the known Ingredient name most like name, the one a mistyped name
 // most likely meant, if any is alike enough to suggest. Both are compared as
-// NormaliseIngredientName reduces them in l, so a size word counts for nothing. Likeness
-// is trigram similarity as Postgres's pg_trgm computes it; ties go to the name first
-// alphabetically.
+// NormaliseIngredientName reduces them in l, so a size word counts for nothing. A known
+// name the same as name comes first, then one a slip away, since a slip breaks too many
+// of a short word's trigrams; then likeness, which is trigram similarity as Postgres's
+// pg_trgm computes it. Ties go to the name first alphabetically.
 func ClosestIngredient(l Language, name string, known []string) (string, bool) {
-	typed := trigrams(NormaliseIngredientName(l, name))
-	var best string
+	normalised := NormaliseIngredientName(l, name)
+	typed := trigrams(normalised)
+	var best, slip string
 	bestScore := 0.0
 	for _, k := range known {
-		score := similarity(typed, trigrams(NormaliseIngredientName(l, k)))
+		candidate := NormaliseIngredientName(l, k)
+		if candidate == normalised {
+			return k, true
+		}
+		if oneSlipApart(normalised, candidate) && (slip == "" || k < slip) {
+			slip = k
+		}
+		score := similarity(typed, trigrams(candidate))
 		if score > bestScore || score == bestScore && score > 0 && k < best {
 			best, bestScore = k, score
 		}
+	}
+	if slip != "" {
+		return slip, true
 	}
 	if bestScore < suggestionSimilarity {
 		return "", false
 	}
 	return best, true
+}
+
+// slipLetters is the fewest letters a name typed needs for a slip to be told from another
+// food: shorter ones are a slip from too much.
+const slipLetters = 3
+
+// oneSlipApart reports whether typed is known with one slip: a letter dropped, added or
+// changed, or two neighbours swapped.
+func oneSlipApart(typed, known string) bool {
+	a, b := []rune(typed), []rune(known)
+	if len(a) < slipLetters || len(a)-len(b) > 1 || len(b)-len(a) > 1 {
+		return false
+	}
+	head := 0
+	for head < len(a) && head < len(b) && a[head] == b[head] {
+		head++
+	}
+	a, b = a[head:], b[head:]
+	switch {
+	case len(a) == 0 || len(b) == 0:
+		return len(a)+len(b) <= 1
+	case slices.Equal(a[1:], b) || slices.Equal(a, b[1:]) || slices.Equal(a[1:], b[1:]):
+		return true
+	}
+	return len(a) >= 2 && len(a) == len(b) && a[0] == b[1] && a[1] == b[0] && slices.Equal(a[2:], b[2:])
 }
 
 // SearchIngredients is which of names a search for query finds, as indices into names,
