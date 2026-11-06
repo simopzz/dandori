@@ -20,7 +20,7 @@ var (
 
 	msgCount          = web.Message{En: "Count", It: "Conta"}
 	msgCountTitle     = web.Message{En: "Count · Dandori", It: "Conta · Dandori"}
-	msgCounted        = web.Message{En: "Counted %s: %s in the %s.", It: "Contato %s: %s in %s."}
+	msgCounted        = web.Message{En: "Counted %s: %s %s.", It: "Contato %s: %s %s."}
 	msgCountedAt      = web.Message{En: "counted at %s", It: "contato alle %s"}
 	msgCountedOn      = web.Message{En: "counted on %s, %s", It: "contato %s alle %s"}
 	msgSearch         = web.Message{En: "Search your Ingredients", It: "Cerca tra i tuoi Ingredienti"}
@@ -35,7 +35,7 @@ var (
 
 	msgMovements      = web.Message{En: "Movements", It: "Movimenti"}
 	msgMovementsTitle = web.Message{En: "Movements · Dandori", It: "Movimenti · Dandori"}
-	msgMovementsIn    = web.Message{En: "Movements in the %s", It: "Movimenti in %s"}
+	msgMovementsIn    = web.Message{En: "Movements %s", It: "Movimenti %s"}
 	msgStockItem      = web.Message{En: "%s · %s", It: "%s · %s"}
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
 	msgHappened       = web.Message{En: "%s, %s", It: "%s alle %s"}
@@ -57,6 +57,14 @@ var locationHeadings = map[domain.StorageLocation]web.Message{
 	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
 	domain.Fridge:  {En: "Fridge", It: "Frigo"},
 	domain.Freezer: {En: "Freezer", It: "Congelatore"},
+}
+
+// inLocations say where in each Storage Location, as Italian takes each with its own
+// preposition.
+var inLocations = map[domain.StorageLocation]web.Message{
+	domain.Pantry:  {En: "in the pantry", It: "in dispensa"},
+	domain.Fridge:  {En: "in the fridge", It: "in frigo"},
+	domain.Freezer: {En: "in the freezer", It: "nel congelatore"},
 }
 
 // causeNames tell the cause of a Movement, which the Kitchen Ledger stores as data.

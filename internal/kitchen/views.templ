@@ -141,18 +141,24 @@ templ movementsBody(now time.Time, item StockItemMovements) {
 				@web.Row() {
 					<span class="row-title">{ web.T(ctx, causeNames[m.Cause]) }</span>
 					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, quantity(ctx, m.Before, item.Ingredient.Unit), quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
-					<span class="row-meta">{ happenedText(ctx, m.At.In(now.Location())) }</span>
-					if m.Note != "" {
-						<span class="row-meta">{ m.Note }</span>
-					}
+					<span class="row-meta">
+						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
+						if m.Note != "" {
+							<span>{ m.Note }</span>
+						}
+					</span>
 				}
 			}
 		}
 	}
 }
 
-// happenedText says when a Movement happened, told in at's zone.
-func happenedText(ctx context.Context, at time.Time) string {
+// happenedText says when a Movement happened, told in at's zone, with its year unless
+// that is now's.
+func happenedText(ctx context.Context, now, at time.Time) string {
+	if at.Year() != now.Year() {
+		return web.Tf(ctx, msgHappened, web.DateInYear(ctx, at), at.Format("15:04"))
+	}
 	return web.Tf(ctx, msgHappened, web.Date(ctx, at), at.Format("15:04"))
 }
 
@@ -170,7 +176,7 @@ func countedText(ctx context.Context, now, at time.Time) string {
 templ countBody(f CountForm) {
 	if f.Counted != nil {
 		@web.Notice() {
-			{ web.Tf(ctx, msgCounted, f.Counted.Ingredient.Name, quantity(ctx, f.Counted.Stated, f.Counted.Ingredient.Unit), web.T(ctx, ingredients.StorageLocationNames[f.Counted.Location])) }
+			{ web.Tf(ctx, msgCounted, f.Counted.Ingredient.Name, quantity(ctx, f.Counted.Stated, f.Counted.Ingredient.Unit), web.T(ctx, inLocations[f.Counted.Location])) }
 		}
 	}
 	if f.Ingredient != nil {
@@ -295,7 +301,7 @@ templ countForm(f CountForm) {
 					for _, l := range domain.StorageLocations {
 						if _, ok := f.Believed[l]; ok {
 							@web.SideSheetLink(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, l), stockItemURL("/kitchen/movements/sheet", f.Ingredient.ID, l)) {
-								{ web.Tf(ctx, msgMovementsIn, web.T(ctx, ingredients.StorageLocationNames[l])) }
+								{ web.Tf(ctx, msgMovementsIn, web.T(ctx, inLocations[l])) }
 							}
 						}
 					}

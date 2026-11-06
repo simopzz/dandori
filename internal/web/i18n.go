@@ -94,6 +94,11 @@ func Date(ctx context.Context, day time.Time) string {
 	return fmt.Sprintf("%s %d %s", T(ctx, weekdayNames[day.Weekday()]), day.Day(), T(ctx, monthNames[day.Month()-1]))
 }
 
+// DateInYear is Date with day's year: "Monday 2 November 2026", "lunedì 2 novembre 2026".
+func DateInYear(ctx context.Context, day time.Time) string {
+	return fmt.Sprintf("%s %d", Date(ctx, day), day.Year())
+}
+
 // Number is v as the request's Language writes it, a decimal comma in Italian.
 func Number(ctx context.Context, v float64) string {
 	s := strconv.FormatFloat(v, 'f', -1, 64)

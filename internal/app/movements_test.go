@@ -143,6 +143,20 @@ func TestMovementsOfNoStockItem(t *testing.T) {
 	}
 }
 
+// A Movement of another year says so; one of this year has no need to.
+func TestAMovementOfAnotherYearShowsItsYear(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.At("Mon 09:00")
+	s.Counts("rice", "", "200", "")
+	s.At("2027-01-04 10:00")
+	s.Counts("rice", "", "700", "")
+
+	s.Open("/kitchen")
+	s.Follows("rice")
+	s.Sees("Counted 200 g → 700 g Monday 4 January, 10:00 " +
+		"Counted 0 g → 200 g Monday 2 November 2026, 09:00")
+}
+
 // The Movements speak the User's Language, whatever the Language of their note.
 func TestMovementsInItalian(t *testing.T) {
 	s := apptest.NewScenario(t)
@@ -161,6 +175,25 @@ func TestMovementsInItalian(t *testing.T) {
 	s.Sees("Contato 0 pezzi → 1 pezzo")
 	s.Sees("lunedì 2 novembre alle 14:05")
 	s.Sees("dal vicino")
+}
+
+// Italian says "in" or "nel" as each Storage Location takes it, on a Count's confirmation
+// and on the link to its Movements.
+func TestStorageLocationsInItalian(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("Italiano")
+	s.Open("/ingredients")
+	s.AddsIngredient(apptest.Ingredient{Name: "uovo", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6", Carbs: "0", Fat: "5"})
+
+	for location, in := range map[string]string{"pantry": "in dispensa", "fridge": "in frigo", "freezer": "nel congelatore"} {
+		s.Counts("uovo", location, "2", "")
+		s.Sees("Contato uovo: 2 pezzi " + in + ".")
+		s.Open("/kitchen/count")
+		s.Follows("uovo")
+		s.Sees("Movimenti " + in)
+	}
 }
 
 // As htmx asks for them, the Movements are the sheet's body alone.
