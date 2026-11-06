@@ -131,6 +131,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /kitchen", signedIn(kit.Show))
 	mux.Handle("GET /ingredients", signedIn(ings.Show))
 	mux.Handle("GET /ingredients/sheet", signedIn(ings.ShowSheet))
+	mux.Handle("GET /ingredients/list", signedIn(ings.ShowList))
+	mux.Handle("GET /ingredients/suggestion", signedIn(ings.ShowSuggestion))
 	mux.Handle("POST /ingredients", signedIn(ings.Add))
 	return otelhttp.NewHandler(web.Languages(named(mux)), "request",
 		otelhttp.WithTracerProvider(a.spans),

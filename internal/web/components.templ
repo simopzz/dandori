@@ -151,6 +151,17 @@ templ Field(label, hint, err string) {
 	</label>
 }
 
+// SearchField is the search box over a list: the input is the children, with the
+// magnifying glass inside it. label names it for a screen reader; the input's placeholder
+// says it on screen.
+templ SearchField(label string) {
+	<label class="search-field">
+		<span class="sr-only">{ label }</span>
+		@Icon("search")
+		{ children... }
+	</label>
+}
+
 // TimeField is a Field for a time of day, HH:MM, holding value.
 templ TimeField(label, name, value, err string) {
 	@Field(label, "", err) {
@@ -225,6 +236,14 @@ templ TextButton(attrs templ.Attributes) {
 	<button class="btn-text" { attrs... }>
 		{ children... }
 	</button>
+}
+
+// TextLink is a secondary action that writes nothing, looking as a TextButton does.
+// attrs must give its href.
+templ TextLink(attrs templ.Attributes) {
+	<a class="btn-text" { attrs... }>
+		{ children... }
+	</a>
 }
 
 // DestructiveButton removes or discards something. attrs must give its type.
@@ -312,7 +331,8 @@ templ AddSheet(id, title string, open bool) {
 // from the right on desktop, from the bottom on a phone. Its body is empty until a
 // SideSheetLink loads it. Each swap into the body opens the sheet, if it isn't open, and
 // focuses the first field marked aria-invalid, so a rejected form in it is shown again
-// in place.
+// in place. A swap into part of the body, such as a search's results, leaves the focus
+// where it is.
 templ SideSheet(id, title string) {
 	<div id={ id } class="sheet side-sheet" popover role="dialog" aria-labelledby={ id + "-title" }>
 		<div class="sheet-head">
@@ -322,7 +342,7 @@ templ SideSheet(id, title string) {
 		<div
 			id={ SideSheetBody(id) }
 			class="sheet-body"
-			hx-on:htmx:after:swap="const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); this.querySelector('[aria-invalid=true]')?.focus()"
+			hx-on:htmx:after:swap="if (event.detail.ctx.target !== this) return; const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); this.querySelector('[aria-invalid=true]')?.focus()"
 		></div>
 	</div>
 }

@@ -170,6 +170,7 @@ elements themselves.
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
 | `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
+| `SearchField(label)` | The search box over a list, the input the child: a square box with the magnifying glass inside, so it doesn't read as one of the rows. `label` is for a screen reader; the input's placeholder says it on screen. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window). |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
@@ -179,6 +180,7 @@ elements themselves.
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
+| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
 | `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
@@ -186,7 +188,7 @@ elements themselves.
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a popover sheet, from the bottom on a phone, centred on desktop, over a navy dithered veil. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
 | `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil. Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
-| `SideSheetLink(id, href, src)` | Opens the `SideSheet` `id`, loading its body from `src`, a fragment, and focuses its first field. Without htmx it is a plain link to `href`, a page of the same content. A form in the sheet swaps the body (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, the sheet staying open. |
+| `SideSheetLink(id, href, src)` | Opens the `SideSheet` `id`, loading its body from `src`, a fragment, and focuses its first field. Without htmx it is a plain link to `href`, a page of the same content. A form in the sheet swaps the body (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, the sheet staying open. A swap into part of the body, such as the Ingredients search's results, leaves the focus where it is. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
 | `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |

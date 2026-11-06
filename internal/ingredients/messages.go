@@ -42,6 +42,11 @@ var (
 	msgNameRequired  = web.Message{En: "Give it a name.", It: "Dagli un nome."}
 	msgUnitRequired  = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}
 	msgUsualRequired = web.Message{En: "Choose where it is usually kept.", It: "Scegli dove si tiene di solito."}
+	msgDidYouMean    = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
+	msgPick          = web.Message{En: "Use %s", It: "Usa %s"}
+	msgPicked        = web.Message{En: "%s is already one of your Ingredients.", It: "%s è già tra i tuoi Ingredienti."}
+	msgSearch        = web.Message{En: "Search", It: "Cerca"}
+	msgNoMatch       = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
 	msgNameTaken     = web.Message{
 		En: "You already have %s: one food is one Ingredient.",
 		It: "Hai già %s: un cibo è un solo Ingrediente.",

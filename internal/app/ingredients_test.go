@@ -134,6 +134,9 @@ func TestIngredientsInItalian(t *testing.T) {
 	fish := peach
 	fish.Name, fish.Kcal = "pesce", "120"
 	s.AddsIngredient(fish)
+	s.IsRefused()
+	s.Sees("Intendevi pesca?")
+	s.Submits("ingredient-add")
 	s.Sees("Aggiunto: pesce.")
 }
 
@@ -190,4 +193,162 @@ func TestEachUserHasTheirOwnIngredients(t *testing.T) {
 	s.Sees("No Ingredients yet.")
 	s.AddsIngredient(egg)
 	s.Sees("Added egg.")
+}
+
+// A name close to an Ingredient's, which doesn't normalise to it, suggests that one. The
+// User picks it, adding nothing and finding it in the list, or confirms the name they
+// typed and adds it. A confirmation is of the name shown: changed, it is matched again.
+func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+	s.AddsIngredient(egg)
+
+	eggs := egg
+	eggs.Name = "eggs"
+	s.AddsIngredient(eggs)
+	s.IsRefused()
+	s.Sees("Did you mean egg?")
+	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "eggs" {
+		t.Errorf("the add form suggesting egg holds name %q, want eggs", got)
+	}
+
+	s.Follows("Use egg")
+	s.IsAt("/ingredients")
+	s.Sees("egg is already one of your Ingredients.")
+	s.DoesNotSee("eggs")
+	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "" {
+		t.Errorf("the add form after picking egg holds name %q, want it cleared", got)
+	}
+	if got := apptest.Form(t, s.Page().Body, "ingredient-search").Get("q"); got != "egg" {
+		t.Errorf("the search after picking egg holds %q, want egg", got)
+	}
+
+	s.AddsIngredient(eggs)
+	s.Sees("Did you mean egg?")
+	typo := eggs
+	typo.Name = "eggz"
+	s.AddsIngredient(typo)
+	s.IsRefused()
+	s.Sees("Did you mean egg?")
+	s.Submits("ingredient-add")
+	s.Sees("Added eggz.")
+}
+
+// The suggestion, picking it and confirming the name typed each answer with the side
+// sheet's body alone when htmx posts them. Picking a name the User has no Ingredient of
+// confirms nothing.
+func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	sheet := s.Get(t, "/ingredients/sheet")
+	form := apptest.Form(t, sheet.Body, "ingredient-add")
+	egg.Fill(form)
+	s.HTMXPostForm(t, form.Action, form.Values)
+
+	form.Values.Set("name", "eggs")
+	suggested := s.HTMXPostForm(t, form.Action, form.Values)
+	if suggested.StatusCode != http.StatusUnprocessableEntity || strings.Contains(suggested.Body, "<html") {
+		t.Fatalf("adding eggs from the sheet answered %d, want 422 and a fragment:\n%s", suggested.StatusCode, suggested.Body)
+	}
+	if shown := apptest.Text(suggested.Body); !strings.Contains(shown, "Did you mean egg?") {
+		t.Errorf("the sheet adding eggs shows: %s", shown)
+	}
+
+	picked := s.HTMXGet(t, "/ingredients/sheet?picked=egg")
+	if picked.StatusCode != http.StatusOK || strings.Contains(picked.Body, "<html") {
+		t.Fatalf("picking egg from the sheet answered %d, want 200 and a fragment:\n%s", picked.StatusCode, picked.Body)
+	}
+	if shown := apptest.Text(picked.Body); !strings.Contains(shown, "egg is already one of your Ingredients.") || strings.Contains(shown, "eggs") {
+		t.Errorf("the sheet after picking egg shows: %s", shown)
+	}
+
+	if shown := apptest.Text(s.HTMXGet(t, "/ingredients/sheet?picked=salmone").Body); strings.Contains(shown, "already one of your Ingredients") {
+		t.Errorf("picking an Ingredient the User doesn't have confirms it: %s", shown)
+	}
+
+	confirm := apptest.Form(t, suggested.Body, "ingredient-add")
+	added := s.HTMXPostForm(t, confirm.Action, confirm.Values)
+	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
+		t.Fatalf("confirming eggs from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
+	}
+	if shown := apptest.Text(added.Body); !strings.Contains(shown, "Added eggs.") {
+		t.Errorf("the sheet after confirming eggs shows: %s", shown)
+	}
+}
+
+// Leaving the name asks for a suggestion before the form is sent: the one it may have
+// meant, carrying the name's confirmation, or nothing for another food, a blank name, or
+// a name the User has, which adding refuses.
+func TestANameIsSuggestedForOnLeavingIt(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+	s.AddsIngredient(egg)
+
+	near := s.HTMXGet(t, "/ingredients/suggestion?name=eggs")
+	if near.StatusCode != http.StatusOK || strings.Contains(near.Body, "<html") {
+		t.Fatalf("a suggestion for eggs answered %d, want 200 and a fragment:\n%s", near.StatusCode, near.Body)
+	}
+	if shown := apptest.Text(near.Body); !strings.Contains(shown, "Did you mean egg?") {
+		t.Errorf("the suggestion for eggs shows: %s", shown)
+	}
+	if got := apptest.Link(t, near.Body, "Use egg"); got != "/ingredients?picked=egg" {
+		t.Errorf("Use egg leads to %q", got)
+	}
+	if !strings.Contains(near.Body, `name="confirm" value="eggs"`) {
+		t.Errorf("the suggestion for eggs doesn't confirm eggs:\n%s", near.Body)
+	}
+
+	for _, name := range []string{"salmon", "", "Large%20egg"} {
+		if got := s.HTMXGet(t, "/ingredients/suggestion?name="+name); got.StatusCode != http.StatusOK || strings.TrimSpace(got.Body) != "" {
+			t.Errorf("the suggestion for %q answered %d: %s", name, got.StatusCode, got.Body)
+		}
+	}
+}
+
+// A search ranks the Ingredients by spelling, the most alike first, so a typo still finds
+// the Ingredient; one that finds nothing says so, and a blank one lists them all.
+func TestSearchingIngredientsBySpelling(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("Italiano")
+	s.Open("/ingredients")
+	for _, name := range []string{"polenta", "petto di pollo", "uovo"} {
+		s.AddsIngredient(apptest.Ingredient{Name: name, Unit: "g", Usual: "fridge", Kcal: "100", Protein: "1", Carbs: "1", Fat: "1"})
+	}
+
+	s.SearchesIngredients("polo")
+	s.IsAt("/ingredients")
+	s.DoesNotSee("uovo")
+	shown := apptest.Text(s.Page().Body)
+	pollo, polenta := strings.Index(shown, "petto di pollo frigo"), strings.Index(shown, "polenta frigo")
+	if pollo < 0 || polenta < 0 || polenta < pollo {
+		t.Errorf("searching for polo shows, want petto di pollo then polenta: %s", shown)
+	}
+	if got := apptest.Form(t, s.Page().Body, "ingredient-search").Get("q"); got != "polo" {
+		t.Errorf("the search holds %q, want polo", got)
+	}
+
+	s.SearchesIngredients("salmone")
+	s.Sees("Nessun Ingrediente somiglia a salmone.")
+
+	s.SearchesIngredients("")
+	s.Sees("uovo frigo")
+	s.Sees("polenta frigo")
+
+	list := s.HTMXGet(t, "/ingredients/list?q=polo")
+	if list.StatusCode != http.StatusOK || strings.Contains(list.Body, "<html") || strings.Contains(list.Body, "ingredient-add") {
+		t.Fatalf("searching with htmx answered %d, want 200 and the list alone:\n%s", list.StatusCode, list.Body)
+	}
+	if shown := apptest.Text(list.Body); !strings.Contains(shown, "petto di pollo") || strings.Contains(shown, "uovo") {
+		t.Errorf("searching for polo with htmx shows: %s", shown)
+	}
 }
