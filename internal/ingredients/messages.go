@@ -47,6 +47,7 @@ var (
 	msgPicked        = web.Message{En: "%s is already one of your Ingredients.", It: "%s è già tra i tuoi Ingredienti."}
 	msgSearch        = web.Message{En: "Search", It: "Cerca"}
 	msgNoMatch       = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
+	msgAddNamed      = web.Message{En: "Add %s as a new Ingredient", It: "Aggiungi %s come nuovo Ingrediente"}
 	msgNameTaken     = web.Message{
 		En: "You already have %s: one food is one Ingredient.",
 		It: "Hai già %s: un cibo è un solo Ingrediente.",
@@ -76,8 +77,8 @@ var (
 	}
 )
 
-// storageLocationNames name each Storage Location.
-var storageLocationNames = map[domain.StorageLocation]web.Message{
+// StorageLocationNames name each Storage Location.
+var StorageLocationNames = map[domain.StorageLocation]web.Message{
 	domain.Pantry:  {En: "pantry", It: "dispensa"},
 	domain.Fridge:  {En: "fridge", It: "frigo"},
 	domain.Freezer: {En: "freezer", It: "congelatore"},

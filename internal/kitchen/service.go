@@ -1,31 +1,141 @@
-// Package kitchen brings each User's kitchen up to now (ADR-0013): one step, run first on
-// every request and by the scheduler's beat, which will write the assumed Movements whose
-// time has passed once the Kitchen Ledger exists. Until then it only records how far it
-// has brought the kitchen.
+// Package kitchen is the Kitchen Ledger (ADR-0013): the Movements of each User's kitchen,
+// what they add up to, and the step that brings a kitchen up to now, run first on every
+// request and by the scheduler's beat. That step will write the assumed Movements whose
+// time has passed; until a Plan gives it any, it only records how far it has brought the
+// kitchen.
 package kitchen
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
 )
 
 // BeatEvery is how often the scheduler beats, on the clock.
 const BeatEvery = 5 * time.Minute
 
-// Service is the step that brings a kitchen up to now.
+// ErrStaple is a Count refused because its Ingredient is a Staple, which no Stock Item
+// holds.
+var ErrStaple = errors.New("a Staple is never counted")
+
+// Service is the signed-in User's Kitchen Ledger, and the step that brings a kitchen up
+// to now.
 type Service struct {
-	pool *pgxpool.Pool
-	log  *slog.Logger
+	pool        *pgxpool.Pool
+	log         *slog.Logger
+	ingredients *ingredients.Service
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, log *slog.Logger) *Service { return &Service{pool: pool, log: log} }
+func New(pool *pgxpool.Pool, log *slog.Logger, ings *ingredients.Service) *Service {
+	return &Service{pool: pool, log: log, ingredients: ings}
+}
+
+// Held is one Stock Item holding more than nothing, for the Kitchen page.
+type Held struct {
+	Ingredient domain.Ingredient
+	Location   domain.StorageLocation
+	Item       domain.StockItem
+}
+
+// Stock is what the signed-in User's Kitchen Ledger adds up to at now: every Stock Item
+// holding more than nothing, by Storage Location, then by name.
+func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
+	var held []Held
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ings, err := ingredients.LoadIngredients(ctx, tx)
+		if err != nil {
+			return err
+		}
+		movements, err := loadMovements(ctx, tx)
+		if err != nil {
+			return err
+		}
+		items := domain.AddUp(movements, now)
+		for _, location := range domain.StorageLocations {
+			for _, ing := range ings {
+				item := items[domain.StockKey{Ingredient: ing.ID, Location: location}]
+				if item.Held > 0 {
+					held = append(held, Held{Ingredient: ing, Location: location, Item: item})
+				}
+			}
+		}
+		return nil
+	})
+	return held, err
+}
+
+// Believed is what the signed-in User's Kitchen Ledger believes each Storage Location
+// holds of the Ingredient id at now.
+func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (map[domain.StorageLocation]domain.Quantity, error) {
+	believed := map[domain.StorageLocation]domain.Quantity{}
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		movements, err := loadMovements(ctx, tx)
+		if err != nil {
+			return err
+		}
+		items := domain.AddUp(movements, now)
+		for _, location := range domain.StorageLocations {
+			believed[location] = items[domain.StockKey{Ingredient: id, Location: location}].Held
+		}
+		return nil
+	})
+	return believed, err
+}
+
+// Countable is the signed-in User's Ingredients a search for query finds, Staples left
+// out: no Stock Item holds one.
+func (s *Service) Countable(ctx context.Context, query string) ([]domain.Ingredient, error) {
+	found, err := s.ingredients.Search(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	var countable []domain.Ingredient
+	for _, ing := range found {
+		if !ing.Staple {
+			countable = append(countable, ing)
+		}
+	}
+	return countable, nil
+}
+
+// Count records at the Count of the Ingredient id in location: stated is what the User
+// says is there, and what Dandori believed is read here, in the transaction that writes
+// it, so the difference is from the Kitchen Ledger as it stands and not as a form showed
+// it. A Count that changes nothing is recorded like any other. Counting a Staple is
+// ErrStaple.
+func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) error {
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := lockKitchen(ctx, tx); err != nil {
+			return err
+		}
+		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("count: the User has no such Ingredient")
+		}
+		if ing.Staple {
+			return ErrStaple
+		}
+		movements, err := loadMovements(ctx, tx)
+		if err != nil {
+			return err
+		}
+		believed := domain.AddUp(movements, at)[domain.StockKey{Ingredient: id, Location: location}].Held
+		return saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
+	})
+}
 
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it
 // has reached, it changes nothing.

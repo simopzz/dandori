@@ -2,6 +2,7 @@ package ingredients
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 
@@ -38,30 +39,45 @@ func loadNameOf(ctx context.Context, q db.Querier, normalised string) (string, e
 	return name, err
 }
 
-// loadIngredients is the signed-in User's Ingredients by name. It has no WHERE on
-// purpose: run in db.AsUser, row-level security leaves only their rows.
-func loadIngredients(ctx context.Context, q db.Querier) ([]domain.Ingredient, error) {
-	rows, err := q.Query(ctx, `
-		SELECT name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, staple
-		FROM ingredient ORDER BY lower(name), id`)
+// ingredientColumns are the columns scanIngredient reads, in its order.
+const ingredientColumns = `id, name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, staple`
+
+// LoadIngredients is the signed-in User's Ingredients by name, for this feature and those
+// reading them in a transaction of their own. It has no WHERE on purpose: run in
+// db.AsUser, row-level security leaves only their rows.
+func LoadIngredients(ctx context.Context, q db.Querier) ([]domain.Ingredient, error) {
+	rows, err := q.Query(ctx, `SELECT `+ingredientColumns+` FROM ingredient ORDER BY lower(name), id`)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) {
-		var (
-			ing                       domain.Ingredient
-			unit, usual               string
-			kcal, protein, carbs, fat float64
-			fibre, sugar              *float64
-		)
-		err := row.Scan(&ing.Name, &unit, &kcal, &protein, &carbs, &fat, &fibre, &sugar, &usual, &ing.Staple)
-		ing.Unit, ing.Usual = domain.Unit(unit), domain.StorageLocation(usual)
-		ing.Nutrition = domain.Nutrition{
-			Kcal: domain.Known(kcal), Protein: domain.Known(protein), Carbs: domain.Known(carbs), Fat: domain.Known(fat),
-			Fibre: amount(fibre), Sugar: amount(sugar),
-		}
-		return ing, err
-	})
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) { return scanIngredient(row) })
+}
+
+// LoadIngredient is the signed-in User's Ingredient id; ok is false if they have none:
+// row-level security hides another User's.
+func LoadIngredient(ctx context.Context, q db.Querier, id int64) (ing domain.Ingredient, ok bool, err error) {
+	ing, err = scanIngredient(q.QueryRow(ctx, `SELECT `+ingredientColumns+` FROM ingredient WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Ingredient{}, false, nil
+	}
+	return ing, err == nil, err
+}
+
+// scanIngredient reads one row of ingredientColumns.
+func scanIngredient(row pgx.Row) (domain.Ingredient, error) {
+	var (
+		ing                       domain.Ingredient
+		unit, usual               string
+		kcal, protein, carbs, fat float64
+		fibre, sugar              *float64
+	)
+	err := row.Scan(&ing.ID, &ing.Name, &unit, &kcal, &protein, &carbs, &fat, &fibre, &sugar, &usual, &ing.Staple)
+	ing.Unit, ing.Usual = domain.Unit(unit), domain.StorageLocation(usual)
+	ing.Nutrition = domain.Nutrition{
+		Kcal: domain.Known(kcal), Protein: domain.Known(protein), Carbs: domain.Known(carbs), Fat: domain.Known(fat),
+		Fibre: amount(fibre), Sugar: amount(sugar),
+	}
+	return ing, err
 }
 
 // nullable is a as stored: null when Unknown.

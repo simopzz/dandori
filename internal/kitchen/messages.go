@@ -1,15 +1,73 @@
 package kitchen
 
-import "github.com/simopzz/dandori/internal/web"
+import (
+	"context"
+
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/web"
+)
 
 // The kitchen's Messages.
 var (
 	msgKitchen      = web.Message{En: "Kitchen", It: "Cucina"}
 	msgKitchenTitle = web.Message{En: "Kitchen · Dandori", It: "Cucina · Dandori"}
 	msgEmptyKitchen = web.Message{
-		En: "Nothing in your kitchen yet. Add your Ingredients to start.",
-		It: "Ancora niente nella tua cucina. Aggiungi i tuoi Ingredienti per cominciare.",
+		En: "Nothing in your kitchen yet. Count what you have, or add an Ingredient to start.",
+		It: "Ancora niente nella tua cucina. Conta quello che hai, o aggiungi un Ingrediente per cominciare.",
 	}
 	msgUpToDateAt = web.Message{En: "Kitchen up to date as of %s", It: "Cucina aggiornata alle %s"}
 	msgUpToDateOn = web.Message{En: "Kitchen up to date as of %s, %s", It: "Cucina aggiornata %s alle %s"}
+
+	msgCount        = web.Message{En: "Count", It: "Conta"}
+	msgCountTitle   = web.Message{En: "Count · Dandori", It: "Conta · Dandori"}
+	msgCounted      = web.Message{En: "Counted %s: %s in the %s.", It: "Contato %s: %s in %s."}
+	msgCountedAt    = web.Message{En: "counted at %s", It: "contato alle %s"}
+	msgCountedOn    = web.Message{En: "counted on %s, %s", It: "contato %s alle %s"}
+	msgSearch       = web.Message{En: "Search your Ingredients", It: "Cerca tra i tuoi Ingredienti"}
+	msgNoMatch      = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
+	msgNothingToAdd = web.Message{En: "No Ingredients to count yet.", It: "Ancora nessun Ingrediente da contare."}
+	msgWhere        = web.Message{En: "Where it is, and what Dandori believes is there", It: "Dov'è, e quanto Dandori crede che ce ne sia"}
+	msgHolds        = web.Message{En: "%s %s", It: "%s %s"}
+	msgStated       = web.Message{En: "How much is there", It: "Quanto ce n'è"}
+	msgNote         = web.Message{En: "Note", It: "Nota"}
+	msgOptional     = web.Message{En: "optional", It: "facoltativa"}
+	msgAnother      = web.Message{En: "Choose another", It: "Scegline un altro"}
+
+	msgChooseWhere = web.Message{En: "Choose where it is kept.", It: "Scegli dove si tiene."}
+	msgStaple      = web.Message{En: "%s is a Staple: it is never counted.", It: "%s è una Base: non si conta mai."}
 )
+
+// problemMessages say why a stated quantity is refused.
+var problemMessages = map[domain.Problem]web.Message{
+	domain.Required:   {En: "Say how much is there.", It: "Di' quanto ce n'è."},
+	domain.NotANumber: {En: "Type a number.", It: "Scrivi un numero."},
+	domain.Negative:   {En: "Can't be below 0.", It: "Non può essere sotto 0."},
+	domain.TooPrecise: {En: "One decimal place at most.", It: "Al massimo un decimale."},
+	domain.NotWhole:   {En: "Grams and millilitres are whole numbers.", It: "Grammi e millilitri sono numeri interi."},
+	domain.TooLarge:   {En: "Must be below 1000000.", It: "Deve essere sotto 1000000."},
+}
+
+// locationHeadings head each Storage Location's Stock Items.
+var locationHeadings = map[domain.StorageLocation]web.Message{
+	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
+	domain.Fridge:  {En: "Fridge", It: "Frigo"},
+	domain.Freezer: {En: "Freezer", It: "Congelatore"},
+}
+
+// unitQuantities write a quantity of each Unit.
+var unitQuantities = map[domain.Unit]web.Message{
+	domain.Grams:       {En: "%s g", It: "%s g"},
+	domain.Millilitres: {En: "%s ml", It: "%s ml"},
+	domain.Pieces:      {En: "%s pieces", It: "%s pezzi"},
+}
+
+// msgOnePiece is one piece, which alone isn't plural.
+var msgOnePiece = web.Message{En: "1 piece", It: "1 pezzo"}
+
+// quantity is q of unit as the request's Language writes it.
+func quantity(ctx context.Context, q domain.Quantity, unit domain.Unit) string {
+	if unit == domain.Pieces && q == domain.QuantityOf(1) {
+		return web.T(ctx, msgOnePiece)
+	}
+	return web.Tf(ctx, unitQuantities[unit], web.Number(ctx, q.Number()))
+}

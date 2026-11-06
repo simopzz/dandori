@@ -266,3 +266,20 @@ func (s *Scenario) IsRefused() {
 	}
 	s.record("is refused")
 }
+
+// Counts counts name with the Count form, as a browser without htmx: it finds the
+// Ingredient, keeps its usual Storage Location unless location is given, and states
+// stated, with note.
+func (s *Scenario) Counts(name, location, stated, note string) {
+	s.t.Helper()
+	s.Open("/kitchen/count")
+	s.Follows(name)
+	form := Form(s.t, s.page.Body, "count-form")
+	if location != "" {
+		form.Values.Set("location", location)
+	}
+	form.Values.Set("stated", stated)
+	form.Values.Set("note", note)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("counts %s of %s in %q: %d %s", stated, name, location, s.page.StatusCode, s.page.Path))
+}

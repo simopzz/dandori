@@ -23,20 +23,22 @@ type Handlers struct {
 }
 
 // Show is the Ingredients page, searched for its query q, confirming the Ingredient just
-// added, if any, or searched for the one just picked.
+// added, if any, or searched for the one just picked. Its query name starts the add form.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	f, q := AddForm{Added: query.Get("added"), Picked: query.Get("picked")}, query.Get("q")
+	f, q := AddForm{Name: query.Get("name"), Added: query.Get("added"), Picked: query.Get("picked")}, query.Get("q")
 	if f.Picked != "" {
 		q = f.Picked
 	}
 	h.render(w, r, http.StatusOK, f, q, false)
 }
 
-// ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
+// ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any. Its
+// query name starts the add form.
 func (h Handlers) ShowSheet(w http.ResponseWriter, r *http.Request) {
-	picked := r.URL.Query().Get("picked")
-	h.render(w, r, http.StatusOK, AddForm{Picked: picked}, picked, true)
+	query := r.URL.Query()
+	picked := query.Get("picked")
+	h.render(w, r, http.StatusOK, AddForm{Name: query.Get("name"), Picked: picked}, picked, true)
 }
 
 // ShowList is the list of the User's Ingredients alone, searched for its query q, which

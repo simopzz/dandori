@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 // loadUserIDs is every User's id. Run outside db.AsUser, as the app's own role, it sees
@@ -53,4 +54,44 @@ func loadBeat(ctx context.Context, q db.Querier) (time.Time, bool, error) {
 		return time.Time{}, false, err
 	}
 	return *at, true, nil
+}
+
+// lockKitchen holds the signed-in User's kitchen until the transaction ends, so what one
+// Count read isn't changed by another before it writes. UpToNow made their row.
+func lockKitchen(ctx context.Context, q db.Querier) error {
+	_, err := q.Exec(ctx, `SELECT 1 FROM kitchen FOR UPDATE`)
+	return err
+}
+
+// loadMovements is the signed-in User's Kitchen Ledger in the order it happened, those of
+// one moment in the order they were written. It has no WHERE on purpose: run in
+// db.AsUser, row-level security leaves only their rows.
+func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error) {
+	rows, err := q.Query(ctx, `
+		SELECT happened_at, ingredient_id, storage_location, change, cause_kind
+		FROM movement ORDER BY happened_at, id`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Movement, error) {
+		var (
+			m               domain.Movement
+			location, cause string
+			change          float64
+		)
+		err := row.Scan(&m.At, &m.Key.Ingredient, &location, &change, &cause)
+		m.Key.Location, m.Change, m.Cause = domain.StorageLocation(location), domain.QuantityOf(change), domain.Cause(cause)
+		return m, err
+	})
+}
+
+// saveCount appends a Count of the Ingredient id in location, which keeps both what
+// Dandori believed and what the User stated. A blank note is none.
+func saveCount(ctx context.Context, q db.Querier, at time.Time, id int64, location domain.StorageLocation, believed, stated domain.Quantity, note string) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO movement (happened_at, ingredient_id, storage_location, change, cause_kind, believed, stated, note)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))`,
+		at, id, string(location), domain.CountDifference(believed, stated).Number(), string(domain.Counted),
+		believed.Number(), stated.Number(), note)
+	return err
 }
