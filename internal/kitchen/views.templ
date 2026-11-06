@@ -14,12 +14,15 @@ import (
 // countSheetID is the Count sheet's id.
 const countSheetID = "count"
 
+// movementsSheetID is the Movements sheet's id.
+const movementsSheetID = "movements"
+
 // stockID is the id of the list a Count refreshes.
 const stockID = "stock"
 
 // page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
-// action opens, cleared each time it closes, and the Ingredients a click away in their
-// side sheet.
+// action opens, cleared each time it closes, and each Stock Item's Movements and the
+// Ingredients a click away in their side sheets.
 templ page(now time.Time, stock []Held, f CountForm) {
 	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
@@ -44,6 +47,7 @@ templ page(now time.Time, stock []Held, f CountForm) {
 				hx-swap="innerHTML"
 			></div>
 		}
+		@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
 		@ingredients.Sheet()
 	}
 }
@@ -56,6 +60,7 @@ templ countPage(now time.Time, f CountForm) {
 		<div id={ web.SideSheetBody(countSheetID) }>
 			@countBody(f)
 		</div>
+		@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
 		@ingredients.Sheet()
 	}
 }
@@ -73,11 +78,15 @@ templ stockList(now time.Time, stock []Held) {
 			@web.Rows() {
 				for _, h := range group.held {
 					@web.Row() {
-						<span class="row-title">{ h.Ingredient.Name }</span>
+						<span class="row-title">
+							@web.SideSheetLink(movementsSheetID, stockItemURL("/kitchen/movements", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/movements/sheet", h.Ingredient.ID, h.Location)) {
+								{ h.Ingredient.Name }
+							}
+						</span>
 						<span class="row-figure">{ quantity(ctx, h.Item.Held, h.Ingredient.Unit) }</span>
 						<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
 						<span class="row-action">
-							@web.SideSheetLink(countSheetID, countURL("/kitchen/count", h), countURL("/kitchen/count/sheet", h)) {
+							@web.SideSheetLink(countSheetID, stockItemURL("/kitchen/count", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/count/sheet", h.Ingredient.ID, h.Location)) {
 								{ web.T(ctx, msgCount) }
 								<span class="sr-only">{ h.Ingredient.Name }</span>
 							}
@@ -108,10 +117,43 @@ func byLocation(stock []Held) []locationGroup {
 	return groups
 }
 
-// countURL is path, asking for the Count of h.
-func countURL(path string, h Held) templ.SafeURL {
-	query := url.Values{"ingredient": {strconv.FormatInt(h.Ingredient.ID, 10)}, "location": {string(h.Location)}}
+// stockItemURL is path, asking for the Stock Item of the Ingredient id in location.
+func stockItemURL(path string, id int64, location domain.StorageLocation) templ.SafeURL {
+	query := url.Values{"ingredient": {strconv.FormatInt(id, 10)}, "location": {string(location)}}
 	return templ.SafeURL(path + "?" + query.Encode())
+}
+
+// movementsPage is a Stock Item's Movements as a page of their own, for a browser without
+// htmx: the sheet's body, under the page's header.
+templ movementsPage(now time.Time, item StockItemMovements) {
+	@web.Layout(web.T(ctx, msgMovementsTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgMovements), now)
+		@movementsBody(now, item)
+	}
+}
+
+// movementsBody is a Stock Item's Movements, newest first, to read: a mistake in one is
+// corrected by another Count, never here.
+templ movementsBody(now time.Time, item StockItemMovements) {
+	@web.Section(0, web.Tf(ctx, msgStockItem, item.Ingredient.Name, web.T(ctx, locationHeadings[item.Location]))) {
+		@web.Rows() {
+			for _, m := range item.Movements {
+				@web.Row() {
+					<span class="row-title">{ web.T(ctx, causeNames[m.Cause]) }</span>
+					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, quantity(ctx, m.Before, item.Ingredient.Unit), quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
+					<span class="row-meta">{ happenedText(ctx, m.At.In(now.Location())) }</span>
+					if m.Note != "" {
+						<span class="row-meta">{ m.Note }</span>
+					}
+				}
+			}
+		}
+	}
+}
+
+// happenedText says when a Movement happened, told in at's zone.
+func happenedText(ctx context.Context, at time.Time) string {
+	return web.Tf(ctx, msgHappened, web.Date(ctx, at), at.Format("15:04"))
 }
 
 // countedText says when a Stock Item was last counted, told in now's zone, with its date
@@ -206,7 +248,8 @@ func chooseURL(path string, ing domain.Ingredient) templ.SafeURL {
 }
 
 // countForm counts f's Ingredient, swapping the sheet's body when htmx posts it. Each
-// Storage Location shows what Dandori believes it holds, with no request to choose it.
+// Storage Location shows what Dandori believes it holds, with no request to choose it,
+// and each with Movements links them, so a Stock Item at nothing can still be opened.
 templ countForm(f CountForm) {
 	<form
 		id="count-form"
@@ -248,6 +291,13 @@ templ countForm(f CountForm) {
 					}
 					@web.TextLink(anotherLink()) {
 						{ web.T(ctx, msgAnother) }
+					}
+					for _, l := range domain.StorageLocations {
+						if _, ok := f.Believed[l]; ok {
+							@web.SideSheetLink(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, l), stockItemURL("/kitchen/movements/sheet", f.Ingredient.ID, l)) {
+								{ web.Tf(ctx, msgMovementsIn, web.T(ctx, ingredients.StorageLocationNames[l])) }
+							}
+						}
 					}
 				}
 			</div>

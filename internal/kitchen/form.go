@@ -19,8 +19,8 @@ type CountForm struct {
 	Found  []domain.Ingredient
 	Staple string
 	// Ingredient is the one chosen, if any, and the rest its form: Believed is what
-	// Dandori believes each Storage Location holds, Stated and Note are as typed, and
-	// Errs why each field was refused, in the User's Language.
+	// Dandori believes each Storage Location with Movements of it holds, Stated and Note
+	// are as typed, and Errs why each field was refused, in the User's Language.
 	Ingredient *domain.Ingredient
 	Location   domain.StorageLocation
 	Believed   map[domain.StorageLocation]domain.Quantity

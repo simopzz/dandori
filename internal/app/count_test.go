@@ -416,25 +416,6 @@ func TestMovementsAreAppendOnly(t *testing.T) {
 	}
 }
 
-// A Count keeps what Dandori believed and what the User stated, its time, cause and note.
-// Nothing shows them yet, so this reads them where the Kitchen Ledger keeps them. #152
-// shows them: it replaces this with a scenario on the page, and h.Scan goes if unused.
-func TestACountKeepsWhatItReplaced(t *testing.T) {
-	s := kitchenWith(t, rice)
-	s.Counts("rice", "", "200", "")
-	s.At("Mon 14:05")
-	s.Counts("rice", "", "700", "bought more")
-
-	var row string
-	s.Scan(t, &row, `
-		SELECT concat_ws(' ', believed, stated, change, cause_kind, coalesce(cause_ref::text, 'none'), note,
-			to_char(happened_at AT TIME ZONE 'Europe/Rome', 'HH24:MI'))
-		FROM movement ORDER BY id DESC LIMIT 1`)
-	if want := "200.0 700.0 500.0 counted none bought more 14:05"; row != want {
-		t.Errorf("the Count is stored as %q, want %q", row, want)
-	}
-}
-
 // A User deleted takes their whole kitchen with them, Kitchen Ledger included.
 func TestDeletingAUserDeletesTheirKitchen(t *testing.T) {
 	s := kitchenWith(t, rice)

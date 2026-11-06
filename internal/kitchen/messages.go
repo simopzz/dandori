@@ -33,6 +33,13 @@ var (
 	msgOptional       = web.Message{En: "optional", It: "facoltativa"}
 	msgAnother        = web.Message{En: "Choose another", It: "Scegline un altro"}
 
+	msgMovements      = web.Message{En: "Movements", It: "Movimenti"}
+	msgMovementsTitle = web.Message{En: "Movements · Dandori", It: "Movimenti · Dandori"}
+	msgMovementsIn    = web.Message{En: "Movements in the %s", It: "Movimenti in %s"}
+	msgStockItem      = web.Message{En: "%s · %s", It: "%s · %s"}
+	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
+	msgHappened       = web.Message{En: "%s, %s", It: "%s alle %s"}
+
 	msgChooseWhere = web.Message{En: "Choose where it is kept.", It: "Scegli dove si tiene."}
 	msgStaple      = web.Message{En: "%s is a Staple: it is never counted.", It: "%s è una Base: non si conta mai."}
 )
@@ -50,6 +57,11 @@ var locationHeadings = map[domain.StorageLocation]web.Message{
 	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
 	domain.Fridge:  {En: "Fridge", It: "Frigo"},
 	domain.Freezer: {En: "Freezer", It: "Congelatore"},
+}
+
+// causeNames tell the cause of a Movement, which the Kitchen Ledger stores as data.
+var causeNames = map[domain.Cause]web.Message{
+	domain.Counted: {En: "Counted", It: "Contato"},
 }
 
 // unitQuantities write a quantity of each Unit.
