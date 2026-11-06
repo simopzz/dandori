@@ -151,6 +151,17 @@ templ Field(label, hint, err string) {
 	</label>
 }
 
+// SearchField is the search box over a list: the input is the children, with the
+// magnifying glass inside it. label names it for a screen reader; the input's placeholder
+// says it on screen.
+templ SearchField(label string) {
+	<label class="search-field">
+		<span class="sr-only">{ label }</span>
+		@Icon("search")
+		{ children... }
+	</label>
+}
+
 // TimeField is a Field for a time of day, HH:MM, holding value.
 templ TimeField(label, name, value, err string) {
 	@Field(label, "", err) {

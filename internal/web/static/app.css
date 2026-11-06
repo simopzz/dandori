@@ -509,8 +509,6 @@ a.row-title:hover { text-decoration: underline; }
 .row-action { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); flex-basis: 100%; }
 
 @media (min-width: 600px) {
-  .row-static .row-meta { flex-basis: auto; }
-
   .row-static .row-action { flex-basis: auto; margin-left: auto; }
 
   /* With an action, the details are a second line under the name, so the
@@ -535,6 +533,17 @@ a.row-title:hover { text-decoration: underline; }
 .field-error { color: var(--color-accent); font-size: 0.8rem; }
 
 .field-error::before { content: "! "; font-weight: 700; }
+
+/* search field: a square box, the glass inside it, set apart from the rows it searches */
+.search-field { display: block; position: relative; margin-bottom: var(--space-4); }
+
+.search-field .icon { position: absolute; left: var(--space-3); top: calc(50% - 10px); pointer-events: none; }
+
+.search-field input {
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule-strong);
+  padding-inline: calc(var(--space-3) * 2 + 20px) var(--space-3);
+}
 
 /* check: a checkbox before its label, the whole line its target */
 .check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap); cursor: pointer; }

@@ -223,6 +223,17 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("Added egg."); err != nil {
 		t.Fatalf("the sheet doesn't add egg: %v", err)
 	}
+	title, err := sheet.Locator(".row-title").BoundingBox()
+	if err != nil {
+		t.Fatalf("find the row's name: %v", err)
+	}
+	details, err := sheet.Locator(".row-meta").BoundingBox()
+	if err != nil {
+		t.Fatalf("find the row's details: %v", err)
+	}
+	if details.X != title.X || details.Y < title.Y+title.Height {
+		t.Errorf("the row's details are at (%v, %v), want under its name at (%v, %v)", details.X, details.Y, title.X, title.Y)
+	}
 	add("eggs", "Add")
 	if err := expect.Locator(sheet).ToContainText("Did you mean egg?"); err != nil {
 		t.Fatalf("the sheet doesn't suggest egg: %v", err)

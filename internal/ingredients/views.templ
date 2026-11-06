@@ -76,8 +76,8 @@ templ searchForm(q string) {
 		hx-target={ "#" + listID }
 		hx-swap="innerHTML"
 	>
-		@web.Field(web.T(ctx, msgSearch), "", "") {
-			<input type="search" name="q" value={ q } autocomplete="off"/>
+		@web.SearchField(web.T(ctx, msgSearch)) {
+			<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off"/>
 		}
 	</form>
 }
