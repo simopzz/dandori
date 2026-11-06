@@ -756,7 +756,7 @@ func addForm(f AddForm) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, invalid(cmp.Or(f.Errs["name"], f.Suggested)))
+				templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, Invalid(cmp.Or(f.Errs["name"], f.Suggested)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -823,7 +823,7 @@ func addForm(f AddForm) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, invalid(f.Errs["unit"]))
+					templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, Invalid(f.Errs["unit"]))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -912,7 +912,7 @@ func addForm(f AddForm) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, invalid(f.Errs["usual"]))
+					templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, Invalid(f.Errs["usual"]))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1079,7 +1079,7 @@ func addForm(f AddForm) templ.Component {
 								return templ_7745c5c3_Err
 							}
 						}
-						templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, invalid(f.Errs[n]))
+						templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, Invalid(f.Errs[n]))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -1293,8 +1293,8 @@ var nutrientNames = map[string]web.Message{
 	"kcal": msgKcal, "protein": msgProtein, "carbs": msgCarbs, "fat": msgFat, "fibre": msgFibre, "sugar": msgSugar,
 }
 
-// invalid marks a control aria-invalid when err says why its value was refused.
-func invalid(err string) templ.Attributes {
+// Invalid marks a control aria-invalid when err says why its value was refused.
+func Invalid(err string) templ.Attributes {
 	if err == "" {
 		return nil
 	}

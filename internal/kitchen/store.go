@@ -85,13 +85,31 @@ func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 	})
 }
 
+// loadCount is what the signed-in User's Count id was of, and what they stated; ok is
+// false if they have no such Count.
+func loadCount(ctx context.Context, q db.Querier, id int64) (ingredient int64, location domain.StorageLocation, stated domain.Quantity, ok bool, err error) {
+	var (
+		where  string
+		amount float64
+	)
+	err = q.QueryRow(ctx, `
+		SELECT ingredient_id, storage_location, stated FROM movement
+		WHERE id = $1 AND cause_kind = $2`, id, string(domain.Counted)).Scan(&ingredient, &where, &amount)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", 0, false, nil
+	}
+	return ingredient, domain.StorageLocation(where), domain.QuantityOf(amount), err == nil, err
+}
+
 // saveCount appends a Count of the Ingredient id in location, which keeps both what
-// Dandori believed and what the User stated. A blank note is none.
-func saveCount(ctx context.Context, q db.Querier, at time.Time, id int64, location domain.StorageLocation, believed, stated domain.Quantity, note string) error {
-	_, err := q.Exec(ctx, `
+// Dandori believed and what the User stated, and is its id. A blank note is none.
+func saveCount(ctx context.Context, q db.Querier, at time.Time, id int64, location domain.StorageLocation, believed, stated domain.Quantity, note string) (int64, error) {
+	var counted int64
+	err := q.QueryRow(ctx, `
 		INSERT INTO movement (happened_at, ingredient_id, storage_location, change, cause_kind, believed, stated, note)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
+		RETURNING id`,
 		at, id, string(location), domain.CountDifference(believed, stated).Number(), string(domain.Counted),
-		believed.Number(), stated.Number(), note)
-	return err
+		believed.Number(), stated.Number(), note).Scan(&counted)
+	return counted, err
 }

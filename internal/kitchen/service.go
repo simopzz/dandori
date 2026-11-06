@@ -1,8 +1,7 @@
 // Package kitchen is the Kitchen Ledger (ADR-0013): the Movements of each User's kitchen,
 // what they add up to, and the step that brings a kitchen up to now, run first on every
 // request and by the scheduler's beat. That step will write the assumed Movements whose
-// time has passed; until a Plan gives it any, it only records how far it has brought the
-// kitchen.
+// time has passed; until a Plan gives it any, it only records how far it has reached.
 package kitchen
 
 import (
@@ -23,12 +22,11 @@ import (
 // BeatEvery is how often the scheduler beats, on the clock.
 const BeatEvery = 5 * time.Minute
 
-// ErrStaple is a Count refused because its Ingredient is a Staple, which no Stock Item
-// holds.
+// ErrStaple is a Count refused for a Staple, which no Stock Item holds.
 var ErrStaple = errors.New("a Staple is never counted")
 
-// Service is the signed-in User's Kitchen Ledger, and the step that brings a kitchen up
-// to now.
+// Service is the signed-in User's Kitchen Ledger, and the step that brings a kitchen
+// up to now.
 type Service struct {
 	pool        *pgxpool.Pool
 	log         *slog.Logger
@@ -93,28 +91,53 @@ func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (map[do
 }
 
 // Countable is the signed-in User's Ingredients a search for query finds, Staples left
-// out: no Stock Item holds one.
-func (s *Service) Countable(ctx context.Context, query string) ([]domain.Ingredient, error) {
-	found, err := s.ingredients.Search(ctx, query)
+// out: no Stock Item holds one. When query names a Staple and nothing else is found,
+// staple is its name, speaking l.
+func (s *Service) Countable(ctx context.Context, l domain.Language, query string) (found []domain.Ingredient, staple string, err error) {
+	all, err := s.ingredients.Search(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	var countable []domain.Ingredient
-	for _, ing := range found {
-		if !ing.Staple {
-			countable = append(countable, ing)
+	for _, ing := range all {
+		switch {
+		case !ing.Staple:
+			found = append(found, ing)
+		case domain.NormaliseIngredientName(l, ing.Name) == domain.NormaliseIngredientName(l, query):
+			staple = ing.Name
 		}
 	}
-	return countable, nil
+	if len(found) > 0 {
+		staple = ""
+	}
+	return found, staple, nil
 }
 
-// Count records at the Count of the Ingredient id in location: stated is what the User
-// says is there, and what Dandori believed is read here, in the transaction that writes
-// it, so the difference is from the Kitchen Ledger as it stands and not as a form showed
-// it. A Count that changes nothing is recorded like any other. Counting a Staple is
-// ErrStaple.
-func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+// FindCount is the Count id as it was saved, or nil if the signed-in User has none.
+func (s *Service) FindCount(ctx context.Context, id int64) (*Counted, error) {
+	var counted *Counted
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ingredient, location, stated, ok, err := loadCount(ctx, tx, id)
+		if err != nil || !ok {
+			return err
+		}
+		ing, ok, err := ingredients.LoadIngredient(ctx, tx, ingredient)
+		if err != nil || !ok {
+			return err
+		}
+		counted = &Counted{Ingredient: ing, Location: location, Stated: stated}
+		return nil
+	})
+	return counted, err
+}
+
+// Count records at the Count of the Ingredient id in location, and is that Count's id:
+// stated is what the User says is there, and what Dandori believed is read here, once
+// the kitchen is held, in the transaction that writes it, so the difference is from the
+// Kitchen Ledger as it stands and not as a form showed it. A Count that changes nothing
+// is recorded like any other. Counting a Staple is ErrStaple.
+func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) (int64, error) {
+	var counted int64
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockKitchen(ctx, tx); err != nil {
 			return err
 		}
@@ -132,9 +155,17 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 		if err != nil {
 			return err
 		}
-		believed := domain.AddUp(movements, at)[domain.StockKey{Ingredient: id, Location: location}].Held
-		return saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
+		// A Count that overlapped this one may have taken the lock first with a later
+		// time: what it wrote is believed all the same.
+		asOf := at
+		if n := len(movements); n > 0 && movements[n-1].At.After(asOf) {
+			asOf = movements[n-1].At
+		}
+		believed := domain.AddUp(movements, asOf)[domain.StockKey{Ingredient: id, Location: location}].Held
+		counted, err = saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
+		return err
 	})
+	return counted, err
 }
 
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it

@@ -25,8 +25,8 @@ func (q Quantity) Number() float64 { return float64(q) / tenths }
 func QuantityOf(v float64) Quantity { return Quantity(math.Round(v * tenths)) }
 
 // ParseQuantity reads a quantity of unit as the User typed it, with a point or a comma:
-// grams and millilitres are whole numbers, pieces have one decimal place, and none is
-// negative.
+// grams and millilitres are whole numbers, pieces have one decimal place, and nothing
+// is negative.
 func ParseQuantity(unit Unit, typed string) (Quantity, Problem) {
 	typed = strings.ReplaceAll(strings.TrimSpace(typed), ",", ".")
 	if typed == "" {
@@ -48,8 +48,8 @@ func ParseQuantity(unit Unit, typed string) (Quantity, Problem) {
 	return QuantityOf(v), ""
 }
 
-// Cause is the kind of thing that caused a Movement. The Kitchen Ledger stores it as data,
-// so a page can tell it in the User's Language.
+// Cause is the kind of thing that caused a Movement. The Kitchen Ledger stores it as
+// data, so a page can tell it in the User's Language.
 type Cause string
 
 // Counted is the Cause of a Count.
@@ -76,8 +76,7 @@ type StockItem struct {
 	Counted time.Time
 }
 
-// CountDifference is the change a Count makes: what the User stated less what Dandori
-// believed.
+// CountDifference is the change a Count makes: what was stated less what was believed.
 func CountDifference(believed, stated Quantity) Quantity { return stated - believed }
 
 // AddUp is what the kitchen holds at a moment: what movements, in the order they

@@ -33,8 +33,8 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, http.StatusOK, f, q, false)
 }
 
-// ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any. Its
-// query name starts the add form.
+// ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
+// Its query name starts the add form.
 func (h Handlers) ShowSheet(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	picked := query.Get("picked")

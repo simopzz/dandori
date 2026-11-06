@@ -361,10 +361,11 @@ func SideSheetBody(id string) string { return id + "-body" }
 // SideSheetLink opens the sheet id with its SheetBody loaded from src, a fragment, and
 // focuses its field marked autofocus, or else its first. Without htmx it is a plain link
 // to href, a page of the same content. htmx tells the swap to the link, so the link opens
-// the sheet; a form in the body, swapped away, has htmx tell the body instead. The link is
-// the sheet's source, so one inside another sheet opens over it and leaves it open.
+// the sheet; a form in the body, swapped away, has htmx tell the body instead. The link
+// is the sheet's source, so one inside another sheet opens over it and leaves it open.
 templ SideSheetLink(id string, href, src templ.SafeURL) {
 	<a
+		class="sheet-link"
 		href={ href }
 		hx-get={ string(src) }
 		hx-target={ "#" + SideSheetBody(id) }

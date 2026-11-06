@@ -117,9 +117,11 @@ func countedText(ctx context.Context, now, at time.Time) string {
 type CountForm struct {
 	// Counted is the Count just saved, if any.
 	Counted *Counted
-	// Query and Found are the search, shown until an Ingredient is chosen.
-	Query string
-	Found []domain.Ingredient
+	// Query and Found are the search, shown until an Ingredient is chosen; Staple is the
+	// Staple it named, if it found nothing else.
+	Query  string
+	Found  []domain.Ingredient
+	Staple string
 	// Ingredient is the one chosen, if any, and the rest its form: Believed is what
 	// Dandori believes each Storage Location holds, Stated and Note are as typed, and
 	// Errs why each field was refused, in the User's Language.
@@ -156,14 +158,14 @@ templ countBody(f CountForm) {
 			hx-trigger={ "toggle[newState=='closed'] from:#" + ingredients.SheetID }
 			hx-include="#count-search"
 		>
-			@foundList(f.Found, f.Query)
+			@foundList(f.Found, f.Staple, f.Query)
 		</div>
 	}
 }
 
 // countSearch finds an Ingredient to count as the User types, swapping the list alone
-// when htmx sends it, so the field keeps its focus; without htmx it opens the Count page
-// searched.
+// when htmx sends it, so the field keeps its focus; without htmx it opens the Count
+// page searched.
 templ countSearch(q string) {
 	<form
 		id="count-search"
@@ -181,13 +183,17 @@ templ countSearch(q string) {
 	</form>
 }
 
-// foundList is the Ingredients a search for q found to count, each opening its form, or
-// the offer to add what nothing matched.
-templ foundList(found []domain.Ingredient, q string) {
-	if len(found) == 0 {
+// foundList is the Ingredients a search for q found to count, each opening its form;
+// or why the Staple it named isn't one of them; or the offer to add what nothing matched.
+templ foundList(found []domain.Ingredient, staple, q string) {
+	if staple != "" {
+		@web.Empty() {
+			{ web.Tf(ctx, msgStaple, staple) }
+		}
+	} else if len(found) == 0 {
 		@web.Empty() {
 			if q == "" {
-				{ web.T(ctx, msgNothingToAdd) }
+				{ web.T(ctx, msgNothingToCount) }
 			} else {
 				{ web.Tf(ctx, msgNoMatch, q) }
 			}
@@ -217,8 +223,7 @@ func chooseURL(path string, ing domain.Ingredient) templ.SafeURL {
 }
 
 // countForm counts f's Ingredient, swapping the sheet's body when htmx posts it. Each
-// Storage Location shows what Dandori believes it holds, so choosing another needs no
-// request.
+// Storage Location shows what Dandori believes it holds, with no request to choose it.
 templ countForm(f CountForm) {
 	<form
 		id="count-form"
@@ -248,9 +253,7 @@ templ countForm(f CountForm) {
 						required
 						autocomplete="off"
 						autofocus
-						if f.Errs["stated"] != "" {
-							aria-invalid="true"
-						}
+						{ ingredients.Invalid(f.Errs["stated"])... }
 					/>
 				}
 				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {

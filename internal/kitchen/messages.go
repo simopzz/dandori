@@ -18,20 +18,20 @@ var (
 	msgUpToDateAt = web.Message{En: "Kitchen up to date as of %s", It: "Cucina aggiornata alle %s"}
 	msgUpToDateOn = web.Message{En: "Kitchen up to date as of %s, %s", It: "Cucina aggiornata %s alle %s"}
 
-	msgCount        = web.Message{En: "Count", It: "Conta"}
-	msgCountTitle   = web.Message{En: "Count · Dandori", It: "Conta · Dandori"}
-	msgCounted      = web.Message{En: "Counted %s: %s in the %s.", It: "Contato %s: %s in %s."}
-	msgCountedAt    = web.Message{En: "counted at %s", It: "contato alle %s"}
-	msgCountedOn    = web.Message{En: "counted on %s, %s", It: "contato %s alle %s"}
-	msgSearch       = web.Message{En: "Search your Ingredients", It: "Cerca tra i tuoi Ingredienti"}
-	msgNoMatch      = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
-	msgNothingToAdd = web.Message{En: "No Ingredients to count yet.", It: "Ancora nessun Ingrediente da contare."}
-	msgWhere        = web.Message{En: "Where it is, and what Dandori believes is there", It: "Dov'è, e quanto Dandori crede che ce ne sia"}
-	msgHolds        = web.Message{En: "%s %s", It: "%s %s"}
-	msgStated       = web.Message{En: "How much is there", It: "Quanto ce n'è"}
-	msgNote         = web.Message{En: "Note", It: "Nota"}
-	msgOptional     = web.Message{En: "optional", It: "facoltativa"}
-	msgAnother      = web.Message{En: "Choose another", It: "Scegline un altro"}
+	msgCount          = web.Message{En: "Count", It: "Conta"}
+	msgCountTitle     = web.Message{En: "Count · Dandori", It: "Conta · Dandori"}
+	msgCounted        = web.Message{En: "Counted %s: %s in the %s.", It: "Contato %s: %s in %s."}
+	msgCountedAt      = web.Message{En: "counted at %s", It: "contato alle %s"}
+	msgCountedOn      = web.Message{En: "counted on %s, %s", It: "contato %s alle %s"}
+	msgSearch         = web.Message{En: "Search your Ingredients", It: "Cerca tra i tuoi Ingredienti"}
+	msgNoMatch        = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
+	msgNothingToCount = web.Message{En: "No Ingredients to count yet.", It: "Ancora nessun Ingrediente da contare."}
+	msgWhere          = web.Message{En: "Where it is, and what Dandori believes is there", It: "Dov'è, e quanto Dandori crede che ce ne sia"}
+	msgHolds          = web.Message{En: "%s %s", It: "%s %s"}
+	msgStated         = web.Message{En: "How much is there", It: "Quanto ce n'è"}
+	msgNote           = web.Message{En: "Note", It: "Nota"}
+	msgOptional       = web.Message{En: "optional", It: "facoltativa"}
+	msgAnother        = web.Message{En: "Choose another", It: "Scegline un altro"}
 
 	msgChooseWhere = web.Message{En: "Choose where it is kept.", It: "Scegli dove si tiene."}
 	msgStaple      = web.Message{En: "%s is a Staple: it is never counted.", It: "%s è una Base: non si conta mai."}

@@ -148,7 +148,7 @@ templ addForm(f AddForm) {
 							hx-trigger="change"
 							hx-target={ "#" + suggestionID }
 							hx-swap="innerHTML"
-							{ invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
+							{ Invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
 						/>
 					}
 					<div id={ suggestionID }>
@@ -157,7 +157,7 @@ templ addForm(f AddForm) {
 				</div>
 				@web.FieldRow() {
 					@web.Field(web.T(ctx, msgUnit), "", f.Errs["unit"]) {
-						<select name="unit" required { invalid(f.Errs["unit"])... }>
+						<select name="unit" required { Invalid(f.Errs["unit"])... }>
 							<option value="">{ web.T(ctx, msgChoose) }</option>
 							for _, u := range domain.Units {
 								<option value={ string(u) } selected?={ f.Unit == string(u) }>{ web.T(ctx, unitNames[u]) }</option>
@@ -165,7 +165,7 @@ templ addForm(f AddForm) {
 						</select>
 					}
 					@web.Field(web.T(ctx, msgUsual), "", f.Errs["usual"]) {
-						<select name="usual" required { invalid(f.Errs["usual"])... }>
+						<select name="usual" required { Invalid(f.Errs["usual"])... }>
 							<option value="">{ web.T(ctx, msgChoose) }</option>
 							for _, l := range domain.StorageLocations {
 								<option value={ string(l) } selected?={ f.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
@@ -187,7 +187,7 @@ templ addForm(f AddForm) {
 								name={ n }
 								value={ f.Values[n] }
 								required?={ n != "fibre" && n != "sugar" }
-								{ invalid(f.Errs[n])... }
+								{ Invalid(f.Errs[n])... }
 							/>
 						}
 					}
@@ -238,8 +238,8 @@ var nutrientNames = map[string]web.Message{
 	"kcal": msgKcal, "protein": msgProtein, "carbs": msgCarbs, "fat": msgFat, "fibre": msgFibre, "sugar": msgSugar,
 }
 
-// invalid marks a control aria-invalid when err says why its value was refused.
-func invalid(err string) templ.Attributes {
+// Invalid marks a control aria-invalid when err says why its value was refused.
+func Invalid(err string) templ.Attributes {
 	if err == "" {
 		return nil
 	}

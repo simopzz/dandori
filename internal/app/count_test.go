@@ -197,6 +197,33 @@ func TestStaplesAreNeverOffered(t *testing.T) {
 	s.Sees("Nothing in your kitchen yet.")
 }
 
+// A search for a Staple says why it isn't offered, and doesn't offer to add it again,
+// which would be refused. A search that only resembles one still offers the new name.
+func TestSearchingForAStapleSaysWhy(t *testing.T) {
+	s := kitchenWith(t, rice, salt)
+	s.Open("/kitchen/count?q=Salt")
+	s.Sees("salt is a Staple: it is never counted.")
+	s.DoesNotSee("as a new Ingredient")
+
+	s.Open("/kitchen/count?q=salty")
+	s.Sees("Add salty as a new Ingredient")
+}
+
+// A confirmation tells the Count it confirms, as it was saved, whatever came after it,
+// and an id that is no Count confirms nothing.
+func TestAConfirmationTellsTheCountSaved(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Counts("rice", "", "700", "")
+	var first string
+	s.Scan(t, &first, `SELECT max(id)::text FROM movement`)
+	s.Counts("rice", "", "300", "")
+
+	s.Open("/kitchen/count?counted=" + first)
+	s.Sees("Counted rice: 700 g in the pantry.")
+	s.Open("/kitchen/count?counted=999999")
+	s.DoesNotSee("Counted")
+}
+
 // ingredientID is the id of the Ingredient name, for a post no page offers.
 func ingredientID(t *testing.T, s *apptest.Scenario, name string) string {
 	t.Helper()
@@ -321,19 +348,13 @@ func TestEachUserHasTheirOwnStock(t *testing.T) {
 func TestMovementsAreAppendOnly(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "700", "")
-	s.Exec(t, `
-		DO $$
-		BEGIN
-			IF NOT has_table_privilege('authenticated', 'movement', 'SELECT')
-				OR NOT has_table_privilege('authenticated', 'movement', 'INSERT') THEN
-				RAISE EXCEPTION 'the User can''t read or add Movements';
-			END IF;
-			IF has_table_privilege('authenticated', 'movement', 'UPDATE')
-				OR has_table_privilege('authenticated', 'movement', 'DELETE')
-				OR has_table_privilege('authenticated', 'movement', 'TRUNCATE') THEN
-				RAISE EXCEPTION 'the User can change Movements';
-			END IF;
-		END $$`)
+	var reads, adds, changes bool
+	s.Scan(t, &reads, `SELECT has_table_privilege('authenticated', 'movement', 'SELECT')`)
+	s.Scan(t, &adds, `SELECT has_table_privilege('authenticated', 'movement', 'INSERT')`)
+	s.Scan(t, &changes, `SELECT has_table_privilege('authenticated', 'movement', 'UPDATE, DELETE, TRUNCATE')`)
+	if !reads || !adds || changes {
+		t.Errorf("the User's role reads Movements: %v, adds them: %v, changes them: %v", reads, adds, changes)
+	}
 }
 
 // A Count keeps what Dandori believed and what the User stated, its time, cause and note.
@@ -404,9 +425,9 @@ func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	}
 }
 
-// The Count sheet stays open after a save, cleared with the Count confirmed and focus back
-// on the search, while the page under it lists the new Stock Item. It closes only when
-// the User closes it.
+// The Count sheet stays open after a save, cleared with the Count confirmed and focus
+// back on the search, while the page under it lists the new Stock Item. It closes only
+// when the User closes it.
 func TestBrowserCountSheetStaysOpenUntilClosed(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
