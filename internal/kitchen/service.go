@@ -72,8 +72,44 @@ func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
 	return held, err
 }
 
+// StockMovement is one Movement of a Stock Item as a page tells it: what Dandori believed
+// before and after it, and the User's note, if any.
+type StockMovement struct {
+	At            time.Time
+	Cause         domain.Cause
+	Before, After domain.Quantity
+	Note          string
+}
+
+// StockItemMovements is one Stock Item with its Movements, newest first.
+type StockItemMovements struct {
+	Ingredient domain.Ingredient
+	Location   domain.StorageLocation
+	Movements  []StockMovement
+}
+
+// StockItemMovements is the Stock Item of the Ingredient id in location with its
+// Movements, or nil if the signed-in User has none of it. One counted to nothing, or
+// whose Ingredient is now a Staple, keeps them.
+func (s *Service) StockItemMovements(ctx context.Context, id int64, location domain.StorageLocation) (*StockItemMovements, error) {
+	var item *StockItemMovements
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		movements, err := loadStockMovements(ctx, tx, id, location)
+		if err != nil || len(movements) == 0 {
+			return err
+		}
+		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
+		if err != nil || !ok {
+			return err
+		}
+		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: movements}
+		return nil
+	})
+	return item, err
+}
+
 // Believed is what the signed-in User's Kitchen Ledger believes each Storage Location
-// holds of the Ingredient id at now.
+// holds of the Ingredient id at now, as loadBelieved adds it up.
 func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (believed map[domain.StorageLocation]domain.Quantity, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		believed, err = loadBelieved(ctx, tx, now, id)
@@ -101,16 +137,18 @@ func (s *Service) StartCount(ctx context.Context, now time.Time, id int64) (ing 
 	return ing, believed, ok, err
 }
 
-// loadBelieved adds up what each Storage Location holds of the Ingredient id at now.
+// loadBelieved adds up what each Storage Location holds of the Ingredient id at now. A
+// Storage Location no Movement of it has reached has no entry.
 func loadBelieved(ctx context.Context, q db.Querier, now time.Time, id int64) (map[domain.StorageLocation]domain.Quantity, error) {
 	movements, err := loadMovements(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	items := domain.AddUp(movements, now)
 	believed := make(map[domain.StorageLocation]domain.Quantity, len(domain.StorageLocations))
-	for _, location := range domain.StorageLocations {
-		believed[location] = items[domain.StockKey{Ingredient: id, Location: location}].Held
+	for key, item := range domain.AddUp(movements, now) {
+		if key.Ingredient == id {
+			believed[key.Location] = item.Held
+		}
 	}
 	return believed, nil
 }

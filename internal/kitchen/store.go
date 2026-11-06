@@ -85,6 +85,30 @@ func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 	})
 }
 
+// loadStockMovements is what the signed-in User's Kitchen Ledger holds of the Ingredient
+// id in location, newest first, those of one moment last written first. Every Movement so
+// far is a Count, which keeps what was believed and stated.
+func loadStockMovements(ctx context.Context, q db.Querier, id int64, location domain.StorageLocation) ([]StockMovement, error) {
+	rows, err := q.Query(ctx, `
+		SELECT happened_at, cause_kind, believed, stated, coalesce(note, '')
+		FROM movement WHERE ingredient_id = $1 AND storage_location = $2
+		ORDER BY happened_at DESC, id DESC`,
+		id, string(location))
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (StockMovement, error) {
+		var (
+			m             StockMovement
+			cause         string
+			before, after float64
+		)
+		err := row.Scan(&m.At, &cause, &before, &after, &m.Note)
+		m.Cause, m.Before, m.After = domain.Cause(cause), domain.QuantityOf(before), domain.QuantityOf(after)
+		return m, err
+	})
+}
+
 // loadCount is what the signed-in User's Count id was of, and what they stated; ok is
 // false if they have no such Count.
 func loadCount(ctx context.Context, q db.Querier, id int64) (ingredient int64, location domain.StorageLocation, stated domain.Quantity, ok bool, err error) {
