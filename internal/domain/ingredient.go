@@ -34,6 +34,8 @@ var StorageLocations = []StorageLocation{Pantry, Fridge, Freezer}
 
 // Ingredient is a food as such, as the User added it.
 type Ingredient struct {
+	// ID identifies it once it is saved, whatever it is renamed to.
+	ID int64
 	// Name is as the User typed it; NormaliseIngredientName makes the key that
 	// identifies it.
 	Name string
@@ -72,6 +74,7 @@ const (
 	Negative   Problem = "negative"
 	TooPrecise Problem = "more than one decimal place"
 	TooLarge   Problem = "too large"
+	NotWhole   Problem = "not a whole number"
 )
 
 // maxAmount bounds a nutritional value: no food holds 10000 kcal in 100 g or a piece.

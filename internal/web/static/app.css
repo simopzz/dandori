@@ -632,7 +632,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 /* segmented choice: square toggles for one of a few options */
 
-.seg { display: flex; justify-self: start; border: 1px solid var(--color-rule-strong); }
+.seg { display: flex; flex-wrap: wrap; justify-self: start; border: 1px solid var(--color-rule-strong); }
 
 .seg label { position: relative; }
 
@@ -709,6 +709,8 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
   color: var(--color-text);
   padding: var(--space-5) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));
 }
+
+.sheet-link { display: inline-flex; align-items: center; min-height: var(--tap); }
 
 .sheet-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-4); }
 

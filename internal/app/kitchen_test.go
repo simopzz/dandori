@@ -18,7 +18,7 @@ func TestTodayLinksToTheKitchenPage(t *testing.T) {
 	s.Follows("Open your kitchen")
 	s.IsAt("/kitchen")
 	s.Sees("Kitchen")
-	s.Sees("Nothing in your kitchen yet. Add your Ingredients to start.")
+	s.Sees("Nothing in your kitchen yet. Count what you have, or add an Ingredient to start.")
 	s.Follows("Ingredients")
 	s.IsAt("/ingredients")
 	s.Sees("No Ingredients yet.")

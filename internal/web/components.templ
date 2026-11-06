@@ -329,39 +329,49 @@ templ AddSheet(id, title string, open bool) {
 
 // SideSheet is a sheet of content any page can open without leaving it, over the veil:
 // from the right on desktop, from the bottom on a phone. Its body is empty until a
-// SideSheetLink loads it. Each swap into the body opens the sheet, if it isn't open, and
-// focuses the first field marked aria-invalid, so a rejected form in it is shown again
-// in place. A swap into part of the body, such as a search's results, leaves the focus
-// where it is.
+// SideSheetLink loads it.
 templ SideSheet(id, title string) {
 	<div id={ id } class="sheet side-sheet" popover role="dialog" aria-labelledby={ id + "-title" }>
 		<div class="sheet-head">
 			<h2 id={ id + "-title" }>{ title }</h2>
 			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">{ T(ctx, msgClose) }</button>
 		</div>
-		<div
-			id={ SideSheetBody(id) }
-			class="sheet-body"
-			hx-on:htmx:after:swap="if (event.detail.ctx.target !== this) return; const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); this.querySelector('[aria-invalid=true]')?.focus()"
-		></div>
+		@SheetBody(id)
 	</div>
 }
 
-// SideSheetBody is the id of the body of the SideSheet id, which a form in it targets.
+// SheetBody is the body of the sheet id, an AddSheet's or a SideSheet's, for one whose
+// content swaps in place; the children are what it starts with. Each swap into it opens
+// the sheet, if it isn't open, and focuses the first field marked aria-invalid, or else
+// marked autofocus, so a rejected form in it is shown again in place. A swap into part
+// of the body, such as a search's results, leaves the focus where it is.
+templ SheetBody(id string) {
+	<div
+		id={ SideSheetBody(id) }
+		class="sheet-body"
+		hx-on:htmx:after:swap="if (event.detail.ctx.target !== this) return; const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); (this.querySelector('[aria-invalid=true]') ?? this.querySelector('[autofocus]'))?.focus()"
+	>
+		{ children... }
+	</div>
+}
+
+// SideSheetBody is the id of the SheetBody of the sheet id, which a form in it targets.
 func SideSheetBody(id string) string { return id + "-body" }
 
-// SideSheetLink opens the SideSheet id with its body loaded from src, a fragment, and
-// focuses its first field. Without htmx it is a plain link to href, a page of the same
-// content. htmx tells the swap to the link, so the link opens the sheet; a form in the
-// body, swapped away, has htmx tell the body instead.
+// SideSheetLink opens the sheet id with its SheetBody loaded from src, a fragment, and
+// focuses its field marked autofocus, or else its first. Without htmx it is a plain link
+// to href, a page of the same content. htmx tells the swap to the link, so the link opens
+// the sheet; a form in the body, swapped away, has htmx tell the body instead. The link
+// is the sheet's source, so one inside another sheet opens over it and leaves it open.
 templ SideSheetLink(id string, href, src templ.SafeURL) {
 	<a
+		class="sheet-link"
 		href={ href }
 		hx-get={ string(src) }
 		hx-target={ "#" + SideSheetBody(id) }
 		hx-swap="innerHTML"
 		data-sheet={ id }
-		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.matches(':popover-open')) s.showPopover(); s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea')?.focus()"
+		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.matches(':popover-open')) s.showPopover({ source: this }); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea'))?.focus()"
 	>
 		{ children... }
 	</a>

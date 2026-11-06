@@ -225,6 +225,21 @@ func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
 	}
 }
 
+// Scan reads the one row sql gives into dest, as the admin role, for a test checking what
+// no page shows yet.
+func (h *Harness) Scan(t testing.TB, dest any, sql string, args ...any) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, h.databaseURL)
+	if err != nil {
+		t.Fatalf("connect to test database: %v", err)
+	}
+	defer conn.Close(ctx)
+	if err := conn.QueryRow(ctx, sql, args...).Scan(dest); err != nil {
+		t.Fatalf("%s: %v", sql, err)
+	}
+}
+
 // Response is a fully read HTTP response.
 type Response struct {
 	StatusCode int

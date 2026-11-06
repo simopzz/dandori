@@ -2,26 +2,289 @@ package kitchen
 
 import (
 	"context"
+	"net/url"
+	"strconv"
 	"time"
 
+	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is the Kitchen page at now: what the kitchen holds, nothing yet, and the
-// Ingredients a click away in their side sheet.
-templ page(now time.Time) {
+// countSheetID is the Count sheet's id.
+const countSheetID = "count"
+
+// stockID is the id of the list a Count refreshes.
+const stockID = "stock"
+
+// page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
+// action opens, cleared each time it closes, and the Ingredients a click away in their
+// side sheet.
+templ page(now time.Time, stock []Held, f CountForm) {
 	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
 			<p class="lede">
 				@ingredients.SheetLink()
 			</p>
 		}
-		@web.Empty() {
-			{ web.T(ctx, msgEmptyKitchen) }
+		<div id={ stockID } hx-get="/kitchen/stock" hx-trigger={ stockCounted + " from:body" }>
+			@stockList(now, stock)
+		</div>
+		@web.AddSheet(countSheetID, web.T(ctx, msgCount), false) {
+			@web.SheetBody(countSheetID) {
+				@countBody(f)
+			}
+			// Outside the body, so htmx tells this swap to it, and the body doesn't open
+			// the sheet that has just closed.
+			<div
+				hidden
+				hx-get="/kitchen/count/sheet"
+				hx-trigger={ "toggle[newState=='closed'] from:#" + countSheetID }
+				hx-target={ "#" + web.SideSheetBody(countSheetID) }
+				hx-swap="innerHTML"
+			></div>
 		}
 		@ingredients.Sheet()
 	}
+}
+
+// countPage is the Count form as a page of its own, for a browser without htmx: the
+// sheet's body, under the page's header.
+templ countPage(now time.Time, f CountForm) {
+	@web.Layout(web.T(ctx, msgCountTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgCount), now)
+		<div id={ web.SideSheetBody(countSheetID) }>
+			@countBody(f)
+		</div>
+		@ingredients.Sheet()
+	}
+}
+
+// stockList is every Stock Item holding more than nothing under its Storage Location,
+// or how to start when there is none.
+templ stockList(now time.Time, stock []Held) {
+	if len(stock) == 0 {
+		@web.Empty() {
+			{ web.T(ctx, msgEmptyKitchen) }
+		}
+	}
+	for i, group := range byLocation(stock) {
+		@web.Section(i+1, web.T(ctx, locationHeadings[group.location])) {
+			@web.Rows() {
+				for _, h := range group.held {
+					@web.Row() {
+						<span class="row-title">{ h.Ingredient.Name }</span>
+						<span class="row-figure">{ quantity(ctx, h.Item.Held, h.Ingredient.Unit) }</span>
+						<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
+						<span class="row-action">
+							@web.SideSheetLink(countSheetID, countURL("/kitchen/count", h), countURL("/kitchen/count/sheet", h)) {
+								{ web.T(ctx, msgCount) }
+								<span class="sr-only">{ h.Ingredient.Name }</span>
+							}
+						</span>
+					}
+				}
+			}
+		}
+	}
+}
+
+// locationGroup is one Storage Location's Stock Items.
+type locationGroup struct {
+	location domain.StorageLocation
+	held     []Held
+}
+
+// byLocation splits stock, in Storage Location order, into a group each.
+func byLocation(stock []Held) []locationGroup {
+	var groups []locationGroup
+	for _, h := range stock {
+		if len(groups) == 0 || groups[len(groups)-1].location != h.Location {
+			groups = append(groups, locationGroup{location: h.Location})
+		}
+		last := &groups[len(groups)-1]
+		last.held = append(last.held, h)
+	}
+	return groups
+}
+
+// countURL is path, asking for the Count of h.
+func countURL(path string, h Held) templ.SafeURL {
+	query := url.Values{"ingredient": {strconv.FormatInt(h.Ingredient.ID, 10)}, "location": {string(h.Location)}}
+	return templ.SafeURL(path + "?" + query.Encode())
+}
+
+// countedText says when a Stock Item was last counted, told in now's zone, with its date
+// unless it was today.
+func countedText(ctx context.Context, now, at time.Time) string {
+	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
+		return web.Tf(ctx, msgCountedAt, at.Format("15:04"))
+	}
+	return web.Tf(ctx, msgCountedOn, web.Date(ctx, at), at.Format("15:04"))
+}
+
+// countBody is the Count just saved, if any, then the form of the Ingredient chosen, or
+// else the search for one.
+templ countBody(f CountForm) {
+	if f.Counted != nil {
+		@web.Notice() {
+			{ web.Tf(ctx, msgCounted, f.Counted.Ingredient.Name, quantity(ctx, f.Counted.Stated, f.Counted.Ingredient.Unit), web.T(ctx, ingredients.StorageLocationNames[f.Counted.Location])) }
+		}
+	}
+	if f.Ingredient != nil {
+		@countForm(f)
+	} else {
+		@countSearch(f.Query)
+		<div
+			id="count-list"
+			hx-get="/kitchen/count/list"
+			hx-trigger={ "toggle[newState=='closed'] from:#" + ingredients.SheetID }
+			hx-include="#count-search"
+		>
+			@foundList(f.Found, f.Staple, f.Query)
+		</div>
+	}
+}
+
+// countSearch finds an Ingredient to count as the User types, swapping the list alone
+// when htmx sends it, so the field keeps its focus; without htmx it opens the Count
+// page searched.
+templ countSearch(q string) {
+	<form
+		id="count-search"
+		role="search"
+		method="get"
+		action="/kitchen/count"
+		hx-get="/kitchen/count/list"
+		hx-trigger="submit, input delay:300ms"
+		hx-target="#count-list"
+		hx-swap="innerHTML"
+	>
+		@web.SearchField(web.T(ctx, msgSearch)) {
+			<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off" autofocus/>
+		}
+	</form>
+}
+
+// foundList is the Ingredients a search for q found to count, each opening its form;
+// or why the Staple it named isn't one of them; or the offer to add what nothing matched.
+templ foundList(found []domain.Ingredient, staple, q string) {
+	if staple != "" {
+		@web.Empty() {
+			{ web.Tf(ctx, msgStaple, staple) }
+		}
+	} else if len(found) == 0 {
+		@web.Empty() {
+			if q == "" {
+				{ web.T(ctx, msgNothingToCount) }
+			} else {
+				{ web.Tf(ctx, msgNoMatch, q) }
+			}
+		}
+		@ingredients.AddLink(q)
+	} else {
+		@web.Rows() {
+			for _, ing := range found {
+				@web.Row() {
+					<a
+						class="row-title"
+						href={ chooseURL("/kitchen/count", ing) }
+						hx-get={ string(chooseURL("/kitchen/count/sheet", ing)) }
+						hx-target={ "#" + web.SideSheetBody(countSheetID) }
+						hx-swap="innerHTML"
+					>{ ing.Name }</a>
+					<span class="row-meta">{ web.T(ctx, ingredients.StorageLocationNames[ing.Usual]) }</span>
+				}
+			}
+		}
+	}
+}
+
+// chooseURL is path, asking for the form of ing.
+func chooseURL(path string, ing domain.Ingredient) templ.SafeURL {
+	return templ.SafeURL(path + "?ingredient=" + strconv.FormatInt(ing.ID, 10))
+}
+
+// countForm counts f's Ingredient, swapping the sheet's body when htmx posts it. Each
+// Storage Location shows what Dandori believes it holds, with no request to choose it.
+templ countForm(f CountForm) {
+	<form
+		id="count-form"
+		method="post"
+		action="/kitchen/count"
+		hx-post="/kitchen/count"
+		hx-target={ "#" + web.SideSheetBody(countSheetID) }
+		hx-swap="innerHTML"
+	>
+		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
+		@web.FieldGroup(0, f.Ingredient.Name) {
+			<div class="stack">
+				<div>
+					@web.Hint() {
+						{ web.T(ctx, msgWhere) }
+					}
+					@web.Segmented(web.T(ctx, msgWhere), "location", locationChoices(ctx, f), string(f.Location), f.Errs["location"])
+				</div>
+				@web.Field(web.T(ctx, msgStated), "", f.Errs["stated"]) {
+					<input
+						type="number"
+						inputmode="decimal"
+						min="0"
+						step={ quantityStep(f.Ingredient.Unit) }
+						name="stated"
+						value={ f.Stated }
+						required
+						autocomplete="off"
+						autofocus
+						{ ingredients.Invalid(f.Errs["stated"])... }
+					/>
+				}
+				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+					<input name="note" value={ f.Note } autocomplete="off"/>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgCount) }
+					}
+					@web.TextLink(anotherLink()) {
+						{ web.T(ctx, msgAnother) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// anotherLink goes back to the search, swapping the sheet's body; without htmx it opens
+// the Count page.
+func anotherLink() templ.Attributes {
+	return templ.Attributes{
+		"href":      "/kitchen/count",
+		"hx-get":    "/kitchen/count/sheet",
+		"hx-target": "#" + web.SideSheetBody(countSheetID),
+		"hx-swap":   "innerHTML",
+	}
+}
+
+// locationChoices are the Storage Locations, each with what Dandori believes it holds of
+// f's Ingredient.
+func locationChoices(ctx context.Context, f CountForm) []web.Choice {
+	choices := make([]web.Choice, len(domain.StorageLocations))
+	for i, l := range domain.StorageLocations {
+		choices[i] = web.Choice{
+			Value: string(l),
+			Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
+		}
+	}
+	return choices
+}
+
+// quantityStep is how finely a quantity of unit is stated.
+func quantityStep(unit domain.Unit) string {
+	if unit == domain.Pieces {
+		return "0.1"
+	}
+	return "1"
 }
 
 // Status says when the scheduler last brought the User's kitchen up to now, at, told in

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -90,6 +92,15 @@ var (
 // 2 novembre".
 func Date(ctx context.Context, day time.Time) string {
 	return fmt.Sprintf("%s %d %s", T(ctx, weekdayNames[day.Weekday()]), day.Day(), T(ctx, monthNames[day.Month()-1]))
+}
+
+// Number is v as the request's Language writes it, a decimal comma in Italian.
+func Number(ctx context.Context, v float64) string {
+	s := strconv.FormatFloat(v, 'f', -1, 64)
+	if LanguageOf(ctx) == domain.Italian {
+		s = strings.Replace(s, ".", ",", 1)
+	}
+	return s
 }
 
 // languageCookie keeps the Language the pages were switched to, for the pages before the

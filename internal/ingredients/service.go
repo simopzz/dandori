@@ -38,14 +38,15 @@ type Service struct {
 // New creates the Service.
 func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
-// Add adds ing, which has no Problems, for the signed-in User, whose Language is l. One
-// whose name normalises as another's is a *NameTakenError. One whose name is only close
-// to another's is a *SuggestedError, unless confirmed says the User meant the name typed.
-func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredient, confirmed bool) error {
+// Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
+// is its id. One whose name normalises as another's is a *NameTakenError. One whose name
+// is only close to another's is a *SuggestedError, unless confirmed says the User meant
+// the name typed.
+func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredient, confirmed bool) (id int64, err error) {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if !confirmed {
-			known, err := loadIngredients(ctx, tx)
+			known, err := LoadIngredients(ctx, tx)
 			if err != nil {
 				return err
 			}
@@ -53,7 +54,8 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 				return &SuggestedError{Closest: closest}
 			}
 		}
-		added, err := saveIngredient(ctx, tx, ing, normalised)
+		var added bool
+		id, added, err = saveIngredient(ctx, tx, ing, normalised)
 		if err != nil || added {
 			return err
 		}
@@ -63,6 +65,7 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 		}
 		return &NameTakenError{Existing: existing}
 	})
+	return id, err
 }
 
 // Suggest is the name of the signed-in User's Ingredient that name is close to, which
@@ -88,10 +91,19 @@ func closeTo(l domain.Language, name string, known []domain.Ingredient) string {
 // List is the signed-in User's Ingredients by name.
 func (s *Service) List(ctx context.Context) (ings []domain.Ingredient, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		ings, err = loadIngredients(ctx, tx)
+		ings, err = LoadIngredients(ctx, tx)
 		return err
 	})
 	return ings, err
+}
+
+// Find is the signed-in User's Ingredient id; ok is false if they have none.
+func (s *Service) Find(ctx context.Context, id int64) (ing domain.Ingredient, ok bool, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ing, ok, err = LoadIngredient(ctx, tx, id)
+		return err
+	})
+	return ing, ok, err
 }
 
 // Search is the signed-in User's Ingredients a search for query finds by spelling, the

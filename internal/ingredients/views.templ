@@ -2,30 +2,41 @@ package ingredients
 
 import (
 	"cmp"
-	"context"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// sheetID is the Ingredients side sheet's id.
-const sheetID = "ingredients"
+// SheetID is the Ingredients side sheet's id, which a page refreshing what it shows when
+// the sheet closes listens on.
+const SheetID = "ingredients"
 
 // Sheet is the Ingredients side sheet, closed and empty until a SheetLink opens it. A
 // page that shows a SheetLink renders it once.
 templ Sheet() {
-	@web.SideSheet(sheetID, web.T(ctx, msgIngredients))
+	@web.SideSheet(SheetID, web.T(ctx, msgIngredients))
 }
 
 // SheetLink opens the Ingredients side sheet; without htmx it goes to the Ingredients
 // page.
 templ SheetLink() {
-	@web.SideSheetLink(sheetID, "/ingredients", "/ingredients/sheet") {
+	@web.SideSheetLink(SheetID, "/ingredients", "/ingredients/sheet") {
 		{ web.T(ctx, msgIngredients) }
+	}
+}
+
+// AddLink opens the Ingredients side sheet to add an Ingredient to count, its add form
+// started on name, which a search found nothing for, or blank; without htmx it goes to
+// the Ingredients page.
+templ AddLink(name string) {
+	@web.SideSheetLink(SheetID, templ.SafeURL("/ingredients?counting=1&name="+url.QueryEscape(name)), templ.SafeURL("/ingredients/sheet?counting=1&name="+url.QueryEscape(name))) {
+		if name == "" {
+			{ web.T(ctx, msgAddIngredient) }
+		} else {
+			{ web.Tf(ctx, msgAddNamed, name) }
+		}
 	}
 }
 
@@ -34,7 +45,7 @@ templ SheetLink() {
 templ page(today time.Time, ings []domain.Ingredient, f AddForm, q string) {
 	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
 		@web.PageHeader("食材", web.T(ctx, msgIngredients), today)
-		<div id={ web.SideSheetBody(sheetID) }>
+		<div id={ web.SideSheetBody(SheetID) }>
 			@sheetBody(ings, f, q)
 		</div>
 	}
@@ -106,7 +117,7 @@ templ list(ings []domain.Ingredient, q string) {
 						}
 					}
 					<span class="row-meta">
-						<span>{ web.T(ctx, storageLocationNames[ing.Usual]) }</span>
+						<span>{ web.T(ctx, StorageLocationNames[ing.Usual]) }</span>
 						@nutritionFacts(ing)
 					</span>
 				}
@@ -115,16 +126,25 @@ templ list(ings []domain.Ingredient, q string) {
 	}
 }
 
-// addForm adds an Ingredient, swapping the side sheet's body when htmx posts it.
+// addForm adds an Ingredient, swapping the side sheet's body when htmx posts it. Added to
+// count, the answer swaps the sheet under this one instead, leaving this form in place
+// for htmx to tell, which is the one time it does: it closes its sheet and hands the
+// focus to the sheet left open.
 templ addForm(f AddForm) {
 	<form
 		id="ingredient-add"
 		method="post"
 		action="/ingredients"
 		hx-post="/ingredients"
-		hx-target={ "#" + web.SideSheetBody(sheetID) }
+		hx-target={ "#" + web.SideSheetBody(SheetID) }
 		hx-swap="innerHTML"
+		if f.Counting {
+			hx-on:htmx:after:swap="if (event.target !== this) return; this.closest('.sheet')?.hidePopover(); document.querySelector('.sheet:popover-open [autofocus]')?.focus()"
+		}
 	>
+		if f.Counting {
+			<input type="hidden" name="counting" value="1"/>
+		}
 		@web.FieldGroup(0, web.T(ctx, msgAddIngredient)) {
 			<div class="stack">
 				<div>
@@ -138,7 +158,7 @@ templ addForm(f AddForm) {
 							hx-trigger="change"
 							hx-target={ "#" + suggestionID }
 							hx-swap="innerHTML"
-							{ invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
+							{ Invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
 						/>
 					}
 					<div id={ suggestionID }>
@@ -147,7 +167,7 @@ templ addForm(f AddForm) {
 				</div>
 				@web.FieldRow() {
 					@web.Field(web.T(ctx, msgUnit), "", f.Errs["unit"]) {
-						<select name="unit" required { invalid(f.Errs["unit"])... }>
+						<select name="unit" required { Invalid(f.Errs["unit"])... }>
 							<option value="">{ web.T(ctx, msgChoose) }</option>
 							for _, u := range domain.Units {
 								<option value={ string(u) } selected?={ f.Unit == string(u) }>{ web.T(ctx, unitNames[u]) }</option>
@@ -155,10 +175,10 @@ templ addForm(f AddForm) {
 						</select>
 					}
 					@web.Field(web.T(ctx, msgUsual), "", f.Errs["usual"]) {
-						<select name="usual" required { invalid(f.Errs["usual"])... }>
+						<select name="usual" required { Invalid(f.Errs["usual"])... }>
 							<option value="">{ web.T(ctx, msgChoose) }</option>
 							for _, l := range domain.StorageLocations {
-								<option value={ string(l) } selected?={ f.Usual == string(l) }>{ web.T(ctx, storageLocationNames[l]) }</option>
+								<option value={ string(l) } selected?={ f.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
 							}
 						</select>
 					}
@@ -177,7 +197,7 @@ templ addForm(f AddForm) {
 								name={ n }
 								value={ f.Values[n] }
 								required?={ n != "fibre" && n != "sugar" }
-								{ invalid(f.Errs[n])... }
+								{ Invalid(f.Errs[n])... }
 							/>
 						}
 					}
@@ -218,7 +238,7 @@ func pickLink(name string) templ.Attributes {
 	return templ.Attributes{
 		"href":      "/ingredients" + picked,
 		"hx-get":    "/ingredients/sheet" + picked,
-		"hx-target": "#" + web.SideSheetBody(sheetID),
+		"hx-target": "#" + web.SideSheetBody(SheetID),
 		"hx-swap":   "innerHTML",
 	}
 }
@@ -228,8 +248,8 @@ var nutrientNames = map[string]web.Message{
 	"kcal": msgKcal, "protein": msgProtein, "carbs": msgCarbs, "fat": msgFat, "fibre": msgFibre, "sugar": msgSugar,
 }
 
-// invalid marks a control aria-invalid when err says why its value was refused.
-func invalid(err string) templ.Attributes {
+// Invalid marks a control aria-invalid when err says why its value was refused.
+func Invalid(err string) templ.Attributes {
 	if err == "" {
 		return nil
 	}
@@ -240,12 +260,12 @@ func invalid(err string) templ.Attributes {
 // details: calories, then grams of the rest, an unknown one a dash that a screen reader
 // says is unknown.
 templ nutritionFacts(ing domain.Ingredient) {
-	<span>{ web.T(ctx, perUnit[ing.Unit]) }: { web.Tf(ctx, msgKcalValue, number(ctx, ing.Nutrition.Kcal.Value)) }</span>
+	<span>{ web.T(ctx, perUnit[ing.Unit]) }: { web.Tf(ctx, msgKcalValue, web.Number(ctx, ing.Nutrition.Kcal.Value)) }</span>
 	for _, g := range gramFacts(ing.Nutrition) {
 		<span>
 			{ web.T(ctx, g.name) + " " }
 			if g.amount.Known {
-				{ web.Tf(ctx, msgGrams, number(ctx, g.amount.Value)) }
+				{ web.Tf(ctx, msgGrams, web.Number(ctx, g.amount.Value)) }
 			} else {
 				<span aria-hidden="true">–</span>
 				<span class="sr-only">{ web.T(ctx, msgUnknown) }</span>
@@ -266,13 +286,4 @@ func gramFacts(n domain.Nutrition) []gramFact {
 		{msgProteinShort, n.Protein}, {msgCarbsShort, n.Carbs}, {msgFatShort, n.Fat},
 		{msgFibreShort, n.Fibre}, {msgSugarShort, n.Sugar},
 	}
-}
-
-// number is v as the User's Language writes it, a decimal comma in Italian.
-func number(ctx context.Context, v float64) string {
-	s := strconv.FormatFloat(v, 'f', -1, 64)
-	if web.LanguageOf(ctx) == domain.Italian {
-		s = strings.Replace(s, ".", ",", 1)
-	}
-	return s
 }

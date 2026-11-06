@@ -47,19 +47,18 @@ var (
 	msgPicked        = web.Message{En: "%s is already one of your Ingredients.", It: "%s è già tra i tuoi Ingredienti."}
 	msgSearch        = web.Message{En: "Search", It: "Cerca"}
 	msgNoMatch       = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
+	msgAddNamed      = web.Message{En: "Add %s as a new Ingredient", It: "Aggiungi %s come nuovo Ingrediente"}
 	msgNameTaken     = web.Message{
 		En: "You already have %s: one food is one Ingredient.",
 		It: "Hai già %s: un cibo è un solo Ingrediente.",
 	}
 )
 
-// problemMessages say why a nutritional value is refused.
+// problemMessages say why a nutritional value is refused, where web.ProblemMessage's
+// wording doesn't fit it.
 var problemMessages = map[domain.Problem]web.Message{
-	domain.Required:   {En: "Required.", It: "Obbligatorio."},
-	domain.NotANumber: {En: "Type a number.", It: "Scrivi un numero."},
-	domain.Negative:   {En: "Can't be below 0.", It: "Non può essere sotto 0."},
-	domain.TooPrecise: {En: "One decimal place at most.", It: "Al massimo un decimale."},
-	domain.TooLarge:   {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
+	domain.Required: {En: "Required.", It: "Obbligatorio."},
+	domain.TooLarge: {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 }
 
 // unitNames name each Unit as a choice; perUnit is what nutritional values are per.
@@ -76,8 +75,8 @@ var (
 	}
 )
 
-// storageLocationNames name each Storage Location.
-var storageLocationNames = map[domain.StorageLocation]web.Message{
+// StorageLocationNames name each Storage Location.
+var StorageLocationNames = map[domain.StorageLocation]web.Message{
 	domain.Pantry:  {En: "pantry", It: "dispensa"},
 	domain.Fridge:  {En: "fridge", It: "frigo"},
 	domain.Freezer: {En: "freezer", It: "congelatore"},

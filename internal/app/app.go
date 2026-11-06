@@ -70,7 +70,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool), kitchen: kitchen.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool)}
+	a.kitchen = kitchen.New(pool, log, a.ingredients)
 	a.today = today.New(a.profile, a.kitchen)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
@@ -108,7 +109,7 @@ func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
 	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
-	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log}
+	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
@@ -129,6 +130,11 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("GET /kitchen", signedIn(kit.Show))
+	mux.Handle("GET /kitchen/stock", signedIn(kit.ShowStock))
+	mux.Handle("GET /kitchen/count", signedIn(kit.ShowCount))
+	mux.Handle("GET /kitchen/count/sheet", signedIn(kit.ShowCountSheet))
+	mux.Handle("GET /kitchen/count/list", signedIn(kit.ShowCountList))
+	mux.Handle("POST /kitchen/count", signedIn(kit.Count))
 	mux.Handle("GET /ingredients", signedIn(ings.Show))
 	mux.Handle("GET /ingredients/sheet", signedIn(ings.ShowSheet))
 	mux.Handle("GET /ingredients/list", signedIn(ings.ShowList))
