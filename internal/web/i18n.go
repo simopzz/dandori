@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/a-h/templ"
 
@@ -94,9 +95,22 @@ func Date(ctx context.Context, day time.Time) string {
 	return fmt.Sprintf("%s %d %s", T(ctx, weekdayNames[day.Weekday()]), day.Day(), T(ctx, monthNames[day.Month()-1]))
 }
 
-// DateInYear is Date with day's year: "Monday 2 November 2026", "lunedì 2 novembre 2026".
-func DateInYear(ctx context.Context, day time.Time) string {
-	return fmt.Sprintf("%s %d", Date(ctx, day), day.Year())
+// ShortDate is Date for a line with little room: "Mon 2 Nov", "Lun 2 Nov".
+func ShortDate(ctx context.Context, day time.Time) string {
+	return fmt.Sprintf("%s %d %s", shortName(T(ctx, weekdayNames[day.Weekday()])), day.Day(), shortName(T(ctx, monthNames[day.Month()-1])))
+}
+
+// ShortDateInYear is ShortDate with day's year: "Mon 2 Nov 2026", "Lun 2 Nov 2026".
+func ShortDateInYear(ctx context.Context, day time.Time) string {
+	return fmt.Sprintf("%s %d", ShortDate(ctx, day), day.Year())
+}
+
+// shortName is a weekday's or a month's name cut to its first three letters, capitalised,
+// which is how both Languages shorten every one of them.
+func shortName(name string) string {
+	letters := []rune(name)[:3]
+	letters[0] = unicode.ToUpper(letters[0])
+	return string(letters)
 }
 
 // Number is v as the request's Language writes it, a decimal comma in Italian.

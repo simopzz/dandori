@@ -707,20 +707,20 @@ func movementsBody(now time.Time, item StockItemMovements) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if m.Note != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<em>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var35 string
 							templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(m.Note)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 147, Col: 21}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 147, Col: 19}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</em>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -756,9 +756,9 @@ func movementsBody(now time.Time, item StockItemMovements) templ.Component {
 // that is now's.
 func happenedText(ctx context.Context, now, at time.Time) string {
 	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgHappened, web.DateInYear(ctx, at), at.Format("15:04"))
+		return web.Tf(ctx, msgHappened, web.ShortDateInYear(ctx, at), at.Format("15:04"))
 	}
-	return web.Tf(ctx, msgHappened, web.Date(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgHappened, web.ShortDate(ctx, at), at.Format("15:04"))
 }
 
 // countedText says when a Stock Item was last counted, told in now's zone, with its date

@@ -26,9 +26,9 @@ func TestAStockItemsMovementsTellWhyItHoldsWhatItDoes(t *testing.T) {
 	s.IsAt("/kitchen/movements")
 	s.Sees("Movements")
 	s.Sees("rice · Pantry")
-	s.Sees("Counted 700 g → 450 g Tuesday 3 November, 19:30 " +
-		"Counted 200 g → 700 g Monday 2 November, 14:05 bought more " +
-		"Counted 0 g → 200 g Monday 2 November, 09:00")
+	s.Sees("Counted 700 g → 450 g Tue 3 Nov 19:30 " +
+		"Counted 200 g → 700 g Mon 2 Nov 14:05 bought more " +
+		"Counted 0 g → 200 g Mon 2 Nov 09:00")
 }
 
 // A mistaken Count is corrected by another Count, and both stay: the Movements offer no
@@ -47,10 +47,10 @@ func TestAMistakeIsCorrectedByAnotherCount(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("rice 450 g")
 	s.Follows("rice")
-	s.Sees("Counted 450 g → 450 g Monday 2 November, 18:00 still there " +
-		"Counted 4500 g → 450 g Monday 2 November, 10:02 a slip of the finger " +
-		"Counted 450 g → 4500 g Monday 2 November, 10:01 " +
-		"Counted 0 g → 450 g Monday 2 November, 10:00")
+	s.Sees("Counted 450 g → 450 g Mon 2 Nov 18:00 still there " +
+		"Counted 4500 g → 450 g Mon 2 Nov 10:02 a slip of the finger " +
+		"Counted 450 g → 4500 g Mon 2 Nov 10:01 " +
+		"Counted 0 g → 450 g Mon 2 Nov 10:00")
 	_, main, ok := strings.Cut(s.Page().Body, "<main")
 	if !ok {
 		t.Fatalf("the Movements page has no main content: %s", s.Page().Body)
@@ -153,8 +153,8 @@ func TestAMovementOfAnotherYearShowsItsYear(t *testing.T) {
 
 	s.Open("/kitchen")
 	s.Follows("rice")
-	s.Sees("Counted 200 g → 700 g Monday 4 January, 10:00 " +
-		"Counted 0 g → 200 g Monday 2 November 2026, 09:00")
+	s.Sees("Counted 200 g → 700 g Mon 4 Jan 10:00 " +
+		"Counted 0 g → 200 g Mon 2 Nov 2026 09:00")
 }
 
 // The Movements speak the User's Language, whatever the Language of their note.
@@ -173,7 +173,7 @@ func TestMovementsInItalian(t *testing.T) {
 	s.Sees("Movimenti")
 	s.Sees("uovo · Frigo")
 	s.Sees("Contato 0 pezzi → 1 pezzo")
-	s.Sees("lunedì 2 novembre alle 14:05")
+	s.Sees("Lun 2 Nov 14:05")
 	s.Sees("dal vicino")
 }
 

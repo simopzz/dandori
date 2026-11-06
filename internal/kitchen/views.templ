@@ -144,7 +144,7 @@ templ movementsBody(now time.Time, item StockItemMovements) {
 					<span class="row-meta">
 						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
 						if m.Note != "" {
-							<span>{ m.Note }</span>
+							<em>{ m.Note }</em>
 						}
 					</span>
 				}
@@ -157,9 +157,9 @@ templ movementsBody(now time.Time, item StockItemMovements) {
 // that is now's.
 func happenedText(ctx context.Context, now, at time.Time) string {
 	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgHappened, web.DateInYear(ctx, at), at.Format("15:04"))
+		return web.Tf(ctx, msgHappened, web.ShortDateInYear(ctx, at), at.Format("15:04"))
 	}
-	return web.Tf(ctx, msgHappened, web.Date(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgHappened, web.ShortDate(ctx, at), at.Format("15:04"))
 }
 
 // countedText says when a Stock Item was last counted, told in now's zone, with its date

@@ -38,7 +38,7 @@ var (
 	msgMovementsIn    = web.Message{En: "Movements %s", It: "Movimenti %s"}
 	msgStockItem      = web.Message{En: "%s · %s", It: "%s · %s"}
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
-	msgHappened       = web.Message{En: "%s, %s", It: "%s alle %s"}
+	msgHappened       = web.Message{En: "%s %s", It: "%s %s"}
 
 	msgChooseWhere = web.Message{En: "Choose where it is kept.", It: "Scegli dove si tiene."}
 	msgStaple      = web.Message{En: "%s is a Staple: it is never counted.", It: "%s è una Base: non si conta mai."}
