@@ -123,33 +123,6 @@ func countedText(ctx context.Context, now, at time.Time) string {
 	return web.Tf(ctx, msgCountedOn, web.Date(ctx, at), at.Format("15:04"))
 }
 
-// CountForm is the Count sheet's body as shown.
-type CountForm struct {
-	// Counted is the Count just saved, if any.
-	Counted *Counted
-	// Query and Found are the search, shown until an Ingredient is chosen; Staple is the
-	// Staple it named, if it found nothing else.
-	Query  string
-	Found  []domain.Ingredient
-	Staple string
-	// Ingredient is the one chosen, if any, and the rest its form: Believed is what
-	// Dandori believes each Storage Location holds, Stated and Note are as typed, and
-	// Errs why each field was refused, in the User's Language.
-	Ingredient *domain.Ingredient
-	Location   domain.StorageLocation
-	Believed   map[domain.StorageLocation]domain.Quantity
-	Stated     string
-	Note       string
-	Errs       map[string]string
-}
-
-// Counted is a Count just saved.
-type Counted struct {
-	Ingredient domain.Ingredient
-	Location   domain.StorageLocation
-	Stated     domain.Quantity
-}
-
 // countBody is the Count just saved, if any, then the form of the Ingredient chosen, or
 // else the search for one.
 templ countBody(f CountForm) {

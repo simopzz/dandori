@@ -74,20 +74,45 @@ func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
 
 // Believed is what the signed-in User's Kitchen Ledger believes each Storage Location
 // holds of the Ingredient id at now.
-func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (map[domain.StorageLocation]domain.Quantity, error) {
-	believed := map[domain.StorageLocation]domain.Quantity{}
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		movements, err := loadMovements(ctx, tx)
-		if err != nil {
-			return err
-		}
-		items := domain.AddUp(movements, now)
-		for _, location := range domain.StorageLocations {
-			believed[location] = items[domain.StockKey{Ingredient: id, Location: location}].Held
-		}
-		return nil
+func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (believed map[domain.StorageLocation]domain.Quantity, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		believed, err = loadBelieved(ctx, tx, now, id)
+		return err
 	})
 	return believed, err
+}
+
+// StartCount is what a Count of the Ingredient id starts from: the Ingredient, and what
+// Dandori believes each Storage Location holds of it at now, read together. ok is false
+// when it can't be counted: the signed-in User hasn't got it, or it is a Staple.
+func (s *Service) StartCount(ctx context.Context, now time.Time, id int64) (ing domain.Ingredient, believed map[domain.StorageLocation]domain.Quantity, ok bool, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ing, ok, err = ingredients.LoadIngredient(ctx, tx, id)
+		if err != nil || !ok {
+			return err
+		}
+		if ing.Staple {
+			ok = false
+			return nil
+		}
+		believed, err = loadBelieved(ctx, tx, now, id)
+		return err
+	})
+	return ing, believed, ok, err
+}
+
+// loadBelieved adds up what each Storage Location holds of the Ingredient id at now.
+func loadBelieved(ctx context.Context, q db.Querier, now time.Time, id int64) (map[domain.StorageLocation]domain.Quantity, error) {
+	movements, err := loadMovements(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	items := domain.AddUp(movements, now)
+	believed := make(map[domain.StorageLocation]domain.Quantity, len(domain.StorageLocations))
+	for _, location := range domain.StorageLocations {
+		believed[location] = items[domain.StockKey{Ingredient: id, Location: location}].Held
+	}
+	return believed, nil
 }
 
 // Countable is the signed-in User's Ingredients a search for query finds, Staples left

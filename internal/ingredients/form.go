@@ -45,7 +45,7 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 		f.Values[field] = strings.TrimSpace(r.PostFormValue(field))
 		a, problem := domain.ParseAmount(f.Values[field])
 		if problem != "" {
-			f.Errs[field] = web.T(ctx, problemMessages[problem])
+			f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
 		}
 		amounts[field] = a
 	}
@@ -75,5 +75,5 @@ func problemMessage(field string, problem domain.Problem) web.Message {
 	case "usual":
 		return msgUsualRequired
 	}
-	return problemMessages[problem]
+	return web.ProblemMessage(problem, problemMessages)
 }

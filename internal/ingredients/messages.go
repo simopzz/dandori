@@ -54,13 +54,11 @@ var (
 	}
 )
 
-// problemMessages say why a nutritional value is refused.
+// problemMessages say why a nutritional value is refused, where web.ProblemMessage's
+// wording doesn't fit it.
 var problemMessages = map[domain.Problem]web.Message{
-	domain.Required:   {En: "Required.", It: "Obbligatorio."},
-	domain.NotANumber: {En: "Type a number.", It: "Scrivi un numero."},
-	domain.Negative:   {En: "Can't be below 0.", It: "Non può essere sotto 0."},
-	domain.TooPrecise: {En: "One decimal place at most.", It: "Al massimo un decimale."},
-	domain.TooLarge:   {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
+	domain.Required: {En: "Required.", It: "Obbligatorio."},
+	domain.TooLarge: {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 }
 
 // unitNames name each Unit as a choice; perUnit is what nutritional values are per.

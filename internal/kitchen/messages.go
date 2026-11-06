@@ -37,14 +37,12 @@ var (
 	msgStaple      = web.Message{En: "%s is a Staple: it is never counted.", It: "%s è una Base: non si conta mai."}
 )
 
-// problemMessages say why a stated quantity is refused.
+// problemMessages say why a stated quantity is refused, where web.ProblemMessage's
+// wording doesn't fit it.
 var problemMessages = map[domain.Problem]web.Message{
-	domain.Required:   {En: "Say how much is there.", It: "Di' quanto ce n'è."},
-	domain.NotANumber: {En: "Type a number.", It: "Scrivi un numero."},
-	domain.Negative:   {En: "Can't be below 0.", It: "Non può essere sotto 0."},
-	domain.TooPrecise: {En: "One decimal place at most.", It: "Al massimo un decimale."},
-	domain.NotWhole:   {En: "Grams and millilitres are whole numbers.", It: "Grammi e millilitri sono numeri interi."},
-	domain.TooLarge:   {En: "Must be below 1000000.", It: "Deve essere sotto 1000000."},
+	domain.Required: {En: "Say how much is there.", It: "Di' quanto ce n'è."},
+	domain.NotWhole: {En: "Grams and millilitres are whole numbers.", It: "Grammi e millilitri sono numeri interi."},
+	domain.TooLarge: {En: "Must be below 1000000.", It: "Deve essere sotto 1000000."},
 }
 
 // locationHeadings head each Storage Location's Stock Items.

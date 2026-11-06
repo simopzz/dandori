@@ -530,33 +530,6 @@ func countedText(ctx context.Context, now, at time.Time) string {
 	return web.Tf(ctx, msgCountedOn, web.Date(ctx, at), at.Format("15:04"))
 }
 
-// CountForm is the Count sheet's body as shown.
-type CountForm struct {
-	// Counted is the Count just saved, if any.
-	Counted *Counted
-	// Query and Found are the search, shown until an Ingredient is chosen; Staple is the
-	// Staple it named, if it found nothing else.
-	Query  string
-	Found  []domain.Ingredient
-	Staple string
-	// Ingredient is the one chosen, if any, and the rest its form: Believed is what
-	// Dandori believes each Storage Location holds, Stated and Note are as typed, and
-	// Errs why each field was refused, in the User's Language.
-	Ingredient *domain.Ingredient
-	Location   domain.StorageLocation
-	Believed   map[domain.StorageLocation]domain.Quantity
-	Stated     string
-	Note       string
-	Errs       map[string]string
-}
-
-// Counted is a Count just saved.
-type Counted struct {
-	Ingredient domain.Ingredient
-	Location   domain.StorageLocation
-	Stated     domain.Quantity
-}
-
 // countBody is the Count just saved, if any, then the form of the Ingredient chosen, or
 // else the search for one.
 func countBody(f CountForm) templ.Component {
@@ -596,7 +569,7 @@ func countBody(f CountForm) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgCounted, f.Counted.Ingredient.Name, quantity(ctx, f.Counted.Stated, f.Counted.Ingredient.Unit), web.T(ctx, ingredients.StorageLocationNames[f.Counted.Location])))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 158, Col: 181}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 131, Col: 181}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -626,7 +599,7 @@ func countBody(f CountForm) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("toggle[newState=='closed'] from:#" + ingredients.SheetID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 168, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 141, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
@@ -696,7 +669,7 @@ func countSearch(q string) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(q)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 191, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 164, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 			if templ_7745c5c3_Err != nil {
@@ -709,7 +682,7 @@ func countSearch(q string) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.T(ctx, msgSearch))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 191, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 164, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 			if templ_7745c5c3_Err != nil {
@@ -772,7 +745,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgStaple, staple))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 201, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 174, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -801,7 +774,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgNothingToCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 206, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 179, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 					if templ_7745c5c3_Err != nil {
@@ -811,7 +784,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgNoMatch, q))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 208, Col: 32}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 181, Col: 32}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 					if templ_7745c5c3_Err != nil {
@@ -861,7 +834,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var41 templ.SafeURL
 						templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinURLErrs(chooseURL("/kitchen/count", ing))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 218, Col: 45}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 191, Col: 45}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 						if templ_7745c5c3_Err != nil {
@@ -874,7 +847,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var42 string
 						templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(chooseURL("/kitchen/count/sheet", ing)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 219, Col: 61}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 192, Col: 61}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 						if templ_7745c5c3_Err != nil {
@@ -887,7 +860,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var43 string
 						templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(countSheetID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 220, Col: 55}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 193, Col: 55}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 						if templ_7745c5c3_Err != nil {
@@ -900,7 +873,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var44 string
 						templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(ing.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 222, Col: 16}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 195, Col: 16}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 						if templ_7745c5c3_Err != nil {
@@ -913,7 +886,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var45 string
 						templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, ingredients.StorageLocationNames[ing.Usual]))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 223, Col: 85}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 196, Col: 85}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 						if templ_7745c5c3_Err != nil {
@@ -976,7 +949,7 @@ func countForm(f CountForm) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(countSheetID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 243, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 216, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -989,7 +962,7 @@ func countForm(f CountForm) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(f.Ingredient.ID, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 246, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 219, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -1030,7 +1003,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgWhere))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 251, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 224, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -1069,7 +1042,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var53 string
 				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(quantityStep(f.Ingredient.Unit))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 260, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 233, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 				if templ_7745c5c3_Err != nil {
@@ -1082,7 +1055,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Stated)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 262, Col: 22}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 235, Col: 22}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 				if templ_7745c5c3_Err != nil {
@@ -1125,7 +1098,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Note)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 270, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 243, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 				if templ_7745c5c3_Err != nil {
@@ -1168,7 +1141,7 @@ func countForm(f CountForm) templ.Component {
 					var templ_7745c5c3_Var59 string
 					templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 274, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 247, Col: 28}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 					if templ_7745c5c3_Err != nil {
@@ -1195,7 +1168,7 @@ func countForm(f CountForm) templ.Component {
 					var templ_7745c5c3_Var61 string
 					templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAnother))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 277, Col: 30}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 250, Col: 30}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 					if templ_7745c5c3_Err != nil {
@@ -1303,7 +1276,7 @@ func Status(now, at time.Time, ok bool) templ.Component {
 				var templ_7745c5c3_Var64 string
 				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(statusText(ctx, now, at.In(now.Location())))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 323, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 296, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 				if templ_7745c5c3_Err != nil {

@@ -120,19 +120,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	location := domain.StorageLocation(r.PostFormValue("location"))
-	f := CountForm{
-		Ingredient: &ing, Location: location,
-		Stated: strings.TrimSpace(r.PostFormValue("stated")), Note: r.PostFormValue("note"),
-		Errs: map[string]string{},
-	}
-	if !slices.Contains(domain.StorageLocations, location) {
-		f.Errs["location"], f.Location = web.T(ctx, msgChooseWhere), ing.Usual
-	}
-	stated, problem := domain.ParseQuantity(ing.Unit, f.Stated)
-	if problem != "" {
-		f.Errs["stated"] = web.T(ctx, problemMessages[problem])
-	}
+	location, stated, f := parseCountForm(r, ing)
 	var saved int64
 	if len(f.Errs) == 0 {
 		saved, err = h.Service.Count(ctx, now, id, location, stated, f.Note)
@@ -195,9 +183,8 @@ func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now
 }
 
 // startCount is the Count form as query asks for it: the Count counted confirmed; its
-// Ingredient ingredient chosen, in its Storage Location location or else its usual one;
-// or else the search for q. An Ingredient the User hasn't got is never chosen, nor is
-// a Staple.
+// Ingredient ingredient chosen, if Service.StartCount allows it, in its Storage Location
+// location or else its usual one; or else the search for q.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
 	f := CountForm{Query: strings.TrimSpace(query.Get("q"))}
 	if id, err := strconv.ParseInt(query.Get("counted"), 10, 64); err == nil {
@@ -206,17 +193,16 @@ func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Value
 		}
 	}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {
-		ing, ok, err := h.Service.ingredients.Find(ctx, id)
+		ing, believed, ok, err := h.Service.StartCount(ctx, now, id)
 		if err != nil {
 			return f, err
 		}
-		if ok && !ing.Staple {
-			f.Ingredient, f.Location = &ing, ing.Usual
+		if ok {
+			f.Ingredient, f.Location, f.Believed = &ing, ing.Usual, believed
 			if location := domain.StorageLocation(query.Get("location")); slices.Contains(domain.StorageLocations, location) {
 				f.Location = location
 			}
-			f.Believed, err = h.Service.Believed(ctx, now, id)
-			return f, err
+			return f, nil
 		}
 	}
 	var err error
