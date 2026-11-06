@@ -17,8 +17,8 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// stockChanged is the event that tells the Kitchen page to list its stock again.
-const stockChanged = "stock-changed"
+// movementSaved is the event that tells the Kitchen page to list its stock again.
+const movementSaved = "movement-saved"
 
 // Handlers bring the signed-in User's kitchen up to now before every page, so a page is
 // never wrong because the scheduler was late, and serve the Kitchen page.
@@ -55,8 +55,8 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, page(now, stock, f))
 }
 
-// ShowStock is what the Kitchen page lists alone, which it swaps in after each Count or
-// move.
+// ShowStock is what the Kitchen page lists alone, which it swaps in after each
+// Count or move.
 func (h Handlers) ShowStock(w http.ResponseWriter, r *http.Request) {
 	now := h.Clock.Now()
 	stock, err := h.Service.Stock(r.Context(), now)
@@ -186,7 +186,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "start a Count", err)
 		return
 	}
-	w.Header().Set("HX-Trigger", stockChanged)
+	w.Header().Set("HX-Trigger", movementSaved)
 	h.answer(w, r, http.StatusOK, now, cleared)
 }
 
@@ -278,7 +278,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/kitchen", http.StatusSeeOther)
 		return
 	}
-	w.Header().Set("HX-Trigger", stockChanged)
+	w.Header().Set("HX-Trigger", movementSaved)
 	httpx.Render(w, r, h.Log, http.StatusOK, movedNotice(ing, f.To, moved))
 }
 

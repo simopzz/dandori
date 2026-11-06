@@ -64,8 +64,8 @@ var problemMessages = map[domain.Problem]web.Message{
 }
 
 // moveProblemMessages say why a quantity to move is refused, where web.ProblemMessage's
-// wording doesn't fit it. Having more moved than is held needs what is held, so it is
-// msgMoreThanHeld.
+// wording doesn't fit it. More moved than is held needs what is held: msgMoreThanHeld
+// says that.
 var moveProblemMessages = map[domain.Problem]web.Message{
 	domain.Required:     {En: "Say how much to move.", It: "Di' quanto spostare."},
 	domain.NothingMoved: {En: "Say how much to move.", It: "Di' quanto spostare."},
@@ -115,7 +115,7 @@ var causeNames = map[domain.Cause]web.Message{
 }
 
 // causeText tells the cause of m as a Movement of the Stock Item in location.
-func causeText(ctx context.Context, m domain.Step, location domain.StorageLocation) string {
+func causeText(ctx context.Context, m domain.StockMovement, location domain.StorageLocation) string {
 	switch {
 	case m.Cause != domain.Moved:
 		return web.T(ctx, causeNames[m.Cause])

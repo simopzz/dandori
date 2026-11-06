@@ -81,8 +81,8 @@ func TestMovingPartOfAPiece(t *testing.T) {
 	s.Sees("Freezer egg 0.5 pieces")
 }
 
-// A move is refused on the field, keeping what was typed and leaving the kitchen as it
-// was.
+// A move is refused on the field, keeping what was typed and leaving the
+// kitchen as it was.
 func TestARefusedMove(t *testing.T) {
 	cases := []struct {
 		name, quantity, why string
@@ -113,8 +113,8 @@ func TestARefusedMove(t *testing.T) {
 	}
 }
 
-// When Dandori holds too little, the User counts first and the same move then goes
-// through.
+// When Dandori holds too little, the User counts first and the same move
+// then goes through.
 func TestCountingFirstLetsAMoveThrough(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "800", "")
@@ -230,8 +230,8 @@ func TestMoveOfNoStockItem(t *testing.T) {
 	}
 }
 
-// A move's cause speaks the User's Language, each Storage Location with its own
-// preposition.
+// A move's cause speaks the User's Language, each Storage Location with its
+// own preposition.
 func TestMovesInItalian(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -294,7 +294,7 @@ func TestAMovePostedAsHTMX(t *testing.T) {
 	if strings.Contains(moved.Body, "<form") {
 		t.Errorf("the confirmed move still offers a form: %s", moved.Body)
 	}
-	if got := moved.Header.Get("HX-Trigger"); got != "stock-changed" {
+	if got := moved.Header.Get("HX-Trigger"); got != "movement-saved" {
 		t.Errorf("the move triggers %q, want the stock listed again", got)
 	}
 	s.Open("/kitchen")

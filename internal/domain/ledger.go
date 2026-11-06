@@ -87,8 +87,8 @@ type Movement struct {
 	Note string
 }
 
-// Step is a Movement of one Stock Item with what that Stock Item held before and after.
-type Step struct {
+// StockMovement is a Movement of one Stock Item with what it held before and after.
+type StockMovement struct {
 	Movement
 	Before, After Quantity
 }
@@ -128,13 +128,13 @@ func (m Movement) changeTo(key StockKey) (change Quantity, touches bool) {
 	return 0, false
 }
 
-// History is every one of movements, in the order they happened, that touched the Stock
-// Item key, with what it held before and after each. A Count starts from what it kept
-// of what Dandori believed.
-func History(movements []Movement, key StockKey) []Step {
+// StockMovements is every one of movements, in the order they happened, that touched the
+// Stock Item key, with what it held before and after each. A Count starts from what it
+// kept of what Dandori believed.
+func StockMovements(movements []Movement, key StockKey) []StockMovement {
 	var (
-		steps []Step
-		held  Quantity
+		touched []StockMovement
+		held    Quantity
 	)
 	for _, m := range movements {
 		change, touches := m.changeTo(key)
@@ -144,10 +144,10 @@ func History(movements []Movement, key StockKey) []Step {
 		if m.Cause == Counted {
 			held = m.Believed
 		}
-		steps = append(steps, Step{Movement: m, Before: held, After: held + change})
+		touched = append(touched, StockMovement{Movement: m, Before: held, After: held + change})
 		held += change
 	}
-	return steps
+	return touched
 }
 
 // AddUp is what the kitchen holds at a moment: what movements, in the order they

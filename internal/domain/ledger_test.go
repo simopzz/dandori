@@ -202,9 +202,9 @@ func TestCheckMove(t *testing.T) {
 	}
 }
 
-// A Stock Item's history is every Movement that touched it, on either side of a move,
-// each with what it held before and after. A Count shows what it kept.
-func TestAStockItemsHistory(t *testing.T) {
+// A Stock Item's Movements are all that touched it, on either side of a move, each with
+// what it held before and after. A Count shows what it kept.
+func TestAStockItemsMovements(t *testing.T) {
 	at := func(hour int) time.Time { return time.Date(2026, time.November, 2, hour, 0, 0, 0, time.UTC) }
 	fridge := domain.StockKey{Ingredient: 1, Location: domain.Fridge}
 	freezer := domain.StockKey{Ingredient: 1, Location: domain.Freezer}
@@ -218,37 +218,37 @@ func TestAStockItemsHistory(t *testing.T) {
 		{At: at(12), Key: freezer, To: domain.Pantry, Change: 5000, Cause: domain.Moved},
 		{At: at(13), Key: fridge, Believed: 3500, Change: 0, Cause: domain.Counted},
 	}
-	type step struct {
+	type shown struct {
 		at            int
 		before, after domain.Quantity
 	}
 	cases := []struct {
 		name string
 		key  domain.StockKey
-		want []step
+		want []shown
 	}{
-		{"the source of a move", fridge, []step{{8, 0, 8000}, {10, 8000, 4000}, {11, 4000, 3500}, {13, 3500, 3500}}},
-		{"the target, then the source", freezer, []step{{9, 0, 1000}, {10, 1000, 5000}, {12, 5000, 0}}},
-		{"a target alone", pantry, []step{{12, 0, 5000}}},
+		{"the source of a move", fridge, []shown{{8, 0, 8000}, {10, 8000, 4000}, {11, 4000, 3500}, {13, 3500, 3500}}},
+		{"the target, then the source", freezer, []shown{{9, 0, 1000}, {10, 1000, 5000}, {12, 5000, 0}}},
+		{"a target alone", pantry, []shown{{12, 0, 5000}}},
 		{"nothing touched it", domain.StockKey{Ingredient: 3, Location: domain.Pantry}, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := domain.History(movements, c.key)
+			got := domain.StockMovements(movements, c.key)
 			if len(got) != len(c.want) {
-				t.Fatalf("History has %d steps, want %d: %+v", len(got), len(c.want), got)
+				t.Fatalf("StockMovements has %d, want %d: %+v", len(got), len(c.want), got)
 			}
 			for i, want := range c.want {
 				if !got[i].At.Equal(at(want.at)) || got[i].Before != want.before || got[i].After != want.after {
-					t.Errorf("step %d = %s %d → %d, want %d:00 %d → %d", i, got[i].At.Format("15:04"), got[i].Before, got[i].After, want.at, want.before, want.after)
+					t.Errorf("Movement %d = %s %d → %d, want %d:00 %d → %d", i, got[i].At.Format("15:04"), got[i].Before, got[i].After, want.at, want.before, want.after)
 				}
 			}
 		})
 	}
 
-	t.Run("a step is its Movement, note and all", func(t *testing.T) {
-		if got := domain.History(movements, freezer)[1]; got.Note != "for next week" || got.To != domain.Freezer {
-			t.Errorf("the move in the freezer's history is %+v", got)
+	t.Run("each is its Movement, note and all", func(t *testing.T) {
+		if got := domain.StockMovements(movements, freezer)[1]; got.Note != "for next week" || got.To != domain.Freezer {
+			t.Errorf("the move in the freezer's Movements is %+v", got)
 		}
 	})
 
@@ -259,7 +259,7 @@ func TestAStockItemsHistory(t *testing.T) {
 			{At: at(9), Key: fridge, Believed: 3000, Change: 1000, Cause: domain.Counted},
 			{At: at(10), Key: fridge, Believed: 0, Change: 3000, Cause: domain.Counted},
 		}
-		got := domain.History(overlapped, fridge)[0]
+		got := domain.StockMovements(overlapped, fridge)[0]
 		if got.Before != 3000 || got.After != 4000 {
 			t.Errorf("the Count shows %d → %d, want what it kept, 3000 → 4000", got.Before, got.After)
 		}

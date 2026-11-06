@@ -33,7 +33,7 @@ templ page(now time.Time, stock []Held, f CountForm) {
 				@ingredients.SheetLink()
 			</p>
 		}
-		<div id={ stockID } hx-get="/kitchen/stock" hx-trigger={ stockChanged + " from:body" }>
+		<div id={ stockID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body" }>
 			@stockList(now, stock)
 		</div>
 		@web.AddSheet(countSheetID, web.T(ctx, msgCount), false) {

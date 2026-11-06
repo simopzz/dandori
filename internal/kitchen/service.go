@@ -77,7 +77,7 @@ func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
 type StockItemMovements struct {
 	Ingredient domain.Ingredient
 	Location   domain.StorageLocation
-	Movements  []domain.Step
+	Movements  []domain.StockMovement
 }
 
 // StockItemMovements is the Stock Item of the Ingredient id in location with its
@@ -90,16 +90,16 @@ func (s *Service) StockItemMovements(ctx context.Context, id int64, location dom
 		if err != nil {
 			return err
 		}
-		steps := domain.History(movements, domain.StockKey{Ingredient: id, Location: location})
-		if len(steps) == 0 {
+		touched := domain.StockMovements(movements, domain.StockKey{Ingredient: id, Location: location})
+		if len(touched) == 0 {
 			return nil
 		}
-		slices.Reverse(steps)
+		slices.Reverse(touched)
 		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
 		if err != nil || !ok {
 			return err
 		}
-		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: steps}
+		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: touched}
 		return nil
 	})
 	return item, err
