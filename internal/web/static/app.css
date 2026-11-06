@@ -537,7 +537,7 @@ a.row-title:hover { text-decoration: underline; }
 /* search field: a square box, the glass inside it, set apart from the rows it searches */
 .search-field { display: block; position: relative; margin-bottom: var(--space-4); }
 
-.search-field .icon { position: absolute; left: var(--space-3); top: calc(50% - 10px); pointer-events: none; }
+.search-field .icon { position: absolute; left: var(--space-3); top: calc(50% - 10px); }
 
 .search-field input {
   background: var(--color-surface);

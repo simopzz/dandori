@@ -238,13 +238,13 @@ func (s *Scenario) AddsIngredient(ing Ingredient) {
 	s.record(fmt.Sprintf("adds the Ingredient %q: %d %s", ing.Name, s.page.StatusCode, s.page.Path))
 }
 
-// Presses submits the form with id on the page open as it is shown, with its button
-// labelled label, posted as a browser without htmx.
-func (s *Scenario) Presses(id, label string) {
+// Submits submits the form with id on the page open as it is shown, as a browser without
+// htmx.
+func (s *Scenario) Submits(id string) {
 	s.t.Helper()
-	form := Press(s.t, s.page.Body, id, label)
+	form := Form(s.t, s.page.Body, id)
 	s.page = s.PostForm(s.t, form.Action, form.Values)
-	s.record(fmt.Sprintf("presses %q: %d %s", label, s.page.StatusCode, s.page.Path))
+	s.record(fmt.Sprintf("submits %s: %d %s", id, s.page.StatusCode, s.page.Path))
 }
 
 // SearchesIngredients searches the Ingredients for query with the page's search form,

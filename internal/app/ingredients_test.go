@@ -136,7 +136,7 @@ func TestIngredientsInItalian(t *testing.T) {
 	s.AddsIngredient(fish)
 	s.IsRefused()
 	s.Sees("Intendevi pesca?")
-	s.Presses("ingredient-add", "Aggiungi")
+	s.Submits("ingredient-add")
 	s.Sees("Aggiunto: pesce.")
 }
 
@@ -233,7 +233,7 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 	s.AddsIngredient(typo)
 	s.IsRefused()
 	s.Sees("Did you mean egg?")
-	s.Presses("ingredient-add", "Add")
+	s.Submits("ingredient-add")
 	s.Sees("Added eggz.")
 }
 
@@ -271,7 +271,7 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 		t.Errorf("picking an Ingredient the User doesn't have confirms it: %s", shown)
 	}
 
-	confirm := apptest.Press(t, suggested.Body, "ingredient-add", "Add")
+	confirm := apptest.Form(t, suggested.Body, "ingredient-add")
 	added := s.HTMXPostForm(t, confirm.Action, confirm.Values)
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("confirming eggs from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)

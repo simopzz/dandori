@@ -69,8 +69,8 @@ func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
 // Ingredient's is refused with that one suggested, unless the suggestion was already
 // shown for this name, which confirms it: pressing Add past one means the name typed.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
-	fragment := httpx.IsHTMX(r)
 	ing, f := parseAddForm(r)
+	fragment := httpx.IsHTMX(r)
 	if len(f.Errs) > 0 {
 		h.render(w, r, http.StatusUnprocessableEntity, f, "", fragment)
 		return

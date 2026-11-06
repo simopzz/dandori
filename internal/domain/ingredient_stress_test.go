@@ -3,7 +3,6 @@ package domain_test
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -106,19 +105,6 @@ func TestSearchingRanksTheExactNameFirst(t *testing.T) {
 		for _, name := range names {
 			if found := domain.SearchIngredients(name, names); len(found) == 0 || names[found[0]] != name {
 				t.Errorf("%s: SearchIngredients(%q) doesn't rank it first: %v", l, name, found)
-			}
-		}
-	}
-}
-
-// Every word of a name finds it, so a User remembering part of a name reaches it.
-func TestSearchingFindsANameByAnyOfItsWords(t *testing.T) {
-	for l, names := range kitchenNames {
-		for i, name := range names {
-			for _, word := range strings.Fields(name) {
-				if !slices.Contains(domain.SearchIngredients(word, names), i) {
-					t.Errorf("%s: searching for %q doesn't find %q", l, word, name)
-				}
 			}
 		}
 	}

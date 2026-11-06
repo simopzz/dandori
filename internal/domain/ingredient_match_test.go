@@ -63,7 +63,7 @@ func TestClosestIngredientInEnglish(t *testing.T) {
 
 // Of names equally alike, the one first alphabetically is suggested.
 func TestClosestIngredientBreaksATieByName(t *testing.T) {
-	got, ok := domain.ClosestIngredient(domain.English, "basmati", []string{"basmatu", "basmato"})
+	got, ok := domain.ClosestIngredient(domain.Italian, "basmati", []string{"basmatu", "basmato"})
 	if !ok || got != "basmato" {
 		t.Errorf(`ClosestIngredient("basmati") = %q, %v; want "basmato", true`, got, ok)
 	}

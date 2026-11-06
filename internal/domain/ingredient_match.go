@@ -58,7 +58,7 @@ const slipLetters = 3
 // changed, or two neighbours swapped.
 func oneSlipApart(typed, known string) bool {
 	a, b := []rune(typed), []rune(known)
-	if len(a) < slipLetters || len(a)-len(b) > 1 || len(b)-len(a) > 1 {
+	if len(a) < slipLetters {
 		return false
 	}
 	head := 0
