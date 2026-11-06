@@ -2,6 +2,9 @@ package web
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -15,6 +18,15 @@ import (
 var ordinarySense = map[string]string{
 	"log":  `"the server log", not a Trace`,
 	"step": `a Recipe's steps, which the glossary names so, not a Trace Event`,
+}
+
+// nameSense are names that use an avoided word in its ordinary sense, not as the term
+// the glossary avoids it for.
+var nameSense = map[string]string{
+	"Schedule":            "starting the app's scheduler, not a Plan",
+	"goneToTodayIfChosen": "the verb, not a Stock Item left in the kitchen",
+	"settings":            "the test server's own settings, not the Profile",
+	"TestStartupMigratesTheDatabaseBeforeServing": "serving HTTP, not a Portion",
 }
 
 // Pages speak the glossary: what a page shows, a Message's English or a template's
@@ -59,6 +71,77 @@ func TestPagesAvoidWhatTheGlossaryAvoids(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Code speaks the glossary too (docs/agents/domain.md): the names the code declares at
+// the top level, and its test names, read word by word, never use a word GLOSSARY.md
+// lists under _Avoid_, unless nameSense allows it.
+func TestNamesAvoidWhatTheGlossaryAvoids(t *testing.T) {
+	glossary, err := os.ReadFile("../../GLOSSARY.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	terms, avoided := glossaryWords(string(glossary))
+	fset := token.NewFileSet()
+	err = filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_templ.go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return err
+		}
+		for _, name := range declaredNames(file) {
+			if _, ok := nameSense[name.Name]; ok {
+				continue
+			}
+			shown := splitName(name.Name)
+			for _, term := range terms {
+				shown = term.ReplaceAllString(shown, " ")
+			}
+			for word, re := range avoided {
+				if re.MatchString(shown) {
+					t.Errorf("%s: %s uses %q, which GLOSSARY.md avoids", fset.Position(name.Pos()), name.Name, word)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// declaredNames are the functions, methods, types, variables and constants file declares
+// at its top level.
+func declaredNames(file *ast.File) []*ast.Ident {
+	var names []*ast.Ident
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			names = append(names, d.Name)
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					names = append(names, s.Name)
+				case *ast.ValueSpec:
+					names = append(names, s.Names...)
+				}
+			}
+		}
+	}
+	return names
+}
+
+// splitName is a Go name as words: TestAStockItem reads "Test A Stock Item".
+func splitName(name string) string {
+	return wordBreak.ReplaceAllString(acronymBreak.ReplaceAllString(name, "$1 $2"), "$1 $2")
+}
+
+var (
+	wordBreak    = regexp.MustCompile(`([a-z0-9])([A-Z])`)
+	acronymBreak = regexp.MustCompile(`([A-Z])([A-Z][a-z])`)
+)
 
 var (
 	glossaryTerm  = regexp.MustCompile(`(?m)^\*\*(.+?)\*\*:`)

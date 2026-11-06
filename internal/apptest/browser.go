@@ -3,6 +3,7 @@ package apptest
 import (
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -179,6 +180,20 @@ func (b *Browser) IsAt(t testing.TB, path string) {
 	t.Helper()
 	if err := playwright.NewPlaywrightAssertions().Page(b.Page).ToHaveURL(b.url + path); err != nil {
 		t.Fatalf("the page is not at %s: %v", path, err)
+	}
+}
+
+// Shot saves the page as name.png in the folder DANDORI_SHOTS names, and does nothing
+// when it names none. Take it after an assertion, which has waited for the swap.
+func (b *Browser) Shot(t testing.TB, name string) {
+	t.Helper()
+	dir := os.Getenv("DANDORI_SHOTS")
+	if dir == "" {
+		return
+	}
+	path := filepath.Join(dir, name+".png")
+	if _, err := b.Screenshot(playwright.PageScreenshotOptions{Path: &path}); err != nil {
+		t.Fatalf("save %s: %v", path, err)
 	}
 }
 

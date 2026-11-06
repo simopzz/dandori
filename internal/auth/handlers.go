@@ -21,8 +21,7 @@ const (
 // allows. The session lasts until the User signs out.
 const sessionAge = 400 * 24 * 60 * 60
 
-// Handlers serve signing in and out, and keep every other page for the
-// signed-in.
+// Handlers serve signing in and out, and keep every other page for the signed-in.
 type Handlers struct {
 	Service *Service
 	Clock   clock.Clock

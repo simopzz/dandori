@@ -52,8 +52,8 @@ func Sheet() templ.Component {
 	})
 }
 
-// SheetLink opens the Ingredients side sheet; without htmx it goes to the Ingredients
-// page.
+// SheetLink opens the Ingredients side sheet; without htmx it goes to the
+// Ingredients page.
 func SheetLink() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

@@ -39,10 +39,9 @@ type supabase struct {
 	fetched time.Time      // when keys were last fetched
 }
 
-// newSupabase makes each call a client span under the request that made it,
-// named for the call. Its attributes are otelhttp's: never a header or a body,
-// so never a token, the API key or an email. No traceparent header goes to
-// Supabase.
+// newSupabase makes each call a client span under the request that made it, named for
+// the call. Its attributes are otelhttp's: never a header or a body, so never a token,
+// the API key or an email. No traceparent header goes to Supabase.
 func newSupabase(cfg Config, c clock.Clock, tp trace.TracerProvider) *supabase {
 	transport := otelhttp.NewTransport(http.DefaultTransport,
 		otelhttp.WithTracerProvider(tp),

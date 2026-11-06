@@ -80,8 +80,8 @@ var locationHeadings = map[domain.StorageLocation]web.Message{
 	domain.Freezer: {En: "Freezer", It: "Congelatore"},
 }
 
-// inLocations say where in each Storage Location, as Italian takes each with its own
-// preposition.
+// inLocations say where in each Storage Location, as Italian takes each with its
+// own preposition.
 var inLocations = map[domain.StorageLocation]web.Message{
 	domain.Pantry:  {En: "in the pantry", It: "in dispensa"},
 	domain.Fridge:  {En: "in the fridge", It: "in frigo"},

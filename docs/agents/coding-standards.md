@@ -24,8 +24,9 @@ Rules code review checks against. Each says what it protects.
   terms, never a word it lists under _Avoid_;
   `internal/web/glossary_test.go` enforces it in CI. A word used in its
   ordinary sense, not as the avoided synonym, goes in that test's
-  `ordinarySense` list with the reason. *Protects: the user reads the same
-  words the model and the code use.*
+  `ordinarySense` list with the reason, and the same holds for top-level Go
+  names and test names, with `nameSense` as their list. *Protects: the user
+  reads the same words the model and the code use.*
 - **No per-feature restyling of base elements.** No selectors like
   `.profile input` or `.stock-form select` in `app.css`: change the base style
   for everyone, or add a component. The exceptions are the feature components
@@ -76,10 +77,10 @@ Rules code review checks against. Each says what it protects.
 
 ## Comments
 
-- **Go comments wrap at 90 columns**, counting a tab as 4, and fill each line
-  to it. When that leaves a lone word on the last line, break the earlier
-  lines sooner, or reword, so it isn't alone. *Protects: comments that read
-  as prose, without lines that stop early or a word stranded below them.*
+- **Go comments fill each line** up to the width `TestCommentsWrap` enforces,
+  in `internal/web`, with its lone-word rule: when a last line would hold one
+  word, break the earlier lines sooner or reword. *Protects: comments that
+  read as prose, without lines that stop early.*
 
 ## Tests
 
