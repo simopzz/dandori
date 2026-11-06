@@ -52,8 +52,19 @@ func ParseQuantity(unit Unit, typed string) (Quantity, Problem) {
 // data, so a page can tell it in the User's Language.
 type Cause string
 
-// Counted is the Cause of a Count.
-const Counted Cause = "counted"
+// The Causes of a Movement.
+const (
+	// Counted is the Cause of a Count.
+	Counted Cause = "counted"
+	// Moved is the Cause of a move.
+	Moved Cause = "moved"
+)
+
+// Why a move is refused.
+const (
+	NothingMoved Problem = "nothing moved"
+	MoreThanHeld Problem = "more than held"
+)
 
 // StockKey identifies a Stock Item: there is one per Ingredient and Storage Location.
 type StockKey struct {
@@ -61,12 +72,25 @@ type StockKey struct {
 	Location   StorageLocation
 }
 
-// Movement is one change to what the kitchen holds, as AddUp needs it.
+// Movement is one change to what the kitchen holds. A move is one Movement: Key is the
+// Stock Item it comes from, To the Storage Location it goes to, and Change, above
+// nothing, how much goes.
 type Movement struct {
 	At     time.Time
 	Key    StockKey
+	To     StorageLocation
 	Change Quantity
 	Cause  Cause
+	// Believed is what a Count kept of what Dandori believed before it.
+	Believed Quantity
+	// Note is the User's, if any.
+	Note string
+}
+
+// Step is a Movement of one Stock Item with what that Stock Item held before and after.
+type Step struct {
+	Movement
+	Before, After Quantity
 }
 
 // StockItem is what one Ingredient's Movements in one Storage Location add up to.
@@ -79,6 +103,53 @@ type StockItem struct {
 // CountDifference is the change a Count makes: what was stated less what was believed.
 func CountDifference(believed, stated Quantity) Quantity { return stated - believed }
 
+// CheckMove says why a move of moved is refused from a Stock Item holding held, if it is.
+func CheckMove(held, moved Quantity) Problem {
+	switch {
+	case moved <= 0:
+		return NothingMoved
+	case moved > held:
+		return MoreThanHeld
+	}
+	return ""
+}
+
+// changeTo is what m changes the Stock Item key by; touches is false if it leaves key
+// alone. A move touches both of its Stock Items.
+func (m Movement) changeTo(key StockKey) (change Quantity, touches bool) {
+	switch {
+	case m.Key == key && m.Cause == Moved:
+		return -m.Change, true
+	case m.Key == key:
+		return m.Change, true
+	case m.Cause == Moved && m.Key.Ingredient == key.Ingredient && m.To == key.Location:
+		return m.Change, true
+	}
+	return 0, false
+}
+
+// History is every one of movements, in the order they happened, that touched the Stock
+// Item key, with what it held before and after each. A Count starts from what it kept
+// of what Dandori believed.
+func History(movements []Movement, key StockKey) []Step {
+	var (
+		steps []Step
+		held  Quantity
+	)
+	for _, m := range movements {
+		change, touches := m.changeTo(key)
+		if !touches {
+			continue
+		}
+		if m.Cause == Counted {
+			held = m.Believed
+		}
+		steps = append(steps, Step{Movement: m, Before: held, After: held + change})
+		held += change
+	}
+	return steps
+}
+
 // AddUp is what the kitchen holds at a moment: what movements, in the order they
 // happened, add up to by then, by Stock Item. One Movement at that very moment counts.
 func AddUp(movements []Movement, at time.Time) map[StockKey]StockItem {
@@ -88,7 +159,15 @@ func AddUp(movements []Movement, at time.Time) map[StockKey]StockItem {
 			continue
 		}
 		item := items[m.Key]
-		item.Held += m.Change
+		if m.Cause == Moved {
+			to := StockKey{Ingredient: m.Key.Ingredient, Location: m.To}
+			target := items[to]
+			target.Held += m.Change
+			items[to] = target
+			item.Held -= m.Change
+		} else {
+			item.Held += m.Change
+		}
 		if m.Cause == Counted {
 			item.Counted = m.At
 		}

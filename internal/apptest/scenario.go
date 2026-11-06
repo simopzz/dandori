@@ -267,6 +267,23 @@ func (s *Scenario) IsRefused() {
 	s.record("is refused")
 }
 
+// Moves opens the Kitchen page, follows the row's link (such as "Move rice in the
+// pantry") and posts its form: quantity, unless blank leaves its default, to the Storage
+// Location to, with note.
+func (s *Scenario) Moves(link, quantity, to, note string) {
+	s.t.Helper()
+	s.Open("/kitchen")
+	s.Follows(link)
+	form := Form(s.t, s.page.Body, "move-form")
+	if quantity != "" {
+		form.Values.Set("quantity", quantity)
+	}
+	form.Values.Set("to", to)
+	form.Values.Set("note", note)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("%s: %s to %q: %d %s", link, quantity, to, s.page.StatusCode, s.page.Path))
+}
+
 // Counts counts name with the Count form, as a browser without htmx: it finds the
 // Ingredient, keeps its usual Storage Location unless location is given, and states
 // stated, with note.

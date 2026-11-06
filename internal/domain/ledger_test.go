@@ -133,3 +133,135 @@ func TestTheLedgerAddsUpToAMoment(t *testing.T) {
 		}
 	})
 }
+
+// A move is one Movement that takes its quantity from one Stock Item and gives it to
+// another of the same Ingredient, at one moment.
+func TestAMoveTakesFromOneStockItemAndGivesToAnother(t *testing.T) {
+	at := func(hour int) time.Time { return time.Date(2026, time.November, 2, hour, 0, 0, 0, time.UTC) }
+	fridge := domain.StockKey{Ingredient: 1, Location: domain.Fridge}
+	freezer := domain.StockKey{Ingredient: 1, Location: domain.Freezer}
+	other := domain.StockKey{Ingredient: 2, Location: domain.Freezer}
+	movements := []domain.Movement{
+		{At: at(9), Key: fridge, Change: 8000, Cause: domain.Counted},
+		{At: at(9), Key: other, Change: 500, Cause: domain.Counted},
+		{At: at(10), Key: fridge, To: domain.Freezer, Change: 4000, Cause: domain.Moved},
+		{At: at(11), Key: fridge, To: domain.Freezer, Change: 4000, Cause: domain.Moved},
+	}
+	cases := []struct {
+		name string
+		at   time.Time
+		key  domain.StockKey
+		want domain.Quantity
+	}{
+		{"not before it happens", at(9), fridge, 8000},
+		{"the source gives part of it", at(10), fridge, 4000},
+		{"the target takes it", at(10), freezer, 4000},
+		{"all of it leaves the source at nothing", at(11), fridge, 0},
+		{"the target adds up what came", at(11), freezer, 8000},
+		{"another Ingredient there is untouched", at(11), other, 500},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := domain.AddUp(movements, c.at)[c.key].Held; got != c.want {
+				t.Errorf("at %s %v holds %d, want %d", c.at.Format("15:04"), c.key, got, c.want)
+			}
+		})
+	}
+
+	t.Run("a move is not a Count of either Stock Item", func(t *testing.T) {
+		items := domain.AddUp(movements, at(11))
+		if got := items[fridge].Counted; !got.Equal(at(9)) {
+			t.Errorf("the source was last counted at %s, want 09:00", got.Format("15:04"))
+		}
+		if got := items[freezer].Counted; !got.IsZero() {
+			t.Errorf("the target was last counted at %s, want never", got.Format("15:04"))
+		}
+	})
+}
+
+// A move can take no more than is held, and must take something.
+func TestCheckMove(t *testing.T) {
+	cases := []struct {
+		name        string
+		held, moved domain.Quantity
+		want        domain.Problem
+	}{
+		{"part of it", 8000, 4000, ""},
+		{"all of it", 8000, 8000, ""},
+		{"a tenth of a piece", 1, 1, ""},
+		{"nothing", 8000, 0, domain.NothingMoved},
+		{"a tenth too much", 8000, 8001, domain.MoreThanHeld},
+		{"from nothing held", 0, 10, domain.MoreThanHeld},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := domain.CheckMove(c.held, c.moved); got != c.want {
+				t.Errorf("CheckMove(%d, %d) = %q, want %q", c.held, c.moved, got, c.want)
+			}
+		})
+	}
+}
+
+// A Stock Item's history is every Movement that touched it, on either side of a move,
+// each with what it held before and after. A Count shows what it kept.
+func TestAStockItemsHistory(t *testing.T) {
+	at := func(hour int) time.Time { return time.Date(2026, time.November, 2, hour, 0, 0, 0, time.UTC) }
+	fridge := domain.StockKey{Ingredient: 1, Location: domain.Fridge}
+	freezer := domain.StockKey{Ingredient: 1, Location: domain.Freezer}
+	pantry := domain.StockKey{Ingredient: 1, Location: domain.Pantry}
+	movements := []domain.Movement{
+		{At: at(8), Key: fridge, Change: 8000, Cause: domain.Counted},
+		{At: at(8), Key: domain.StockKey{Ingredient: 2, Location: domain.Fridge}, Change: 60, Cause: domain.Counted},
+		{At: at(9), Key: freezer, Change: 1000, Cause: domain.Counted},
+		{At: at(10), Key: fridge, To: domain.Freezer, Change: 4000, Cause: domain.Moved, Note: "for next week"},
+		{At: at(11), Key: fridge, Believed: 4000, Change: -500, Cause: domain.Counted},
+		{At: at(12), Key: freezer, To: domain.Pantry, Change: 5000, Cause: domain.Moved},
+		{At: at(13), Key: fridge, Believed: 3500, Change: 0, Cause: domain.Counted},
+	}
+	type step struct {
+		at            int
+		before, after domain.Quantity
+	}
+	cases := []struct {
+		name string
+		key  domain.StockKey
+		want []step
+	}{
+		{"the source of a move", fridge, []step{{8, 0, 8000}, {10, 8000, 4000}, {11, 4000, 3500}, {13, 3500, 3500}}},
+		{"the target, then the source", freezer, []step{{9, 0, 1000}, {10, 1000, 5000}, {12, 5000, 0}}},
+		{"a target alone", pantry, []step{{12, 0, 5000}}},
+		{"nothing touched it", domain.StockKey{Ingredient: 3, Location: domain.Pantry}, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := domain.History(movements, c.key)
+			if len(got) != len(c.want) {
+				t.Fatalf("History has %d steps, want %d: %+v", len(got), len(c.want), got)
+			}
+			for i, want := range c.want {
+				if !got[i].At.Equal(at(want.at)) || got[i].Before != want.before || got[i].After != want.after {
+					t.Errorf("step %d = %s %d → %d, want %d:00 %d → %d", i, got[i].At.Format("15:04"), got[i].Before, got[i].After, want.at, want.before, want.after)
+				}
+			}
+		})
+	}
+
+	t.Run("a step is its Movement, note and all", func(t *testing.T) {
+		if got := domain.History(movements, freezer)[1]; got.Note != "for next week" || got.To != domain.Freezer {
+			t.Errorf("the move in the freezer's history is %+v", got)
+		}
+	})
+
+	// One Count that overlapped another may be dated before the Movement it read, so a
+	// running balance alone would be out by what that one changed.
+	t.Run("a Count shows what it believed, not a running balance", func(t *testing.T) {
+		overlapped := []domain.Movement{
+			{At: at(9), Key: fridge, Believed: 3000, Change: 1000, Cause: domain.Counted},
+			{At: at(10), Key: fridge, Believed: 0, Change: 3000, Cause: domain.Counted},
+		}
+		got := domain.History(overlapped, fridge)[0]
+		if got.Before != 3000 || got.After != 4000 {
+			t.Errorf("the Count shows %d → %d, want what it kept, 3000 → 4000", got.Before, got.After)
+		}
+	})
+}

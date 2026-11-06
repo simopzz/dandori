@@ -57,7 +57,7 @@ func loadBeat(ctx context.Context, q db.Querier) (time.Time, bool, error) {
 }
 
 // lockKitchen holds the signed-in User's kitchen until the transaction ends, so what one
-// Count read isn't changed by another before it writes. UpToNow made their row.
+// Count or move read isn't changed by another before it writes. UpToNow made their row.
 func lockKitchen(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `SELECT 1 FROM kitchen FOR UPDATE`)
 	return err
@@ -68,43 +68,21 @@ func lockKitchen(ctx context.Context, q db.Querier) error {
 // db.AsUser, row-level security leaves only their rows.
 func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error) {
 	rows, err := q.Query(ctx, `
-		SELECT happened_at, ingredient_id, storage_location, change, cause_kind
+		SELECT happened_at, ingredient_id, storage_location, coalesce(moved_to, ''), change,
+			cause_kind, coalesce(believed, 0), coalesce(note, '')
 		FROM movement ORDER BY happened_at, id`)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Movement, error) {
 		var (
-			m               domain.Movement
-			location, cause string
-			change          float64
+			m                   domain.Movement
+			location, to, cause string
+			change, believed    float64
 		)
-		err := row.Scan(&m.At, &m.Key.Ingredient, &location, &change, &cause)
-		m.Key.Location, m.Change, m.Cause = domain.StorageLocation(location), domain.QuantityOf(change), domain.Cause(cause)
-		return m, err
-	})
-}
-
-// loadStockMovements is what the signed-in User's Kitchen Ledger holds of the Ingredient
-// id in location, newest first, those of one moment last written first. Every Movement so
-// far is a Count, which keeps what was believed and stated.
-func loadStockMovements(ctx context.Context, q db.Querier, id int64, location domain.StorageLocation) ([]StockMovement, error) {
-	rows, err := q.Query(ctx, `
-		SELECT happened_at, cause_kind, believed, stated, coalesce(note, '')
-		FROM movement WHERE ingredient_id = $1 AND storage_location = $2
-		ORDER BY happened_at DESC, id DESC`,
-		id, string(location))
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (StockMovement, error) {
-		var (
-			m             StockMovement
-			cause         string
-			before, after float64
-		)
-		err := row.Scan(&m.At, &cause, &before, &after, &m.Note)
-		m.Cause, m.Before, m.After = domain.Cause(cause), domain.QuantityOf(before), domain.QuantityOf(after)
+		err := row.Scan(&m.At, &m.Key.Ingredient, &location, &to, &change, &cause, &believed, &m.Note)
+		m.Key.Location, m.To = domain.StorageLocation(location), domain.StorageLocation(to)
+		m.Change, m.Cause, m.Believed = domain.QuantityOf(change), domain.Cause(cause), domain.QuantityOf(believed)
 		return m, err
 	})
 }
@@ -136,4 +114,14 @@ func saveCount(ctx context.Context, q db.Querier, at time.Time, id int64, locati
 		at, id, string(location), domain.CountDifference(believed, stated).Number(), string(domain.Counted),
 		believed.Number(), stated.Number(), note).Scan(&counted)
 	return counted, err
+}
+
+// saveMove appends a move of moved of the Ingredient id from one Storage Location to
+// another. A blank note is none.
+func saveMove(ctx context.Context, q db.Querier, at time.Time, id int64, from, to domain.StorageLocation, moved domain.Quantity, note string) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO movement (happened_at, ingredient_id, storage_location, moved_to, change, cause_kind, note)
+		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))`,
+		at, id, string(from), string(to), moved.Number(), string(domain.Moved), note)
+	return err
 }
