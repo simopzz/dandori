@@ -21,7 +21,7 @@ type AddForm struct {
 	Errs   map[string]string
 	Added  string
 	// Suggested is the Ingredient the name typed is close to, which the User may have
-	// meant; Picked is the one they said they meant, adding nothing.
+	// meant; Picked is the one they said they meant, which adds nothing.
 	Suggested, Picked string
 }
 

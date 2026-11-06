@@ -582,6 +582,8 @@ a.row-title:hover { text-decoration: underline; }
   text-underline-offset: 4px;
 }
 
+a.btn-text { display: inline-flex; align-items: center; }
+
 .btn-danger { color: var(--color-accent); }
 
 /* busy: a request slower than 300 ms shows the bar across the top of the screen,

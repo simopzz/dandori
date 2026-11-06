@@ -238,6 +238,14 @@ templ TextButton(attrs templ.Attributes) {
 	</button>
 }
 
+// TextLink is a secondary action that writes nothing, looking as a TextButton does.
+// attrs must give its href.
+templ TextLink(attrs templ.Attributes) {
+	<a class="btn-text" { attrs... }>
+		{ children... }
+	</a>
+}
+
 // DestructiveButton removes or discards something. attrs must give its type.
 templ DestructiveButton(attrs templ.Attributes) {
 	<button class="btn-text btn-danger" { attrs... }>

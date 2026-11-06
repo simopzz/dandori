@@ -43,7 +43,6 @@ var (
 	msgUnitRequired  = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}
 	msgUsualRequired = web.Message{En: "Choose where it is usually kept.", It: "Scegli dove si tiene di solito."}
 	msgDidYouMean    = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
-	msgAddAnyway     = web.Message{En: "Add %s anyway", It: "Aggiungi %s comunque"}
 	msgPick          = web.Message{En: "Use %s", It: "Usa %s"}
 	msgPicked        = web.Message{En: "%s is already one of your Ingredients.", It: "%s è già tra i tuoi Ingredienti."}
 	msgSearch        = web.Message{En: "Search", It: "Cerca"}

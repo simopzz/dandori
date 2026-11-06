@@ -136,7 +136,7 @@ func TestIngredientsInItalian(t *testing.T) {
 	s.AddsIngredient(fish)
 	s.IsRefused()
 	s.Sees("Intendevi pesca?")
-	s.Presses("ingredient-add", "Aggiungi pesce comunque")
+	s.Presses("ingredient-add", "Aggiungi")
 	s.Sees("Aggiunto: pesce.")
 }
 
@@ -215,7 +215,7 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 		t.Errorf("the add form suggesting egg holds name %q, want eggs", got)
 	}
 
-	s.Presses("ingredient-add", "Use egg")
+	s.Follows("Use egg")
 	s.IsAt("/ingredients")
 	s.Sees("egg is already one of your Ingredients.")
 	s.DoesNotSee("eggs")
@@ -233,7 +233,7 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 	s.AddsIngredient(typo)
 	s.IsRefused()
 	s.Sees("Did you mean egg?")
-	s.Presses("ingredient-add", "Add eggz anyway")
+	s.Presses("ingredient-add", "Add")
 	s.Sees("Added eggz.")
 }
 
@@ -259,8 +259,7 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 		t.Errorf("the sheet adding eggs shows: %s", shown)
 	}
 
-	pick := apptest.Press(t, suggested.Body, "ingredient-add", "Use egg")
-	picked := s.HTMXPostForm(t, pick.Action, pick.Values)
+	picked := s.HTMXGet(t, "/ingredients/sheet?picked=egg")
 	if picked.StatusCode != http.StatusOK || strings.Contains(picked.Body, "<html") {
 		t.Fatalf("picking egg from the sheet answered %d, want 200 and a fragment:\n%s", picked.StatusCode, picked.Body)
 	}
@@ -268,18 +267,49 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 		t.Errorf("the sheet after picking egg shows: %s", shown)
 	}
 
-	pick.Values.Set("pick", "salmone")
-	if shown := apptest.Text(s.HTMXPostForm(t, pick.Action, pick.Values).Body); strings.Contains(shown, "already one of your Ingredients") {
+	if shown := apptest.Text(s.HTMXGet(t, "/ingredients/sheet?picked=salmone").Body); strings.Contains(shown, "already one of your Ingredients") {
 		t.Errorf("picking an Ingredient the User doesn't have confirms it: %s", shown)
 	}
 
-	confirm := apptest.Press(t, suggested.Body, "ingredient-add", "Add eggs anyway")
+	confirm := apptest.Press(t, suggested.Body, "ingredient-add", "Add")
 	added := s.HTMXPostForm(t, confirm.Action, confirm.Values)
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("confirming eggs from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
 	}
 	if shown := apptest.Text(added.Body); !strings.Contains(shown, "Added eggs.") {
 		t.Errorf("the sheet after confirming eggs shows: %s", shown)
+	}
+}
+
+// Leaving the name asks for a suggestion before the form is sent: the one it may have
+// meant, carrying the name's confirmation, or nothing for another food, a blank name, or
+// a name the User has, which adding refuses.
+func TestANameIsSuggestedForOnLeavingIt(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+	s.AddsIngredient(egg)
+
+	near := s.HTMXGet(t, "/ingredients/suggestion?name=eggs")
+	if near.StatusCode != http.StatusOK || strings.Contains(near.Body, "<html") {
+		t.Fatalf("a suggestion for eggs answered %d, want 200 and a fragment:\n%s", near.StatusCode, near.Body)
+	}
+	if shown := apptest.Text(near.Body); !strings.Contains(shown, "Did you mean egg?") {
+		t.Errorf("the suggestion for eggs shows: %s", shown)
+	}
+	if got := apptest.Link(t, near.Body, "Use egg"); got != "/ingredients?picked=egg" {
+		t.Errorf("Use egg leads to %q", got)
+	}
+	if !strings.Contains(near.Body, `name="confirm" value="eggs"`) {
+		t.Errorf("the suggestion for eggs doesn't confirm eggs:\n%s", near.Body)
+	}
+
+	for _, name := range []string{"salmon", "", "Large%20egg"} {
+		if got := s.HTMXGet(t, "/ingredients/suggestion?name="+name); got.StatusCode != http.StatusOK || strings.TrimSpace(got.Body) != "" {
+			t.Errorf("the suggestion for %q answered %d: %s", name, got.StatusCode, got.Body)
+		}
 	}
 }
 

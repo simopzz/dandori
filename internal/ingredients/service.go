@@ -49,8 +49,7 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 			if err != nil {
 				return err
 			}
-			closest, ok := domain.ClosestIngredient(l, ing.Name, names(known))
-			if ok && domain.NormaliseIngredientName(l, closest) != normalised {
+			if closest := closeTo(l, ing.Name, known); closest != "" {
 				return &SuggestedError{Closest: closest}
 			}
 		}
@@ -64,6 +63,26 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 		}
 		return &NameTakenError{Existing: existing}
 	})
+}
+
+// Suggest is the name of the signed-in User's Ingredient that name is close to, which
+// they may have meant, or "" if there is none.
+func (s *Service) Suggest(ctx context.Context, l domain.Language, name string) (string, error) {
+	known, err := s.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	return closeTo(l, name, known), nil
+}
+
+// closeTo is the name of the one of known that name is close to without being the
+// same food, or "" if there is none.
+func closeTo(l domain.Language, name string, known []domain.Ingredient) string {
+	closest, ok := domain.ClosestIngredient(l, name, names(known))
+	if !ok || domain.NormaliseIngredientName(l, closest) == domain.NormaliseIngredientName(l, name) {
+		return ""
+	}
+	return closest
 }
 
 // List is the signed-in User's Ingredients by name.

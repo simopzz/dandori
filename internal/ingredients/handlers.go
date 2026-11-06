@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
@@ -32,9 +33,10 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, http.StatusOK, f, q, false)
 }
 
-// ShowSheet is the side sheet's body.
+// ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
 func (h Handlers) ShowSheet(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, http.StatusOK, AddForm{}, "", true)
+	picked := r.URL.Query().Get("picked")
+	h.render(w, r, http.StatusOK, AddForm{Picked: picked}, picked, true)
 }
 
 // ShowList is the list of the User's Ingredients alone, searched for its query q, which
@@ -49,21 +51,25 @@ func (h Handlers) ShowList(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, list(ings, q))
 }
 
+// ShowSuggestion is what the add form says of its query name as the User leaves it,
+// without waiting for Add: the Ingredient it is close to, if any.
+func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	closest, err := h.Service.Suggest(r.Context(), web.LanguageOf(r.Context()), name)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "suggest an Ingredient", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, suggestion(name, closest))
+}
+
 // Add adds an Ingredient. Posted from the side sheet by htmx, it answers with the sheet's
 // body, so the page under it stays: the add form cleared once it is added, or as typed
 // with why it was refused. A plain post lands on the Ingredients page. A name close to an
-// Ingredient's is refused with that one suggested: the User picks it, which adds nothing
-// and searches for it, or confirms the name they typed.
+// Ingredient's is refused with that one suggested, unless the suggestion was already
+// shown for this name, which confirms it: pressing Add past one means the name typed.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	fragment := httpx.IsHTMX(r)
-	if picked := r.PostFormValue("pick"); picked != "" {
-		if !fragment {
-			http.Redirect(w, r, "/ingredients?picked="+url.QueryEscape(picked), http.StatusSeeOther)
-			return
-		}
-		h.render(w, r, http.StatusOK, AddForm{Picked: picked}, picked, true)
-		return
-	}
 	ing, f := parseAddForm(r)
 	if len(f.Errs) > 0 {
 		h.render(w, r, http.StatusUnprocessableEntity, f, "", fragment)
@@ -78,7 +84,6 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		f.Suggested = suggested.Closest
-		f.Errs["name"] = web.Tf(r.Context(), msgDidYouMean, suggested.Closest)
 		h.render(w, r, http.StatusUnprocessableEntity, f, "", fragment)
 		return
 	}

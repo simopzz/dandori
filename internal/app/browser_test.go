@@ -214,6 +214,9 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 				t.Fatalf("choose %s: %v", label, err)
 			}
 		}
+		if button == "" {
+			return
+		}
 		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: button}).Click(); err != nil {
 			t.Fatalf("press %s: %v", button, err)
 		}
@@ -234,12 +237,33 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	if details.X != title.X || details.Y < title.Y+title.Height {
 		t.Errorf("the row's details are at (%v, %v), want under its name at (%v, %v)", details.X, details.Y, title.X, title.Y)
 	}
-	add("eggs", "Add")
-	if err := expect.Locator(sheet).ToContainText("Did you mean egg?"); err != nil {
-		t.Fatalf("the sheet doesn't suggest egg: %v", err)
+	name := sheet.GetByLabel("Name", playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
+	if err := name.Fill("eggs"); err != nil {
+		t.Fatalf("fill the name: %v", err)
 	}
-	if err := expect.Locator(sheet.GetByLabel("Name")).ToBeFocused(); err != nil {
-		t.Errorf("the name suggesting egg isn't focused: %v", err)
+	if err := name.Blur(); err != nil {
+		t.Fatalf("leave the name: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Did you mean egg?"); err != nil {
+		t.Fatalf("leaving the name doesn't suggest egg: %v", err)
+	}
+	if err := name.Fill("salmon"); err != nil {
+		t.Fatalf("change the name: %v", err)
+	}
+	if err := name.Blur(); err != nil {
+		t.Fatalf("leave the name again: %v", err)
+	}
+	if err := expect.Locator(sheet).Not().ToContainText("Did you mean"); err != nil {
+		t.Fatalf("the suggestion stays for another food: %v", err)
+	}
+	if err := name.Fill("eggs"); err != nil {
+		t.Fatalf("fill the name: %v", err)
+	}
+	if err := name.Press("Tab"); err != nil {
+		t.Fatalf("tab out of the name: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Did you mean egg?"); err != nil {
+		t.Fatalf("tabbing out of the name doesn't suggest egg: %v", err)
 	}
 	search := sheet.GetByRole("searchbox", playwright.LocatorGetByRoleOptions{Name: "Search"})
 	if err := search.PressSequentially("zz"); err != nil {
@@ -249,13 +273,80 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 		t.Fatalf("searching for zz doesn't say nothing is like it: %v", err)
 	}
 	if err := expect.Locator(search).ToBeFocused(); err != nil {
-		t.Errorf("searching moves the focus to the refused name: %v", err)
+		t.Errorf("searching moves the focus: %v", err)
 	}
-	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Use egg"}).Click(); err != nil {
+	if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Use egg"}).Click(); err != nil {
 		t.Fatalf("pick egg: %v", err)
 	}
 	if err := expect.Locator(sheet).ToContainText("egg is already one of your Ingredients."); err != nil {
 		t.Fatalf("the sheet doesn't confirm egg was picked: %v", err)
+	}
+	if got, err := name.InputValue(); err != nil || got != "" {
+		t.Errorf("the name after picking egg is %q, %v, want cleared", got, err)
+	}
+	b.IsAt(t, "/kitchen")
+
+	add("eggs", "")
+	if err := name.Blur(); err != nil {
+		t.Fatalf("leave the name: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Did you mean egg?"); err != nil {
+		t.Fatalf("leaving the name doesn't suggest egg: %v", err)
+	}
+	addButton := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"})
+	if err := addButton.Click(); err != nil {
+		t.Fatalf("press Add: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Added eggs."); err != nil {
+		t.Fatalf("Add past the suggestion doesn't add eggs: %v", err)
+	}
+
+	// Add pressed from the name, held as a finger holds it: the suggestion arrives and
+	// moves Add under the press, and one more press adds the name.
+	add("salmon", "")
+	if err := name.Focus(); err != nil {
+		t.Fatalf("return to the name: %v", err)
+	}
+	if err := name.Fill("eggys"); err != nil {
+		t.Fatalf("change the name: %v", err)
+	}
+	if err := addButton.Click(playwright.LocatorClickOptions{Delay: playwright.Float(150)}); err != nil {
+		t.Fatalf("press Add from the name: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Did you mean egg"); err != nil {
+		t.Fatalf("pressing Add from the name doesn't suggest: %v", err)
+	}
+	if err := addButton.Click(); err != nil {
+		t.Fatalf("press Add again: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Added eggys."); err != nil {
+		t.Fatalf("a second press doesn't add eggys: %v", err)
+	}
+
+	add("eggz", "")
+	if err := name.Blur(); err != nil {
+		t.Fatalf("leave the name: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Did you mean"); err != nil {
+		t.Fatalf("leaving the name doesn't suggest: %v", err)
+	}
+	if err := name.Fill("eggy"); err != nil {
+		t.Fatalf("change the name: %v", err)
+	}
+	if err := name.Press("Enter"); err != nil {
+		t.Fatalf("press Enter in the name: %v", err)
+	}
+	if err := expect.Locator(name).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("the changed name isn't matched again: %v", err)
+	}
+	if err := expect.Locator(name).ToBeFocused(); err != nil {
+		t.Errorf("the changed name, matched again, isn't focused: %v", err)
+	}
+	if err := name.Press("Enter"); err != nil {
+		t.Fatalf("press Enter in the name again: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Added eggy."); err != nil {
+		t.Fatalf("Enter past the suggestion doesn't add eggy: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 

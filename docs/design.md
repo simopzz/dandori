@@ -180,6 +180,7 @@ elements themselves.
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
+| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
 | `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |

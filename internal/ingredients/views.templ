@@ -1,7 +1,9 @@
 package ingredients
 
 import (
+	"cmp"
 	"context"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -125,9 +127,24 @@ templ addForm(f AddForm) {
 	>
 		@web.FieldGroup(0, web.T(ctx, msgAddIngredient)) {
 			<div class="stack">
-				@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
-					<input name="name" value={ f.Name } required autocomplete="off" { invalid(f.Errs["name"])... }/>
-				}
+				<div>
+					@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
+						<input
+							name="name"
+							value={ f.Name }
+							required
+							autocomplete="off"
+							hx-get="/ingredients/suggestion"
+							hx-trigger="change"
+							hx-target={ "#" + suggestionID }
+							hx-swap="innerHTML"
+							{ invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
+						/>
+					}
+					<div id={ suggestionID }>
+						@suggestion(f.Name, f.Suggested)
+					</div>
+				</div>
 				@web.FieldRow() {
 					@web.Field(web.T(ctx, msgUnit), "", f.Errs["unit"]) {
 						<select name="unit" required { invalid(f.Errs["unit"])... }>
@@ -168,26 +185,42 @@ templ addForm(f AddForm) {
 				@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
 					<input type="checkbox" name="staple" value="on" checked?={ f.Staple }/>
 				}
-				if f.Suggested != "" {
-					<input type="hidden" name="confirm" value={ f.Name }/>
-					@web.Actions() {
-						@web.Button(templ.Attributes{"type": "submit"}) {
-							{ web.Tf(ctx, msgAddAnyway, f.Name) }
-						}
-						@web.TextButton(templ.Attributes{"type": "submit", "name": "pick", "value": f.Suggested}) {
-							{ web.Tf(ctx, msgPick, f.Suggested) }
-						}
-					}
-				} else {
-					@web.Actions() {
-						@web.Button(templ.Attributes{"type": "submit"}) {
-							{ web.T(ctx, msgAdd) }
-						}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgAdd) }
 					}
 				}
 			</div>
 		}
 	</form>
+}
+
+// suggestionID is the id of where the add form says what the name may have meant.
+const suggestionID = "ingredient-suggestion"
+
+// suggestion says closest is what name may have meant, if it isn't blank, and confirms
+// name, so Add means the name typed. Picking closest adds nothing, so it is a link, which
+// the form's other fields don't hold up and Enter doesn't press.
+templ suggestion(name, closest string) {
+	if closest != "" {
+		<input type="hidden" name="confirm" value={ name }/>
+		@web.FieldError(web.Tf(ctx, msgDidYouMean, closest))
+		@web.TextLink(pickLink(closest)) {
+			{ web.Tf(ctx, msgPick, closest) }
+		}
+	}
+}
+
+// pickLink picks name, swapping the side sheet's body; without htmx it opens the page
+// searched for it.
+func pickLink(name string) templ.Attributes {
+	picked := "?picked=" + url.QueryEscape(name)
+	return templ.Attributes{
+		"href":      "/ingredients" + picked,
+		"hx-get":    "/ingredients/sheet" + picked,
+		"hx-target": "#" + web.SideSheetBody(sheetID),
+		"hx-swap":   "innerHTML",
+	}
 }
 
 // nutrientNames name the add form's nutritional value fields.
