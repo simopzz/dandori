@@ -18,7 +18,8 @@ const countSheetID = "count"
 const stockID = "stock"
 
 // page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
-// action opens, and the Ingredients a click away in their side sheet.
+// action opens, cleared each time it closes, and the Ingredients a click away in their
+// side sheet.
 templ page(now time.Time, stock []Held, f CountForm) {
 	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
@@ -33,6 +34,15 @@ templ page(now time.Time, stock []Held, f CountForm) {
 			@web.SheetBody(countSheetID) {
 				@countBody(f)
 			}
+			// Outside the body, so htmx tells this swap to it, and the body doesn't open
+			// the sheet that has just closed.
+			<div
+				hidden
+				hx-get="/kitchen/count/sheet"
+				hx-trigger={ "toggle[newState=='closed'] from:#" + countSheetID }
+				hx-target={ "#" + web.SideSheetBody(countSheetID) }
+				hx-swap="innerHTML"
+			></div>
 		}
 		@ingredients.Sheet()
 	}

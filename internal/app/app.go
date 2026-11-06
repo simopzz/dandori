@@ -109,7 +109,7 @@ func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
 	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
-	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log}
+	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {

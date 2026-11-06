@@ -249,6 +249,65 @@ func TestACountSearchFindingNothingOffersANewIngredient(t *testing.T) {
 	}
 }
 
+// An Ingredient added from a Count's offer is there to count: the add lands on its Count
+// form. A refused add keeps that intention, and a Staple, which is never counted, stays
+// an ordinary add. Added any other way, it stays on the Ingredients.
+func TestAnIngredientAddedToCountOpensItsCount(t *testing.T) {
+	s := kitchenWith(t)
+	s.Open("/kitchen/count?q=salmon")
+	s.Follows("Add salmon as a new Ingredient")
+
+	refused := apptest.Ingredient{Name: "salmon", Unit: "g", Usual: "fridge", Kcal: "-1", Protein: "20", Carbs: "0", Fat: "13"}
+	s.AddsIngredient(refused)
+	s.IsRefused()
+	salmon := refused
+	salmon.Kcal = "208"
+	s.AddsIngredient(salmon)
+	s.IsAt("/kitchen/count")
+	form := apptest.Form(t, s.Page().Body, "count-form")
+	if got := form.Get("location"); got != "fridge" {
+		t.Errorf("the new Ingredient's Count holds Storage Location %q, want its usual fridge", got)
+	}
+	s.Sees("salmon")
+
+	pepper := salt
+	pepper.Name = "pepper"
+	s.Open("/kitchen/count?q=pepper")
+	s.Follows("Add pepper as a new Ingredient")
+	s.AddsIngredient(pepper)
+	s.IsAt("/ingredients")
+	s.Sees("Added pepper.")
+
+	s.Open("/ingredients")
+	s.AddsIngredient(rice)
+	s.IsAt("/ingredients")
+	s.Sees("Added rice.")
+}
+
+// Posted from the sheet by htmx, an add to count answers with the Count sheet's body,
+// retargeted there, leaving the Ingredients sheet's own swap for every other add.
+func TestAnIngredientAddedToCountSwapsTheCountSheet(t *testing.T) {
+	s := kitchenWith(t)
+	form := apptest.Form(t, s.HTMXGet(t, "/ingredients/sheet?name=salmon&counting=1").Body, "ingredient-add")
+	salmon := apptest.Ingredient{Name: "salmon", Unit: "g", Usual: "fridge", Kcal: "208", Protein: "20", Carbs: "0", Fat: "13"}
+	salmon.Fill(form)
+
+	added := s.HTMXPostForm(t, form.Action, form.Values)
+	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
+		t.Fatalf("adding to count answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
+	}
+	if got := added.Header.Get("HX-Retarget"); got != "#count-body" {
+		t.Errorf("adding to count retargets %q, want the Count sheet's body", got)
+	}
+	apptest.Form(t, added.Body, "count-form")
+
+	plain := apptest.Form(t, s.HTMXGet(t, "/ingredients/sheet").Body, "ingredient-add")
+	rice.Fill(plain)
+	if got := s.HTMXPostForm(t, plain.Action, plain.Values).Header.Get("HX-Retarget"); got != "" {
+		t.Errorf("an ordinary add retargets %q, want no retarget", got)
+	}
+}
+
 // With no Ingredient to count, the Count form says how to start.
 func TestCountingWithNoIngredients(t *testing.T) {
 	s := kitchenWith(t)
@@ -358,7 +417,8 @@ func TestMovementsAreAppendOnly(t *testing.T) {
 }
 
 // A Count keeps what Dandori believed and what the User stated, its time, cause and note.
-// Nothing shows them yet, so this reads them where the Kitchen Ledger keeps them.
+// Nothing shows them yet, so this reads them where the Kitchen Ledger keeps them. #152
+// shows them: it replaces this with a scenario on the page, and h.Scan goes if unused.
 func TestACountKeepsWhatItReplaced(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "200", "")
@@ -391,6 +451,9 @@ func addsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 	}
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
 	fillsIngredient(t, sheet, "rice")
+	if err := playwright.NewPlaywrightAssertions().Locator(sheet).ToContainText("Added rice"); err != nil {
+		t.Fatalf("rice isn't added: %v", err)
+	}
 	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
 		t.Fatalf("close the Ingredients: %v", err)
 	}
@@ -419,9 +482,6 @@ func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	}
 	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"}).Click(); err != nil {
 		t.Fatalf("add the Ingredient: %v", err)
-	}
-	if err := playwright.NewPlaywrightAssertions().Locator(sheet).ToContainText("Added " + name); err != nil {
-		t.Fatalf("the Ingredient isn't added: %v", err)
 	}
 }
 
@@ -487,11 +547,37 @@ func TestBrowserCountSheetStaysOpenUntilClosed(t *testing.T) {
 	if err := expect.Locator(stated).ToBeFocused(); err != nil {
 		t.Errorf("a Stock Item's Count doesn't focus the quantity: %v", err)
 	}
+
+	// Closing the sheet resets it: the + opens it empty, on the search, and stays open.
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+		t.Fatalf("close the Stock Item's Count: %v", err)
+	}
+	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+		t.Fatalf("the reset opened the Count sheet again: %v", err)
+	}
+	if err := b.Locator("#count-search").WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateAttached}); err != nil {
+		t.Fatalf("closing the Count sheet doesn't reset it: %v", err)
+	}
+	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+		t.Errorf("the reset opened the Count sheet again: %v", err)
+	}
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}).First().Click(); err != nil {
+		t.Fatalf("open the Count sheet again: %v", err)
+	}
+	if err := expect.Locator(search).ToBeVisible(); err != nil {
+		t.Errorf("the + doesn't open the Count sheet on its search: %v", err)
+	}
+	if err := expect.Locator(stated).ToBeHidden(); err != nil {
+		t.Errorf("the Count sheet still shows the Stock Item's form: %v", err)
+	}
+	if err := expect.Locator(sheet).Not().ToContainText("Counted"); err != nil {
+		t.Errorf("the Count sheet still confirms the last Count: %v", err)
+	}
 }
 
 // A search finding nothing opens the Ingredients sheet over the Count sheet, started on
-// what was typed. Closing it returns to the Count sheet, still open, where the new
-// Ingredient can now be found.
+// what was typed. Adding the Ingredient closes that sheet, since the User came to count
+// it, and leaves them on its Count, ready for the quantity.
 func TestBrowserAddsAnIngredientFromTheCountSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -515,14 +601,24 @@ func TestBrowserAddsAnIngredientFromTheCountSheet(t *testing.T) {
 		t.Errorf("the Ingredients sheet closed the Count sheet: %v", err)
 	}
 	fillsIngredient(t, ings, "salmon")
-	if err := ings.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
-		t.Fatalf("close the Ingredients: %v", err)
-	}
 
-	if err := expect.Locator(count).ToBeVisible(); err != nil {
-		t.Fatalf("the Count sheet isn't still open: %v", err)
+	if err := expect.Locator(ings).ToBeHidden(); err != nil {
+		t.Errorf("adding to count leaves the Ingredients sheet open: %v", err)
 	}
-	if err := expect.Locator(count.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "salmon"})).ToBeVisible(); err != nil {
-		t.Errorf("the Count search doesn't find the new Ingredient: %v", err)
+	if err := expect.Locator(count).ToBeVisible(); err != nil {
+		t.Fatalf("adding to count closes the Count sheet: %v", err)
+	}
+	stated := count.GetByLabel("How much is there")
+	if err := expect.Locator(stated).ToBeFocused(); err != nil {
+		t.Errorf("adding to count doesn't focus the quantity: %v", err)
+	}
+	if err := stated.Fill("300"); err != nil {
+		t.Fatalf("state the quantity: %v", err)
+	}
+	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
+		t.Fatalf("save the Count: %v", err)
+	}
+	if err := expect.Locator(count).ToContainText("Counted salmon: 300 g in the pantry."); err != nil {
+		t.Errorf("the new Ingredient's Count isn't confirmed: %v", err)
 	}
 }

@@ -20,16 +20,20 @@ func CountIngredients(ctx context.Context, q db.Querier) (int, error) {
 }
 
 // saveIngredient adds ing for the signed-in User under its normalised name, unless they
-// have an Ingredient of that name; added says whether it did.
-func saveIngredient(ctx context.Context, q db.Querier, ing domain.Ingredient, normalised string) (added bool, err error) {
+// have an Ingredient of that name, and is its id; added says whether it did.
+func saveIngredient(ctx context.Context, q db.Querier, ing domain.Ingredient, normalised string) (id int64, added bool, err error) {
 	n := ing.Nutrition
-	tag, err := q.Exec(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO ingredient (name, normalised_name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, staple)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (user_id, normalised_name) DO NOTHING`,
+		ON CONFLICT (user_id, normalised_name) DO NOTHING
+		RETURNING id`,
 		ing.Name, normalised, string(ing.Unit), n.Kcal.Value, n.Protein.Value, n.Carbs.Value, n.Fat.Value,
-		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), ing.Staple)
-	return tag.RowsAffected() == 1, err
+		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), ing.Staple).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	return id, err == nil, err
 }
 
 // loadNameOf is the name of the signed-in User's Ingredient under the key normalised.

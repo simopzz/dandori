@@ -166,6 +166,25 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 	h.answer(w, r, http.StatusOK, now, cleared)
 }
 
+// CountNew answers an add the User made to count the Ingredient id: its Count form, in
+// the sheet under the Ingredients sheet when htmx sent the add, else on the Count page.
+func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
+	chosen := url.Values{"ingredient": {strconv.FormatInt(id, 10)}}
+	if !httpx.IsHTMX(r) {
+		http.Redirect(w, r, "/kitchen/count?"+chosen.Encode(), http.StatusSeeOther)
+		return
+	}
+	now := h.Clock.Now()
+	f, err := h.startCount(r.Context(), now, chosen)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "start a Count", err)
+		return
+	}
+	w.Header().Set("HX-Retarget", "#"+web.SideSheetBody(countSheetID))
+	w.Header().Set("HX-Reswap", "innerHTML")
+	h.answer(w, r, http.StatusOK, now, f)
+}
+
 // answer shows f as the sheet's body when htmx sent the request, else as the Count page.
 func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now time.Time, f CountForm) {
 	if httpx.IsHTMX(r) {

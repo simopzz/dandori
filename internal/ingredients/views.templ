@@ -27,10 +27,11 @@ templ SheetLink() {
 	}
 }
 
-// AddLink opens the Ingredients side sheet with its add form started on name, which a
-// search found nothing for, or blank; without htmx it goes to the Ingredients page.
+// AddLink opens the Ingredients side sheet to add an Ingredient to count, its add form
+// started on name, which a search found nothing for, or blank; without htmx it goes to
+// the Ingredients page.
 templ AddLink(name string) {
-	@web.SideSheetLink(SheetID, templ.SafeURL("/ingredients?name="+url.QueryEscape(name)), templ.SafeURL("/ingredients/sheet?name="+url.QueryEscape(name))) {
+	@web.SideSheetLink(SheetID, templ.SafeURL("/ingredients?counting=1&name="+url.QueryEscape(name)), templ.SafeURL("/ingredients/sheet?counting=1&name="+url.QueryEscape(name))) {
 		if name == "" {
 			{ web.T(ctx, msgAddIngredient) }
 		} else {
@@ -125,7 +126,10 @@ templ list(ings []domain.Ingredient, q string) {
 	}
 }
 
-// addForm adds an Ingredient, swapping the side sheet's body when htmx posts it.
+// addForm adds an Ingredient, swapping the side sheet's body when htmx posts it. Added to
+// count, the answer swaps the sheet under this one instead, leaving this form in place
+// for htmx to tell, which is the one time it does: it closes its sheet and hands the
+// focus to the sheet left open.
 templ addForm(f AddForm) {
 	<form
 		id="ingredient-add"
@@ -134,7 +138,13 @@ templ addForm(f AddForm) {
 		hx-post="/ingredients"
 		hx-target={ "#" + web.SideSheetBody(SheetID) }
 		hx-swap="innerHTML"
+		if f.Counting {
+			hx-on:htmx:after:swap="if (event.target !== this) return; this.closest('.sheet')?.hidePopover(); document.querySelector('.sheet:popover-open [autofocus]')?.focus()"
+		}
 	>
+		if f.Counting {
+			<input type="hidden" name="counting" value="1"/>
+		}
 		@web.FieldGroup(0, web.T(ctx, msgAddIngredient)) {
 			<div class="stack">
 				<div>

@@ -23,6 +23,8 @@ type AddForm struct {
 	// Suggested is the Ingredient the name typed is close to, which the User may have
 	// meant; Picked is the one they said they meant, which adds nothing.
 	Suggested, Picked string
+	// Counting says the User is adding it to count it, from a Count's offer.
+	Counting bool
 }
 
 // parseAddForm reads the add form posted in r as an Ingredient, and the form as typed
@@ -30,12 +32,13 @@ type AddForm struct {
 func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 	ctx := r.Context()
 	f := AddForm{
-		Name:   strings.TrimSpace(r.PostFormValue("name")),
-		Unit:   r.PostFormValue("unit"),
-		Usual:  r.PostFormValue("usual"),
-		Staple: r.PostFormValue("staple") != "",
-		Values: map[string]string{},
-		Errs:   map[string]string{},
+		Name:     strings.TrimSpace(r.PostFormValue("name")),
+		Unit:     r.PostFormValue("unit"),
+		Usual:    r.PostFormValue("usual"),
+		Staple:   r.PostFormValue("staple") != "",
+		Counting: r.PostFormValue("counting") != "",
+		Values:   map[string]string{},
+		Errs:     map[string]string{},
 	}
 	amounts := map[string]domain.Amount{}
 	for _, field := range nutrients {

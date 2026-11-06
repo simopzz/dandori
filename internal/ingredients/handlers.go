@@ -20,13 +20,17 @@ type Handlers struct {
 	Service *Service
 	Clock   clock.Clock
 	Log     *slog.Logger
+	// CountNew answers an add the User made to count the Ingredient id, which app wires
+	// to the kitchen, since that feature depends on this one.
+	CountNew func(w http.ResponseWriter, r *http.Request, id int64)
 }
 
 // Show is the Ingredients page, searched for its query q, confirming the Ingredient just
-// added, if any, or searched for the one just picked. Its query name starts the add form.
+// added, if any, or searched for the one just picked. Its query name starts the add form,
+// and counting says it is to count what is added.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	f, q := AddForm{Name: query.Get("name"), Added: query.Get("added"), Picked: query.Get("picked")}, query.Get("q")
+	f, q := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Added: query.Get("added"), Picked: query.Get("picked")}, query.Get("q")
 	if f.Picked != "" {
 		q = f.Picked
 	}
@@ -34,11 +38,11 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 // ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
-// Its query name starts the add form.
+// Its query name starts the add form, and counting says it is to count what is added.
 func (h Handlers) ShowSheet(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	picked := query.Get("picked")
-	h.render(w, r, http.StatusOK, AddForm{Name: query.Get("name"), Picked: picked}, picked, true)
+	h.render(w, r, http.StatusOK, AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Picked: picked}, picked, true)
 }
 
 // ShowList is the list of the User's Ingredients alone, searched for its query q, which
@@ -69,7 +73,8 @@ func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
 // body, so the page under it stays: the add form cleared once it is added, or as typed
 // with why it was refused. A plain post lands on the Ingredients page. A name close to an
 // Ingredient's is refused with that one suggested, unless the suggestion was already
-// shown for this name, which confirms it: pressing Add past one means the name typed.
+// shown for this name, which confirms it: pressing Add past one means the name typed. One
+// added to count, unless it is a Staple, which is never counted, goes on to its Count.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	ing, f := parseAddForm(r)
 	fragment := httpx.IsHTMX(r)
@@ -78,7 +83,7 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	confirmed := r.PostFormValue("confirm") == f.Name
-	err := h.Service.Add(r.Context(), web.LanguageOf(r.Context()), ing, confirmed)
+	id, err := h.Service.Add(r.Context(), web.LanguageOf(r.Context()), ing, confirmed)
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"] = web.Tf(r.Context(), msgNameTaken, taken.Existing)
 		h.render(w, r, http.StatusUnprocessableEntity, f, "", fragment)
@@ -91,6 +96,10 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "add an Ingredient", err)
+		return
+	}
+	if f.Counting && !ing.Staple {
+		h.CountNew(w, r, id)
 		return
 	}
 	if !fragment {
