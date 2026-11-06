@@ -767,7 +767,7 @@ func countedText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
 		return web.Tf(ctx, msgCountedAt, at.Format("15:04"))
 	}
-	return web.Tf(ctx, msgCountedOn, web.Date(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgCountedOn, happenedText(ctx, now, at))
 }
 
 // countBody is the Count just saved, if any, then the form of the Ingredient chosen, or

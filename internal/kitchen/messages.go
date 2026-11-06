@@ -22,7 +22,7 @@ var (
 	msgCountTitle     = web.Message{En: "Count · Dandori", It: "Conta · Dandori"}
 	msgCounted        = web.Message{En: "Counted %s: %s %s.", It: "Contato %s: %s %s."}
 	msgCountedAt      = web.Message{En: "counted at %s", It: "contato alle %s"}
-	msgCountedOn      = web.Message{En: "counted on %s, %s", It: "contato %s alle %s"}
+	msgCountedOn      = web.Message{En: "counted on %s", It: "contato %s"}
 	msgSearch         = web.Message{En: "Search your Ingredients", It: "Cerca tra i tuoi Ingredienti"}
 	msgNoMatch        = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
 	msgNothingToCount = web.Message{En: "No Ingredients to count yet.", It: "Ancora nessun Ingrediente da contare."}

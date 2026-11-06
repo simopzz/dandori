@@ -121,7 +121,7 @@ func TestEveryCountHappensWhenItIsSaved(t *testing.T) {
 	s.Counts("egg", "", "6", "")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Monday 2 November, 14:05")
+	s.Sees("rice 700 g counted on Mon 2 Nov 14:05")
 	s.Sees("egg 6 pieces counted at 09:30")
 
 	s.At("Tue 10:45")
@@ -129,6 +129,17 @@ func TestEveryCountHappensWhenItIsSaved(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("rice 700 g counted at 10:45")
 	s.Sees("egg 6 pieces counted at 09:30")
+}
+
+// A Stock Item last counted in another year says so.
+func TestAStockItemCountedLastYearShowsTheYear(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.At("Mon 14:05")
+	s.Counts("rice", "", "700", "")
+	s.At("2027-01-04 10:00")
+
+	s.Open("/kitchen")
+	s.Sees("rice 700 g counted on Mon 2 Nov 2026 14:05")
 }
 
 // A Count below 0 or finer than its unit is refused on the field, keeping what was typed
