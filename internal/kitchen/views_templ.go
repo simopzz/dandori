@@ -1238,9 +1238,9 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var61 templ.SafeURL
-						templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinURLErrs(chooseURL("/kitchen/count", ing))
+						templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinURLErrs(ingredientURL("/kitchen/count", ing))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 277, Col: 45}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 277, Col: 49}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 						if templ_7745c5c3_Err != nil {
@@ -1251,9 +1251,9 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var62 string
-						templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(chooseURL("/kitchen/count/sheet", ing)))
+						templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(ingredientURL("/kitchen/count/sheet", ing)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 278, Col: 61}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 278, Col: 65}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 						if templ_7745c5c3_Err != nil {
@@ -1320,8 +1320,8 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 	})
 }
 
-// chooseURL is path, asking for the form of ing.
-func chooseURL(path string, ing domain.Ingredient) templ.SafeURL {
+// ingredientURL is path, asking for ing.
+func ingredientURL(path string, ing domain.Ingredient) templ.SafeURL {
 	return templ.SafeURL(path + "?ingredient=" + strconv.FormatInt(ing.ID, 10))
 }
 
@@ -1585,7 +1585,7 @@ func countForm(f CountForm) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = web.SideSheetLinkWith(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, f.Location), chooseURL("/kitchen/movements/sheet", *f.Ingredient), templ.Attributes{"hx-include": "#count-form [name=location]"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var80), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.SideSheetLinkWith(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, f.Location), ingredientURL("/kitchen/movements/sheet", *f.Ingredient), templ.Attributes{"hx-include": "#count-form [name=location]"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var80), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

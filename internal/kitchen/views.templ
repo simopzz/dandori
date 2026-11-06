@@ -274,8 +274,8 @@ templ foundList(found []domain.Ingredient, staple, q string) {
 				@web.Row() {
 					<a
 						class="row-title"
-						href={ chooseURL("/kitchen/count", ing) }
-						hx-get={ string(chooseURL("/kitchen/count/sheet", ing)) }
+						href={ ingredientURL("/kitchen/count", ing) }
+						hx-get={ string(ingredientURL("/kitchen/count/sheet", ing)) }
 						hx-target={ "#" + web.SideSheetBody(countSheetID) }
 						hx-swap="innerHTML"
 					>{ ing.Name }</a>
@@ -286,8 +286,8 @@ templ foundList(found []domain.Ingredient, staple, q string) {
 	}
 }
 
-// chooseURL is path, asking for the form of ing.
-func chooseURL(path string, ing domain.Ingredient) templ.SafeURL {
+// ingredientURL is path, asking for ing.
+func ingredientURL(path string, ing domain.Ingredient) templ.SafeURL {
 	return templ.SafeURL(path + "?ingredient=" + strconv.FormatInt(ing.ID, 10))
 }
 
@@ -335,7 +335,7 @@ templ countForm(f CountForm) {
 					@web.Button(templ.Attributes{"type": "submit"}) {
 						{ web.T(ctx, msgCount) }
 					}
-					@web.SideSheetLinkWith(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, f.Location), chooseURL("/kitchen/movements/sheet", *f.Ingredient), templ.Attributes{"hx-include": "#count-form [name=location]"}) {
+					@web.SideSheetLinkWith(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, f.Location), ingredientURL("/kitchen/movements/sheet", *f.Ingredient), templ.Attributes{"hx-include": "#count-form [name=location]"}) {
 						{ web.T(ctx, msgMovements) }
 					}
 				}

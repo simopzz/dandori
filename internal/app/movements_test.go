@@ -93,8 +93,10 @@ func TestAStockItemAtNothingKeepsItsMovements(t *testing.T) {
 	s.Open("/kitchen")
 	s.DoesNotSee("Count rice")
 
-	s.Open("/kitchen/count?location=freezer&ingredient=" + ingredientID(t, s, "rice"))
+	s.Open("/kitchen/count")
+	s.Follows("rice")
 	s.Follows("Movements")
+	s.Follows("Freezer")
 	s.IsAt("/kitchen/movements")
 	s.Sees("Counted 300 g → 0 g")
 	s.Sees("it thawed")
@@ -103,13 +105,17 @@ func TestAStockItemAtNothingKeepsItsMovements(t *testing.T) {
 // The Count form has one Movements link and one Choose another, whatever Movements its
 // Ingredient has. Without htmx the link opens the Storage Location the form started on.
 func TestACountFormHasOneMovementsLink(t *testing.T) {
-	s := kitchenWith(t, rice, egg)
+	oats := rice
+	oats.Name = "oats"
+	s := kitchenWith(t, rice, egg, oats)
+	s.Counts("oats", "", "500", "")
 	s.Counts("rice", "", "700", "")
 	s.Counts("rice", "freezer", "300", "")
 	s.Moves("Move rice in the freezer", "100", "fridge", "")
 
 	for _, form := range []struct{ name, query, heading string }{
 		{"egg", "", "egg · Fridge"},
+		{"oats", "", "oats · Pantry"},
 		{"rice", "", "rice · Pantry"},
 		{"rice", "&location=freezer", "rice · Freezer"},
 	} {
@@ -132,19 +138,19 @@ func TestAStorageLocationWithNoMovementsSaysSo(t *testing.T) {
 	s := kitchenWith(t, rice, salt)
 	s.Counts("rice", "", "700", "")
 
-	for _, stockItem := range []struct{ name, location, heading string }{
+	for _, empty := range []struct{ name, location, heading string }{
 		{"rice", "freezer", "rice · Freezer"},
 		{"salt", "pantry", "salt · Pantry"},
 	} {
-		query := "?ingredient=" + ingredientID(t, s, stockItem.name) + "&location=" + stockItem.location
+		query := "?ingredient=" + ingredientID(t, s, empty.name) + "&location=" + empty.location
 		s.Open("/kitchen/movements" + query)
-		s.Sees(stockItem.heading)
+		s.Sees(empty.heading)
 		s.Sees("No Movements here yet.")
 
 		sheet := s.HTMXGet(t, "/kitchen/movements/sheet"+query)
 		if shown := apptest.Text(sheet.Body); sheet.StatusCode != http.StatusOK ||
-			!strings.Contains(shown, stockItem.heading) || !strings.Contains(shown, "No Movements here yet.") {
-			t.Errorf("the sheet of %s answered %d and shows: %s", stockItem.heading, sheet.StatusCode, shown)
+			!strings.Contains(shown, empty.heading) || !strings.Contains(shown, "No Movements here yet.") {
+			t.Errorf("the sheet of %s answered %d and shows: %s", empty.heading, sheet.StatusCode, shown)
 		}
 	}
 
@@ -386,12 +392,12 @@ func TestBrowserOpensAStockItemsMovementsInPlace(t *testing.T) {
 	b.Shot(t, "movements-sheet")
 }
 
-// box is where a locator stands on the screen.
-func box(t *testing.T, l playwright.Locator) *playwright.Rect {
+// box is where the locator l of what stands on the screen.
+func box(t *testing.T, what string, l playwright.Locator) *playwright.Rect {
 	t.Helper()
 	rect, err := l.BoundingBox()
 	if err != nil || rect == nil {
-		t.Fatalf("find a box: %v", err)
+		t.Fatalf("%s isn't on the screen: %v", what, err)
 	}
 	return rect
 }
@@ -429,20 +435,21 @@ func TestBrowserCountFormHoldsItsLayoutOnAPhoneInItalian(t *testing.T) {
 		t.Fatalf("Choose another isn't shown: %v", err)
 	}
 
-	name, top := box(t, form.GetByText("riso", playwright.LocatorGetByTextOptions{Exact: playwright.Bool(true)})), box(t, another)
-	if centre := top.Y + top.Height/2; centre < name.Y || centre > name.Y+name.Height {
-		t.Errorf("Choose another isn't beside the name: %+v, %+v", top, name)
+	name := box(t, "the name", form.GetByText("riso", playwright.LocatorGetByTextOptions{Exact: playwright.Bool(true)}))
+	chooser := box(t, "Choose another", another)
+	if centre := chooser.Y + chooser.Height/2; centre < name.Y || centre > name.Y+name.Height {
+		t.Errorf("Choose another isn't beside the name: %+v, %+v", chooser, name)
 	}
-	if first := box(t, form.GetByRole("radio").First()); top.Y >= first.Y {
-		t.Errorf("Choose another isn't above the form: %+v, %+v", top, first)
+	if first := box(t, "the first Storage Location", form.GetByRole("radio").First()); chooser.Y >= first.Y {
+		t.Errorf("Choose another isn't above the form: %+v, %+v", chooser, first)
 	}
 
-	left, right := box(t, count), box(t, movements)
-	if centre := right.Y + right.Height/2; centre < left.Y || centre > left.Y+left.Height {
-		t.Errorf("Movements isn't across from the button: %+v, %+v", right, left)
+	button, link := box(t, "the Count button", count), box(t, "Movements", movements)
+	if centre := link.Y + link.Height/2; centre < button.Y || centre > button.Y+button.Height {
+		t.Errorf("Movements isn't across from the button: %+v, %+v", link, button)
 	}
-	edge := box(t, form)
-	if at := right.X + right.Width; at > edge.X+edge.Width+1 || at < edge.X+edge.Width-1 {
+	edge := box(t, "the form", form)
+	if at := link.X + link.Width; at > edge.X+edge.Width+1 || at < edge.X+edge.Width-1 {
 		t.Errorf("Movements ends at %v, not the form's edge %v", at, edge.X+edge.Width)
 	}
 	overflow, err := sheet.Evaluate(`s => s.scrollWidth > s.clientWidth`, nil)

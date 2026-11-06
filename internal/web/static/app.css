@@ -640,7 +640,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 /* segmented choice: square toggles for one of a few options */
 
-.seg { display: flex; flex-wrap: wrap; justify-self: start; width: fit-content; border: 1px solid var(--color-rule-strong); }
+.seg { display: flex; flex-wrap: wrap; justify-self: start; border: 1px solid var(--color-rule-strong); }
 
 .seg label { position: relative; }
 
@@ -651,7 +651,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 .seg label + label span,
 .seg a + a span { border-left: 1px solid var(--color-rule-strong); }
 
-.seg-links { margin-bottom: var(--space-5); }
+.seg-links { width: fit-content; margin-bottom: var(--space-5); }
 
 .seg a { color: inherit; text-decoration: none; }
 
