@@ -51,8 +51,12 @@ func TestAMistakeIsCorrectedByAnotherCount(t *testing.T) {
 		"Counted 4500 g → 450 g Monday 2 November, 10:02 a slip of the finger " +
 		"Counted 450 g → 4500 g Monday 2 November, 10:01 " +
 		"Counted 0 g → 450 g Monday 2 November, 10:00")
-	if body := s.Page().Body; strings.Contains(strings.Split(body, "<main")[1], "<form") {
-		t.Errorf("the Movements offer a form: %s", apptest.Text(body))
+	_, main, ok := strings.Cut(s.Page().Body, "<main")
+	if !ok {
+		t.Fatalf("the Movements page has no main content: %s", s.Page().Body)
+	}
+	if strings.Contains(main, "<form") {
+		t.Errorf("the Movements offer a form: %s", apptest.Text(main))
 	}
 }
 
@@ -116,11 +120,11 @@ func TestMovementsOfNoStockItem(t *testing.T) {
 	s := kitchenWith(t, rice, egg)
 	s.Invite("bea@example.com")
 	s.Counts("rice", "", "700", "keep out")
-	rice, eggs := ingredientID(t, s, "rice"), ingredientID(t, s, "egg")
+	riceID, eggID := ingredientID(t, s, "rice"), ingredientID(t, s, "egg")
 
 	for _, query := range []string{
-		"", "?ingredient=lots&location=pantry", "?ingredient=" + rice + "&location=freezer",
-		"?ingredient=" + rice + "&location=cellar", "?ingredient=" + eggs + "&location=fridge",
+		"", "?ingredient=lots&location=pantry", "?ingredient=" + riceID + "&location=freezer",
+		"?ingredient=" + riceID + "&location=cellar", "?ingredient=" + eggID + "&location=fridge",
 	} {
 		for _, path := range []string{"/kitchen/movements", "/kitchen/movements/sheet"} {
 			if got := s.Get(t, path+query); got.StatusCode != http.StatusNotFound {
@@ -132,7 +136,7 @@ func TestMovementsOfNoStockItem(t *testing.T) {
 	s.SwitchesTo("bea@example.com")
 	s.ChoosesLanguage("English")
 	for _, path := range []string{"/kitchen/movements", "/kitchen/movements/sheet"} {
-		theirs := s.Get(t, path+"?ingredient="+rice+"&location=pantry")
+		theirs := s.Get(t, path+"?ingredient="+riceID+"&location=pantry")
 		if theirs.StatusCode != http.StatusNotFound || strings.Contains(theirs.Body, "keep out") {
 			t.Errorf("%s of another User's Stock Item answered %d", path, theirs.StatusCode)
 		}

@@ -66,8 +66,8 @@ func (h Handlers) ShowStock(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, stockList(now, stock))
 }
 
-// ShowMovements is a Stock Item's Movements as a page of their own, for a browser without
-// htmx.
+// ShowMovements is a Stock Item's Movements as a page of their own, for a
+// browser without htmx.
 func (h Handlers) ShowMovements(w http.ResponseWriter, r *http.Request) {
 	if item := h.stockItem(w, r); item != nil {
 		httpx.Render(w, r, h.Log, http.StatusOK, movementsPage(h.Clock.Now(), *item))
@@ -81,8 +81,8 @@ func (h Handlers) ShowMovementsSheet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// stockItem is the Stock Item r's query asks for with its Movements. Having none, or on
-// a failure, it answers r itself and is nil.
+// stockItem is the Stock Item r's query asks for with its Movements. Having none, or on a
+// failure, it answers r itself and is nil.
 func (h Handlers) stockItem(w http.ResponseWriter, r *http.Request) *StockItemMovements {
 	id, err := strconv.ParseInt(r.URL.Query().Get("ingredient"), 10, 64)
 	if err != nil {
