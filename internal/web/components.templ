@@ -135,9 +135,8 @@ func detailsAttributes(group string, open bool) templ.Attributes {
 	return a
 }
 
-// Field is a labelled form control: the control is the children. hint,
-// when set, follows the label (e.g. "optional"); err is why the value was
-// rejected.
+// Field is a labelled form control: the control is the children. hint, when set,
+// follows the label (e.g. "optional"); err is why the value was rejected.
 templ Field(label, hint, err string) {
 	<label class="field">
 		<span class="field-label">

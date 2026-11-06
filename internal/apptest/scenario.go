@@ -238,8 +238,8 @@ func (s *Scenario) AddsIngredient(ing Ingredient) {
 	s.record(fmt.Sprintf("adds the Ingredient %q: %d %s", ing.Name, s.page.StatusCode, s.page.Path))
 }
 
-// Submits submits the form with id on the page open as it is shown, as a browser without
-// htmx.
+// Submits submits the form with id on the page open as it is shown, as a browser
+// without htmx.
 func (s *Scenario) Submits(id string) {
 	s.t.Helper()
 	form := Form(s.t, s.page.Body, id)

@@ -19,8 +19,8 @@ templ Sheet() {
 	@web.SideSheet(SheetID, web.T(ctx, msgIngredients))
 }
 
-// SheetLink opens the Ingredients side sheet; without htmx it goes to the Ingredients
-// page.
+// SheetLink opens the Ingredients side sheet; without htmx it goes to the
+// Ingredients page.
 templ SheetLink() {
 	@web.SideSheetLink(SheetID, "/ingredients", "/ingredients/sheet") {
 		{ web.T(ctx, msgIngredients) }

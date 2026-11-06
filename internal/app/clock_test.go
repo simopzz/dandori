@@ -6,9 +6,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// What a page shows follows the app's clock, not the machine's: a page
-// opened on Tuesday shows Tuesday, and the same page a day later shows
-// Wednesday.
+// What a page shows follows the app's clock, not the machine's: a page opened on
+// Tuesday shows Tuesday, and the same page a day later shows Wednesday.
 func TestPagesShowTheClocksDay(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")

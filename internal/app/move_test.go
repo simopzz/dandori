@@ -351,6 +351,7 @@ func TestBrowserMovesStockInPlace(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("Dandori believes only 800 g is here."); err != nil {
 		t.Fatalf("the refusal isn't on the field: %v", err)
 	}
+	b.Shot(t, "move-refused")
 
 	if err := quantity.Fill("300"); err != nil {
 		t.Fatalf("type less: %v", err)
@@ -368,4 +369,5 @@ func TestBrowserMovesStockInPlace(t *testing.T) {
 		t.Errorf("the list doesn't show what is left: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
+	b.Shot(t, "move-confirmed")
 }

@@ -112,8 +112,9 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 }
 
 // The Ingredients side sheet opens from the Kitchen page, over it, focused on its first
-// field, and adds an Ingredient there: the sheet stays open, the Ingredient listed and the form cleared. An add refused
-// shows why with focus on the field, the sheet still open and the page under it the same.
+// field, and adds an Ingredient there: the sheet stays open, the Ingredient listed and
+// the form cleared. An add refused shows why with focus on the field, the sheet still
+// open and the page under it the same.
 func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/")
