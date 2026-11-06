@@ -138,29 +138,57 @@ func stockItemURL(path string, id int64, location domain.StorageLocation) templ.
 templ movementsPage(now time.Time, item StockItemMovements) {
 	@web.Layout(web.T(ctx, msgMovementsTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgMovements), now)
-		@movementsBody(now, item)
+		@movementsBody(now, item, false)
 	}
 }
 
 // movementsBody is a Stock Item's Movements, newest first, to read: a mistake in one is
-// corrected by another Count, never here.
-templ movementsBody(now time.Time, item StockItemMovements) {
+// corrected by another Count, never here. Above them each Storage Location is a link,
+// so a move can be followed from one side to the other, swapping the body when inSheet.
+templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
+	@web.SegmentedLinks(web.T(ctx, msgLocations)) {
+		for _, l := range domain.StorageLocations {
+			@web.SegmentLink(l == item.Location, movementsLink(item, l, inSheet)) {
+				{ web.T(ctx, locationHeadings[l]) }
+			}
+		}
+	}
 	@web.Section(0, web.Tf(ctx, msgStockItem, item.Ingredient.Name, web.T(ctx, locationHeadings[item.Location]))) {
-		@web.Rows() {
-			for _, m := range item.Movements {
-				@web.Row() {
-					<span class="row-title">{ causeText(ctx, m, item.Location) }</span>
-					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, quantity(ctx, m.Before, item.Ingredient.Unit), quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
-					<span class="row-meta">
-						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
-						if m.Note != "" {
-							<em>{ m.Note }</em>
-						}
-					</span>
+		if len(item.Movements) == 0 {
+			@web.Empty() {
+				{ web.T(ctx, msgNoMovements) }
+			}
+		} else {
+			@web.Rows() {
+				for _, m := range item.Movements {
+					@web.Row() {
+						<span class="row-title">{ causeText(ctx, m, item.Location) }</span>
+						<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, quantity(ctx, m.Before, item.Ingredient.Unit), quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
+						<span class="row-meta">
+							<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
+							if m.Note != "" {
+								<em>{ m.Note }</em>
+							}
+						</span>
+					}
 				}
 			}
 		}
 	}
+}
+
+// movementsLink opens the Movements in l of item's Ingredient: the page of them, or
+// inSheet the sheet's body, where the link to item takes the focus back from the link
+// the swap removed.
+func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bool) templ.Attributes {
+	link := templ.Attributes{"href": string(stockItemURL("/kitchen/movements", item.Ingredient.ID, l))}
+	if inSheet {
+		link["hx-get"] = string(stockItemURL("/kitchen/movements/sheet", item.Ingredient.ID, l))
+		link["hx-target"] = "#" + web.SideSheetBody(movementsSheetID)
+		link["hx-swap"] = "innerHTML"
+		link["autofocus"] = l == item.Location
+	}
+	return link
 }
 
 // happenedText says when a Movement happened, told in at's zone, with its year unless
@@ -264,8 +292,10 @@ func chooseURL(path string, ing domain.Ingredient) templ.SafeURL {
 }
 
 // countForm counts f's Ingredient, swapping the sheet's body when htmx posts it. Each
-// Storage Location shows what Dandori believes it holds, with no request to choose it,
-// and each with Movements links them, so a Stock Item at nothing can still be opened.
+// Storage Location shows what Dandori believes it holds, with no request to choose it.
+// Choose another changes what the legend names, so it stands beside it. Movements opens
+// the Storage Location chosen when it is followed, which htmx includes; without htmx, the
+// one the form started on, whose Movements link the other two.
 templ countForm(f CountForm) {
 	<form
 		id="count-form"
@@ -276,7 +306,7 @@ templ countForm(f CountForm) {
 		hx-swap="innerHTML"
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
-		@web.FieldGroup(0, f.Ingredient.Name) {
+		@web.FieldGroupAction("count-ingredient", 0, f.Ingredient.Name, chooseAnother()) {
 			<div class="stack">
 				<div>
 					@web.Hint() {
@@ -301,24 +331,24 @@ templ countForm(f CountForm) {
 				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
 					<input name="note" value={ f.Note } autocomplete="off"/>
 				}
-				@web.Actions() {
+				@web.ActionsApart() {
 					@web.Button(templ.Attributes{"type": "submit"}) {
 						{ web.T(ctx, msgCount) }
 					}
-					@web.TextLink(anotherLink()) {
-						{ web.T(ctx, msgAnother) }
-					}
-					for _, l := range domain.StorageLocations {
-						if _, ok := f.Believed[l]; ok {
-							@web.SideSheetLink(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, l), stockItemURL("/kitchen/movements/sheet", f.Ingredient.ID, l)) {
-								{ web.Tf(ctx, msgMovementsIn, web.T(ctx, inLocations[l])) }
-							}
-						}
+					@web.SideSheetLinkWith(movementsSheetID, stockItemURL("/kitchen/movements", f.Ingredient.ID, f.Location), chooseURL("/kitchen/movements/sheet", *f.Ingredient), templ.Attributes{"hx-include": "#count-form [name=location]"}) {
+						{ web.T(ctx, msgMovements) }
 					}
 				}
 			</div>
 		}
 	</form>
+}
+
+// chooseAnother is the link beside the name of a Count form's Ingredient.
+templ chooseAnother() {
+	@web.TextLink(anotherLink()) {
+		{ web.T(ctx, msgAnother) }
+	}
 }
 
 // anotherLink goes back to the search, swapping the sheet's body; without htmx it opens

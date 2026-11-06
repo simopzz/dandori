@@ -78,7 +78,7 @@ func (h Handlers) ShowMovements(w http.ResponseWriter, r *http.Request) {
 // ShowMovementsSheet is the Movements sheet's body: a Stock Item's Movements.
 func (h Handlers) ShowMovementsSheet(w http.ResponseWriter, r *http.Request) {
 	if item := h.stockItem(w, r); item != nil {
-		httpx.Render(w, r, h.Log, http.StatusOK, movementsBody(h.Clock.Now(), *item))
+		httpx.Render(w, r, h.Log, http.StatusOK, movementsBody(h.Clock.Now(), *item, true))
 	}
 }
 

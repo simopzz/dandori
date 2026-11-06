@@ -37,7 +37,7 @@ func TestMovingStockBetweenStorageLocations(t *testing.T) {
 
 	s.Open("/kitchen/count")
 	s.Follows("rice")
-	s.Follows("Movements in the pantry")
+	s.Follows("Movements")
 	s.Sees("rice · Pantry")
 	s.Sees("Moved to the freezer 500 g → 0 g Mon 2 Nov 11:00 " +
 		"Moved to the freezer 800 g → 500 g Mon 2 Nov 10:00 for next week " +
@@ -192,7 +192,8 @@ func TestACountStartsFromWhatAMoveLeft(t *testing.T) {
 
 	s.Open("/kitchen/count")
 	s.Follows("rice")
-	s.Follows("Movements in the freezer")
+	s.Follows("Movements")
+	s.Follows("Freezer")
 	s.Sees("Counted 300 g → 250 g")
 }
 
@@ -254,7 +255,8 @@ func TestMovesInItalian(t *testing.T) {
 
 	s.Open("/kitchen/count")
 	s.Follows("uovo")
-	s.Follows("Movimenti nel congelatore")
+	s.Follows("Movimenti")
+	s.Follows("Congelatore")
 	s.Sees("Spostato in dispensa 2 pezzi → 1 pezzo")
 	s.Sees("Spostato dal frigo 0 pezzi → 2 pezzi")
 }

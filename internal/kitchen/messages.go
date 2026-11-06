@@ -46,7 +46,8 @@ var (
 
 	msgMovements      = web.Message{En: "Movements", It: "Movimenti"}
 	msgMovementsTitle = web.Message{En: "Movements · Dandori", It: "Movimenti · Dandori"}
-	msgMovementsIn    = web.Message{En: "Movements %s", It: "Movimenti %s"}
+	msgLocations      = web.Message{En: "Where it is kept", It: "Dove si tiene"}
+	msgNoMovements    = web.Message{En: "No Movements here yet.", It: "Ancora nessun Movimento qui."}
 	msgStockItem      = web.Message{En: "%s · %s", It: "%s · %s"}
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
 	msgHappened       = web.Message{En: "%s %s", It: "%s %s"}
