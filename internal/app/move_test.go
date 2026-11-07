@@ -400,8 +400,9 @@ func TestAMoveHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.At("Mon 10:00")
 	s.Counts("rice", "", "100", "")
-	laterCountOfTheOnlyMovement(t, s)
+	s.CountsAgainASecondAhead()
 	s.Moves("Move rice in the pantry", "", "fridge", "")
+	recordedAtTheLatest(t, s, 2)
 
 	s.At("Mon 10:01")
 	s.Open("/kitchen")

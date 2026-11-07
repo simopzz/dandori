@@ -202,9 +202,9 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 	})
 }
 
-// loadHeld is what the Stock Item key holds for a Count or a move at at that has hold of
-// the kitchen, and the moment it is recorded at: heldAt, so it happens no earlier than
-// the Movement it was checked against.
+// loadHeld is what the Stock Item key holds for a Count or a move that has the kitchen,
+// and the moment to record it at: heldAt of at, so it happens no earlier than the
+// Movement it was checked against.
 func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, time.Time, error) {
 	movements, err := loadMovements(ctx, q)
 	if err != nil {
