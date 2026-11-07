@@ -17,6 +17,7 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ledger"
 )
 
 // NameTakenError is an Ingredient refused because the User has one of that food already,
@@ -50,45 +51,11 @@ var ErrHasMovements = errors.New("movements refer to the Ingredient")
 // ErrNoIngredient is an Ingredient the signed-in User hasn't got.
 var ErrNoIngredient = errors.New("the User has no such Ingredient")
 
-// HasMovements says whether any Movement refers to the Ingredient id, in q's
-// transaction, and holds off any more of them until it ends. The kitchen owns Movements
-// and depends on this feature, so app wires it.
-type HasMovements func(ctx context.Context, q db.Querier, id int64) (bool, error)
-
-// CountedToNothing is a Stock Item counted to nothing as its Ingredient was marked a
-// Staple: its Storage Location, and what Dandori believed it held.
-type CountedToNothing struct {
-	Location domain.StorageLocation
-	Believed domain.Quantity
-}
-
-// CountToNothing counts each Stock Item of the Ingredient id holding some of it to
-// nothing at at, in q's transaction, and is what each held, in Storage Location order.
-// The kitchen owns Movements and depends on this feature, so app wires it.
-type CountToNothing func(ctx context.Context, q db.Querier, at time.Time, id int64) ([]CountedToNothing, error)
-
-// WithMovements is the ids of the Ingredients some Movement refers to, in q's
-// transaction. The kitchen owns Movements, so app wires it.
-type WithMovements func(ctx context.Context, q db.Querier) (map[int64]bool, error)
-
-// Kitchen is what the Ingredients need of the Kitchen Ledger, which owns Movements and
-// depends on this feature, so app wires it.
-type Kitchen struct {
-	HasMovements   HasMovements
-	CountToNothing CountToNothing
-	WithMovements  WithMovements
-}
-
 // Service is the signed-in User's Ingredients.
-type Service struct {
-	pool    *pgxpool.Pool
-	kitchen Kitchen
-}
+type Service struct{ pool *pgxpool.Pool }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, kitchen Kitchen) *Service {
-	return &Service{pool: pool, kitchen: kitchen}
-}
+func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
 // Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
 // is its id. One whose name normalises as another's is a *NameTakenError. One whose name
@@ -122,12 +89,12 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 
 // Edit sets the signed-in User's Ingredient id, whose Language is l, to ing, which has no
 // Problems, at at. Marking it a Staple counts its stock to nothing in the same
-// transaction, and counted is each Stock Item that held some; unmarking it starts it from
-// nothing. A name that normalises as another's is a *NameTakenError. A new name only
-// close to another's is a *SuggestedError, unless confirmed says the User meant the name
-// typed. A unit changed once Movements refer to the Ingredient is a *UnitFixedError, and
-// one they haven't got is ErrNoIngredient.
-func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id int64, ing domain.Ingredient, confirmed bool) (counted []CountedToNothing, err error) {
+// transaction, and counted is the Movement of each Stock Item that held some; unmarking
+// it starts it from nothing. A name that normalises as another's is a *NameTakenError. A
+// new name only close to another's is a *SuggestedError, unless confirmed says the User
+// meant the name typed. A unit changed once Movements refer to the Ingredient is a
+// *UnitFixedError, and one they haven't got is ErrNoIngredient.
+func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id int64, ing domain.Ingredient, confirmed bool) (counted []domain.Movement, err error) {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		current, ok, err := LoadIngredient(ctx, tx, id)
@@ -155,7 +122,7 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 			}
 		}
 		if ing.Unit != current.Unit {
-			moved, err := s.kitchen.HasMovements(ctx, tx, id)
+			moved, err := ledger.HasMovements(ctx, tx, id)
 			if err != nil {
 				return err
 			}
@@ -164,7 +131,7 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 			}
 		}
 		if ing.Staple && !current.Staple {
-			if counted, err = s.kitchen.CountToNothing(ctx, tx, at, id); err != nil {
+			if counted, err = ledger.CountToNothing(ctx, tx, at, id); err != nil {
 				return err
 			}
 		}
@@ -188,7 +155,7 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 		if !ok {
 			return ErrNoIngredient
 		}
-		moved, err := s.kitchen.HasMovements(ctx, tx, id)
+		moved, err := ledger.HasMovements(ctx, tx, id)
 		if err != nil {
 			return err
 		}
@@ -265,7 +232,7 @@ func (s *Service) Listing(ctx context.Context, query string) (found []domain.Ing
 			return err
 		}
 		found = search(query, ings)
-		withMovements, err = s.kitchen.WithMovements(ctx, tx)
+		withMovements, err = ledger.WithMovements(ctx, tx)
 		return err
 	})
 	return found, withMovements, err

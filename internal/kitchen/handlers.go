@@ -14,6 +14,7 @@ import (
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -24,6 +25,7 @@ const movementSaved = "movement-saved"
 // never wrong because the scheduler was late, and serve the Kitchen page.
 type Handlers struct {
 	Service *Service
+	Ledger  *ledger.Service
 	Clock   clock.Clock
 	Log     *slog.Logger
 }
@@ -31,7 +33,7 @@ type Handlers struct {
 // UpToNow brings the signed-in User's kitchen up to now, then serves next.
 func (h Handlers) UpToNow(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := h.Service.BringUpToNow(r.Context(), h.Clock.Now()); err != nil {
+		if err := h.Ledger.BringUpToNow(r.Context(), h.Clock.Now()); err != nil {
 			httpx.ServerError(w, r, h.Log, "bring the kitchen up to now", err)
 			return
 		}

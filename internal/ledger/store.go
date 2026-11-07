@@ -1,4 +1,4 @@
-package kitchen
+package ledger
 
 import (
 	"context"
@@ -56,17 +56,18 @@ func loadBeat(ctx context.Context, q db.Querier) (time.Time, bool, error) {
 	return *at, true, nil
 }
 
-// lockKitchen holds the signed-in User's kitchen until the transaction ends, so what one
-// Count or move read isn't changed by another before it writes. UpToNow made their row.
-func lockKitchen(ctx context.Context, q db.Querier) error {
+// Lock holds the signed-in User's kitchen until q's transaction ends, so what one Count
+// or move read isn't changed by another before it writes. BringUpToNow made their row.
+// Every write of Movements takes it first; nothing outside this package does.
+func Lock(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `SELECT 1 FROM kitchen FOR UPDATE`)
 	return err
 }
 
-// loadMovements is the signed-in User's Kitchen Ledger in the order it happened, those of
+// LoadMovements is the signed-in User's Kitchen Ledger in the order it happened, those of
 // one moment in the order they were written. It has no WHERE on purpose: run in
 // db.AsUser, row-level security leaves only their rows.
-func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error) {
+func LoadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error) {
 	rows, err := q.Query(ctx, `
 		SELECT happened_at, ingredient_id, storage_location, coalesce(moved_to, ''), change,
 			cause_kind, coalesce(believed, 0), coalesce(stated, 0), coalesce(note, '')
@@ -89,9 +90,9 @@ func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 	})
 }
 
-// saveMovement appends m to the signed-in User's Kitchen Ledger. A move keeps nothing of
+// SaveMovement appends m to the signed-in User's Kitchen Ledger. A move keeps nothing of
 // what was believed or stated, and a blank Storage Location to or note is none.
-func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
+func SaveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 	var believed, stated *float64
 	if m.Cause != domain.Moved {
 		b, s := m.Believed.Number(), m.Stated.Number()
@@ -109,7 +110,7 @@ func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 // id, for the Ingredients, whose unit is then fixed. It holds the kitchen first, as a
 // Count or move does, so none of them writes a Movement of it until q's transaction ends.
 func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
-	if err := lockKitchen(ctx, q); err != nil {
+	if err := Lock(ctx, q); err != nil {
 		return false, err
 	}
 	var has bool
