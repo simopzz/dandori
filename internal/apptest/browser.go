@@ -26,6 +26,18 @@ type Browser struct {
 // (`mise run browsers`) the test is skipped, except in CI, where it fails.
 func (h *Harness) Browser(t testing.TB) *Browser {
 	t.Helper()
+	return h.browser(t, playwright.BrowserNewPageOptions{})
+}
+
+// BrowserWithoutJS is a Browser with JavaScript turned off, as the pages are before htmx
+// loads or when it fails: what a page shows with no script.
+func (h *Harness) BrowserWithoutJS(t testing.TB) *Browser {
+	t.Helper()
+	return h.browser(t, playwright.BrowserNewPageOptions{JavaScriptEnabled: playwright.Bool(false)})
+}
+
+func (h *Harness) browser(t testing.TB, options playwright.BrowserNewPageOptions) *Browser {
+	t.Helper()
 	pw, err := playwright.Run(&playwright.RunOptions{Stdout: os.Stderr})
 	if err != nil {
 		notInstalled(t, "start Playwright", err)
@@ -40,7 +52,7 @@ func (h *Harness) Browser(t testing.TB) *Browser {
 		notInstalled(t, "launch Chromium", err)
 	}
 	t.Cleanup(func() { browser.Close() })
-	page, err := browser.NewPage()
+	page, err := browser.NewPage(options)
 	if err != nil {
 		t.Fatalf("open a page: %v", err)
 	}
@@ -211,8 +223,12 @@ func (b *Browser) Notices() playwright.Locator { return b.Locator("#notices .not
 // IsConfirmed checks a floating Notice says want, once it has dropped in.
 func (b *Browser) IsConfirmed(t testing.TB, want string) {
 	t.Helper()
-	notice := b.Notices().Filter(playwright.LocatorFilterOptions{HasText: want})
-	if err := playwright.NewPlaywrightAssertions().Locator(notice).ToHaveCSS("opacity", "1"); err != nil {
+	notice := playwright.NewPlaywrightAssertions().Locator(b.Notices().Filter(playwright.LocatorFilterOptions{HasText: want}))
+	if err := notice.ToBeVisible(); err != nil {
 		t.Errorf("%s does not confirm %q: %v", b.URL(), want, err)
+		return
+	}
+	if err := notice.ToHaveCSS("opacity", "1"); err != nil {
+		t.Errorf("%s does not show its Notice %q: %v", b.URL(), want, err)
 	}
 }

@@ -237,6 +237,33 @@ func TestAConfirmationShowsOnce(t *testing.T) {
 	s.IsNotConfirmed()
 }
 
+// A plain post's confirmation waits past a page that only redirects, such as the Language
+// choice for a User who has chosen, and shows on the page it leads to. The Count's
+// redirect isn't followed, as when the page it lands on is never reached.
+func TestAConfirmationWaitsPastARedirect(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Open("/kitchen/count")
+	s.Follows("rice")
+	form := apptest.Form(t, s.Page().Body, "count-form")
+	form.Values.Set("stated", "700")
+	unfollowed := *s.Client
+	unfollowed.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	res, err := unfollowed.PostForm(s.URL+form.Action, form.Values)
+	if err != nil {
+		t.Fatalf("post the Count: %v", err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Fatalf("the Count answered %d, want a redirect", res.StatusCode)
+	}
+
+	s.Open("/language")
+	s.IsAt("/")
+	s.IsConfirmed("Counted rice: 700 g in the pantry.")
+	s.Open("/")
+	s.IsNotConfirmed()
+}
+
 // ingredientID is the id of the Ingredient name, for a post no page offers.
 func ingredientID(t *testing.T, s *apptest.Scenario, name string) string {
 	t.Helper()
@@ -357,7 +384,7 @@ func TestTheCountSheetWorksInPlace(t *testing.T) {
 	if got := apptest.Form(t, refused.Body, "count-form").Get("stated"); got != "-1" {
 		t.Errorf("the refused Count holds %q, want -1", got)
 	}
-	if notices := apptest.Notices(refused.Body); len(notices) > 0 {
+	if notices := apptest.Notices(t, refused.Body); len(notices) > 0 {
 		t.Errorf("the refused Count confirms %q", notices)
 	}
 
@@ -366,7 +393,7 @@ func TestTheCountSheetWorksInPlace(t *testing.T) {
 	if saved.StatusCode != http.StatusOK || strings.Contains(saved.Body, "<html") {
 		t.Fatalf("saving a Count answered %d, want 200 and a fragment:\n%s", saved.StatusCode, saved.Body)
 	}
-	if notices := apptest.Notices(saved.Body); !slices.Equal(notices, []string{"Counted rice: 700 g in the pantry."}) {
+	if notices := apptest.Notices(t, saved.Body); !slices.Equal(notices, []string{"Counted rice: 700 g in the pantry."}) {
 		t.Errorf("saving the Count confirms %q", notices)
 	}
 	if got := apptest.Form(t, saved.Body, "count-search").Get("q"); got != "" {
@@ -616,9 +643,9 @@ func TestBrowserAddsAnIngredientFromTheCountSheet(t *testing.T) {
 }
 
 // A Count's floating Notice shows over the Count sheet, which stays open with its form
-// where it was, newest first over the one before. It stops its time while hovered, goes
-// when its time runs out, which the test runs out without waiting, and closes with its
-// Close, the sheet staying open. Without motion its time still runs out.
+// where it was, newest first over the one before. It stops its time while hovered or
+// focused, goes when its time runs out, which the test runs out without waiting, and
+// closes with its Close, the sheet staying open. Without motion its time still runs out.
 func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -645,9 +672,9 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 			t.Fatalf("save the Count: %v", err)
 		}
 	}
-	// time is the notice's time, as the Web Animations API tells it: its state, and its
-	// name, which reduced motion changes.
-	time := func(notice playwright.Locator, what string) string {
+	// noticeTime is the notice's time, as the Web Animations API tells it: its state, and
+	// its name, which reduced motion changes.
+	noticeTime := func(notice playwright.Locator, what string) string {
 		t.Helper()
 		got, err := notice.Evaluate(`(n, what) => { const a = n.getAnimations().find((a) => a.animationName.startsWith("notice-")); return a ? (what === "name" ? a.animationName : a.playState) : "none" }`, what)
 		if err != nil {
@@ -702,14 +729,20 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 	if err := newest.Hover(); err != nil {
 		t.Fatalf("hover the Notice: %v", err)
 	}
-	if got := time(newest, "state"); got != "paused" {
+	if got := noticeTime(newest, "state"); got != "paused" {
 		t.Errorf("a hovered Notice's time is %s, want paused", got)
 	}
 	if err := sheet.GetByRole("heading", playwright.LocatorGetByRoleOptions{Name: "Count"}).Hover(); err != nil {
 		t.Fatalf("leave the Notice: %v", err)
 	}
-	if got := time(newest, "state"); got != "running" {
+	if got := noticeTime(newest, "state"); got != "running" {
 		t.Errorf("a Notice left's time is %s, want running", got)
+	}
+	if err := newest.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close notice"}).Focus(); err != nil {
+		t.Fatalf("focus the Notice's Close: %v", err)
+	}
+	if got := noticeTime(newest, "state"); got != "paused" {
+		t.Errorf("a focused Notice's time is %s, want paused", got)
 	}
 	runsOut(newest)
 	if err := expect.Locator(newest).ToHaveCount(0); err != nil {
@@ -732,7 +765,7 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 	}
 	counts("600")
 	still := b.Notices().First()
-	if got := time(still, "name"); got != "notice-wait" {
+	if got := noticeTime(still, "name"); got != "notice-wait" {
 		t.Errorf("without motion the Notice's time is %s, want notice-wait", got)
 	}
 	runsOut(still)

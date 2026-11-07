@@ -167,17 +167,20 @@ wrong: a refusal stays on its field, and a failure is an `Alert`.
   clockwise in steps. It drops in, and after about 6 seconds rises out and is
   gone. Hovering it, or focus in it, stops its time. `role="status"`, so it is
   announced.
-- **How a page gives one**: a plain post calls `web.Confirm(w, r, text)` before
-  its redirect, and the page it lands on shows it once (a cookie the
-  `web.Notices` middleware reads and forgets), without JS too; reloading that
-  page doesn't show it again. An htmx answer wraps its fragment in
-  `web.Confirmed(fragment, text)` (an `<hx-partial>` into `#notices`), or
-  passes no fragment to only confirm. A page that confirms with no write, such
+- **How a page gives one**: a plain post answers with
+  `web.RedirectWithNotice(w, r, path, text)`, and the page it lands on shows it
+  once (a cookie the `web.Notices` middleware reads and forgets once a page
+  renders, not on a redirect), without JS too; reloading that page doesn't
+  show it again. An htmx answer wraps its fragment in
+  `web.FragmentWithNotice(fragment, text)` (an `<hx-partial>` into `#notices`),
+  or passes no fragment to only confirm. A page that confirms with no write, such
   as the Ingredient just picked, renders with `web.WithNotice(ctx, text)`.
 - **Its script**: `Layout`'s `showNotices` raises the Notices into the top
   layer as a popover, after the sheets, as a page loads and after each swap.
   An open sheet makes the rest of the page inert, so they go inside the top
-  sheet, still drawn over it, and back when it closes, keeping their time. It
+  sheet, still drawn over it, and back when it closes, keeping their time.
+  They move before a swap adds a Notice, so it lands in a live region already
+  in place, and is announced. It
   takes a Notice away when its time (the `notice-time` animation in `app.css`)
   ends, or on `Close`. With no JS the Notice still shows, stops while hovered
   and goes when its time runs out, all in CSS; only `Close` needs the script.
@@ -222,7 +225,7 @@ elements themselves.
 | `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
-| Floating Notice | Something happened as asked ("Profile saved."), floating at the top of the screen: `web.Confirm` before a plain post's redirect, `web.Confirmed` around an htmx answer, `web.WithNotice` for a page. `Layout` shows it; see [Notices](#notices). There is no in-flow notice: one in the page or sheet it confirms pushed the form down, and the list changing behind a sheet may be off-screen. |
+| Floating Notice | Something happened as asked ("Profile saved."), floating at the top of the screen: `web.RedirectWithNotice` for a plain post, `web.FragmentWithNotice` for an htmx answer, `web.WithNotice` for a page. `Layout` shows it; see [Notices](#notices). There is no in-flow notice: one in the page or sheet it confirms pushed the form down, and the list changing behind a sheet may be off-screen. |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a sheet, from the bottom on a phone, centred on desktop, over a navy dithered veil. Every sheet is modal, a `<dialog>` opened with `showModal()`: the page behind it is inert and holds still, Tab stays in it, and a tap on the veil or Esc closes it, the top one where one sheet is open over another. A sheet taller than the screen scrolls itself, and only itself. A tap outside discards a half-filled form, without asking. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
 | `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil, and modal as every sheet is (see `AddSheet`). Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |

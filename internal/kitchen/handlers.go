@@ -172,22 +172,21 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 			httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
 			return
 		}
-		h.answer(w, r, http.StatusUnprocessableEntity, now, f)
+		h.answer(w, r, http.StatusUnprocessableEntity, now, f, "")
 		return
 	}
 	counted := web.Tf(ctx, msgCounted, ing.Name, quantity(ctx, stated, ing.Unit), web.T(ctx, inLocations[location]))
 	if !httpx.IsHTMX(r) {
-		web.Confirm(w, r, counted)
-		http.Redirect(w, r, "/kitchen/count", http.StatusSeeOther)
+		web.RedirectWithNotice(w, r, "/kitchen/count", counted)
 		return
 	}
-	cleared, err := h.startCount(ctx, now, url.Values{})
+	cleared, err := h.startCount(ctx, now, nil)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "start a Count", err)
 		return
 	}
 	w.Header().Set("HX-Trigger", movementSaved)
-	httpx.Render(w, r, h.Log, http.StatusOK, web.Confirmed(countBody(cleared), counted))
+	h.answer(w, r, http.StatusOK, now, cleared, counted)
 }
 
 // ShowMove is the form that moves a Stock Item as a page of its own, for a browser
@@ -277,12 +276,11 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 	}
 	text := web.Tf(ctx, msgMoved, quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[f.To]))
 	if !httpx.IsHTMX(r) {
-		web.Confirm(w, r, text)
-		http.Redirect(w, r, "/kitchen", http.StatusSeeOther)
+		web.RedirectWithNotice(w, r, "/kitchen", text)
 		return
 	}
 	w.Header().Set("HX-Trigger", movementSaved+", "+web.CloseSheet)
-	httpx.Render(w, r, h.Log, http.StatusOK, web.Confirmed(nil, text))
+	httpx.Render(w, r, h.Log, http.StatusOK, web.FragmentWithNotice(nil, text))
 }
 
 // CountNew answers an add the User made to count the Ingredient id: its Count form, in
@@ -301,13 +299,18 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	}
 	w.Header().Set("HX-Retarget", "#"+web.SideSheetBody(countSheetID))
 	w.Header().Set("HX-Reswap", "innerHTML")
-	h.answer(w, r, http.StatusOK, now, f)
+	h.answer(w, r, http.StatusOK, now, f, "")
 }
 
-// answer shows f as the sheet's body when htmx sent the request, else as the Count page.
-func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now time.Time, f CountForm) {
+// answer shows f as the sheet's body when htmx sent the request, with notice, if any, in
+// a floating Notice; else as the Count page.
+func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now time.Time, f CountForm, notice string) {
 	if httpx.IsHTMX(r) {
-		httpx.Render(w, r, h.Log, status, countBody(f))
+		body := countBody(f)
+		if notice != "" {
+			body = web.FragmentWithNotice(body, notice)
+		}
+		httpx.Render(w, r, h.Log, status, body)
 		return
 	}
 	httpx.Render(w, r, h.Log, status, countPage(now, f))

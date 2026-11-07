@@ -428,6 +428,10 @@ var veilCloses = templ.Attributes{
 	"hx-on:click":       "if (this.veilPressed && " + onVeil + ") this.close()",
 }
 
+// CloseSheet is the event an answer to a form in a sheet triggers, with HX-Trigger, to
+// close that sheet: the form's work is done, and a floating Notice says so.
+const CloseSheet = "close-sheet"
+
 // closesOnDone closes a sheet when the answer to a form in it triggers CloseSheet, and
 // only that sheet, not one open beneath it.
 var closesOnDone = templ.Attributes{

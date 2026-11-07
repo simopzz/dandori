@@ -215,9 +215,10 @@ func busyButton() templ.Component {
 // page loads and after each swap, and takes each away when its time runs out (the end of
 // its animation in app.css, which hovering it pauses) or its Close is pressed. A sheet
 // open over them makes the rest of the page inert, so they go into the top one, still
-// drawn over it, keeping their time; when it closes they go back. In the head, so a
-// boosted page doesn't add its listeners again. With docs/design.md's busyButton, the
-// scripts for presentation.
+// drawn over it, keeping their time; when it closes they go back. They go before a swap
+// adds one, so a screen reader hears it in a live region already in place. In the head,
+// so a boosted page doesn't add its listeners again. With docs/design.md's busyButton,
+// the scripts for presentation.
 func showNotices() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -239,7 +240,7 @@ func showNotices() templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<script>\n\t\t(() => {\n\t\t\tconst top = () => document.activeElement?.closest(\"dialog:modal\") ?? [...document.querySelectorAll(\"dialog:modal\")].pop();\n\t\t\tconst raise = () => {\n\t\t\t\tconst box = document.getElementById(\"notices\");\n\t\t\t\tif (!box) return;\n\t\t\t\tif (box.matches(\":popover-open\")) box.hidePopover();\n\t\t\t\tif (!box.children.length) return;\n\t\t\t\tconst host = top() ?? document.body;\n\t\t\t\tif (box.parentElement !== host) {\n\t\t\t\t\tconst times = box.getAnimations({ subtree: true }).map((a) => [a.effect.target, a.animationName, a.currentTime]);\n\t\t\t\t\thost.append(box);\n\t\t\t\t\tfor (const a of box.getAnimations({ subtree: true })) {\n\t\t\t\t\t\tconst kept = times.find(([target, name]) => target === a.effect.target && name === a.animationName);\n\t\t\t\t\t\tif (kept) a.currentTime = kept[2];\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tbox.showPopover();\n\t\t\t};\n\t\t\tconst dismiss = (notice) => {\n\t\t\t\tconst focused = notice.contains(document.activeElement);\n\t\t\t\tnotice.remove();\n\t\t\t\traise();\n\t\t\t\tif (focused) top()?.querySelector(\"[autofocus], input, select, textarea, button\")?.focus();\n\t\t\t};\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", raise);\n\t\t\tdocument.addEventListener(\"htmx:after:swap\", raise);\n\t\t\tdocument.addEventListener(\"close\", (e) => { if (e.target.contains(document.getElementById(\"notices\"))) raise(); }, true);\n\t\t\tdocument.addEventListener(\"animationend\", (e) => {\n\t\t\t\tif (e.target.matches(\".notice\") && (e.animationName === \"notice-time\" || e.animationName === \"notice-wait\")) dismiss(e.target);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst close = e.target.closest(\".notice-close\");\n\t\t\t\tif (close) dismiss(close.closest(\".notice\"));\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<script>\n\t\t(() => {\n\t\t\tconst top = () => document.activeElement?.closest(\"dialog:modal\") ?? [...document.querySelectorAll(\"dialog:modal\")].pop();\n\t\t\t// place puts the Notices in the top sheet, or the body, keeping their time.\n\t\t\tconst place = () => {\n\t\t\t\tconst box = document.getElementById(\"notices\");\n\t\t\t\tconst host = top() ?? document.body;\n\t\t\t\tif (!box || box.parentElement === host) return box;\n\t\t\t\tconst times = box.getAnimations({ subtree: true }).map((a) => [a.effect.target, a.animationName, a.currentTime]);\n\t\t\t\thost.append(box);\n\t\t\t\tfor (const a of box.getAnimations({ subtree: true })) {\n\t\t\t\t\tconst kept = times.find(([target, name]) => target === a.effect.target && name === a.animationName);\n\t\t\t\t\tif (kept) a.currentTime = kept[2];\n\t\t\t\t}\n\t\t\t\treturn box;\n\t\t\t};\n\t\t\tconst raise = () => {\n\t\t\t\tconst box = place();\n\t\t\t\tif (!box) return;\n\t\t\t\tif (box.matches(\":popover-open\")) box.hidePopover();\n\t\t\t\tif (box.children.length) box.showPopover();\n\t\t\t};\n\t\t\tconst dismiss = (notice) => {\n\t\t\t\tconst focused = notice.contains(document.activeElement);\n\t\t\t\tnotice.remove();\n\t\t\t\traise();\n\t\t\t\tif (focused) top()?.querySelector(\"[autofocus], input, select, textarea, button\")?.focus();\n\t\t\t};\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", raise);\n\t\t\tdocument.addEventListener(\"htmx:before:swap\", place);\n\t\t\tdocument.addEventListener(\"htmx:after:swap\", raise);\n\t\t\tdocument.addEventListener(\"close\", (e) => { if (e.target.contains(document.getElementById(\"notices\"))) raise(); }, true);\n\t\t\tdocument.addEventListener(\"animationend\", (e) => {\n\t\t\t\tif (e.target.matches(\".notice\") && (e.animationName === \"notice-time\" || e.animationName === \"notice-wait\")) dismiss(e.target);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst close = e.target.closest(\".notice-close\");\n\t\t\t\tif (close) dismiss(close.closest(\".notice\"));\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -426,7 +427,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var17 templ.SafeURL
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 160, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 165, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -457,7 +458,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 166, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 171, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {

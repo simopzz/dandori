@@ -162,7 +162,7 @@ func TestTheIngredientsSheetAddsInPlace(t *testing.T) {
 	if shown := apptest.Text(added.Body); !strings.Contains(shown, "egg fridge per piece") {
 		t.Errorf("the sheet after adding egg shows: %s", shown)
 	}
-	if notices := apptest.Notices(added.Body); !slices.Equal(notices, []string{"Added egg."}) {
+	if notices := apptest.Notices(t, added.Body); !slices.Equal(notices, []string{"Added egg."}) {
 		t.Errorf("adding egg from the sheet confirms %q", notices)
 	}
 	if got := apptest.Form(t, added.Body, "ingredient-add").Get("name"); got != "" {
@@ -270,11 +270,11 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 	if shown := apptest.Text(picked.Body); strings.Contains(shown, "eggs") {
 		t.Errorf("the sheet after picking egg shows: %s", shown)
 	}
-	if notices := apptest.Notices(picked.Body); !slices.Equal(notices, []string{"egg is already one of your Ingredients."}) {
+	if notices := apptest.Notices(t, picked.Body); !slices.Equal(notices, []string{"egg is already one of your Ingredients."}) {
 		t.Errorf("picking egg from the sheet confirms %q", notices)
 	}
 
-	if notices := apptest.Notices(s.HTMXGet(t, "/ingredients/sheet?picked=salmone").Body); len(notices) > 0 {
+	if notices := apptest.Notices(t, s.HTMXGet(t, "/ingredients/sheet?picked=salmone").Body); len(notices) > 0 {
 		t.Errorf("picking an Ingredient the User doesn't have confirms %q", notices)
 	}
 
@@ -283,7 +283,7 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("confirming eggs from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
 	}
-	if notices := apptest.Notices(added.Body); !slices.Equal(notices, []string{"Added eggs."}) {
+	if notices := apptest.Notices(t, added.Body); !slices.Equal(notices, []string{"Added eggs."}) {
 		t.Errorf("confirming eggs from the sheet confirms %q", notices)
 	}
 }

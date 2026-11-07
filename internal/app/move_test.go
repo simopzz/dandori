@@ -293,7 +293,7 @@ func TestAMovePostedAsHTMX(t *testing.T) {
 	if got := apptest.Form(t, refused.Body, "move-form").Get("quantity"); got != "900" {
 		t.Errorf("the refused move holds %q, want what was typed", got)
 	}
-	if notices := apptest.Notices(refused.Body); len(notices) > 0 {
+	if notices := apptest.Notices(t, refused.Body); len(notices) > 0 {
 		t.Errorf("the refused move confirms %q", notices)
 	}
 
@@ -302,7 +302,7 @@ func TestAMovePostedAsHTMX(t *testing.T) {
 	if moved.StatusCode != http.StatusOK || strings.Contains(moved.Body, "<html") {
 		t.Fatalf("the move answered %d, want 200 and a fragment:\n%s", moved.StatusCode, moved.Body)
 	}
-	if notices := apptest.Notices(moved.Body); !slices.Equal(notices, []string{"Moved 300 g of rice to the freezer."}) {
+	if notices := apptest.Notices(t, moved.Body); !slices.Equal(notices, []string{"Moved 300 g of rice to the freezer."}) {
 		t.Errorf("the move confirms %q", notices)
 	}
 	if strings.Contains(moved.Body, "<form") {

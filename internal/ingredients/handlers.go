@@ -102,8 +102,7 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !fragment {
-		web.Confirm(w, r, web.Tf(r.Context(), msgAdded, ing.Name))
-		http.Redirect(w, r, "/ingredients", http.StatusSeeOther)
+		web.RedirectWithNotice(w, r, "/ingredients", web.Tf(r.Context(), msgAdded, ing.Name))
 		return
 	}
 	h.render(w, r, http.StatusOK, AddForm{Added: ing.Name}, "", true)
@@ -131,7 +130,7 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, f A
 	if fragment {
 		body := sheetBody(ings, f, q)
 		if notice != "" {
-			body = web.Confirmed(body, notice)
+			body = web.FragmentWithNotice(body, notice)
 		}
 		httpx.Render(w, r, h.Log, status, body)
 		return
