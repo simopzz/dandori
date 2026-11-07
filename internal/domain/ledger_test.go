@@ -115,6 +115,9 @@ func lastLinesAgree(t *testing.T, movements []domain.Movement) {
 		}
 		for _, key := range keys {
 			touched := l.Movements(key)
+			if len(touched) == 0 {
+				t.Fatalf("%v has no Movements, though one touched it", key)
+			}
 			if last := touched[len(touched)-1].After; last != held[key].Held {
 				t.Errorf("%v's Movements end on %d, but the Ledger holds %d", key, last, held[key].Held)
 			}
