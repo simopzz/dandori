@@ -699,22 +699,23 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 }
 
 .notice {
-  --notice-time: 6s;
+  --notice-time: 5s;
   --focus-ring: 2px solid var(--color-shell-marker); /* vermilion is about 2:1 on navy */
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
-  max-width: 28rem;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  max-width: 24rem;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  font-size: 0.875rem;
   background: var(--color-fill);
   color: var(--color-on-fill);
   pointer-events: auto;
   animation: notice-time var(--notice-time) linear forwards;
 }
 
-.notice-text { flex: 1; margin: 0; padding: var(--space-2) 0; }
+.notice-text { flex: 1; margin: 0; padding: var(--space-1) 0; line-height: 1.5; }
 
 .notice .btn-text { flex: none; color: inherit; }
 

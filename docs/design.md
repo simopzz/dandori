@@ -164,7 +164,7 @@ wrong: a refusal stays on its field, and a failure is an `Alert`.
   the rail. Several stack, newest first.
 - **What**: a navy block, the pixel check, paper text and a `Close` with the
   44px target; a paper line round its inside edge is its time, draining
-  clockwise in steps. It drops in, and after about 6 seconds rises out and is
+  clockwise in steps. It drops in, and after about 5 seconds rises out and is
   gone. Hovering it, or focus in it, stops its time. `role="status"`, so it is
   announced.
 - **How a page gives one**: a plain post answers with
