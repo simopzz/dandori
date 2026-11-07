@@ -107,3 +107,15 @@ func saveMove(ctx context.Context, q db.Querier, at time.Time, id int64, from, t
 		at, id, string(from), string(to), moved.Number(), string(domain.Moved), note)
 	return err
 }
+
+// HasMovements says whether any Movement of the signed-in User's refers to the Ingredient
+// id, for the Ingredients, whose unit is then fixed. It holds the kitchen first, as a
+// Count or move does, so none of them writes a Movement of it until q's transaction ends.
+func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
+	if err := lockKitchen(ctx, q); err != nil {
+		return false, err
+	}
+	var has bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM movement WHERE ingredient_id = $1)`, id).Scan(&has)
+	return has, err
+}

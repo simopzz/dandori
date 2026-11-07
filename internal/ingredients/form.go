@@ -2,6 +2,7 @@ package ingredients
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -25,6 +26,28 @@ type AddForm struct {
 	Suggested, Picked string
 	// Counting says the User is adding it to count it, from a Count's offer.
 	Counting bool
+}
+
+// EditForm is the edit form of the Ingredient ID, when it was posted and refused: the
+// form as typed, and why it was refused, by field, or why the Ingredient wasn't deleted.
+type EditForm struct {
+	ID int64
+	AddForm
+	DeleteErr string
+}
+
+// editFormOf is the edit form of ing as it is, before anything is typed.
+func editFormOf(ing domain.Ingredient) EditForm {
+	f := EditForm{ID: ing.ID, AddForm: AddForm{Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Values: map[string]string{}}}
+	n := ing.Nutrition
+	for field, a := range map[string]domain.Amount{
+		"kcal": n.Kcal, "protein": n.Protein, "carbs": n.Carbs, "fat": n.Fat, "fibre": n.Fibre, "sugar": n.Sugar,
+	} {
+		if a.Known {
+			f.Values[field] = strconv.FormatFloat(a.Value, 'f', -1, 64)
+		}
+	}
+	return f
 }
 
 // parseAddForm reads the add form posted in r as an Ingredient, and the form as typed

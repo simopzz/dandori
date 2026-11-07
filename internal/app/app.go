@@ -70,7 +70,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, kitchen.HasMovements)}
 	a.kitchen = kitchen.New(pool, log, a.ingredients)
 	a.today = today.New(a.profile, a.kitchen)
 	if err := a.ping(ctx); err != nil {
@@ -146,6 +146,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /ingredients/list", signedIn(ings.ShowList))
 	mux.Handle("GET /ingredients/suggestion", signedIn(ings.ShowSuggestion))
 	mux.Handle("POST /ingredients", signedIn(ings.Add))
+	mux.Handle("POST /ingredients/{id}", signedIn(ings.Edit))
+	mux.Handle("POST /ingredients/{id}/delete", signedIn(ings.Delete))
 	return otelhttp.NewHandler(web.Languages(web.Notices(named(mux))), "request",
 		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
