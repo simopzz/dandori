@@ -393,3 +393,24 @@ func TestBrowserMovesStockInPlace(t *testing.T) {
 	b.IsAt(t, "/kitchen")
 	b.Shot(t, "move-confirmed")
 }
+
+// A move that waited behind a later Movement happens after it, so its Stock Items'
+// Movements end on what the Kitchen page shows.
+func TestAMoveHappensAfterTheMovementItWaitedBehind(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.At("Mon 10:00")
+	s.Counts("rice", "", "100", "")
+	s.CountsAgainASecondAhead()
+	s.Moves("Move rice in the pantry", "", "fridge", "")
+	recordedAtTheLatest(t, s, 2)
+
+	s.At("Mon 10:01")
+	s.Open("/kitchen")
+	s.DoesNotSee("Pantry")
+	s.Sees("Fridge rice 100 g")
+	s.Follows("rice")
+	s.Follows("Pantry")
+	s.Sees("Moved to the fridge 100 g → 0 g Mon 2 Nov 10:00 " +
+		"Counted 100 g → 100 g Mon 2 Nov 10:00 " +
+		"Counted 0 g → 100 g Mon 2 Nov 10:00")
+}

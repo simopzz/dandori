@@ -327,6 +327,20 @@ func (s *Scenario) Moves(link, quantity, to, note string) {
 	s.record(fmt.Sprintf("%s: %s to %q: %d %s", link, quantity, to, s.page.StatusCode, s.page.Path))
 }
 
+// CountsAgainASecondAhead stands in for a Count that took hold of the kitchen first with
+// a clock a second ahead of the app's: it repeats the ledger's one Count a second after
+// it, changing nothing.
+func (s *Scenario) CountsAgainASecondAhead() {
+	s.t.Helper()
+	s.Exec(s.t, `
+		INSERT INTO movement (user_id, happened_at, ingredient_id, storage_location, change,
+			cause_kind, believed, stated)
+		SELECT user_id, happened_at + interval '1 second', ingredient_id, storage_location, 0,
+			'counted', stated, stated
+		FROM movement`)
+	s.record("counts again, a second ahead")
+}
+
 // Counts counts name with the Count form, as a browser without htmx: it finds the
 // Ingredient, keeps its usual Storage Location unless location is given, and states
 // stated, with note.

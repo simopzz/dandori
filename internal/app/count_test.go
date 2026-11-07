@@ -774,3 +774,33 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 		t.Errorf("without motion the Notice stays once its time has run out: %v", err)
 	}
 }
+
+// A Count that waited behind a later Movement happens after it, so its Stock Item's
+// Movements end on what the Kitchen page shows.
+func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.At("Mon 10:00")
+	s.Counts("rice", "", "100", "")
+	s.CountsAgainASecondAhead()
+	s.Counts("rice", "", "30", "")
+	recordedAtTheLatest(t, s, 2)
+
+	s.At("Mon 10:01")
+	s.Open("/kitchen")
+	s.Sees("rice 30 g")
+	s.Follows("rice")
+	s.Sees("Counted 100 g → 30 g Mon 2 Nov 10:00 " +
+		"Counted 100 g → 100 g Mon 2 Nov 10:00 " +
+		"Counted 0 g → 100 g Mon 2 Nov 10:00")
+}
+
+// recordedAtTheLatest checks the last want Movements share the ledger's latest time,
+// which no page shows to the second.
+func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {
+	t.Helper()
+	var n int
+	s.Scan(t, &n, `SELECT count(*) FROM movement WHERE happened_at = (SELECT max(happened_at) FROM movement)`)
+	if n != want {
+		t.Errorf("%d Movements are at the latest time, want %d", n, want)
+	}
+}
