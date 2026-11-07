@@ -147,31 +147,28 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ing, ok, err := h.Service.ingredients.Find(ctx, id)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "find the Ingredient to count", err)
+	var (
+		f        CountForm
+		location domain.StorageLocation
+		stated   domain.Quantity
+	)
+	holding, err := h.Service.Count(ctx, now, id, func(ing domain.Ingredient) (domain.StorageLocation, domain.Quantity, bool) {
+		location, stated, f = parseCountForm(r, ing)
+		return location, stated, len(f.Errs) == 0
+	}, r.PostFormValue("note"))
+	switch {
+	case errors.Is(err, ErrStaple):
+		f.Errs["stated"] = web.Tf(ctx, msgStaple, holding.Ingredient.Name)
+	case err != nil:
+		httpx.ServerError(w, r, h.Log, "save a Count", err)
 		return
-	}
-	if !ok {
+	case holding == nil:
 		http.NotFound(w, r)
 		return
 	}
-	location, stated, f := parseCountForm(r, ing)
-	if len(f.Errs) == 0 {
-		err = h.Service.Count(ctx, now, id, location, stated, f.Note)
-		switch {
-		case errors.Is(err, ErrStaple):
-			f.Errs["stated"] = web.Tf(ctx, msgStaple, ing.Name)
-		case err != nil:
-			httpx.ServerError(w, r, h.Log, "save a Count", err)
-			return
-		}
-	}
+	ing := holding.Ingredient
 	if len(f.Errs) > 0 {
-		if f.Believed, err = h.Service.Believed(ctx, now, id); err != nil {
-			httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
-			return
-		}
+		f.Believed = holding.Held
 		h.answer(w, r, http.StatusUnprocessableEntity, now, f, "")
 		return
 	}
@@ -213,19 +210,19 @@ func (h Handlers) startMove(w http.ResponseWriter, r *http.Request) *MoveForm {
 		http.NotFound(w, r)
 		return nil
 	}
-	ing, believed, ok, err := h.Service.StartCount(r.Context(), h.Clock.Now(), id)
+	holding, err := h.Service.Holding(r.Context(), h.Clock.Now(), id)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "start a move", err)
 		return nil
 	}
 	from := domain.StorageLocation(r.URL.Query().Get("location"))
-	if !ok || believed[from] <= 0 {
+	if holding == nil || holding.Held[from] <= 0 {
 		http.NotFound(w, r)
 		return nil
 	}
 	return &MoveForm{
-		Ingredient: ing, From: from, Believed: believed,
-		Quantity: strconv.FormatFloat(believed[from].Number(), 'f', -1, 64),
+		Ingredient: holding.Ingredient, From: from, Believed: holding.Held,
+		Quantity: strconv.FormatFloat(holding.Held[from].Number(), 'f', -1, 64),
 	}
 }
 
@@ -241,32 +238,32 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	from := domain.StorageLocation(r.PostFormValue("location"))
-	ing, ok, err := h.Service.ingredients.Find(ctx, id)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "find the Ingredient to move", err)
-		return
-	}
-	if !ok || !slices.Contains(domain.StorageLocations, from) {
+	if !slices.Contains(domain.StorageLocations, from) {
 		http.NotFound(w, r)
 		return
 	}
-	moved, f := parseMoveForm(r, ing, from)
-	if len(f.Errs) == 0 {
-		var refused MoveRefused
-		err = h.Service.Move(ctx, now, id, from, f.To, moved, f.Note)
-		switch {
-		case errors.As(err, &refused):
-			f.Errs["quantity"] = refusal(ctx, refused, ing.Unit)
-		case err != nil:
-			httpx.ServerError(w, r, h.Log, "save a move", err)
-			return
-		}
+	var (
+		f     MoveForm
+		moved domain.Quantity
+	)
+	holding, err := h.Service.Move(ctx, now, id, from, func(ing domain.Ingredient) (domain.StorageLocation, domain.Quantity, bool) {
+		moved, f = parseMoveForm(r, ing, from)
+		return f.To, moved, len(f.Errs) == 0
+	}, r.PostFormValue("note"))
+	var refused MoveRefused
+	switch {
+	case errors.As(err, &refused):
+		f.Errs["quantity"] = refusal(ctx, refused, holding.Ingredient.Unit)
+	case err != nil:
+		httpx.ServerError(w, r, h.Log, "save a move", err)
+		return
+	case holding == nil:
+		http.NotFound(w, r)
+		return
 	}
+	ing := holding.Ingredient
 	if len(f.Errs) > 0 {
-		if f.Believed, err = h.Service.Believed(ctx, now, id); err != nil {
-			httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
-			return
-		}
+		f.Believed = holding.Held
 		if httpx.IsHTMX(r) {
 			httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, moveForm(f))
 			return
@@ -317,17 +314,18 @@ func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now
 }
 
 // startCount is the Count form as query asks for it: its Ingredient ingredient chosen, if
-// Service.StartCount allows it, in its Storage Location location or else its usual one;
-// or else the search for q.
+// the signed-in User has it and it is no Staple, in its Storage Location location or else
+// its usual one; or else the search for q.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
 	f := CountForm{Query: strings.TrimSpace(query.Get("q"))}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {
-		ing, believed, ok, err := h.Service.StartCount(ctx, now, id)
+		holding, err := h.Service.Holding(ctx, now, id)
 		if err != nil {
 			return f, err
 		}
-		if ok {
-			f.Ingredient, f.Location, f.Believed = &ing, ing.Usual, believed
+		if holding != nil && !holding.Ingredient.Staple {
+			ing := holding.Ingredient
+			f.Ingredient, f.Location, f.Believed = &ing, ing.Usual, holding.Held
 			if location := domain.StorageLocation(query.Get("location")); slices.Contains(domain.StorageLocations, location) {
 				f.Location = location
 			}

@@ -59,7 +59,7 @@ func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
 		if err != nil {
 			return err
 		}
-		items := domain.AddUp(movements, now)
+		items := domain.NewLedger(movements).At(now)
 		for _, location := range domain.StorageLocations {
 			for _, ing := range ings {
 				item := items[domain.StockKey{Ingredient: ing.ID, Location: location}]
@@ -98,7 +98,7 @@ func (s *Service) StockItemMovements(ctx context.Context, id int64, location dom
 		if err != nil {
 			return err
 		}
-		touched := domain.StockMovements(movements, domain.StockKey{Ingredient: id, Location: location})
+		touched := domain.NewLedger(movements).Movements(domain.StockKey{Ingredient: id, Location: location})
 		slices.Reverse(touched)
 		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: touched}
 		return nil
@@ -106,49 +106,36 @@ func (s *Service) StockItemMovements(ctx context.Context, id int64, location dom
 	return item, err
 }
 
-// Believed is what the signed-in User's Kitchen Ledger believes each Storage Location
-// holds of the Ingredient id at now, as loadBelieved adds it up.
-func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (believed map[domain.StorageLocation]domain.Quantity, err error) {
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		believed, err = loadBelieved(ctx, tx, now, id)
-		return err
-	})
-	return believed, err
-}
-
-// StartCount is what a Count of the Ingredient id starts from: the Ingredient, and what
-// Dandori believes each Storage Location holds of it at now, read together. ok is false
-// when it can't be counted: the signed-in User hasn't got it, or it is a Staple.
-func (s *Service) StartCount(ctx context.Context, now time.Time, id int64) (ing domain.Ingredient, believed map[domain.StorageLocation]domain.Quantity, ok bool, err error) {
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		ing, ok, err = ingredients.LoadIngredient(ctx, tx, id)
-		if err != nil || !ok {
-			return err
-		}
-		if ing.Staple {
-			ok = false
-			return nil
-		}
-		believed, err = loadBelieved(ctx, tx, now, id)
-		return err
-	})
-	return ing, believed, ok, err
-}
-
-// loadBelieved adds up what each Storage Location holds of the Ingredient id at now. A
+// Holding is an Ingredient and what each Storage Location holds of it, read together. A
 // Storage Location no Movement of it has reached has no entry.
-func loadBelieved(ctx context.Context, q db.Querier, now time.Time, id int64) (map[domain.StorageLocation]domain.Quantity, error) {
+type Holding struct {
+	Ingredient domain.Ingredient
+	Held       map[domain.StorageLocation]domain.Quantity
+}
+
+// Holding is the signed-in User's Ingredient id and what each Storage Location holds of
+// it at now, or nil if they have no such Ingredient.
+func (s *Service) Holding(ctx context.Context, now time.Time, id int64) (holding *Holding, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		holding, _, err = loadHolding(ctx, tx, now, id)
+		return err
+	})
+	return holding, err
+}
+
+// loadHolding is the Holding of the Ingredient id, or nil if there is none, as a Movement
+// written at now would find it, with the Ledger that adds it up.
+func loadHolding(ctx context.Context, q db.Querier, now time.Time, id int64) (*Holding, domain.Ledger, error) {
+	ing, ok, err := ingredients.LoadIngredient(ctx, q, id)
+	if err != nil || !ok {
+		return nil, domain.Ledger{}, err
+	}
 	movements, err := loadMovements(ctx, q)
 	if err != nil {
-		return nil, err
+		return nil, domain.Ledger{}, err
 	}
-	believed := make(map[domain.StorageLocation]domain.Quantity, len(domain.StorageLocations))
-	for key, item := range domain.AddUp(movements, now) {
-		if key.Ingredient == id {
-			believed[key.Location] = item.Held
-		}
-	}
-	return believed, nil
+	l := domain.NewLedger(movements)
+	return &Holding{Ingredient: ing, Held: l.HeldAt(l.WriteAt(now), id)}, l, nil
 }
 
 // Countable is the signed-in User's Ingredients a search for query finds, Staples left
@@ -173,55 +160,31 @@ func (s *Service) Countable(ctx context.Context, l domain.Language, query string
 	return found, staple, nil
 }
 
-// Count records at the Count of the Ingredient id in location: stated is what the User
-// says is there, and what Dandori believed is read here, once the kitchen is held, in the
-// transaction that writes it, so the difference is from the Kitchen Ledger as it stands
-// and not as a form showed it, and it happens no earlier than the Movement it was checked
-// against (loadHeld). A Count that changes nothing is recorded like any other. Counting a
-// Staple is ErrStaple.
-func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+// Count records at now the Count of the Ingredient id that read takes from the User's
+// form once it has the Ingredient: the Storage Location, what the User says is there,
+// and ok, false if the form is refused, which records nothing. All is read once the
+// kitchen is held, in the transaction that writes it, so the Count is of the Kitchen
+// Ledger as it stands and not as a form showed it, and is the Holding as read then, or
+// nil if the signed-in User has no such Ingredient. Counting a Staple is ErrStaple.
+func (s *Service) Count(ctx context.Context, now time.Time, id int64, read func(domain.Ingredient) (domain.StorageLocation, domain.Quantity, bool), note string) (holding *Holding, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockKitchen(ctx, tx); err != nil {
 			return err
 		}
-		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
-		if err != nil {
+		var l domain.Ledger
+		if holding, l, err = loadHolding(ctx, tx, now, id); err != nil || holding == nil {
 			return err
 		}
-		if !ok {
-			return errors.New("count: the User has no such Ingredient")
-		}
-		if ing.Staple {
+		location, stated, ok := read(holding.Ingredient)
+		switch {
+		case !ok:
+			return nil
+		case holding.Ingredient.Staple:
 			return ErrStaple
 		}
-		believed, at, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: location})
-		if err != nil {
-			return err
-		}
-		return saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
+		return saveMovement(ctx, tx, l.Count(now, domain.StockKey{Ingredient: id, Location: location}, stated, strings.TrimSpace(note)))
 	})
-}
-
-// loadHeld is what the Stock Item key holds for a Count or a move that has the kitchen,
-// and the moment to record it at: heldAt of at, so it happens no earlier than the
-// Movement it was checked against.
-func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, time.Time, error) {
-	movements, err := loadMovements(ctx, q)
-	if err != nil {
-		return 0, at, err
-	}
-	at = heldAt(movements, at)
-	return domain.AddUp(movements, at)[key].Held, at, nil
-}
-
-// heldAt is the moment to add movements up to for a write at at that has hold of the
-// kitchen: at, or the last Movement's time, if one that overlapped it took the lock first
-// with a later time, so what that wrote is believed all the same.
-func heldAt(movements []domain.Movement, at time.Time) time.Time {
-	if n := len(movements); n > 0 && movements[n-1].At.After(at) {
-		return movements[n-1].At
-	}
-	return at
+	return holding, err
 }
 
 // MoveRefused is a move domain.CheckMove refused: why, and what was held.
@@ -232,33 +195,40 @@ type MoveRefused struct {
 
 func (r MoveRefused) Error() string { return "move refused: " + string(r.Problem) }
 
-// Move records at a move of moved of the Ingredient id from one Storage Location to
-// another. What is held is read here, once the kitchen is held, so a move is checked
-// against the Kitchen Ledger as it stands and not as a form showed it, and happens no
-// earlier than the Movement it was checked against (loadHeld). A move that
-// domain.CheckMove refuses is MoveRefused, and writes nothing.
-func (s *Service) Move(ctx context.Context, at time.Time, id int64, from, to domain.StorageLocation, moved domain.Quantity, note string) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+// Move records at now a move of the Ingredient id from one Storage Location that read
+// takes from the User's form once it has the Ingredient: where to and how much, and ok,
+// false if the form is refused, which records nothing. All is read once the kitchen is
+// held, so a move is checked against the Kitchen Ledger as it stands and not as a form
+// showed it, and is the Holding as read then, or nil if the signed-in User has no such
+// Ingredient. A move domain.CheckMove refuses is MoveRefused, and writes nothing.
+func (s *Service) Move(ctx context.Context, now time.Time, id int64, from domain.StorageLocation, read func(domain.Ingredient) (domain.StorageLocation, domain.Quantity, bool), note string) (holding *Holding, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockKitchen(ctx, tx); err != nil {
 			return err
 		}
-		held, at, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: from})
-		if err != nil {
+		var l domain.Ledger
+		if holding, l, err = loadHolding(ctx, tx, now, id); err != nil || holding == nil {
 			return err
 		}
-		if problem := domain.CheckMove(held, moved); problem != "" {
+		to, moved, ok := read(holding.Ingredient)
+		if !ok {
+			return nil
+		}
+		m, problem, held := l.Move(now, domain.StockKey{Ingredient: id, Location: from}, to, moved, strings.TrimSpace(note))
+		if problem != "" {
 			return MoveRefused{Problem: problem, Held: held}
 		}
-		return saveMove(ctx, tx, at, id, from, to, moved, strings.TrimSpace(note))
+		return saveMovement(ctx, tx, m)
 	})
+	return holding, err
 }
 
 // CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
-// some of it to nothing at at, as marking it a Staple does, in q's transaction, and is
+// some of it to nothing at now, as marking it a Staple does, in q's transaction, and is
 // what each held, in Storage Location order. It holds the kitchen first, as a Count
 // does, so no Count or move of it slips in before q's transaction ends. The Ingredients
 // call it, and app wires it, as this feature depends on theirs.
-func CountToNothing(ctx context.Context, q db.Querier, at time.Time, id int64) ([]ingredients.CountedToNothing, error) {
+func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) ([]ingredients.CountedToNothing, error) {
 	if err := lockKitchen(ctx, q); err != nil {
 		return nil, err
 	}
@@ -266,18 +236,12 @@ func CountToNothing(ctx context.Context, q db.Querier, at time.Time, id int64) (
 	if err != nil {
 		return nil, err
 	}
-	at = heldAt(movements, at)
-	items := domain.AddUp(movements, at)
 	var counted []ingredients.CountedToNothing
-	for _, location := range domain.StorageLocations {
-		held := items[domain.StockKey{Ingredient: id, Location: location}].Held
-		if held <= 0 {
-			continue
-		}
-		if err := saveStapleCount(ctx, q, at, id, location, held); err != nil {
+	for _, m := range domain.NewLedger(movements).CountToNothing(now, id) {
+		if err := saveMovement(ctx, q, m); err != nil {
 			return nil, err
 		}
-		counted = append(counted, ingredients.CountedToNothing{Location: location, Believed: held})
+		counted = append(counted, ingredients.CountedToNothing{Location: m.Key.Location, Believed: m.Believed})
 	}
 	return counted, nil
 }
