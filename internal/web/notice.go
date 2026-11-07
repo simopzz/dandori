@@ -113,6 +113,12 @@ type Answer struct {
 	Notice, Trigger, RedirectTo string
 }
 
+// Redirects reports whether a answers r with its redirect whatever its Page and Fragment,
+// so a write needn't load what they show.
+func (a Answer) Redirects(r *http.Request) bool {
+	return a.RedirectTo != "" && !httpx.IsHTMX(r)
+}
+
 // Write answers r with a.
 func (a Answer) Write(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
 	status := a.Status
@@ -124,13 +130,16 @@ func (a Answer) Write(w http.ResponseWriter, r *http.Request, log *slog.Logger) 
 			w.Header().Set("HX-Trigger", a.Trigger)
 		}
 		body := a.Fragment
+		if body == nil {
+			body = templ.NopComponent
+		}
 		if a.Notice != "" {
 			body = FragmentWithNotice(a.Fragment, a.Notice)
 		}
 		httpx.Render(w, r, log, status, body)
 		return
 	}
-	if a.RedirectTo != "" {
+	if a.RedirectTo != "" { // a plain browser, or htmx from a boosted form
 		redirectWithNotice(w, r, a.RedirectTo, a.Notice)
 		return
 	}

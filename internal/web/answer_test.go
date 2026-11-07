@@ -46,6 +46,9 @@ func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 		{name: "htmx, saved, only confirming", htmx: true,
 			answer: Answer{Notice: "Moved.", Trigger: "moved, close", RedirectTo: "/done"},
 			status: http.StatusOK, has: []string{"Moved."}, trigger: "moved, close"},
+		{name: "htmx, saved, only triggering", htmx: true,
+			answer: Answer{Trigger: "moved"},
+			status: http.StatusOK, trigger: "moved"},
 		{name: "htmx, saved, from a boosted form", htmx: true,
 			answer: Answer{Notice: "Saved.", RedirectTo: "/done"},
 			status: http.StatusSeeOther, location: "/done"},
@@ -85,6 +88,9 @@ func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 			}
 			if got := w.Header().Get("Location"); got != tc.location {
 				t.Errorf("Location %q, want %q", got, tc.location)
+			}
+			if got, want := tc.answer.Redirects(r), tc.location != "" && !tc.htmx; got != want {
+				t.Errorf("Redirects is %v, want %v", got, want)
 			}
 			if tc.location != "" && !strings.Contains(w.Header().Get("Set-Cookie"), noticeCookie+"=") {
 				t.Errorf("a redirect carries no Notice: %v", w.Header())

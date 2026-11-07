@@ -168,15 +168,19 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: countPage(now, f), Fragment: countBody(f)}.Write(w, r, h.Log)
 		return
 	}
-	cleared, err := h.startCount(ctx, now, nil)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "start a Count", err)
-		return
-	}
-	web.Answer{
-		Fragment: countBody(cleared), Trigger: movementSaved, RedirectTo: "/kitchen/count",
+	a := web.Answer{
+		Trigger: movementSaved, RedirectTo: "/kitchen/count",
 		Notice: web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location])),
-	}.Write(w, r, h.Log)
+	}
+	if !a.Redirects(r) {
+		cleared, err := h.startCount(ctx, now, nil)
+		if err != nil {
+			httpx.ServerError(w, r, h.Log, "start a Count", err)
+			return
+		}
+		a.Fragment = countBody(cleared)
+	}
+	a.Write(w, r, h.Log)
 }
 
 // ShowMove is the form that moves a Stock Item as a page of its own, for a browser
