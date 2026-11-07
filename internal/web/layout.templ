@@ -93,10 +93,9 @@ templ showNotices() {
 	<script>
 		(() => {
 			const top = () => document.activeElement?.closest("dialog:modal") ?? [...document.querySelectorAll("dialog:modal")].pop();
-			// place puts the Notices in the top sheet, or the body, keeping their time.
-			const place = () => {
+			// place puts the Notices in host, the top sheet or body, keeping their time.
+			const place = (host = top() ?? document.body) => {
 				const box = document.getElementById("notices");
-				const host = top() ?? document.body;
 				if (!box || box.parentElement === host) return box;
 				const times = box.getAnimations({ subtree: true }).map((a) => [a.effect.target, a.animationName, a.currentTime]);
 				host.append(box);
@@ -121,6 +120,13 @@ templ showNotices() {
 			document.addEventListener("DOMContentLoaded", raise);
 			document.addEventListener("htmx:before:swap", place);
 			document.addEventListener("htmx:after:swap", raise);
+			// A closed sheet takes their time with it: they leave as it starts to close.
+			document.addEventListener("beforetoggle", (e) => {
+				const sheet = e.target;
+				if (e.newState !== "closed" || !(sheet instanceof HTMLDialogElement) || !sheet.contains(document.getElementById("notices"))) return;
+				const box = place([...document.querySelectorAll("dialog:modal")].filter((d) => d !== sheet).pop() ?? document.body);
+				if (box.children.length) box.showPopover();
+			}, true);
 			document.addEventListener("close", (e) => { if (e.target.contains(document.getElementById("notices"))) raise(); }, true);
 			document.addEventListener("animationend", (e) => {
 				if (e.target.matches(".notice") && (e.animationName === "notice-time" || e.animationName === "notice-wait")) dismiss(e.target);

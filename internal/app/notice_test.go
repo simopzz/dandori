@@ -98,3 +98,47 @@ func TestBrowserANoticeOnAPhoneWithTheKeyboardUp(t *testing.T) {
 		t.Errorf("the focused Close isn't ringed in salmon: %v", err)
 	}
 }
+
+// A floating Notice keeps its time as the sheet it shows over closes, from a tap outside
+// it: it doesn't start again.
+func TestBrowserANoticeKeepsItsTimeAsTheSheetCloses(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	addsRiceInTheBrowser(t, b)
+	expect := playwright.NewPlaywrightAssertions()
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}).First().Click(); err != nil {
+		t.Fatalf("open the Count sheet: %v", err)
+	}
+	if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "rice"}).Click(); err != nil {
+		t.Fatalf("choose rice: %v", err)
+	}
+	if err := sheet.GetByLabel("How much is there").Fill("700"); err != nil {
+		t.Fatalf("state the quantity: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
+		t.Fatalf("save the Count: %v", err)
+	}
+	b.IsConfirmed(t, "Counted rice: 700 g in the pantry.")
+	notice := b.Notices().Filter(playwright.LocatorFilterOptions{HasText: "Counted rice"})
+	// Three seconds of its time have gone.
+	if _, err := notice.Evaluate(`(n) => n.getAnimations({ subtree: true }).forEach((a) => { a.currentTime = 3000 })`, nil); err != nil {
+		t.Fatalf("move the Notice's time on: %v", err)
+	}
+
+	// The screen's left edge, halfway down, is outside the sheet on a desktop.
+	if err := b.Mouse().Click(8, 360); err != nil {
+		t.Fatalf("tap outside the Count sheet: %v", err)
+	}
+	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+		t.Fatalf("a tap outside doesn't close the Count sheet: %v", err)
+	}
+	b.IsConfirmed(t, "Counted rice: 700 g in the pantry.")
+	kept, err := notice.Evaluate(`(n) => n.getAnimations().find((a) => a.animationName === "notice-time")?.currentTime >= 3000`, nil)
+	if err != nil {
+		t.Fatalf("read the Notice's time: %v", err)
+	}
+	if kept != true {
+		t.Errorf("the Notice's time started again as the sheet closed")
+	}
+}

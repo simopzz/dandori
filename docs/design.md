@@ -178,7 +178,8 @@ wrong: a refusal stays on its field, and a failure is an `Alert`.
 - **Its script**: `Layout`'s `showNotices` raises the Notices into the top
   layer as a popover, after the sheets, as a page loads and after each swap.
   An open sheet makes the rest of the page inert, so they go inside the top
-  sheet, still drawn over it, and back when it closes, keeping their time.
+  sheet, still drawn over it, and leave it as it starts to close (on
+  `beforetoggle`, while they still have their animations), keeping their time.
   They move before a swap adds a Notice, so it lands in a live region already
   in place, and is announced. It
   takes a Notice away when its time (the `notice-time` animation in `app.css`)
