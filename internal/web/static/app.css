@@ -717,12 +717,16 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
   max-width: none;
   max-height: 90dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 0;
   border-top: 1px solid var(--color-rule-strong);
   background: var(--color-surface);
   color: var(--color-text);
   padding: var(--space-5) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));
 }
+
+/* the page behind an open sheet holds still */
+html:has(dialog:modal) { overflow: hidden; }
 
 .sheet-link { display: inline-flex; align-items: center; min-height: var(--tap); }
 

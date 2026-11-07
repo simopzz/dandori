@@ -350,20 +350,16 @@ templ Tag(accent bool, title string) {
 // form, the children, as a sheet. open shows it already open, for a
 // rejected submission, with focus on the first rejected field.
 templ AddSheet(id, title string, open bool) {
-	<button class="fab" type="button" popovertarget={ id } aria-label={ title }>
+	<button class="fab" type="button" commandfor={ id } command="show-modal" aria-label={ title }>
 		@Icon("plus")
 	</button>
-	<div id={ id } class="sheet" popover role="dialog" aria-labelledby={ id + "-title" } data-open?={ open }>
-		<div class="sheet-head">
-			<h2 id={ id + "-title" }>{ title }</h2>
-			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">{ T(ctx, msgClose) }</button>
-		</div>
+	@sheet(id, "sheet", title, open) {
 		{ children... }
-	</div>
+	}
 	if open {
 		<script>
 			for (const sheet of document.querySelectorAll(".sheet[data-open]")) {
-				sheet.showPopover();
+				sheet.showModal();
 				sheet.querySelector("[aria-invalid=true]")?.focus();
 			}
 		</script>
@@ -374,14 +370,42 @@ templ AddSheet(id, title string, open bool) {
 // from the right on desktop, from the bottom on a phone. Its body is empty until a
 // SideSheetLink loads it.
 templ SideSheet(id, title string) {
-	<div id={ id } class="sheet side-sheet" popover role="dialog" aria-labelledby={ id + "-title" }>
+	@sheet(id, "sheet side-sheet", title, false) {
+		@SheetBody(id)
+	}
+}
+
+// sheet is a modal dialog of class titled title, the children under its head: the page
+// behind it is inert, and a tap on the veil or Esc closes it, the top one of several.
+// closedby="any" closes it on the veil where the browser knows it; where it doesn't, a
+// press that both starts and ends on the veil does, so dragging out of a field doesn't
+// close it. open marks it to open as the page loads.
+templ sheet(id, class, title string, open bool) {
+	<dialog
+		id={ id }
+		class={ class }
+		closedby="any"
+		aria-labelledby={ id + "-title" }
+		data-open?={ open }
+		{ veilCloses... }
+	>
 		<div class="sheet-head">
 			<h2 id={ id + "-title" }>{ title }</h2>
-			<button type="button" class="btn-text" popovertarget={ id } popovertargetaction="hide">{ T(ctx, msgClose) }</button>
+			<button type="button" class="btn-text" commandfor={ id } command="close">{ T(ctx, msgClose) }</button>
 		</div>
-		@SheetBody(id)
-	</div>
+		{ children... }
+	</dialog>
 }
+
+// veilCloses closes a sheet on a press that starts and ends on its veil, for a browser
+// that doesn't know closedby.
+var veilCloses = templ.Attributes{
+	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && " + onVeil,
+	"hx-on:click":       "if (this.veilPressed && " + onVeil + ") this.close()",
+}
+
+// onVeil is whether the pointer event, on a sheet, is outside its box: on its backdrop.
+const onVeil = `event.target === this && ((r) => event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom)(this.getBoundingClientRect())`
 
 // SheetBody is the body of the sheet id, an AddSheet's or a SideSheet's, for one whose
 // content swaps in place; the children are what it starts with. Each swap into it opens
@@ -392,7 +416,7 @@ templ SheetBody(id string) {
 	<div
 		id={ SideSheetBody(id) }
 		class="sheet-body"
-		hx-on:htmx:after:swap="if (event.detail.ctx.target !== this) return; const s = this.closest('.sheet'); if (!s.matches(':popover-open')) s.showPopover(); (this.querySelector('[aria-invalid=true]') ?? this.querySelector('[autofocus]'))?.focus()"
+		hx-on:htmx:after:swap="if (event.detail.ctx.target !== this) return; const s = this.closest('.sheet'); if (!s.open) s.showModal(); (this.querySelector('[aria-invalid=true]') ?? this.querySelector('[autofocus]'))?.focus()"
 	>
 		{ children... }
 	</div>
@@ -422,7 +446,7 @@ templ SideSheetLinkWith(id string, href, src templ.SafeURL, attrs templ.Attribut
 		hx-target={ "#" + SideSheetBody(id) }
 		hx-swap="innerHTML"
 		data-sheet={ id }
-		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.matches(':popover-open')) s.showPopover({ source: this }); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea'))?.focus()"
+		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.open) s.showModal(); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea'))?.focus()"
 		{ attrs... }
 	>
 		{ children... }

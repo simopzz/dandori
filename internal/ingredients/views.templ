@@ -139,7 +139,7 @@ templ addForm(f AddForm) {
 		hx-target={ "#" + web.SideSheetBody(SheetID) }
 		hx-swap="innerHTML"
 		if f.Counting {
-			hx-on:htmx:after:swap="if (event.target !== this) return; this.closest('.sheet')?.hidePopover(); document.querySelector('.sheet:popover-open [autofocus]')?.focus()"
+			hx-on:htmx:after:swap="if (event.target !== this) return; this.closest('.sheet')?.close(); document.querySelector('.sheet:modal [autofocus]')?.focus()"
 		}
 	>
 		if f.Counting {
