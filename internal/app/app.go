@@ -102,7 +102,8 @@ func (a *App) Schedule(ctx context.Context) {
 
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
-// were switched to. Every signed-in page first brings the User's kitchen up to now. Every
+// were switched to. A page shows the floating Notice the plain post before its redirect
+// left. Every signed-in page first brings the User's kitchen up to now. Every
 // request but the health check is a span with no parent: one a traceparent header names,
 // sent from the internet, is ignored.
 func (a *App) Handler() http.Handler {
@@ -145,7 +146,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /ingredients/list", signedIn(ings.ShowList))
 	mux.Handle("GET /ingredients/suggestion", signedIn(ings.ShowSuggestion))
 	mux.Handle("POST /ingredients", signedIn(ings.Add))
-	return otelhttp.NewHandler(web.Languages(named(mux)), "request",
+	return otelhttp.NewHandler(web.Languages(web.Notices(named(mux))), "request",
 		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
 		otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" }))

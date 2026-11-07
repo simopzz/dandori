@@ -662,7 +662,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .seg[aria-invalid="true"] { border: 2px solid var(--color-accent); }
 
-/* alert and notice */
+/* alert */
 
 .alert {
   margin: 0 0 var(--space-4);
@@ -673,10 +673,89 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .alert > :last-child { margin-bottom: 0; }
 
+/* floating notices: what happened as asked, at the top of the screen on every width
+   (the keyboard would cover the bottom), newest first. Shown without JS; layout.templ's
+   showNotices raises them into the top layer, over an open sheet, and takes each away
+   at the end of its notice-time. Each is navy, its time a paper line round its inside
+   edge that drains clockwise in steps; hovering or focusing it stops the time. */
+
+.notices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  position: fixed;
+  z-index: 30;
+  inset: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) auto;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-on-fill);
+  overflow: visible;
+  pointer-events: none;
+}
+
 .notice {
-  margin: 0 0 var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-rule-strong);
+  --notice-time: 6s;
+  --focus-ring: 2px solid var(--color-shell-marker); /* vermilion is about 2:1 on navy */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 28rem;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  background: var(--color-fill);
+  color: var(--color-on-fill);
+  pointer-events: auto;
+  animation: notice-time var(--notice-time) linear forwards;
+}
+
+.notice-text { flex: 1; margin: 0; padding: var(--space-2) 0; }
+
+.notice .btn-text { flex: none; color: inherit; }
+
+.notice-timer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+
+.notice-timer rect {
+  x: calc(2 * var(--pixel-fine));
+  y: calc(2 * var(--pixel-fine));
+  width: calc(100% - 4 * var(--pixel-fine));
+  height: calc(100% - 4 * var(--pixel-fine));
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--pixel-fine);
+  stroke-dasharray: 100 100;
+  animation: notice-drain var(--notice-time) steps(150) forwards;
+}
+
+.notice:is(:hover, :focus-within),
+.notice:is(:hover, :focus-within) .notice-timer rect { animation-play-state: paused; }
+
+/* It drops in, waits, then rises out in three steps, and is gone: with no JS too. */
+@keyframes notice-time {
+  from { opacity: 0; translate: 0 calc(-4 * var(--pixel)); animation-timing-function: steps(3, jump-end); }
+  2.5%, 97% { opacity: 1; translate: 0 0; animation-timing-function: steps(3, jump-end); }
+  to { opacity: 0; translate: 0 calc(-4 * var(--pixel)); visibility: hidden; }
+}
+
+@keyframes notice-drain { 97%, to { stroke-dashoffset: -100; } }
+
+/* Without motion it appears and goes with no transition, its line still and whole, and
+   still goes once its time has run out. */
+@keyframes notice-wait { to { visibility: hidden; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .notice { animation: notice-wait var(--notice-time) step-end forwards !important; }
+
+  .notice:is(:hover, :focus-within) { animation-play-state: paused !important; }
+}
+
+@media (min-width: 900px) {
+  .notices { inset: var(--space-5) var(--space-6) auto calc(var(--rail-width) + var(--space-6)); }
 }
 
 .tag {

@@ -36,6 +36,7 @@ templ Layout(title string, current Tab) {
 			<script>
 				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
 			</script>
+			@showNotices()
 		</head>
 		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
 			<div class="busy-bar" aria-hidden="true"></div>
@@ -56,14 +57,15 @@ templ Layout(title string, current Tab) {
 			<main class="page">
 				{ children... }
 			</main>
+			@notices(noticeOf(ctx))
 		</body>
 	</html>
 }
 
 // busyButton marks the button that sent a request, the form's submitter or the button
 // itself, aria-busy once the request has taken 300 ms (the busy bar's delay in app.css)
-// until it ends. CSS can't tell which button was pressed, so this is the one script for
-// presentation (docs/design.md).
+// until it ends. CSS can't tell which button was pressed, so this is a script for
+// presentation, one of the two docs/design.md allows.
 templ busyButton() {
 	<script>
 		document.addEventListener("htmx:before:request", (e) => {
@@ -76,6 +78,53 @@ templ busyButton() {
 				button.removeAttribute("aria-busy");
 			}, { once: true });
 		});
+	</script>
+}
+
+// showNotices raises the floating Notices into the top layer, over an open sheet, as the
+// page loads and after each swap, and takes each away when its time runs out (the end of
+// its animation in app.css, which hovering it pauses) or its Close is pressed. A sheet
+// open over them makes the rest of the page inert, so they go into the top one, still
+// drawn over it, keeping their time; when it closes they go back. In the head, so a
+// boosted page doesn't add its listeners again. With docs/design.md's busyButton, the
+// scripts for presentation.
+templ showNotices() {
+	<script>
+		(() => {
+			const top = () => document.activeElement?.closest("dialog:modal") ?? [...document.querySelectorAll("dialog:modal")].pop();
+			const raise = () => {
+				const box = document.getElementById("notices");
+				if (!box) return;
+				if (box.matches(":popover-open")) box.hidePopover();
+				if (!box.children.length) return;
+				const host = top() ?? document.body;
+				if (box.parentElement !== host) {
+					const times = box.getAnimations({ subtree: true }).map((a) => [a.effect.target, a.animationName, a.currentTime]);
+					host.append(box);
+					for (const a of box.getAnimations({ subtree: true })) {
+						const kept = times.find(([target, name]) => target === a.effect.target && name === a.animationName);
+						if (kept) a.currentTime = kept[2];
+					}
+				}
+				box.showPopover();
+			};
+			const dismiss = (notice) => {
+				const focused = notice.contains(document.activeElement);
+				notice.remove();
+				raise();
+				if (focused) top()?.querySelector("[autofocus], input, select, textarea, button")?.focus();
+			};
+			document.addEventListener("DOMContentLoaded", raise);
+			document.addEventListener("htmx:after:swap", raise);
+			document.addEventListener("close", (e) => { if (e.target.contains(document.getElementById("notices"))) raise(); }, true);
+			document.addEventListener("animationend", (e) => {
+				if (e.target.matches(".notice") && (e.animationName === "notice-time" || e.animationName === "notice-wait")) dismiss(e.target);
+			});
+			document.addEventListener("click", (e) => {
+				const close = e.target.closest(".notice-close");
+				if (close) dismiss(close.closest(".notice"));
+			});
+		})();
 	</script>
 }
 

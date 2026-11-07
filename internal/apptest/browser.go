@@ -167,10 +167,10 @@ func (b *Browser) ChooseLanguage(t testing.TB, name, submit string) {
 	b.Click(t, submit)
 }
 
-// Click clicks the button named name.
+// Click clicks the button named name, exactly.
 func (b *Browser) Click(t testing.TB, name string) {
 	t.Helper()
-	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: name}).Click(); err != nil {
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: name, Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("click %q: %v", name, err)
 	}
 }
@@ -202,5 +202,17 @@ func (b *Browser) Sees(t testing.TB, want string) {
 	t.Helper()
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator("main")).ToContainText(want); err != nil {
 		t.Errorf("%s does not show %q: %v", b.URL(), want, err)
+	}
+}
+
+// Notices are the floating Notices, newest first, wherever on the page they are.
+func (b *Browser) Notices() playwright.Locator { return b.Locator("#notices .notice") }
+
+// IsConfirmed checks a floating Notice says want, once it has dropped in.
+func (b *Browser) IsConfirmed(t testing.TB, want string) {
+	t.Helper()
+	notice := b.Notices().Filter(playwright.LocatorFilterOptions{HasText: want})
+	if err := playwright.NewPlaywrightAssertions().Locator(notice).ToHaveCSS("opacity", "1"); err != nil {
+		t.Errorf("%s does not confirm %q: %v", b.URL(), want, err)
 	}
 }

@@ -3,6 +3,7 @@ package apptest
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -196,6 +197,29 @@ func (s *Scenario) DoesNotSee(unwanted string) {
 		return
 	}
 	s.record(fmt.Sprintf("does not see %q", unwanted))
+}
+
+// IsConfirmed checks the page last opened confirms want in a floating Notice.
+func (s *Scenario) IsConfirmed(want string) {
+	s.t.Helper()
+	notices := Notices(s.page.Body)
+	if !slices.Contains(notices, want) {
+		s.record(fmt.Sprintf("is not confirmed %q", want))
+		s.t.Errorf("%s does not confirm %q, only %q", s.page.Path, want, notices)
+		return
+	}
+	s.record(fmt.Sprintf("is confirmed %q", want))
+}
+
+// IsNotConfirmed checks the page last opened shows no floating Notice.
+func (s *Scenario) IsNotConfirmed() {
+	s.t.Helper()
+	if notices := Notices(s.page.Body); len(notices) > 0 {
+		s.record(fmt.Sprintf("is confirmed %q", notices))
+		s.t.Errorf("%s confirms %q, want nothing", s.page.Path, notices)
+		return
+	}
+	s.record("is not confirmed")
 }
 
 // stamp is how the timeline tells the clock's time.

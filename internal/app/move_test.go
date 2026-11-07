@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,12 +23,17 @@ func TestMovingStockBetweenStorageLocations(t *testing.T) {
 	s.At("Mon 10:00")
 	s.Moves("Move rice in the pantry", "300", "freezer", "for next week")
 	s.IsAt("/kitchen")
+	s.IsConfirmed("Moved 300 g of rice to the freezer.")
 	s.Sees("Pantry rice 500 g")
 	s.Sees("Freezer rice 300 g")
 
 	s.At("Mon 11:00")
 	s.Moves("Move rice in the pantry", "", "freezer", "")
+	s.IsConfirmed("Moved 500 g of rice to the freezer.")
 	s.DoesNotSee("Pantry")
+
+	s.Open("/kitchen")
+	s.IsNotConfirmed()
 	s.Sees("Freezer rice 800 g")
 
 	s.Follows("rice")
@@ -102,6 +108,7 @@ func TestARefusedMove(t *testing.T) {
 			s.Moves("Move rice in the pantry", c.quantity, "freezer", "a note")
 			s.IsRefused()
 			s.Sees(c.why)
+			s.IsNotConfirmed()
 			form := apptest.Form(t, s.Page().Body, "move-form")
 			if form.Get("to") != "freezer" || form.Get("note") != "a note" || form.Get("quantity") != strings.TrimSpace(c.quantity) {
 				t.Errorf("the refused move holds %q to %q with note %q, want what was typed", form.Get("quantity"), form.Get("to"), form.Get("note"))
@@ -243,6 +250,7 @@ func TestMovesInItalian(t *testing.T) {
 	s.Counts("uovo", "", "6", "")
 
 	s.Moves("Sposta uovo in frigo", "2", "freezer", "")
+	s.IsConfirmed("Spostato: 2 pezzi di uovo nel congelatore.")
 	s.Moves("Sposta uovo nel congelatore", "1", "pantry", "")
 	s.Moves("Sposta uovo in dispensa", "9", "fridge", "")
 	s.IsRefused()
@@ -261,8 +269,9 @@ func TestMovesInItalian(t *testing.T) {
 	s.Sees("Spostato dal frigo 0 pezzi → 2 pezzi")
 }
 
-// As htmx posts it, the form answers with its own fragment: the move confirmed, telling
-// the page to list its stock again, or itself as typed with why it was refused.
+// As htmx posts it, the form answers with a fragment: the move confirmed in a floating
+// Notice alone, closing the sheet and telling the page to list its stock again, or the
+// form itself as typed with why it was refused, confirming nothing.
 func TestAMovePostedAsHTMX(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "800", "")
@@ -284,28 +293,32 @@ func TestAMovePostedAsHTMX(t *testing.T) {
 	if got := apptest.Form(t, refused.Body, "move-form").Get("quantity"); got != "900" {
 		t.Errorf("the refused move holds %q, want what was typed", got)
 	}
+	if notices := apptest.Notices(refused.Body); len(notices) > 0 {
+		t.Errorf("the refused move confirms %q", notices)
+	}
 
 	form.Values.Set("quantity", "300")
 	moved := s.HTMXPostForm(t, form.Action, form.Values)
 	if moved.StatusCode != http.StatusOK || strings.Contains(moved.Body, "<html") {
 		t.Fatalf("the move answered %d, want 200 and a fragment:\n%s", moved.StatusCode, moved.Body)
 	}
-	if shown := apptest.Text(moved.Body); !strings.Contains(shown, "Moved 300 g of rice to the freezer.") {
-		t.Errorf("the move shows: %s", shown)
+	if notices := apptest.Notices(moved.Body); !slices.Equal(notices, []string{"Moved 300 g of rice to the freezer."}) {
+		t.Errorf("the move confirms %q", notices)
 	}
 	if strings.Contains(moved.Body, "<form") {
 		t.Errorf("the confirmed move still offers a form: %s", moved.Body)
 	}
-	if got := moved.Header.Get("HX-Trigger"); got != "movement-saved" {
-		t.Errorf("the move triggers %q, want the stock listed again", got)
+	if got := moved.Header.Get("HX-Trigger"); got != "movement-saved, close-sheet" {
+		t.Errorf("the move triggers %q, want the stock listed again and the sheet closed", got)
 	}
 	s.Open("/kitchen")
 	s.Sees("Pantry rice 500 g")
 	s.Sees("Freezer rice 300 g")
 }
 
-// A move from a row happens in its sheet: the list changes behind it, the sheet confirms
-// it and stays open, and a refused one keeps the sheet open on the field.
+// A move from a row happens in its sheet: once saved the sheet closes, the list shows
+// both Stock Items, and a floating Notice says what moved. A refused one keeps the sheet
+// open on the field, confirming nothing.
 func TestBrowserMovesStockInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -328,7 +341,7 @@ func TestBrowserMovesStockInPlace(t *testing.T) {
 	if err := expect.Locator(b.Locator("#stock")).ToContainText("800 g"); err != nil {
 		t.Fatalf("rice isn't listed: %v", err)
 	}
-	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Count sheet: %v", err)
 	}
 
@@ -353,6 +366,9 @@ func TestBrowserMovesStockInPlace(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("Dandori believes only 800 g is here."); err != nil {
 		t.Fatalf("the refusal isn't on the field: %v", err)
 	}
+	if err := expect.Locator(b.Notices().Filter(playwright.LocatorFilterOptions{HasText: "Moved"})).ToHaveCount(0); err != nil {
+		t.Errorf("the refused move is confirmed: %v", err)
+	}
 	b.Shot(t, "move-refused")
 
 	if err := quantity.Fill("300"); err != nil {
@@ -361,14 +377,18 @@ func TestBrowserMovesStockInPlace(t *testing.T) {
 	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Move"}).Click(); err != nil {
 		t.Fatalf("save the move: %v", err)
 	}
-	if err := expect.Locator(sheet).ToContainText("Moved 300 g of rice to the freezer."); err != nil {
-		t.Fatalf("the move isn't confirmed: %v", err)
+	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+		t.Errorf("the Move sheet stays open after the move: %v", err)
 	}
-	if err := expect.Locator(b.Locator("#stock")).ToContainText("Freezer"); err != nil {
-		t.Fatalf("the list doesn't show the freezer: %v", err)
+	b.IsConfirmed(t, "Moved 300 g of rice to the freezer.")
+	in := func(location string) playwright.Locator {
+		return b.Locator("#stock .section").Filter(playwright.LocatorFilterOptions{HasText: location})
 	}
-	if err := expect.Locator(b.Locator("#stock")).ToContainText("500 g"); err != nil {
+	if err := expect.Locator(in("Pantry")).ToContainText("rice 500 g"); err != nil {
 		t.Errorf("the list doesn't show what is left: %v", err)
+	}
+	if err := expect.Locator(in("Freezer")).ToContainText("rice 300 g"); err != nil {
+		t.Errorf("the list doesn't show what moved: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 	b.Shot(t, "move-confirmed")

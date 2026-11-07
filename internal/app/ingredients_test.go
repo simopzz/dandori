@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ func TestAddingIngredients(t *testing.T) {
 
 	s.AddsIngredient(egg)
 	s.IsAt("/ingredients")
-	s.Sees("Added egg.")
+	s.IsConfirmed("Added egg.")
 	s.Sees("egg fridge per piece: 70 kcal protein 6.3 g carbs 0.4 g fat 4.8 g fibre – unknown sugar – unknown")
 	s.DoesNotSee("No Ingredients yet.")
 
@@ -37,7 +38,7 @@ func TestAddingIngredients(t *testing.T) {
 	s.AddsIngredient(apptest.Ingredient{
 		Name: "olive oil", Unit: "ml", Usual: "pantry", Kcal: "824", Protein: "0", Carbs: "0", Fat: "91.6", Staple: true,
 	})
-	s.Sees("Added olive oil.")
+	s.IsConfirmed("Added olive oil.")
 	s.Sees("egg fridge per piece: 70 kcal")
 	s.Sees("olive oil Staple pantry per 100 ml: 824 kcal protein 0 g carbs 0 g fat 91.6 g fibre – unknown sugar – unknown")
 	s.Sees("Rolled oats pantry per 100 g: 372 kcal protein 13.5 g carbs 58.7 g fat 7 g fibre 10.1 g sugar 0 g")
@@ -105,7 +106,7 @@ func TestAnIngredientOfAFoodTheUserHasIsRefused(t *testing.T) {
 	white := egg
 	white.Name = "egg white"
 	s.AddsIngredient(white)
-	s.Sees("Added egg white.")
+	s.IsConfirmed("Added egg white.")
 }
 
 // Italian names are normalised as Italian, and values shown with a decimal comma. Fish
@@ -119,7 +120,7 @@ func TestIngredientsInItalian(t *testing.T) {
 	s.AddsIngredient(apptest.Ingredient{
 		Name: "uovo", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6,3", Carbs: "0.4", Fat: "4.8",
 	})
-	s.Sees("Aggiunto: uovo.")
+	s.IsConfirmed("Aggiunto: uovo.")
 	s.Sees("uovo frigo per pezzo: 70 kcal proteine 6,3 g carboidrati 0,4 g grassi 4,8 g fibre – non noto zuccheri – non noto")
 
 	s.AddsIngredient(apptest.Ingredient{
@@ -137,7 +138,7 @@ func TestIngredientsInItalian(t *testing.T) {
 	s.IsRefused()
 	s.Sees("Intendevi pesca?")
 	s.Submits("ingredient-add")
-	s.Sees("Aggiunto: pesce.")
+	s.IsConfirmed("Aggiunto: pesce.")
 }
 
 // Posted from the side sheet by htmx, the add form answers with the sheet's body alone:
@@ -158,8 +159,11 @@ func TestTheIngredientsSheetAddsInPlace(t *testing.T) {
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("adding from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
 	}
-	if shown := apptest.Text(added.Body); !strings.Contains(shown, "Added egg.") || !strings.Contains(shown, "egg fridge per piece") {
+	if shown := apptest.Text(added.Body); !strings.Contains(shown, "egg fridge per piece") {
 		t.Errorf("the sheet after adding egg shows: %s", shown)
+	}
+	if notices := apptest.Notices(added.Body); !slices.Equal(notices, []string{"Added egg."}) {
+		t.Errorf("adding egg from the sheet confirms %q", notices)
 	}
 	if got := apptest.Form(t, added.Body, "ingredient-add").Get("name"); got != "" {
 		t.Errorf("the add form after adding holds name %q, want it cleared", got)
@@ -192,7 +196,7 @@ func TestEachUserHasTheirOwnIngredients(t *testing.T) {
 	s.Open("/ingredients")
 	s.Sees("No Ingredients yet.")
 	s.AddsIngredient(egg)
-	s.Sees("Added egg.")
+	s.IsConfirmed("Added egg.")
 }
 
 // A name close to an Ingredient's, which doesn't normalise to it, suggests that one. The
@@ -217,7 +221,7 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 
 	s.Follows("Use egg")
 	s.IsAt("/ingredients")
-	s.Sees("egg is already one of your Ingredients.")
+	s.IsConfirmed("egg is already one of your Ingredients.")
 	s.DoesNotSee("eggs")
 	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "" {
 		t.Errorf("the add form after picking egg holds name %q, want it cleared", got)
@@ -234,7 +238,7 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 	s.IsRefused()
 	s.Sees("Did you mean egg?")
 	s.Submits("ingredient-add")
-	s.Sees("Added eggz.")
+	s.IsConfirmed("Added eggz.")
 }
 
 // The suggestion, picking it and confirming the name typed each answer with the side
@@ -263,12 +267,15 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 	if picked.StatusCode != http.StatusOK || strings.Contains(picked.Body, "<html") {
 		t.Fatalf("picking egg from the sheet answered %d, want 200 and a fragment:\n%s", picked.StatusCode, picked.Body)
 	}
-	if shown := apptest.Text(picked.Body); !strings.Contains(shown, "egg is already one of your Ingredients.") || strings.Contains(shown, "eggs") {
+	if shown := apptest.Text(picked.Body); strings.Contains(shown, "eggs") {
 		t.Errorf("the sheet after picking egg shows: %s", shown)
 	}
+	if notices := apptest.Notices(picked.Body); !slices.Equal(notices, []string{"egg is already one of your Ingredients."}) {
+		t.Errorf("picking egg from the sheet confirms %q", notices)
+	}
 
-	if shown := apptest.Text(s.HTMXGet(t, "/ingredients/sheet?picked=salmone").Body); strings.Contains(shown, "already one of your Ingredients") {
-		t.Errorf("picking an Ingredient the User doesn't have confirms it: %s", shown)
+	if notices := apptest.Notices(s.HTMXGet(t, "/ingredients/sheet?picked=salmone").Body); len(notices) > 0 {
+		t.Errorf("picking an Ingredient the User doesn't have confirms %q", notices)
 	}
 
 	confirm := apptest.Form(t, suggested.Body, "ingredient-add")
@@ -276,8 +283,8 @@ func TestTheIngredientsSheetSuggestsInPlace(t *testing.T) {
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("confirming eggs from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
 	}
-	if shown := apptest.Text(added.Body); !strings.Contains(shown, "Added eggs.") {
-		t.Errorf("the sheet after confirming eggs shows: %s", shown)
+	if notices := apptest.Notices(added.Body); !slices.Equal(notices, []string{"Added eggs."}) {
+		t.Errorf("confirming eggs from the sheet confirms %q", notices)
 	}
 }
 

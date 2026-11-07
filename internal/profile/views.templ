@@ -14,8 +14,6 @@ import (
 type LanguageForm struct {
 	Language domain.Language
 	Err      web.Message
-	// Saved confirms the Profile was just saved.
-	Saved bool
 }
 
 // languageChoices are the Languages to choose from, each named in itself.
@@ -55,11 +53,6 @@ templ choicePage(today time.Time, f LanguageForm) {
 templ profilePage(today time.Time, email string, f LanguageForm) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
-		if f.Saved {
-			@web.Notice() {
-				{ web.T(ctx, msgSaved) }
-			}
-		}
 		<form id="profile-language" method="post" action="/profile/language">
 			@web.FieldGroup(1, web.T(ctx, msgLanguage)) {
 				@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(f.Language), web.T(ctx, f.Err))

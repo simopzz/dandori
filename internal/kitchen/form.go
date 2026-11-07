@@ -12,8 +12,6 @@ import (
 
 // CountForm is the Count sheet's body as shown.
 type CountForm struct {
-	// Counted is the Count just saved, if any.
-	Counted *Counted
 	// Query and Found are the search, shown until an Ingredient is chosen; Staple is the
 	// Staple it named, if it found nothing else.
 	Query  string
@@ -28,13 +26,6 @@ type CountForm struct {
 	Stated     string
 	Note       string
 	Errs       map[string]string
-}
-
-// Counted is a Count just saved.
-type Counted struct {
-	Ingredient domain.Ingredient
-	Location   domain.StorageLocation
-	Stated     domain.Quantity
 }
 
 // parseCountForm reads the Count form posted in r for ing as what to count, and the form

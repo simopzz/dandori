@@ -326,11 +326,34 @@ templ Alert() {
 	</div>
 }
 
-// Notice confirms something happened.
-templ Notice() {
-	<p class="notice" role="status">
-		{ children... }
-	</p>
+// notices is where floating Notices show, at the top of the screen: text, when set, is
+// the one the page shows as it loads. It is shown without JS; Layout's showNotices only
+// raises it into the top layer, over an open sheet, as a popover.
+templ notices(text string) {
+	<div id="notices" class="notices" popover="manual" role="status">
+		if text != "" {
+			@notice(text)
+		}
+	</div>
+}
+
+// notice says text happened as asked, until its time runs out, which its line tells,
+// or Close closes it; hovering or focusing it stops its time.
+templ notice(text string) {
+	<div class="notice">
+		<svg class="notice-timer" aria-hidden="true"><rect pathLength="100"></rect></svg>
+		@Icon("check")
+		<p class="notice-text">{ text }</p>
+		<button type="button" class="btn-text notice-close" aria-label={ T(ctx, msgCloseNotice) }>{ T(ctx, msgClose) }</button>
+	</div>
+}
+
+// noticePartial adds a floating Notice saying text, newest first, from a fragment
+// htmx swaps.
+templ noticePartial(text string) {
+	<hx-partial hx-target="#notices" hx-swap="afterbegin">
+		@notice(text)
+	</hx-partial>
 }
 
 // Tag is a short label on a row or field. accent marks one that needs
@@ -388,6 +411,7 @@ templ sheet(id, class, title string, open bool) {
 		aria-labelledby={ id + "-title" }
 		data-open?={ open }
 		{ veilCloses... }
+		{ closesOnDone... }
 	>
 		<div class="sheet-head">
 			<h2 id={ id + "-title" }>{ title }</h2>
@@ -402,6 +426,12 @@ templ sheet(id, class, title string, open bool) {
 var veilCloses = templ.Attributes{
 	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && " + onVeil,
 	"hx-on:click":       "if (this.veilPressed && " + onVeil + ") this.close()",
+}
+
+// closesOnDone closes a sheet when the answer to a form in it triggers CloseSheet, and
+// only that sheet, not one open beneath it.
+var closesOnDone = templ.Attributes{
+	"hx-on:" + CloseSheet: "event.stopPropagation(); this.close()",
 }
 
 // onVeil is whether the pointer event, on a sheet, is outside its box: on its backdrop.

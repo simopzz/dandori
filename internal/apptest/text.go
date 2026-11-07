@@ -27,3 +27,19 @@ func Text(page string) string {
 	}
 	return strings.Join(strings.Fields(html.UnescapeString(b.String())), " ")
 }
+
+// Notices are the texts of the floating Notices a page or a fragment shows, newest
+// first, without markup: what a test checks a write confirmed.
+func Notices(page string) []string {
+	var notices []string
+	for {
+		_, rest, ok := strings.Cut(page, `class="notice-text"`)
+		if !ok {
+			return notices
+		}
+		_, rest, _ = strings.Cut(rest, ">")
+		text, after, _ := strings.Cut(rest, "</p>")
+		notices = append(notices, Text(text))
+		page = after
+	}
+}

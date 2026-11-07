@@ -74,8 +74,8 @@ func TestBrowserChoosesALanguage(t *testing.T) {
 
 	b.Open(t, "/profile")
 	b.ChooseLanguage(t, "English", "Salva")
-	b.IsAt(t, "/profile?saved")
-	b.Sees(t, "Profile saved.")
+	b.IsAt(t, "/profile")
+	b.IsConfirmed(t, "Profile saved.")
 }
 
 // Today on a phone-sized screen: the Slot now, the day's later ones a click away, and
@@ -162,9 +162,7 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	}
 
 	addEgg()
-	if err := expect.Locator(sheet).ToContainText("Added egg."); err != nil {
-		t.Fatalf("the sheet doesn't confirm egg was added: %v", err)
-	}
+	b.IsConfirmed(t, "Added egg.")
 	if err := expect.Locator(sheet).ToContainText("per piece: 70 kcal"); err != nil {
 		t.Errorf("the sheet doesn't list egg: %v", err)
 	}
@@ -249,7 +247,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 
 	fills("egg")
 	pressesAdd()
-	sees("Added egg.")
+	b.IsConfirmed(t, "Added egg.")
 	title, err := sheet.Locator(".row-title").BoundingBox()
 	if err != nil {
 		t.Fatalf("find the row's name: %v", err)
@@ -281,7 +279,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Use egg"}).Click(); err != nil {
 		t.Fatalf("pick egg: %v", err)
 	}
-	sees("egg is already one of your Ingredients.")
+	b.IsConfirmed(t, "egg is already one of your Ingredients.")
 	if got, err := name.InputValue(); err != nil || got != "" {
 		t.Errorf("the name after picking egg is %q, %v, want cleared", got, err)
 	}
@@ -290,7 +288,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	fills("eggs")
 	sees("Did you mean egg?")
 	pressesAdd()
-	sees("Added eggs.")
+	b.IsConfirmed(t, "Added eggs.")
 
 	// Add pressed from the name, held as a finger holds it: the suggestion arrives and
 	// moves Add under the press, and one more press adds the name.
@@ -301,7 +299,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	pressesAdd(playwright.LocatorClickOptions{Delay: playwright.Float(150)})
 	sees("Did you mean egg")
 	pressesAdd()
-	sees("Added eggys.")
+	b.IsConfirmed(t, "Added eggys.")
 
 	fills("eggz")
 	sees("Did you mean")
@@ -316,12 +314,12 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 		t.Errorf("the changed name, matched again, isn't focused: %v", err)
 	}
 	pressesEnter()
-	sees("Added eggy.")
+	b.IsConfirmed(t, "Added eggy.")
 	b.IsAt(t, "/kitchen")
 
 	fills("petto di pollo")
 	pressesAdd()
-	sees("Added petto di pollo.")
+	b.IsConfirmed(t, "Added petto di pollo.")
 	if err := search.Fill(""); err != nil {
 		t.Fatalf("clear the search: %v", err)
 	}
