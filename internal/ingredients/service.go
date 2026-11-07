@@ -1,13 +1,17 @@
-// Package ingredients is the User's Ingredients: adding them by hand and listing them, in
-// the side sheet any page can open. Each food is one Ingredient, identified by its name
-// as domain.NormaliseIngredientName reduces it in the User's Language.
+// Package ingredients is the User's Ingredients: adding them by hand, listing, editing
+// and deleting them, in the side sheet any page can open. Each food is one Ingredient,
+// identified by its name as domain.NormaliseIngredientName reduces it in the Language of
+// its User.
 package ingredients
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/db"
@@ -30,13 +34,36 @@ func (e *SuggestedError) Error() string {
 	return fmt.Sprintf("the User may have meant the Ingredient %q", e.Closest)
 }
 
+// UnitFixedError is an Ingredient's unit not changed because Movements of it are recorded
+// in its unit, Unit, which they keep however it is counted afterwards.
+type UnitFixedError struct{ Unit domain.Unit }
+
+func (e *UnitFixedError) Error() string {
+	return fmt.Sprintf("the Ingredient's Movements are recorded in %s", e.Unit)
+}
+
+// ErrHasMovements is an Ingredient not deleted because Movements refer to it: deleting it
+// would take part of the Kitchen Ledger's history with it.
+var ErrHasMovements = errors.New("movements refer to the Ingredient")
+
+// ErrNoIngredient is an Ingredient the signed-in User hasn't got.
+var ErrNoIngredient = errors.New("the User has no such Ingredient")
+
+// HasMovements says whether any Movement refers to the Ingredient id, in q's
+// transaction, and holds off any more of them until it ends. The kitchen owns Movements
+// and depends on this feature, so app wires it.
+type HasMovements func(ctx context.Context, q db.Querier, id int64) (bool, error)
+
 // Service is the signed-in User's Ingredients.
 type Service struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	hasMovements HasMovements
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+func New(pool *pgxpool.Pool, hasMovements HasMovements) *Service {
+	return &Service{pool: pool, hasMovements: hasMovements}
+}
 
 // Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
 // is its id. One whose name normalises as another's is a *NameTakenError. One whose name
@@ -67,6 +94,82 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 	})
 	return id, err
 }
+
+// Edit sets the signed-in User's Ingredient id, whose Language is l, to ing, which has no
+// Problems; its Staple flag stays as it is. A name that normalises as another's is a
+// *NameTakenError. A new name only close to another's is a *SuggestedError, unless
+// confirmed says the User meant the name typed. A unit changed once Movements refer to
+// the Ingredient is a *UnitFixedError, and one they haven't got is ErrNoIngredient.
+func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, ing domain.Ingredient, confirmed bool) error {
+	normalised := domain.NormaliseIngredientName(l, ing.Name)
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		current, ok, err := LoadIngredient(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrNoIngredient
+		}
+		taken, err := loadOtherNameOf(ctx, tx, id, normalised)
+		if err != nil {
+			return err
+		}
+		if taken != "" {
+			return &NameTakenError{Existing: taken}
+		}
+		if !confirmed && domain.NormaliseIngredientName(l, current.Name) != normalised {
+			known, err := LoadIngredients(ctx, tx)
+			if err != nil {
+				return err
+			}
+			others := slices.DeleteFunc(known, func(k domain.Ingredient) bool { return k.ID == id })
+			if closest := closeTo(l, ing.Name, others); closest != "" {
+				return &SuggestedError{Closest: closest}
+			}
+		}
+		if ing.Unit != current.Unit {
+			moved, err := s.hasMovements(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			if moved {
+				return &UnitFixedError{Unit: current.Unit}
+			}
+		}
+		return updateIngredient(ctx, tx, id, ing, normalised)
+	})
+}
+
+// Delete deletes the signed-in User's Ingredient id, and is its name. One that Movements
+// refer to is ErrHasMovements, which the database also holds to, and one they haven't got
+// is ErrNoIngredient.
+func (s *Service) Delete(ctx context.Context, id int64) (name string, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ing, ok, err := LoadIngredient(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrNoIngredient
+		}
+		moved, err := s.hasMovements(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if moved {
+			return ErrHasMovements
+		}
+		name = ing.Name
+		return deleteIngredient(ctx, tx, id)
+	})
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == foreignKeyViolation {
+		return "", ErrHasMovements
+	}
+	return name, err
+}
+
+// foreignKeyViolation is Postgres's code for a row deleted while another refers to it.
+const foreignKeyViolation = "23503"
 
 // Suggest is the name of the signed-in User's Ingredient that name is close to, which
 // they may have meant, or "" if there is none.

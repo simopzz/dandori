@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mxschmitt/playwright-go"
+
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -357,5 +359,264 @@ func TestSearchingIngredientsBySpelling(t *testing.T) {
 	}
 	if shown := apptest.Text(list.Body); !strings.Contains(shown, "petto di pollo") || strings.Contains(shown, "uovo") {
 		t.Errorf("searching for polo with htmx shows: %s", shown)
+	}
+}
+
+// An Ingredient is edited in place: its name, its nutritional values, fibre and sugar
+// becoming unknown, and its usual Storage Location, at any time.
+func TestEditingAnIngredient(t *testing.T) {
+	s := kitchenWith(t, apptest.Ingredient{
+		Name: "Rolled oats", Unit: "g", Usual: "pantry", Kcal: "372", Protein: "13.5", Carbs: "58.7", Fat: "7",
+		Fibre: "10.1", Sugar: "0",
+	})
+	if got := apptest.EditForm(t, s.Page().Body, "Rolled oats"); got.Get("kcal") != "372" || got.Get("fibre") != "10.1" || got.Get("unit") != "g" {
+		t.Errorf("the edit form of Rolled oats holds kcal %q, fibre %q, unit %q; want its values", got.Get("kcal"), got.Get("fibre"), got.Get("unit"))
+	}
+
+	s.EditsIngredient("Rolled oats", apptest.Ingredient{
+		Name: "oat flakes", Unit: "g", Usual: "fridge", Kcal: "370", Protein: "13", Carbs: "59", Fat: "7",
+	})
+	s.IsAt("/ingredients")
+	s.IsConfirmed("Saved oat flakes.")
+	s.Sees("oat flakes fridge per 100 g: 370 kcal protein 13 g carbs 59 g fat 7 g fibre – unknown sugar – unknown")
+	s.DoesNotSee("Rolled oats")
+
+	s.EditsIngredient("oat flakes", apptest.Ingredient{Name: "Oat Flakes", Unit: "g", Usual: "fridge", Kcal: "", Protein: "13", Carbs: "59", Fat: "7"})
+	s.IsRefused()
+	s.Sees("Required.")
+	if got := apptest.EditForm(t, s.Page().Body, "Oat Flakes"); got.Get("protein") != "13" {
+		t.Errorf("the refused edit form holds protein %q, want what was typed", got.Get("protein"))
+	}
+	s.Open("/ingredients")
+	s.Sees("oat flakes fridge per 100 g: 370 kcal")
+}
+
+// A rename that normalises to another Ingredient's name is refused on the name, naming
+// that one; renaming to the Ingredient's own name in other words is not. A new name only
+// close to another's suggests it, and saving it again confirms the name typed.
+func TestARenameToAnotherIngredientIsRefused(t *testing.T) {
+	s := kitchenWith(t, egg, rice)
+
+	riceAsEgg := rice
+	riceAsEgg.Name = "Large egg"
+	s.EditsIngredient("rice", riceAsEgg)
+	s.IsRefused()
+	s.Sees("You already have egg: one food is one Ingredient.")
+	if got := apptest.EditForm(t, s.Page().Body, "Large egg").Get("kcal"); got != "350" {
+		t.Errorf("the refused edit form holds kcal %q, want what was typed", got)
+	}
+	s.Open("/ingredients")
+	s.Sees("rice pantry")
+
+	bigEgg := egg
+	bigEgg.Name = "Egg"
+	s.EditsIngredient("egg", bigEgg)
+	s.IsConfirmed("Saved Egg.")
+
+	riceAsEggs := rice
+	riceAsEggs.Name = "eggs"
+	s.EditsIngredient("rice", riceAsEggs)
+	s.IsRefused()
+	s.Sees("Did you mean Egg?")
+	s.Submits(editFormID(t, s.Page().Body, "eggs"))
+	s.IsConfirmed("Saved eggs.")
+	s.DoesNotSee("rice")
+}
+
+// editFormID is the id of the edit form on page holding the name name.
+func editFormID(t *testing.T, page, name string) string {
+	t.Helper()
+	action := apptest.EditForm(t, page, name).Action
+	return "ingredient-edit-" + strings.TrimPrefix(action, "/ingredients/")
+}
+
+// The unit changes while no Movement refers to the Ingredient. Once one does, it is
+// refused on the unit, saying the Movements are recorded in it, even with the Stock Item
+// counted to nothing; the rest of the edit is not saved either.
+func TestTheUnitIsFixedOnceStockIsCounted(t *testing.T) {
+	s := kitchenWith(t, rice)
+	inPieces := rice
+	inPieces.Unit = "piece"
+	s.EditsIngredient("rice", inPieces)
+	s.IsConfirmed("Saved rice.")
+	s.Sees("rice pantry per piece")
+	s.EditsIngredient("rice", rice)
+	s.Sees("rice pantry per 100 g")
+
+	s.Counts("rice", "", "700", "")
+	s.Counts("rice", "", "0", "")
+	s.Open("/ingredients")
+	inPieces.Kcal = "360"
+	s.EditsIngredient("rice", inPieces)
+	s.IsRefused()
+	s.Sees("Its Movements are recorded in g, so its unit stays, even counted to nothing.")
+	if got := apptest.EditForm(t, s.Page().Body, "rice").Get("unit"); got != "piece" {
+		t.Errorf("the refused edit form holds unit %q, want what was chosen", got)
+	}
+	s.Open("/ingredients")
+	s.Sees("rice pantry per 100 g: 350 kcal")
+}
+
+// Editing nutrition, or renaming, changes no Movement: the Kitchen page holds what it
+// held, under the new name.
+func TestEditingAnIngredientLeavesTheKitchenAsItWas(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Counts("rice", "", "700", "")
+	s.Open("/ingredients")
+	brown := rice
+	brown.Name, brown.Kcal, brown.Fibre, brown.Usual = "brown rice", "362", "3.4", "fridge"
+	s.EditsIngredient("rice", brown)
+	s.IsConfirmed("Saved brown rice.")
+
+	s.Open("/kitchen")
+	s.Sees("01 Pantry brown rice 700 g")
+	s.DoesNotSee("Fridge")
+}
+
+// An Ingredient nothing refers to is deleted. One with a Movement is refused, saying why,
+// and the database refuses it as well.
+func TestDeletingAnIngredient(t *testing.T) {
+	s := kitchenWith(t, egg, rice)
+	s.DeletesIngredient("egg")
+	s.IsAt("/ingredients")
+	s.IsConfirmed("Deleted egg.")
+	s.DoesNotSee("egg")
+	s.Sees("rice pantry")
+
+	s.Counts("rice", "", "0", "")
+	s.Open("/ingredients")
+	s.DeletesIngredient("rice")
+	s.IsRefused()
+	s.Sees("It has Movements, so it can't be deleted: the Kitchen Ledger keeps every one.")
+	s.Open("/ingredients")
+	s.Sees("rice pantry")
+
+	s.Refuses(t, `DELETE FROM ingredient WHERE name = 'rice'`)
+}
+
+// Posted from the side sheet by htmx, editing and deleting answer with the sheet's body
+// alone, searched as it was: confirmed with the row closed, or refused with the row open
+// as typed and why.
+func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
+	s := kitchenWith(t, egg, rice)
+	s.Counts("rice", "", "700", "")
+	sheet := s.HTMXGet(t, "/ingredients/list?q=rice")
+	fragment := func(what string, got apptest.Response, status int) string {
+		t.Helper()
+		if got.StatusCode != status || strings.Contains(got.Body, "<html") {
+			t.Fatalf("%s from the sheet answered %d, want %d and a fragment:\n%s", what, got.StatusCode, status, got.Body)
+		}
+		return apptest.Text(got.Body)
+	}
+
+	edit := apptest.EditForm(t, sheet.Body, "rice")
+	edit.Values.Set("q", "rice")
+	edit.Values.Set("kcal", "360")
+	saved := s.HTMXPostForm(t, edit.Action, edit.Values)
+	if shown := fragment("saving rice", saved, http.StatusOK); !strings.Contains(shown, "rice pantry per 100 g: 360 kcal") || strings.Contains(shown, "egg") {
+		t.Errorf("the sheet after saving rice, searched for rice, shows: %s", shown)
+	}
+	if notices := apptest.Notices(t, saved.Body); !slices.Equal(notices, []string{"Saved rice."}) {
+		t.Errorf("saving rice from the sheet confirms %q", notices)
+	}
+	if got := apptest.Form(t, saved.Body, "ingredient-search").Get("q"); got != "rice" {
+		t.Errorf("the search after saving rice holds %q, want rice", got)
+	}
+	if strings.Contains(saved.Body, "<details open") {
+		t.Errorf("a row is open after saving rice:\n%s", saved.Body)
+	}
+
+	edit.Values.Set("unit", "ml")
+	fixed := s.HTMXPostForm(t, edit.Action, edit.Values)
+	if shown := fragment("changing rice's unit", fixed, http.StatusUnprocessableEntity); !strings.Contains(shown, "Its Movements are recorded in g") {
+		t.Errorf("the sheet refusing rice's unit shows: %s", shown)
+	}
+	if !strings.Contains(fixed.Body, "<details open") || apptest.EditForm(t, fixed.Body, "rice").Get("unit") != "ml" {
+		t.Errorf("the refused row isn't open as typed:\n%s", fixed.Body)
+	}
+
+	del := apptest.DeleteForm(t, saved.Body, "rice")
+	refused := s.HTMXPostForm(t, del.Action, del.Values)
+	if shown := fragment("deleting rice", refused, http.StatusUnprocessableEntity); !strings.Contains(shown, "It has Movements, so it can't be deleted") {
+		t.Errorf("the sheet refusing to delete rice shows: %s", shown)
+	}
+	if !strings.Contains(refused.Body, "<details open") {
+		t.Errorf("the row refused deleting isn't open:\n%s", refused.Body)
+	}
+
+	del = apptest.DeleteForm(t, s.HTMXGet(t, "/ingredients/list").Body, "egg")
+	deleted := s.HTMXPostForm(t, del.Action, del.Values)
+	if shown := fragment("deleting egg", deleted, http.StatusOK); strings.Contains(shown, "egg fridge") {
+		t.Errorf("the sheet after deleting egg shows: %s", shown)
+	}
+	if notices := apptest.Notices(t, deleted.Body); !slices.Equal(notices, []string{"Deleted egg."}) {
+		t.Errorf("deleting egg from the sheet confirms %q", notices)
+	}
+}
+
+// A User can neither edit nor delete another's Ingredient.
+func TestAnotherUsersIngredientCantBeEditedOrDeleted(t *testing.T) {
+	s := kitchenWith(t, rice)
+	edit := apptest.EditForm(t, s.Page().Body, "rice")
+	del := apptest.DeleteForm(t, s.Page().Body, "rice")
+
+	s.Invite("bea@example.com")
+	s.SwitchesTo("bea@example.com")
+	s.ChoosesLanguage("English")
+	if got := s.PostForm(t, edit.Action, edit.Values); got.StatusCode != http.StatusNotFound {
+		t.Errorf("editing another User's Ingredient answered %d, want 404", got.StatusCode)
+	}
+	if got := s.PostForm(t, del.Action, del.Values); got.StatusCode != http.StatusNotFound {
+		t.Errorf("deleting another User's Ingredient answered %d, want 404", got.StatusCode)
+	}
+	s.SwitchesTo("ada@example.com")
+	s.Open("/ingredients")
+	s.Sees("rice pantry")
+}
+
+// In the side sheet, an Ingredient's row opens to edit it, and saving closes it in place,
+// the sheet staying open; a refused delete keeps it open with why, and a delete takes
+// the Ingredient off the list.
+func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).First().Click(); err != nil {
+		t.Fatalf("open the Ingredients: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
+	fillsIngredient(t, sheet, "rice")
+	b.IsConfirmed(t, "Added rice.")
+
+	expect := playwright.NewPlaywrightAssertions()
+	row := sheet.Locator("li.row").Filter(playwright.LocatorFilterOptions{HasText: "rice"})
+	if err := row.Locator("summary").Click(); err != nil {
+		t.Fatalf("open rice's row: %v", err)
+	}
+	name := row.GetByLabel("Name", playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
+	if err := name.Fill("brown rice"); err != nil {
+		t.Fatalf("rename rice: %v", err)
+	}
+	if err := row.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save"}).Click(); err != nil {
+		t.Fatalf("save rice: %v", err)
+	}
+	b.IsConfirmed(t, "Saved brown rice.")
+	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
+		t.Errorf("the sheet closes on saving: %v", err)
+	}
+	b.Shot(t, "ingredient-saved")
+	if err := expect.Locator(sheet.Locator("details[open]")).ToHaveCount(0); err != nil {
+		t.Errorf("a row stays open after saving: %v", err)
+	}
+
+	if err := row.Locator("summary").Click(); err != nil {
+		t.Fatalf("open brown rice's row: %v", err)
+	}
+	b.Shot(t, "ingredient-edit")
+	if err := row.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
+		t.Fatalf("delete brown rice: %v", err)
+	}
+	b.IsConfirmed(t, "Deleted brown rice.")
+	if err := expect.Locator(sheet).ToContainText("No Ingredients yet."); err != nil {
+		t.Errorf("the sheet still lists brown rice: %v", err)
 	}
 }

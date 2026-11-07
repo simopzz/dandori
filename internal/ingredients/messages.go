@@ -48,7 +48,19 @@ var (
 	msgSearch        = web.Message{En: "Search", It: "Cerca"}
 	msgNoMatch       = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
 	msgAddNamed      = web.Message{En: "Add %s as a new Ingredient", It: "Aggiungi %s come nuovo Ingrediente"}
-	msgNameTaken     = web.Message{
+	msgSave          = web.Message{En: "Save", It: "Salva"}
+	msgSaved         = web.Message{En: "Saved %s.", It: "Salvato: %s."}
+	msgDelete        = web.Message{En: "Delete", It: "Elimina"}
+	msgDeleted       = web.Message{En: "Deleted %s.", It: "Eliminato: %s."}
+	msgUnitFixed     = web.Message{
+		En: "Its Movements are recorded in %s, so its unit stays, even counted to nothing.",
+		It: "I suoi Movimenti sono registrati in %s, quindi l'unità resta, anche contato a zero.",
+	}
+	msgHasMovements = web.Message{
+		En: "It has Movements, so it can't be deleted: the Kitchen Ledger keeps every one.",
+		It: "Ha dei Movimenti, quindi non si può eliminare: la cucina li conserva tutti.",
+	}
+	msgNameTaken = web.Message{
 		En: "You already have %s: one food is one Ingredient.",
 		It: "Hai già %s: un cibo è un solo Ingrediente.",
 	}
@@ -61,12 +73,18 @@ var problemMessages = map[domain.Problem]web.Message{
 	domain.TooLarge: {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 }
 
-// unitNames name each Unit as a choice; perUnit is what nutritional values are per.
+// unitNames name each Unit as a choice, recordedIn as quantities are recorded in it, and
+// perUnit is what nutritional values are per.
 var (
 	unitNames = map[domain.Unit]web.Message{
 		domain.Grams:       {En: "g", It: "g"},
 		domain.Millilitres: {En: "ml", It: "ml"},
 		domain.Pieces:      {En: "piece", It: "pezzo"},
+	}
+	recordedIn = map[domain.Unit]web.Message{
+		domain.Grams:       {En: "g", It: "g"},
+		domain.Millilitres: {En: "ml", It: "ml"},
+		domain.Pieces:      {En: "pieces", It: "pezzi"},
 	}
 	perUnit = map[domain.Unit]web.Message{
 		domain.Grams:       {En: "per 100 g", It: "per 100 g"},

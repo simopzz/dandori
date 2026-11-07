@@ -225,6 +225,21 @@ func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
 	}
 }
 
+// Refuses checks the app's database refuses sql, as a write no page makes, for a test of
+// what the database itself holds to.
+func (h *Harness) Refuses(t testing.TB, sql string, args ...any) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, h.databaseURL)
+	if err != nil {
+		t.Fatalf("connect to test database: %v", err)
+	}
+	defer conn.Close(ctx)
+	if _, err := conn.Exec(ctx, sql, args...); err == nil {
+		t.Errorf("the database ran %s, want it refused", sql)
+	}
+}
+
 // Scan reads the one row sql gives into dest, as the admin role, for a test checking what
 // no page shows yet.
 func (h *Harness) Scan(t testing.TB, dest any, sql string, args ...any) {

@@ -130,20 +130,20 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Fatalf("the Ingredients sheet doesn't open: %v", err)
 	}
-	if err := expect.Locator(sheet.GetByLabel("Name")).ToBeFocused(); err != nil {
+	if err := expect.Locator(sheet.Locator("#ingredient-add").GetByLabel("Name")).ToBeFocused(); err != nil {
 		t.Errorf("opening the sheet doesn't focus its first field: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 
 	fill := func(label, value string) {
 		t.Helper()
-		if err := sheet.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
+		if err := sheet.Locator("#ingredient-add").GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
 			t.Fatalf("fill %s: %v", label, err)
 		}
 	}
 	choose := func(label, option string) {
 		t.Helper()
-		if _, err := sheet.GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
+		if _, err := sheet.Locator("#ingredient-add").GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
 			t.Fatalf("choose %s: %v", label, err)
 		}
 	}
@@ -166,7 +166,7 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("per piece: 70 kcal"); err != nil {
 		t.Errorf("the sheet doesn't list egg: %v", err)
 	}
-	if err := expect.Locator(sheet.GetByLabel("Name")).ToHaveValue(""); err != nil {
+	if err := expect.Locator(sheet.Locator("#ingredient-add").GetByLabel("Name")).ToHaveValue(""); err != nil {
 		t.Errorf("the add form isn't cleared after adding: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
@@ -175,7 +175,7 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("You already have egg"); err != nil {
 		t.Fatalf("the sheet doesn't refuse egg again: %v", err)
 	}
-	if err := expect.Locator(sheet.GetByLabel("Name")).ToBeFocused(); err != nil {
+	if err := expect.Locator(sheet.Locator("#ingredient-add").GetByLabel("Name")).ToBeFocused(); err != nil {
 		t.Errorf("the refused name isn't focused: %v", err)
 	}
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
@@ -201,7 +201,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
 	expect := playwright.NewPlaywrightAssertions()
-	name := sheet.GetByLabel("Name", playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
+	name := sheet.Locator("#ingredient-add").GetByLabel("Name", playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
 	addButton := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"})
 	sees := func(want string) {
 		t.Helper()
@@ -221,12 +221,12 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	fills := func(value string) {
 		t.Helper()
 		for label, value := range map[string]string{"Calories": "70", "Protein": "6.3", "Carbs": "0.4", "Fat": "4.8"} {
-			if err := sheet.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
+			if err := sheet.Locator("#ingredient-add").GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
 				t.Fatalf("fill %s: %v", label, err)
 			}
 		}
 		for label, option := range map[string]string{"Unit": "piece", "Usually kept in": "fridge"} {
-			if _, err := sheet.GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
+			if _, err := sheet.Locator("#ingredient-add").GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
 				t.Fatalf("choose %s: %v", label, err)
 			}
 		}

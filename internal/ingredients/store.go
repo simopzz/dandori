@@ -99,3 +99,33 @@ func amount(v *float64) domain.Amount {
 	}
 	return domain.Known(*v)
 }
+
+// updateIngredient sets the signed-in User's Ingredient id to ing, under its normalised
+// name; its Staple flag stays as it is.
+func updateIngredient(ctx context.Context, q db.Querier, id int64, ing domain.Ingredient, normalised string) error {
+	n := ing.Nutrition
+	_, err := q.Exec(ctx, `
+		UPDATE ingredient SET name = $2, normalised_name = $3, unit = $4, kcal = $5, protein = $6, carbs = $7,
+			fat = $8, fibre = $9, sugar = $10, storage_location = $11
+		WHERE id = $1`,
+		id, ing.Name, normalised, string(ing.Unit), n.Kcal.Value, n.Protein.Value, n.Carbs.Value, n.Fat.Value,
+		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual))
+	return err
+}
+
+// loadOtherNameOf is the name of the signed-in User's Ingredient other than id under the
+// key normalised, or "" if there is none.
+func loadOtherNameOf(ctx context.Context, q db.Querier, id int64, normalised string) (string, error) {
+	var name string
+	err := q.QueryRow(ctx, `SELECT name FROM ingredient WHERE normalised_name = $1 AND id <> $2`, normalised, id).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return name, err
+}
+
+// deleteIngredient deletes the signed-in User's Ingredient id.
+func deleteIngredient(ctx context.Context, q db.Querier, id int64) error {
+	_, err := q.Exec(ctx, `DELETE FROM ingredient WHERE id = $1`, id)
+	return err
+}

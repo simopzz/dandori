@@ -163,3 +163,39 @@ func shownText(n *html.Node) string {
 	}
 	return strings.Join(strings.Fields(b.String()), " ")
 }
+
+// EditForm reads the form editing the Ingredient whose edit form holds the name name,
+// as Form does: the Ingredient so named, or the one just refused with that name typed.
+func EditForm(t testing.TB, page, name string) FormData {
+	t.Helper()
+	return Form(t, page, "ingredient-edit-"+editedID(t, page, name))
+}
+
+// DeleteForm reads the form deleting the Ingredient whose edit form holds the name name.
+func DeleteForm(t testing.TB, page, name string) FormData {
+	t.Helper()
+	return Form(t, page, "ingredient-delete-"+editedID(t, page, name))
+}
+
+// editedID is the id of the Ingredient whose edit form on page holds the name name.
+func editedID(t testing.TB, page, name string) string {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	var names []string
+	for n := range doc.Descendants() {
+		id, ok := strings.CutPrefix(attr(n, "id"), "ingredient-edit-")
+		if n.Type != html.ElementNode || n.Data != "form" || !ok {
+			continue
+		}
+		got := Form(t, page, attr(n, "id")).Get("name")
+		if got == name {
+			return id
+		}
+		names = append(names, got)
+	}
+	t.Fatalf("page has no edit form holding the name %q; its edit forms hold %q", name, names)
+	return ""
+}
