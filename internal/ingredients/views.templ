@@ -127,10 +127,10 @@ templ rowSummary(ing domain.Ingredient) {
 // editing is the edit form of ing: edit as typed when it was refused, else ing as it is.
 func editing(ing domain.Ingredient, edit EditForm) EditForm {
 	if edit.ID != ing.ID {
-		return EditForm{ID: ing.ID, AddForm: editFormOf(ing)}
+		return editFormOf(ing)
 	}
 	if edit.Values == nil {
-		edit.AddForm = editFormOf(ing)
+		edit.AddForm = editFormOf(ing).AddForm
 	}
 	return edit
 }
@@ -140,7 +140,7 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 // don't nest, so Enter still saves.
 templ editForm(ing domain.Ingredient, f EditForm, q string) {
 	<form
-		id={ "ingredient-edit-" + strconv.FormatInt(ing.ID, 10) }
+		id={ editFormID(ing.ID) }
 		method="post"
 		action={ templ.SafeURL(ingredientURL(ing.ID, "")) }
 		hx-post={ ingredientURL(ing.ID, "") }
@@ -192,6 +192,9 @@ templ editForm(ing domain.Ingredient, f EditForm, q string) {
 func ingredientURL(id int64, rest string) string {
 	return "/ingredients/" + strconv.FormatInt(id, 10) + rest
 }
+
+// editFormID is the id of the form editing the Ingredient id.
+func editFormID(id int64) string { return "ingredient-edit-" + strconv.FormatInt(id, 10) }
 
 // deleteFormID is the id of the form deleting the Ingredient id.
 func deleteFormID(id int64) string { return "ingredient-delete-" + strconv.FormatInt(id, 10) }

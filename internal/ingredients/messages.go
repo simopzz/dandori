@@ -58,7 +58,7 @@ var (
 	}
 	msgHasMovements = web.Message{
 		En: "It has Movements, so it can't be deleted: the Kitchen Ledger keeps every one.",
-		It: "Ha dei Movimenti, quindi non si può eliminare: la cucina li conserva tutti.",
+		It: "Ha dei Movimenti, quindi non si può eliminare: il Registro della Cucina li conserva tutti.",
 	}
 	msgNameTaken = web.Message{
 		En: "You already have %s: one food is one Ingredient.",

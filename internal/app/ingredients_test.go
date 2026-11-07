@@ -423,6 +423,9 @@ func TestARenameToAnotherIngredientIsRefused(t *testing.T) {
 	s.DoesNotSee("rice")
 }
 
+// foreignKeyViolation is Postgres's code for a row deleted while another refers to it.
+const foreignKeyViolation = "23503"
+
 // editFormID is the id of the edit form on page holding the name name.
 func editFormID(t *testing.T, page, name string) string {
 	t.Helper()
@@ -491,7 +494,7 @@ func TestDeletingAnIngredient(t *testing.T) {
 	s.Open("/ingredients")
 	s.Sees("rice pantry")
 
-	s.Refuses(t, `DELETE FROM ingredient WHERE name = 'rice'`)
+	s.Refuses(t, foreignKeyViolation, `DELETE FROM ingredient WHERE name = 'rice'`)
 }
 
 // Posted from the side sheet by htmx, editing and deleting answer with the sheet's body
@@ -592,7 +595,8 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 	if err := row.Locator("summary").Click(); err != nil {
 		t.Fatalf("open rice's row: %v", err)
 	}
-	name := row.GetByLabel("Name", playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
+	// By its input's name, as the label of a refused field also says why.
+	name := row.Locator("input[name=name]")
 	if err := name.Fill("brown rice"); err != nil {
 		t.Fatalf("rename rice: %v", err)
 	}
@@ -611,6 +615,27 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 	if err := row.Locator("summary").Click(); err != nil {
 		t.Fatalf("open brown rice's row: %v", err)
 	}
+	if err := name.Fill(""); err != nil {
+		t.Fatalf("blank brown rice's name: %v", err)
+	}
+	if err := row.Locator("input[name=kcal]").Fill(""); err != nil {
+		t.Fatalf("blank brown rice's calories: %v", err)
+	}
+	if _, err := name.Evaluate("e => e.form.noValidate = true", nil); err != nil {
+		t.Fatalf("let the browser post blanks: %v", err)
+	}
+	if err := row.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save"}).Click(); err != nil {
+		t.Fatalf("save brown rice blank: %v", err)
+	}
+	if err := expect.Locator(row).ToContainText("Give it a name."); err != nil {
+		t.Fatalf("the sheet doesn't refuse a blank name: %v", err)
+	}
+	if err := expect.Locator(name).ToBeFocused(); err != nil {
+		t.Errorf("the refused name isn't focused: %v", err)
+	}
+	if err := name.Fill("brown rice"); err != nil {
+		t.Fatalf("name brown rice again: %v", err)
+	}
 	b.Shot(t, "ingredient-edit")
 	if err := row.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
 		t.Fatalf("delete brown rice: %v", err)
@@ -619,4 +644,62 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("No Ingredients yet."); err != nil {
 		t.Errorf("the sheet still lists brown rice: %v", err)
 	}
+}
+
+// Posted by htmx, the edits a plain post makes answer in place too: a value required, a
+// rename to another Ingredient refused and one close to another suggested, then
+// confirmed; the unit changed while nothing refers to the Ingredient; fibre and sugar
+// made unknown; and the Kitchen page holding what it held.
+func TestTheIngredientsSheetRefusesAndConfirmsEditsInPlace(t *testing.T) {
+	s := kitchenWith(t, egg, apptest.Ingredient{
+		Name: "rice", Unit: "g", Usual: "pantry", Kcal: "350", Protein: "7", Carbs: "78", Fat: "0.6", Fibre: "1.3", Sugar: "0.1",
+	})
+	post := func(what, name string, set map[string]string, status int) apptest.Response {
+		t.Helper()
+		form := apptest.EditForm(t, s.HTMXGet(t, "/ingredients/list").Body, name)
+		for field, v := range set {
+			form.Values.Set(field, v)
+		}
+		got := s.HTMXPostForm(t, form.Action, form.Values)
+		if got.StatusCode != status || strings.Contains(got.Body, "<html") {
+			t.Fatalf("%s from the sheet answered %d, want %d and a fragment:\n%s", what, got.StatusCode, status, got.Body)
+		}
+		return got
+	}
+
+	blank := post("blanking rice's calories", "rice", map[string]string{"kcal": ""}, http.StatusUnprocessableEntity)
+	if !strings.Contains(apptest.Text(blank.Body), "Required.") || !strings.Contains(blank.Body, "<details open") {
+		t.Errorf("the sheet refusing rice without calories shows: %s", apptest.Text(blank.Body))
+	}
+
+	taken := post("renaming rice to egg", "rice", map[string]string{"name": "Large egg"}, http.StatusUnprocessableEntity)
+	if !strings.Contains(apptest.Text(taken.Body), "You already have egg: one food is one Ingredient.") {
+		t.Errorf("the sheet refusing rice renamed egg shows: %s", apptest.Text(taken.Body))
+	}
+	if got := apptest.EditForm(t, taken.Body, "Large egg").Get("kcal"); got != "350" {
+		t.Errorf("the refused edit form holds kcal %q, want what was typed", got)
+	}
+
+	near := post("renaming rice to eggs", "rice", map[string]string{"name": "eggs"}, http.StatusUnprocessableEntity)
+	if !strings.Contains(apptest.Text(near.Body), "Did you mean egg?") {
+		t.Errorf("the sheet suggesting egg shows: %s", apptest.Text(near.Body))
+	}
+	confirm := apptest.EditForm(t, near.Body, "eggs")
+	if confirm.Get("confirm") != "eggs" {
+		t.Errorf("the edit form suggesting egg confirms %q, want eggs", confirm.Get("confirm"))
+	}
+	confirmed := s.HTMXPostForm(t, confirm.Action, confirm.Values)
+	if notices := apptest.Notices(t, confirmed.Body); confirmed.StatusCode != http.StatusOK || !slices.Equal(notices, []string{"Saved eggs."}) {
+		t.Errorf("confirming eggs from the sheet answered %d, confirming %q", confirmed.StatusCode, notices)
+	}
+
+	post("changing eggs to pieces", "eggs", map[string]string{"unit": "piece", "fibre": "", "sugar": ""}, http.StatusOK)
+	if shown := apptest.Text(s.HTMXGet(t, "/ingredients/list?q=eggs").Body); !strings.Contains(shown, "eggs pantry per piece: 350 kcal protein 7 g carbs 78 g fat 0.6 g fibre – unknown sugar – unknown") {
+		t.Errorf("the sheet after changing eggs shows: %s", shown)
+	}
+
+	s.Counts("eggs", "", "6", "")
+	post("changing eggs' calories", "eggs", map[string]string{"kcal": "140"}, http.StatusOK)
+	s.Open("/kitchen")
+	s.Sees("01 Pantry eggs 6 pieces")
 }

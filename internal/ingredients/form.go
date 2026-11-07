@@ -37,8 +37,8 @@ type EditForm struct {
 }
 
 // editFormOf is the edit form of ing as it is, before anything is typed.
-func editFormOf(ing domain.Ingredient) AddForm {
-	f := AddForm{Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Values: map[string]string{}}
+func editFormOf(ing domain.Ingredient) EditForm {
+	f := EditForm{ID: ing.ID, AddForm: AddForm{Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Values: map[string]string{}}}
 	n := ing.Nutrition
 	for field, a := range map[string]domain.Amount{
 		"kcal": n.Kcal, "protein": n.Protein, "carbs": n.Carbs, "fat": n.Fat, "fibre": n.Fibre, "sugar": n.Sugar,

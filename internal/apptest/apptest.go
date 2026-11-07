@@ -12,6 +12,7 @@ package apptest
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver pgtestdb connects with
 	"github.com/peterldowns/pgtestdb"
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
@@ -225,9 +227,9 @@ func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
 	}
 }
 
-// Refuses checks the app's database refuses sql, as a write no page makes, for a test of
-// what the database itself holds to.
-func (h *Harness) Refuses(t testing.TB, sql string, args ...any) {
+// Refuses checks the app's database refuses sql, a write no page makes, with the SQLSTATE
+// code, for a test of what the database itself holds to: a typo in sql fails it.
+func (h *Harness) Refuses(t testing.TB, code, sql string, args ...any) {
 	t.Helper()
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, h.databaseURL)
@@ -235,8 +237,9 @@ func (h *Harness) Refuses(t testing.TB, sql string, args ...any) {
 		t.Fatalf("connect to test database: %v", err)
 	}
 	defer conn.Close(ctx)
-	if _, err := conn.Exec(ctx, sql, args...); err == nil {
-		t.Errorf("the database ran %s, want it refused", sql)
+	_, err = conn.Exec(ctx, sql, args...)
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); !ok || pgErr.Code != code {
+		t.Errorf("the database answered %s with %v, want it refused with %s", sql, err, code)
 	}
 }
 

@@ -486,16 +486,17 @@ func addsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 // named name, and adds it.
 func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	t.Helper()
+	add := sheet.Locator("#ingredient-add")
 	field := func(label string) playwright.Locator {
-		return sheet.Locator("#ingredient-add").GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
+		return add.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
 	}
 	if err := field("Name").Fill(name); err != nil {
 		t.Fatalf("fill the name: %v", err)
 	}
-	if _, err := sheet.Locator("#ingredient-add").GetByLabel("Unit").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"g"}}); err != nil {
+	if _, err := add.GetByLabel("Unit").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"g"}}); err != nil {
 		t.Fatalf("choose the unit: %v", err)
 	}
-	if _, err := sheet.Locator("#ingredient-add").GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"pantry"}}); err != nil {
+	if _, err := add.GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"pantry"}}); err != nil {
 		t.Fatalf("choose where it is kept: %v", err)
 	}
 	for _, label := range []string{"Calories", "Protein", "Carbs", "Fat"} {
