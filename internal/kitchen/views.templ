@@ -45,7 +45,7 @@ templ page(now time.Time, stock []Held, f CountForm) {
 			<div
 				hidden
 				hx-get="/kitchen/count/sheet"
-				hx-trigger={ "toggle[newState=='closed'] from:#" + countSheetID }
+				hx-trigger={ "close from:#" + countSheetID }
 				hx-target={ "#" + web.SideSheetBody(countSheetID) }
 				hx-swap="innerHTML"
 			></div>
@@ -224,7 +224,7 @@ templ countBody(f CountForm) {
 		<div
 			id="count-list"
 			hx-get="/kitchen/count/list"
-			hx-trigger={ "toggle[newState=='closed'] from:#" + ingredients.SheetID }
+			hx-trigger={ "close from:#" + ingredients.SheetID }
 			hx-include="#count-search"
 		>
 			@foundList(f.Found, f.Staple, f.Query)

@@ -703,7 +703,7 @@ func addForm(f AddForm) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if f.Counting {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " hx-on:htmx:after:swap=\"if (event.target !== this) return; this.closest('.sheet')?.hidePopover(); document.querySelector('.sheet:popover-open [autofocus]')?.focus()\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " hx-on:htmx:after:swap=\"if (event.target !== this) return; this.closest('.sheet')?.close(); document.querySelector('.sheet:modal [autofocus]')?.focus()\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
