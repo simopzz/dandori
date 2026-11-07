@@ -69,7 +69,7 @@ func lockKitchen(ctx context.Context, q db.Querier) error {
 func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error) {
 	rows, err := q.Query(ctx, `
 		SELECT happened_at, ingredient_id, storage_location, coalesce(moved_to, ''), change,
-			cause_kind, coalesce(believed, 0), coalesce(note, '')
+			cause_kind, coalesce(believed, 0), coalesce(stated, 0), coalesce(note, '')
 		FROM movement ORDER BY happened_at, id`)
 	if err != nil {
 		return nil, err
@@ -79,32 +79,29 @@ func loadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 			m                   domain.Movement
 			location, to, cause string
 			change, believed    float64
+			stated              float64
 		)
-		err := row.Scan(&m.At, &m.Key.Ingredient, &location, &to, &change, &cause, &believed, &m.Note)
+		err := row.Scan(&m.At, &m.Key.Ingredient, &location, &to, &change, &cause, &believed, &stated, &m.Note)
 		m.Key.Location, m.To = domain.StorageLocation(location), domain.StorageLocation(to)
-		m.Change, m.Cause, m.Believed = domain.QuantityOf(change), domain.Cause(cause), domain.QuantityOf(believed)
+		m.Change, m.Cause = domain.QuantityOf(change), domain.Cause(cause)
+		m.Believed, m.Stated = domain.QuantityOf(believed), domain.QuantityOf(stated)
 		return m, err
 	})
 }
 
-// saveCount appends a Count of the Ingredient id in location, which keeps both what
-// Dandori believed and what the User stated. A blank note is none.
-func saveCount(ctx context.Context, q db.Querier, at time.Time, id int64, location domain.StorageLocation, believed, stated domain.Quantity, note string) error {
+// saveMovement appends m to the signed-in User's Kitchen Ledger. A move keeps nothing of
+// what was believed or stated, and a blank Storage Location to or note is none.
+func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
+	var believed, stated *float64
+	if m.Cause != domain.Moved {
+		b, s := m.Believed.Number(), m.Stated.Number()
+		believed, stated = &b, &s
+	}
 	_, err := q.Exec(ctx, `
-		INSERT INTO movement (happened_at, ingredient_id, storage_location, change, cause_kind, believed, stated, note)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))`,
-		at, id, string(location), domain.CountDifference(believed, stated).Number(), string(domain.Counted),
-		believed.Number(), stated.Number(), note)
-	return err
-}
-
-// saveMove appends a move of moved of the Ingredient id from one Storage Location to
-// another. A blank note is none.
-func saveMove(ctx context.Context, q db.Querier, at time.Time, id int64, from, to domain.StorageLocation, moved domain.Quantity, note string) error {
-	_, err := q.Exec(ctx, `
-		INSERT INTO movement (happened_at, ingredient_id, storage_location, moved_to, change, cause_kind, note)
-		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))`,
-		at, id, string(from), string(to), moved.Number(), string(domain.Moved), note)
+		INSERT INTO movement (happened_at, ingredient_id, storage_location, moved_to, change, cause_kind, believed, stated, note)
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, NULLIF($9, ''))`,
+		m.At, m.Key.Ingredient, string(m.Key.Location), string(m.To), m.Change.Number(), string(m.Cause),
+		believed, stated, m.Note)
 	return err
 }
 
@@ -118,17 +115,6 @@ func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
 	var has bool
 	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM movement WHERE ingredient_id = $1)`, id).Scan(&has)
 	return has, err
-}
-
-// saveStapleCount appends the Count to nothing that marking the Ingredient id a Staple
-// makes of its Stock Item in location, which held believed: it keeps that, states
-// nothing and has no note.
-func saveStapleCount(ctx context.Context, q db.Querier, at time.Time, id int64, location domain.StorageLocation, believed domain.Quantity) error {
-	_, err := q.Exec(ctx, `
-		INSERT INTO movement (happened_at, ingredient_id, storage_location, change, cause_kind, believed, stated)
-		VALUES ($1, $2, $3, $4, $5, $6, 0)`,
-		at, id, string(location), (-believed).Number(), string(domain.MarkedStaple), believed.Number())
-	return err
 }
 
 // WithMovements is the ids of the signed-in User's Ingredients that some Movement refers

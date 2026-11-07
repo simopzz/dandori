@@ -89,7 +89,7 @@ The user's confirmation, before an upcoming Cycle is planned, of every Portion a
 _Avoid_: Stocktake, inventory count
 
 **Count**:
-A correction the user makes by saying how much of a Stock Item, or how many Portions, the kitchen actually holds: a Movement of the difference from what Dandori believed, which keeps both.
+A correction the user makes by saying how much of a Stock Item, or how many Portions, the kitchen actually holds: a Movement of the difference from what Dandori believed, which keeps both. It stands: a Movement recorded after it but dated before it, such as an Exception logged after the fact, never changes what the kitchen held once it was counted.
 _Avoid_: Adjustment, delta entry
 
 **Staple**:
