@@ -774,3 +774,33 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 		t.Errorf("without motion the Notice stays once its time has run out: %v", err)
 	}
 }
+
+// laterCountOfTheOnlyMovement stands in for a Count that took hold of the kitchen first
+// with a clock a second ahead of the app's: it repeats the ledger's one Count, changing
+// nothing, a second after it.
+func laterCountOfTheOnlyMovement(t *testing.T, s *apptest.Scenario) {
+	s.Exec(t, `
+		INSERT INTO movement (user_id, happened_at, ingredient_id, storage_location, change,
+			cause_kind, believed, stated)
+		SELECT user_id, happened_at + interval '1 second', ingredient_id, storage_location, 0,
+			'counted', stated, stated
+		FROM movement`)
+}
+
+// A Count that waited behind a later Movement happens after it, so its Stock Item's
+// Movements end on what the Kitchen page shows.
+func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.At("Mon 10:00")
+	s.Counts("rice", "", "100", "")
+	laterCountOfTheOnlyMovement(t, s)
+	s.Counts("rice", "", "30", "")
+
+	s.At("Mon 10:01")
+	s.Open("/kitchen")
+	s.Sees("rice 30 g")
+	s.Follows("rice")
+	s.Sees("Counted 100 g → 30 g Mon 2 Nov 10:00 " +
+		"Counted 100 g → 100 g Mon 2 Nov 10:00 " +
+		"Counted 0 g → 100 g Mon 2 Nov 10:00")
+}

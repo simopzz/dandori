@@ -176,8 +176,9 @@ func (s *Service) Countable(ctx context.Context, l domain.Language, query string
 // Count records at the Count of the Ingredient id in location: stated is what the User
 // says is there, and what Dandori believed is read here, once the kitchen is held, in the
 // transaction that writes it, so the difference is from the Kitchen Ledger as it stands
-// and not as a form showed it. A Count that changes nothing is recorded like any other.
-// Counting a Staple is ErrStaple.
+// and not as a form showed it, and it happens no earlier than the Movement it was checked
+// against (loadHeld). A Count that changes nothing is recorded like any other. Counting a
+// Staple is ErrStaple.
 func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockKitchen(ctx, tx); err != nil {
@@ -193,7 +194,7 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 		if ing.Staple {
 			return ErrStaple
 		}
-		believed, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: location})
+		believed, at, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: location})
 		if err != nil {
 			return err
 		}
@@ -201,14 +202,16 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 	})
 }
 
-// loadHeld is what the Stock Item key holds at, for a Count or a move that has hold of
-// the kitchen, as heldAt adds it up.
-func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, error) {
+// loadHeld is what the Stock Item key holds for a Count or a move at at that has hold of
+// the kitchen, and the moment it is recorded at: heldAt, so it happens no earlier than
+// the Movement it was checked against.
+func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, time.Time, error) {
 	movements, err := loadMovements(ctx, q)
 	if err != nil {
-		return 0, err
+		return 0, at, err
 	}
-	return domain.AddUp(movements, heldAt(movements, at))[key].Held, nil
+	at = heldAt(movements, at)
+	return domain.AddUp(movements, at)[key].Held, at, nil
 }
 
 // heldAt is the moment to add movements up to for a write at at that has hold of the
@@ -231,14 +234,15 @@ func (r MoveRefused) Error() string { return "move refused: " + string(r.Problem
 
 // Move records at a move of moved of the Ingredient id from one Storage Location to
 // another. What is held is read here, once the kitchen is held, so a move is checked
-// against the Kitchen Ledger as it stands and not as a form showed it. A move that
+// against the Kitchen Ledger as it stands and not as a form showed it, and happens no
+// earlier than the Movement it was checked against (loadHeld). A move that
 // domain.CheckMove refuses is MoveRefused, and writes nothing.
 func (s *Service) Move(ctx context.Context, at time.Time, id int64, from, to domain.StorageLocation, moved domain.Quantity, note string) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockKitchen(ctx, tx); err != nil {
 			return err
 		}
-		held, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: from})
+		held, at, err := loadHeld(ctx, tx, at, domain.StockKey{Ingredient: id, Location: from})
 		if err != nil {
 			return err
 		}
