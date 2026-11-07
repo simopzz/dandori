@@ -147,32 +147,26 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	var (
-		f        CountForm
-		location domain.StorageLocation
-		stated   domain.Quantity
-	)
-	holding, err := h.Service.Count(ctx, now, id, func(ing domain.Ingredient) (domain.StorageLocation, domain.Quantity, bool) {
-		location, stated, f = parseCountForm(r, ing)
-		return location, stated, len(f.Errs) == 0
-	}, r.PostFormValue("note"))
+	rec, err := h.Service.Count(ctx, now, id, domain.StorageLocation(r.PostFormValue("location")), r.PostFormValue("stated"), r.PostFormValue("note"))
 	switch {
-	case errors.Is(err, ErrStaple):
-		f.Errs["stated"] = web.Tf(ctx, msgStaple, holding.Ingredient.Name)
-	case err != nil:
+	case err != nil && !errors.Is(err, ErrStaple):
 		httpx.ServerError(w, r, h.Log, "save a Count", err)
 		return
-	case holding == nil:
+	case rec == nil:
 		http.NotFound(w, r)
 		return
 	}
-	ing := holding.Ingredient
+	ing := rec.Ingredient
+	f := postedCountForm(r, ing, rec.Problems)
+	if errors.Is(err, ErrStaple) {
+		f.Errs["stated"] = web.Tf(ctx, msgStaple, ing.Name)
+	}
 	if len(f.Errs) > 0 {
-		f.Believed = holding.Held
+		f.Believed = rec.Held
 		h.answer(w, r, http.StatusUnprocessableEntity, now, f, "")
 		return
 	}
-	counted := web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, stated, ing.Unit), web.T(ctx, web.InLocations[location]))
+	counted := web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location]))
 	if !httpx.IsHTMX(r) {
 		web.RedirectWithNotice(w, r, "/kitchen/count", counted)
 		return
@@ -242,28 +236,18 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	var (
-		f     MoveForm
-		moved domain.Quantity
-	)
-	holding, err := h.Service.Move(ctx, now, id, from, func(ing domain.Ingredient) (domain.StorageLocation, domain.Quantity, bool) {
-		moved, f = parseMoveForm(r, ing, from)
-		return f.To, moved, len(f.Errs) == 0
-	}, r.PostFormValue("note"))
-	var refused MoveRefused
+	rec, err := h.Service.Move(ctx, now, id, from, domain.StorageLocation(r.PostFormValue("to")), r.PostFormValue("quantity"), r.PostFormValue("note"))
 	switch {
-	case errors.As(err, &refused):
-		f.Errs["quantity"] = refusal(ctx, refused, holding.Ingredient.Unit)
 	case err != nil:
 		httpx.ServerError(w, r, h.Log, "save a move", err)
 		return
-	case holding == nil:
+	case rec == nil:
 		http.NotFound(w, r)
 		return
 	}
-	ing := holding.Ingredient
-	if len(f.Errs) > 0 {
-		f.Believed = holding.Held
+	ing := rec.Ingredient
+	if len(rec.Problems) > 0 {
+		f := postedMoveForm(r, ing, from, rec.Held, rec.Problems)
 		if httpx.IsHTMX(r) {
 			httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, moveForm(f))
 			return
@@ -271,7 +255,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, movePage(now, f))
 		return
 	}
-	text := web.Tf(ctx, msgMoved, web.Quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[f.To]))
+	text := web.Tf(ctx, msgMoved, web.Quantity(ctx, rec.Movement.Change, ing.Unit), ing.Name, web.T(ctx, toLocations[rec.Movement.To]))
 	if !httpx.IsHTMX(r) {
 		web.RedirectWithNotice(w, r, "/kitchen", text)
 		return

@@ -1,9 +1,7 @@
 package kitchen
 
 import (
-	"context"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -28,24 +26,22 @@ type CountForm struct {
 	Errs       map[string]string
 }
 
-// parseCountForm reads the Count form posted in r for ing as what to count, and the form
-// as typed with why each field is refused, if any is.
-func parseCountForm(r *http.Request, ing domain.Ingredient) (domain.StorageLocation, domain.Quantity, CountForm) {
+// postedCountForm is the Count form posted in r for ing, as typed, with why each field
+// was refused, by problems.
+func postedCountForm(r *http.Request, ing domain.Ingredient, problems map[string]domain.Problem) CountForm {
 	ctx := r.Context()
-	location := domain.StorageLocation(r.PostFormValue("location"))
 	f := CountForm{
-		Ingredient: &ing, Location: location,
+		Ingredient: &ing, Location: domain.StorageLocation(r.PostFormValue("location")),
 		Stated: strings.TrimSpace(r.PostFormValue("stated")), Note: r.PostFormValue("note"),
 		Errs: map[string]string{},
 	}
-	if !slices.Contains(domain.StorageLocations, location) {
+	if _, refused := problems["location"]; refused {
 		f.Errs["location"], f.Location = web.T(ctx, msgChooseWhere), ing.Usual
 	}
-	stated, problem := domain.ParseQuantity(ing.Unit, f.Stated)
-	if problem != "" {
+	if problem, refused := problems["stated"]; refused {
 		f.Errs["stated"] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
 	}
-	return location, stated, f
+	return f
 }
 
 // MoveForm is the form that moves a Stock Item, as shown.
@@ -62,30 +58,23 @@ type MoveForm struct {
 	Errs     map[string]string
 }
 
-// parseMoveForm reads the form posted in r that moves ing from a Storage Location, as the
-// quantity to move, and the form as typed with why each field is refused, if any is.
-func parseMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageLocation) (domain.Quantity, MoveForm) {
+// postedMoveForm is the form posted in r that moves ing from a Storage Location, which
+// held held, as typed, with why each field was refused, by problems.
+func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageLocation, held map[domain.StorageLocation]domain.Quantity, problems map[string]domain.Problem) MoveForm {
 	ctx := r.Context()
-	to := domain.StorageLocation(r.PostFormValue("to"))
 	f := MoveForm{
-		Ingredient: ing, From: from, To: to,
+		Ingredient: ing, From: from, Believed: held, To: domain.StorageLocation(r.PostFormValue("to")),
 		Quantity: strings.TrimSpace(r.PostFormValue("quantity")), Note: r.PostFormValue("note"),
 		Errs: map[string]string{},
 	}
-	if to == from || !slices.Contains(domain.StorageLocations, to) {
+	if _, refused := problems["to"]; refused {
 		f.Errs["to"], f.To = web.T(ctx, msgChooseTarget), ""
 	}
-	moved, problem := domain.ParseQuantity(ing.Unit, f.Quantity)
-	if problem != "" {
+	switch problem, refused := problems["quantity"]; {
+	case problem == domain.MoreThanHeld:
+		f.Errs["quantity"] = web.Tf(ctx, msgMoreThanHeld, web.Quantity(ctx, held[from], ing.Unit))
+	case refused:
 		f.Errs["quantity"] = web.T(ctx, web.ProblemMessage(problem, moveProblemMessages))
 	}
-	return moved, f
-}
-
-// refusal says why refused was refused, of unit, on the form's quantity.
-func refusal(ctx context.Context, refused MoveRefused, unit domain.Unit) string {
-	if refused.Problem == domain.MoreThanHeld {
-		return web.Tf(ctx, msgMoreThanHeld, web.Quantity(ctx, refused.Held, unit))
-	}
-	return web.T(ctx, web.ProblemMessage(refused.Problem, moveProblemMessages))
+	return f
 }

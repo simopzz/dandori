@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"maps"
 	"testing"
 	"time"
 
@@ -372,18 +373,18 @@ func TestTheLedgerWritesAMovement(t *testing.T) {
 			moved     domain.Quantity
 			wantAt    time.Time
 			problem   domain.Problem
-			held      domain.Quantity
 		}{
-			{"of what is held now", behind, 7000, onMonday(10), "", 8000},
-			{"after a later Movement", ahead, 5000, onMonday(11), "", 6000},
-			{"of more than a later Movement left", ahead, 7000, onMonday(11), domain.MoreThanHeld, 6000},
-			{"of nothing", behind, 0, onMonday(10), domain.NothingMoved, 8000},
+			{"of what is held now", behind, 7000, onMonday(10), ""},
+			{"after a later Movement", ahead, 5000, onMonday(11), ""},
+			{"of more than a later Movement left", ahead, 7000, onMonday(11), domain.MoreThanHeld},
+			{"of all a later Movement left", ahead, 6000, onMonday(11), ""},
+			{"of nothing", behind, 0, onMonday(10), domain.NothingMoved},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				got, problem, held := domain.NewLedger(c.movements).Move(onMonday(10), riceFridge, domain.Freezer, c.moved, "")
-				if problem != c.problem || held != c.held {
-					t.Fatalf("the move is refused %q from %d held, want %q from %d", problem, held, c.problem, c.held)
+				got, problem := domain.NewLedger(c.movements).Move(onMonday(10), riceFridge, domain.Freezer, c.moved, "")
+				if problem != c.problem {
+					t.Fatalf("the move is refused %q, want %q", problem, c.problem)
 				}
 				if problem != "" {
 					return
@@ -418,4 +419,54 @@ func TestTheLedgerWritesAMovement(t *testing.T) {
 		}
 		lastLinesAgree(t, append(movements, got...))
 	})
+}
+
+// A Count is refused unless it says where, in a Storage Location, and how much is there.
+func TestParseCount(t *testing.T) {
+	cases := []struct {
+		name     string
+		location domain.StorageLocation
+		stated   string
+		want     domain.Quantity
+		problems map[string]domain.Problem
+	}{
+		{"where and how much", domain.Fridge, " 700 ", 7000, nil},
+		{"nowhere", "", "700", 7000, map[string]domain.Problem{"location": domain.Required}},
+		{"no Storage Location", "garage", "700", 7000, map[string]domain.Problem{"location": domain.Required}},
+		{"no quantity", domain.Fridge, "", 0, map[string]domain.Problem{"stated": domain.Required}},
+		{"neither", "", "lots", 0, map[string]domain.Problem{"location": domain.Required, "stated": domain.NotANumber}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, problems := domain.ParseCount(domain.Grams, c.location, c.stated)
+			if got != c.want || !maps.Equal(problems, c.problems) {
+				t.Errorf("ParseCount(%q, %q) = %d, %v; want %d, %v", c.location, c.stated, got, problems, c.want, c.problems)
+			}
+		})
+	}
+}
+
+// A move is refused unless it goes to another Storage Location and says how much.
+func TestParseMove(t *testing.T) {
+	cases := []struct {
+		name     string
+		to       domain.StorageLocation
+		moved    string
+		want     domain.Quantity
+		problems map[string]domain.Problem
+	}{
+		{"elsewhere, some of it", domain.Freezer, "1,5", 15, nil},
+		{"nowhere", "", "1", 10, map[string]domain.Problem{"to": domain.Required}},
+		{"where it already is", domain.Fridge, "1", 10, map[string]domain.Problem{"to": domain.Required}},
+		{"no Storage Location", "garage", "1", 10, map[string]domain.Problem{"to": domain.Required}},
+		{"too precise", domain.Freezer, "0.25", 0, map[string]domain.Problem{"quantity": domain.TooPrecise}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, problems := domain.ParseMove(domain.Pieces, domain.Fridge, c.to, c.moved)
+			if got != c.want || !maps.Equal(problems, c.problems) {
+				t.Errorf("ParseMove(fridge, %q, %q) = %d, %v; want %d, %v", c.to, c.moved, got, problems, c.want, c.problems)
+			}
+		})
+	}
 }

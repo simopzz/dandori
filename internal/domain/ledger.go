@@ -2,6 +2,7 @@ package domain
 
 import (
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +120,36 @@ func CheckMove(held, moved Quantity) Problem {
 	return ""
 }
 
+// ParseCount reads a Count of unit as the User typed it: the Storage Location it is of
+// and the quantity they state is there, and problems, why each field is refused, by
+// field, if any is.
+func ParseCount(unit Unit, location StorageLocation, stated string) (Quantity, map[string]Problem) {
+	problems := map[string]Problem{}
+	if !slices.Contains(StorageLocations, location) {
+		problems["location"] = Required
+	}
+	q, problem := ParseQuantity(unit, stated)
+	if problem != "" {
+		problems["stated"] = problem
+	}
+	return q, problems
+}
+
+// ParseMove reads a move of unit from one Storage Location as the User typed it: the
+// Storage Location it goes to, another, and the quantity to move, and problems, why each
+// field is refused, by field, if any is.
+func ParseMove(unit Unit, from, to StorageLocation, moved string) (Quantity, map[string]Problem) {
+	problems := map[string]Problem{}
+	if to == from || !slices.Contains(StorageLocations, to) {
+		problems["to"] = Required
+	}
+	q, problem := ParseQuantity(unit, moved)
+	if problem != "" {
+		problems["quantity"] = problem
+	}
+	return q, problems
+}
+
 // after is what the Stock Item key holds after m, from held before it; touches is false
 // if m leaves key alone. A move touches both of its Stock Items, and a Count stands: it
 // sets its Stock Item to what was stated, whatever came before it.
@@ -226,15 +257,14 @@ func (l Ledger) Count(now time.Time, key StockKey, stated Quantity, note string)
 }
 
 // Move is the move, written at now, of moved from the Stock Item key to the Storage
-// Location to, with the User's note, and held, what key holds when it is written. When
-// CheckMove refuses it, problem says why and there is no move.
-func (l Ledger) Move(now time.Time, key StockKey, to StorageLocation, moved Quantity, note string) (_ Movement, problem Problem, held Quantity) {
+// Location to, with the User's note. When CheckMove refuses it against what key holds
+// then, problem says why and there is no move.
+func (l Ledger) Move(now time.Time, key StockKey, to StorageLocation, moved Quantity, note string) (_ Movement, problem Problem) {
 	at := l.WriteAt(now)
-	held = l.At(at)[key].Held
-	if problem = CheckMove(held, moved); problem != "" {
-		return Movement{}, problem, held
+	if problem = CheckMove(l.At(at)[key].Held, moved); problem != "" {
+		return Movement{}, problem
 	}
-	return Movement{At: at, Key: key, To: to, Change: moved, Cause: Moved, Note: note}, "", held
+	return Movement{At: at, Key: key, To: to, Change: moved, Cause: Moved, Note: note}, ""
 }
 
 // CountToNothing is the Count to nothing, written at now, that marking the Ingredient id
