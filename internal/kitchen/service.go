@@ -81,24 +81,25 @@ type StockItemMovements struct {
 }
 
 // StockItemMovements is the Stock Item of the Ingredient id in location with its
-// Movements, or nil if the signed-in User has none of it. One counted to nothing, or
-// whose Ingredient is now a Staple, keeps them.
+// Movements, none if nothing has moved there, or nil if the signed-in User has no such
+// Ingredient or location is no Storage Location. One counted to nothing, or whose
+// Ingredient is now a Staple, keeps them.
 func (s *Service) StockItemMovements(ctx context.Context, id int64, location domain.StorageLocation) (*StockItemMovements, error) {
+	if !slices.Contains(domain.StorageLocations, location) {
+		return nil, nil
+	}
 	var item *StockItemMovements
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
+		if err != nil || !ok {
+			return err
+		}
 		movements, err := loadMovements(ctx, tx)
 		if err != nil {
 			return err
 		}
 		touched := domain.StockMovements(movements, domain.StockKey{Ingredient: id, Location: location})
-		if len(touched) == 0 {
-			return nil
-		}
 		slices.Reverse(touched)
-		ing, ok, err := ingredients.LoadIngredient(ctx, tx, id)
-		if err != nil || !ok {
-			return err
-		}
 		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: touched}
 		return nil
 	})

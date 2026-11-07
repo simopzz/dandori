@@ -44,6 +44,22 @@ templ FieldGroup(num int, legend string) {
 	</fieldset>
 }
 
+// FieldGroupAction is a FieldGroup with action beside its legend, for a secondary action
+// on what the legend names. id is the legend text's: it alone names the group, leaving
+// the action out.
+templ FieldGroupAction(id string, num int, legend string, action templ.Component) {
+	<fieldset class="section" aria-labelledby={ id }>
+		<legend class="section-heading">
+			@number(num)
+			<span id={ id }>{ legend }</span>
+			<span class="heading-action">
+				@action
+			</span>
+		</legend>
+		{ children... }
+	</fieldset>
+}
+
 // number is a Section's number, or for 0, a small mark in its place.
 templ number(n int) {
 	if n == 0 {
@@ -216,6 +232,14 @@ templ Actions() {
 	</div>
 }
 
+// ActionsApart is Actions for a row ending a form with one more action that isn't part
+// of it: the primary one first, the other at the far end.
+templ ActionsApart() {
+	<div class="actions actions-apart">
+		{ children... }
+	</div>
+}
+
 // Button is the primary action, in ink. attrs must give its type.
 templ Button(attrs templ.Attributes) {
 	<button class="btn" { attrs... }>
@@ -273,6 +297,26 @@ templ Segmented(legend, name string, choices []Choice, selected, err string) {
 		}
 	</fieldset>
 	@FieldError(err)
+}
+
+// SegmentedLinks is Segmented for options that each open something rather than fill in a
+// form, so the one shown is reachable from the others: its children are SegmentLinks.
+// label is for a screen reader.
+templ SegmentedLinks(label string) {
+	<nav class="seg seg-links" aria-label={ label }>
+		{ children... }
+	</nav>
+}
+
+// SegmentLink is one option of SegmentedLinks, shown as chosen when current. attrs must
+// give its href.
+templ SegmentLink(current bool, attrs templ.Attributes) {
+	<a
+		if current {
+			aria-current="true"
+		}
+		{ attrs... }
+	><span>{ children... }</span></a>
 }
 
 // Alert says something went wrong, on the accent wash.
@@ -363,6 +407,14 @@ func SideSheetBody(id string) string { return id + "-body" }
 // the sheet; a form in the body, swapped away, has htmx tell the body instead. The link
 // is the sheet's source, so one inside another sheet opens over it and leaves it open.
 templ SideSheetLink(id string, href, src templ.SafeURL) {
+	@SideSheetLinkWith(id, href, src, nil) {
+		{ children... }
+	}
+}
+
+// SideSheetLinkWith is a SideSheetLink with more attrs, such as an hx-include that adds
+// to src what the page around it says at that moment.
+templ SideSheetLinkWith(id string, href, src templ.SafeURL, attrs templ.Attributes) {
 	<a
 		class="sheet-link"
 		href={ href }
@@ -371,6 +423,7 @@ templ SideSheetLink(id string, href, src templ.SafeURL) {
 		hx-swap="innerHTML"
 		data-sheet={ id }
 		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.matches(':popover-open')) s.showPopover({ source: this }); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea'))?.focus()"
+		{ attrs... }
 	>
 		{ children... }
 	</a>

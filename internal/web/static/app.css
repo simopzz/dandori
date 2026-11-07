@@ -202,6 +202,7 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
 .btn:hover,
 .btn[aria-busy="true"],
 .seg input:checked + span,
+.seg [aria-current] span,
 .sheet::backdrop {
   background: repeating-conic-gradient(var(--dither-on) 0 25%, var(--dither-under) 0 50%)
     0 0 / calc(2 * var(--dither-pixel)) calc(2 * var(--dither-pixel));
@@ -216,7 +217,8 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
    veil over the page. */
 .btn:hover,
 .btn[aria-busy="true"],
-.seg input:checked + span { --dither-pixel: var(--pixel-fine); --dither-on: var(--color-fill-dither); --dither-under: var(--color-fill); }
+.seg input:checked + span,
+.seg [aria-current] span { --dither-pixel: var(--pixel-fine); --dither-on: var(--color-fill-dither); --dither-under: var(--color-fill); }
 
 .sheet::backdrop { --dither-pixel: var(--pixel-fine); --dither-on: var(--color-veil); --dither-under: transparent; }
 
@@ -403,6 +405,10 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
   background: linear-gradient(90deg, var(--color-accent) 0 2.25rem, transparent 2.25rem 2.6rem, var(--color-rule-strong) 2.6rem);
 }
 
+.section-heading:has(.heading-action) { flex-wrap: wrap; }
+
+.heading-action { margin-left: auto; font: 400 1rem var(--font-body); letter-spacing: normal; }
+
 legend.section-heading { float: left; }
 
 legend.section-heading + * { clear: both; }
@@ -554,6 +560,8 @@ a.row-title:hover { text-decoration: underline; }
 
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: var(--space-5) 0 0; }
 
+.actions-apart { justify-content: space-between; }
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -640,9 +648,15 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .seg span { display: block; padding: 0 var(--space-3); font-size: 0.8rem; line-height: var(--tap); min-height: var(--tap); }
 
-.seg label + label span { border-left: 1px solid var(--color-rule-strong); }
+.seg label + label span,
+.seg a + a span { border-left: 1px solid var(--color-rule-strong); }
 
-.seg input:checked + span { color: var(--color-on-fill); } /* on the dither above */
+.seg-links { width: fit-content; margin-bottom: var(--space-5); }
+
+.seg a { color: inherit; text-decoration: none; }
+
+.seg input:checked + span,
+.seg [aria-current] span { color: var(--color-on-fill); } /* on the dither above */
 
 .seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: 2px; }
 

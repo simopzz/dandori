@@ -161,6 +161,7 @@ elements themselves.
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
 | `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small vermilion square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
 | `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
+| `FieldGroupAction(id, num, legend, action)` | A `FieldGroup` with a secondary action beside its legend, for one that changes what the legend names (the Count form's `Choose another`); on a long legend it drops to the next line, at the far end. `id` is the legend text's, which alone names the group. |
 | `Hint()` | A quiet paragraph explaining what follows. |
 | `Empty()` | What a list says when it has nothing in it. |
 | `Disclosure(summary)` | A group of a page's content a click away (the day's later Slots on Today): a quiet summary line with a chevron, closed until opened. |
@@ -177,12 +178,15 @@ elements themselves.
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
+| `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
 | `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
+| `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
+| `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
 | `Notice()` | Something happened as asked ("Profile saved."). |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
@@ -190,6 +194,7 @@ elements themselves.
 | `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil. Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
 | `SheetBody(id)` | The body of a sheet whose content swaps in place: every `SideSheet`'s, and an `AddSheet`'s that keeps working through several saves, as the Kitchen's Count does. A form in it swaps it (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, or else the one marked `autofocus`, the sheet staying open. A swap into part of the body, such as a search's results, leaves the focus where it is. |
 | `SideSheetLink(id, href, src)` | Opens the sheet `id`, loading its `SheetBody` from `src`, a fragment, and focuses its field marked `autofocus`, or else its first. Without htmx it is a plain link to `href`, a page of the same content. Placed inside another sheet, it opens over that sheet, which stays open beneath it. |
+| `SideSheetLinkWith(id, href, src, attrs)` | A `SideSheetLink` with more attributes, such as an `hx-include` adding to `src` what the page around it says at that moment. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
 | `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |

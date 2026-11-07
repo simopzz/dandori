@@ -78,12 +78,12 @@ func (h Handlers) ShowMovements(w http.ResponseWriter, r *http.Request) {
 // ShowMovementsSheet is the Movements sheet's body: a Stock Item's Movements.
 func (h Handlers) ShowMovementsSheet(w http.ResponseWriter, r *http.Request) {
 	if item := h.stockItem(w, r); item != nil {
-		httpx.Render(w, r, h.Log, http.StatusOK, movementsBody(h.Clock.Now(), *item))
+		httpx.Render(w, r, h.Log, http.StatusOK, movementsBody(h.Clock.Now(), *item, true))
 	}
 }
 
-// stockItem is the Stock Item r's query asks for with its Movements. Having none, or on a
-// failure, it answers r itself and is nil.
+// stockItem is the Stock Item r's query asks for with its Movements. With no such
+// Ingredient or Storage Location, or on a failure, it answers r itself and is nil.
 func (h Handlers) stockItem(w http.ResponseWriter, r *http.Request) *StockItemMovements {
 	id, err := strconv.ParseInt(r.URL.Query().Get("ingredient"), 10, 64)
 	if err != nil {
