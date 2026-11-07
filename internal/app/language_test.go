@@ -3,7 +3,6 @@ package app_test
 import (
 	"net/http"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/apptest"
@@ -177,10 +176,10 @@ func TestTheLanguageSwitchStaysOnThisSite(t *testing.T) {
 	}
 	res.Body.Close()
 
-	if got := res.Header.Get("Location"); !strings.HasPrefix(got, "/") || strings.HasPrefix(got, "//") {
-		t.Errorf("the Language switch redirects to %q, want a path on this site", got)
+	if got := res.Header.Get("Location"); got != "/evil.example/sign-in" {
+		t.Errorf("the Language switch redirects to %q, want /evil.example/sign-in on this site", got)
 	}
-	if !slices.ContainsFunc(res.Cookies(), func(c *http.Cookie) bool { return c.Value == "it" }) {
-		t.Errorf("the Language switch set no Language cookie: %v", res.Cookies())
+	if !slices.ContainsFunc(res.Cookies(), func(c *http.Cookie) bool { return c.Name == "dandori_language" && c.Value == "it" }) {
+		t.Errorf("the Language switch set no Italian Language cookie: %v", res.Cookies())
 	}
 }
