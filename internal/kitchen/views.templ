@@ -209,14 +209,8 @@ func countedText(ctx context.Context, now, at time.Time) string {
 	return web.Tf(ctx, msgCountedOn, happenedText(ctx, now, at))
 }
 
-// countBody is the Count just saved, if any, then the form of the Ingredient chosen, or
-// else the search for one.
+// countBody is the form of the Ingredient chosen, or else the search for one.
 templ countBody(f CountForm) {
-	if f.Counted != nil {
-		@web.Notice() {
-			{ web.Tf(ctx, msgCounted, f.Counted.Ingredient.Name, quantity(ctx, f.Counted.Stated, f.Counted.Ingredient.Unit), web.T(ctx, inLocations[f.Counted.Location])) }
-		}
-	}
 	if f.Ingredient != nil {
 		@countForm(f)
 	} else {
@@ -440,13 +434,6 @@ templ moveForm(f MoveForm) {
 			</div>
 		}
 	</form>
-}
-
-// movedNotice confirms a move just saved of moved of ing, in the sheet that made it.
-templ movedNotice(ing domain.Ingredient, to domain.StorageLocation, moved domain.Quantity) {
-	@web.Notice() {
-		{ web.Tf(ctx, msgMoved, quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[to])) }
-	}
 }
 
 // targetChoices are the Storage Locations f's Stock Item can move to, each with what

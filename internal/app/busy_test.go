@@ -25,7 +25,7 @@ func TestBrowserShowsASlowWriteIsBusy(t *testing.T) {
 	}
 
 	held.Release()
-	b.IsAt(t, "/profile?saved")
+	b.IsAt(t, "/profile")
 	if err := expect.Locator(busyBar(b)).ToBeHidden(); err != nil {
 		t.Errorf("the busy bar stays after the write: %v", err)
 	}
@@ -75,8 +75,8 @@ func TestBrowserShowsNothingForAQuickWrite(t *testing.T) {
 	}
 
 	b.ChooseLanguage(t, "English", "Save")
-	b.IsAt(t, "/profile?saved")
-	b.Sees(t, "Profile saved.")
+	b.IsAt(t, "/profile")
+	b.IsConfirmed(t, "Profile saved.")
 	if saw, err := b.Evaluate(`window.sawBusy`); err != nil || saw != false {
 		t.Errorf("a quick write showed the busy state (saw %v, err %v)", saw, err)
 	}
@@ -119,7 +119,7 @@ func TestBrowserSendsADoubleClickedWriteOnce(t *testing.T) {
 		t.Fatalf("double-click Save: %v", err)
 	}
 	held.Release()
-	b.IsAt(t, "/profile?saved")
+	b.IsAt(t, "/profile")
 	if n := held.Count(); n != 1 {
 		t.Errorf("a double-clicked Save sent %d requests, want 1", n)
 	}

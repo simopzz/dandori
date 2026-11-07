@@ -65,8 +65,7 @@ func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
-	f := LanguageForm{Language: web.LanguageOf(r.Context()), Saved: r.URL.Query().Has("saved")}
-	h.renderProfile(w, r, http.StatusOK, f)
+	h.renderProfile(w, r, http.StatusOK, LanguageForm{Language: web.LanguageOf(r.Context())})
 }
 
 func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +77,7 @@ func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	if !h.setLanguage(w, r, l) {
 		return
 	}
-	http.Redirect(w, r, "/profile?saved", http.StatusSeeOther)
+	web.RedirectWithNotice(w, r, "/profile", web.T(web.WithLanguage(r.Context(), l), msgSaved))
 }
 
 // goneToTodayIfChosen sends a User who has chosen their Language to Today, and reports

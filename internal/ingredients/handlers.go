@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -25,12 +24,12 @@ type Handlers struct {
 	CountNew func(w http.ResponseWriter, r *http.Request, id int64)
 }
 
-// Show is the Ingredients page, searched for its query q, confirming the Ingredient just
-// added, if any, or searched for the one just picked. Its query name starts the add form,
+// Show is the Ingredients page, searched for its query q, or for the Ingredient just
+// picked, confirming it. Its query name starts the add form,
 // and counting says it is to count what is added.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	f, q := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Added: query.Get("added"), Picked: query.Get("picked")}, query.Get("q")
+	f, q := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Picked: query.Get("picked")}, query.Get("q")
 	if f.Picked != "" {
 		q = f.Picked
 	}
@@ -103,15 +102,15 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !fragment {
-		http.Redirect(w, r, "/ingredients?added="+url.QueryEscape(ing.Name), http.StatusSeeOther)
+		web.RedirectWithNotice(w, r, "/ingredients", web.Tf(r.Context(), msgAdded, ing.Name))
 		return
 	}
 	h.render(w, r, http.StatusOK, AddForm{Added: ing.Name}, "", true)
 }
 
 // render answers with f and the User's Ingredients a search for q finds, as the sheet's
-// body when fragment is set, else as the Ingredients page. f's Picked is confirmed only
-// if the User has an Ingredient of that name.
+// body when fragment is set, else as the Ingredients page. A floating Notice confirms
+// f's Added, or else its Picked, which only an Ingredient of the User's of that name is.
 func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, f AddForm, q string, fragment bool) {
 	ings, err := h.Service.Search(r.Context(), q)
 	if err != nil {
@@ -121,9 +120,23 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, f A
 	if !slices.ContainsFunc(ings, func(ing domain.Ingredient) bool { return ing.Name == f.Picked }) {
 		f.Picked = ""
 	}
+	var notice string
+	switch {
+	case f.Added != "":
+		notice = web.Tf(r.Context(), msgAdded, f.Added)
+	case f.Picked != "":
+		notice = web.Tf(r.Context(), msgPicked, f.Picked)
+	}
 	if fragment {
-		httpx.Render(w, r, h.Log, status, sheetBody(ings, f, q))
+		body := sheetBody(ings, f, q)
+		if notice != "" {
+			body = web.FragmentWithNotice(body, notice)
+		}
+		httpx.Render(w, r, h.Log, status, body)
 		return
+	}
+	if notice != "" {
+		r = r.WithContext(web.WithNotice(r.Context(), notice))
 	}
 	httpx.Render(w, r, h.Log, status, page(h.Clock.Now(), ings, f, q))
 }

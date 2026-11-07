@@ -28,7 +28,7 @@ func countsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 	if err := expect.Locator(b.Locator("#stock")).ToContainText("rice"); err != nil {
 		t.Fatalf("rice isn't listed: %v", err)
 	}
-	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Count sheet: %v", err)
 	}
 	if err := expect.Locator(count).ToBeHidden(); err != nil {

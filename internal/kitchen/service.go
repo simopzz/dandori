@@ -173,32 +173,13 @@ func (s *Service) Countable(ctx context.Context, l domain.Language, query string
 	return found, staple, nil
 }
 
-// FindCount is the Count id as it was saved, or nil if the signed-in User has none.
-func (s *Service) FindCount(ctx context.Context, id int64) (*Counted, error) {
-	var counted *Counted
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		ingredient, location, stated, ok, err := loadCount(ctx, tx, id)
-		if err != nil || !ok {
-			return err
-		}
-		ing, ok, err := ingredients.LoadIngredient(ctx, tx, ingredient)
-		if err != nil || !ok {
-			return err
-		}
-		counted = &Counted{Ingredient: ing, Location: location, Stated: stated}
-		return nil
-	})
-	return counted, err
-}
-
-// Count records at the Count of the Ingredient id in location, and is that Count's id:
-// stated is what the User says is there, and what Dandori believed is read here, once
-// the kitchen is held, in the transaction that writes it, so the difference is from the
-// Kitchen Ledger as it stands and not as a form showed it. A Count that changes nothing
-// is recorded like any other. Counting a Staple is ErrStaple.
-func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) (int64, error) {
-	var counted int64
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+// Count records at the Count of the Ingredient id in location: stated is what the User
+// says is there, and what Dandori believed is read here, once the kitchen is held, in the
+// transaction that writes it, so the difference is from the Kitchen Ledger as it stands
+// and not as a form showed it. A Count that changes nothing is recorded like any other.
+// Counting a Staple is ErrStaple.
+func (s *Service) Count(ctx context.Context, at time.Time, id int64, location domain.StorageLocation, stated domain.Quantity, note string) error {
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockKitchen(ctx, tx); err != nil {
 			return err
 		}
@@ -216,10 +197,8 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 		if err != nil {
 			return err
 		}
-		counted, err = saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
-		return err
+		return saveCount(ctx, tx, at, id, location, believed, stated, strings.TrimSpace(note))
 	})
-	return counted, err
 }
 
 // loadHeld is what the Stock Item key holds at, for a Count or a move that has hold of

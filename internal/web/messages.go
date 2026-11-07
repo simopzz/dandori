@@ -10,6 +10,7 @@ var (
 	msgLanguageSwitch = Message{En: "Language", It: "Lingua"}
 	msgChange         = Message{En: "Change", It: "Modifica"}
 	msgClose          = Message{En: "Close", It: "Chiudi"}
+	msgCloseNotice    = Message{En: "Close notice", It: "Chiudi avviso"}
 )
 
 // problems say why a typed number is refused, the same for every field.

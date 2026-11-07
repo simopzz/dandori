@@ -273,7 +273,7 @@ func TestStorageLocationsInItalian(t *testing.T) {
 
 	for location, in := range map[string]string{"pantry": "in dispensa", "fridge": "in frigo", "freezer": "nel congelatore"} {
 		s.Counts("uovo", location, "2", "")
-		s.Sees("Contato uovo: 2 pezzi " + in + ".")
+		s.IsConfirmed("Contato uovo: 2 pezzi " + in + ".")
 	}
 }
 
@@ -314,7 +314,7 @@ func TestBrowserOpensAStockItemsMovementsInPlace(t *testing.T) {
 	if err := expect.Locator(b.Locator("#stock")).ToContainText("rice"); err != nil {
 		t.Fatalf("rice isn't listed: %v", err)
 	}
-	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Count sheet: %v", err)
 	}
 
@@ -329,7 +329,7 @@ func TestBrowserOpensAStockItemsMovementsInPlace(t *testing.T) {
 		t.Errorf("the Movements show the wrong Count: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
-	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Movements: %v", err)
 	}
 	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
@@ -351,7 +351,7 @@ func TestBrowserOpensAStockItemsMovementsInPlace(t *testing.T) {
 	if err := expect.Locator(count).ToBeVisible(); err != nil {
 		t.Errorf("the Movements closed the Count sheet: %v", err)
 	}
-	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Movements: %v", err)
 	}
 

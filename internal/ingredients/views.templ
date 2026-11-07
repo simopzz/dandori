@@ -51,19 +51,9 @@ templ page(today time.Time, ings []domain.Ingredient, f AddForm, q string) {
 	}
 }
 
-// sheetBody is what the Ingredients side sheet shows: the Ingredient just added or
-// picked, if any, the add form, and the search of the User's Ingredients for q.
+// sheetBody is what the Ingredients side sheet shows: the add form, and the search of the
+// User's Ingredients for q.
 templ sheetBody(ings []domain.Ingredient, f AddForm, q string) {
-	if f.Added != "" {
-		@web.Notice() {
-			{ web.Tf(ctx, msgAdded, f.Added) }
-		}
-	}
-	if f.Picked != "" {
-		@web.Notice() {
-			{ web.Tf(ctx, msgPicked, f.Picked) }
-		}
-	}
 	@addForm(f)
 	@web.Section(0, web.T(ctx, msgYourIngredients)) {
 		@searchForm(q)

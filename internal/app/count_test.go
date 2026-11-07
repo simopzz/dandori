@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -41,13 +42,13 @@ func TestCountingWhatTheKitchenHolds(t *testing.T) {
 
 	s.Counts("rice", "", "700", "")
 	s.IsAt("/kitchen/count")
-	s.Sees("Counted rice: 700 g in the pantry.")
+	s.IsConfirmed("Counted rice: 700 g in the pantry.")
 	if got := apptest.Form(t, s.Page().Body, "count-search").Get("q"); got != "" {
 		t.Errorf("the search after a Count holds %q, want it cleared", got)
 	}
 
 	s.Counts("egg", "", "1.5", "")
-	s.Sees("Counted egg: 1.5 pieces in the fridge.")
+	s.IsConfirmed("Counted egg: 1.5 pieces in the fridge.")
 	s.Open("/kitchen")
 	s.DoesNotSee("Nothing in your kitchen yet.")
 	s.Sees("01 Pantry rice 700 g")
@@ -72,7 +73,7 @@ func TestACountShowsWhatDandoriBelieves(t *testing.T) {
 	}
 
 	s.Counts("rice", "freezer", "300", "for later")
-	s.Sees("Counted rice: 300 g in the freezer.")
+	s.IsConfirmed("Counted rice: 300 g in the freezer.")
 	s.Counts("rice", "", "700", "")
 	s.Open("/kitchen")
 	s.Sees("Pantry rice 700 g")
@@ -103,7 +104,7 @@ func TestCountingToNothing(t *testing.T) {
 	s.Counts("egg", "", "6", "")
 
 	s.Counts("rice", "", "0", "it spoiled")
-	s.Sees("Counted rice: 0 g in the pantry.")
+	s.IsConfirmed("Counted rice: 0 g in the pantry.")
 	s.Open("/kitchen")
 	s.DoesNotSee("rice 700 g")
 	s.DoesNotSee("Count rice")
@@ -220,19 +221,47 @@ func TestSearchingForAStapleSaysWhy(t *testing.T) {
 	s.Sees("Add salty as a new Ingredient")
 }
 
-// A confirmation tells the Count it confirms, as it was saved, whatever came after it,
-// and an id that is no Count confirms nothing.
-func TestAConfirmationTellsTheCountSaved(t *testing.T) {
+// A plain post's confirmation shows on the page it lands on, once: opened again, or
+// reloaded, that page confirms nothing.
+func TestAConfirmationShowsOnce(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "700", "")
-	var first string
-	s.Scan(t, &first, `SELECT max(id)::text FROM movement`)
-	s.Counts("rice", "", "300", "")
+	s.IsAt("/kitchen/count")
+	s.IsConfirmed("Counted rice: 700 g in the pantry.")
+	s.Open("/kitchen/count")
+	s.IsNotConfirmed()
 
-	s.Open("/kitchen/count?counted=" + first)
-	s.Sees("Counted rice: 700 g in the pantry.")
-	s.Open("/kitchen/count?counted=999999")
-	s.DoesNotSee("Counted")
+	s.Moves("Move rice in the pantry", "200", "fridge", "")
+	s.IsConfirmed("Moved 200 g of rice to the fridge.")
+	s.Open("/kitchen")
+	s.IsNotConfirmed()
+}
+
+// A plain post's confirmation waits past a page that only redirects, such as the Language
+// choice for a User who has chosen, and shows on the page it leads to. The Count's
+// redirect isn't followed, as when the page it lands on is never reached.
+func TestAConfirmationWaitsPastARedirect(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Open("/kitchen/count")
+	s.Follows("rice")
+	form := apptest.Form(t, s.Page().Body, "count-form")
+	form.Values.Set("stated", "700")
+	unfollowed := *s.Client
+	unfollowed.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	res, err := unfollowed.PostForm(s.URL+form.Action, form.Values)
+	if err != nil {
+		t.Fatalf("post the Count: %v", err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Fatalf("the Count answered %d, want a redirect", res.StatusCode)
+	}
+
+	s.Open("/language")
+	s.IsAt("/")
+	s.IsConfirmed("Counted rice: 700 g in the pantry.")
+	s.Open("/")
+	s.IsNotConfirmed()
 }
 
 // ingredientID is the id of the Ingredient name, for a post no page offers.
@@ -287,12 +316,12 @@ func TestAnIngredientAddedToCountOpensItsCount(t *testing.T) {
 	s.Follows("Add pepper as a new Ingredient")
 	s.AddsIngredient(pepper)
 	s.IsAt("/ingredients")
-	s.Sees("Added pepper.")
+	s.IsConfirmed("Added pepper.")
 
 	s.Open("/ingredients")
 	s.AddsIngredient(rice)
 	s.IsAt("/ingredients")
-	s.Sees("Added rice.")
+	s.IsConfirmed("Added rice.")
 }
 
 // Posted from the sheet by htmx, an add to count answers with the Count sheet's body,
@@ -329,7 +358,8 @@ func TestCountingWithNoIngredients(t *testing.T) {
 }
 
 // As htmx posts them, the Count sheet's pieces answer with fragments: saved, its body
-// cleared with the Count confirmed; refused, the form as typed; searched, the list alone.
+// cleared with the Count confirmed in a floating Notice; refused, the form as typed,
+// confirming nothing; searched, the list alone.
 func TestTheCountSheetWorksInPlace(t *testing.T) {
 	s := kitchenWith(t, rice, salt)
 	found := s.HTMXGet(t, "/kitchen/count/list?q=ric")
@@ -354,14 +384,17 @@ func TestTheCountSheetWorksInPlace(t *testing.T) {
 	if got := apptest.Form(t, refused.Body, "count-form").Get("stated"); got != "-1" {
 		t.Errorf("the refused Count holds %q, want -1", got)
 	}
+	if notices := apptest.Notices(t, refused.Body); len(notices) > 0 {
+		t.Errorf("the refused Count confirms %q", notices)
+	}
 
 	form.Values.Set("stated", "700")
 	saved := s.HTMXPostForm(t, form.Action, form.Values)
 	if saved.StatusCode != http.StatusOK || strings.Contains(saved.Body, "<html") {
 		t.Fatalf("saving a Count answered %d, want 200 and a fragment:\n%s", saved.StatusCode, saved.Body)
 	}
-	if shown := apptest.Text(saved.Body); !strings.Contains(shown, "Counted rice: 700 g in the pantry.") {
-		t.Errorf("the sheet after saving shows: %s", shown)
+	if notices := apptest.Notices(t, saved.Body); !slices.Equal(notices, []string{"Counted rice: 700 g in the pantry."}) {
+		t.Errorf("saving the Count confirms %q", notices)
 	}
 	if got := apptest.Form(t, saved.Body, "count-search").Get("q"); got != "" {
 		t.Errorf("the search after saving holds %q, want it cleared", got)
@@ -384,9 +417,9 @@ func TestCountingInItalian(t *testing.T) {
 	s.AddsIngredient(apptest.Ingredient{Name: "cipolla", Unit: "piece", Usual: "pantry", Kcal: "40", Protein: "1", Carbs: "9", Fat: "0"})
 
 	s.Counts("uovo", "", "1", "")
-	s.Sees("Contato uovo: 1 pezzo in frigo.")
+	s.IsConfirmed("Contato uovo: 1 pezzo in frigo.")
 	s.Counts("cipolla", "", "0,5", "")
-	s.Sees("Contato cipolla: 0,5 pezzi in dispensa.")
+	s.IsConfirmed("Contato cipolla: 0,5 pezzi in dispensa.")
 	s.Open("/kitchen")
 	s.Sees("Dispensa cipolla 0,5 pezzi")
 	s.Sees("Frigo uovo 1 pezzo")
@@ -443,10 +476,8 @@ func addsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 	}
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
 	fillsIngredient(t, sheet, "rice")
-	if err := playwright.NewPlaywrightAssertions().Locator(sheet).ToContainText("Added rice"); err != nil {
-		t.Fatalf("rice isn't added: %v", err)
-	}
-	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	b.IsConfirmed(t, "Added rice.")
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Ingredients: %v", err)
 	}
 }
@@ -507,9 +538,7 @@ func TestBrowserCountSheetStaysOpenUntilClosed(t *testing.T) {
 		t.Fatalf("save the Count: %v", err)
 	}
 
-	if err := expect.Locator(sheet).ToContainText("Counted rice: 700 g in the pantry."); err != nil {
-		t.Fatalf("the saved Count isn't confirmed: %v", err)
-	}
+	b.IsConfirmed(t, "Counted rice: 700 g in the pantry.")
 	search := sheet.GetByRole("searchbox")
 	if err := expect.Locator(search).ToHaveValue(""); err != nil {
 		t.Errorf("the sheet isn't cleared: %v", err)
@@ -525,7 +554,7 @@ func TestBrowserCountSheetStaysOpenUntilClosed(t *testing.T) {
 	}
 	b.IsAt(t, "/kitchen")
 
-	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Count sheet: %v", err)
 	}
 	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
@@ -541,7 +570,7 @@ func TestBrowserCountSheetStaysOpenUntilClosed(t *testing.T) {
 	}
 
 	// Closing the sheet resets it: the + opens it empty, on the search, and stays open.
-	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("close the Stock Item's Count: %v", err)
 	}
 	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
@@ -562,8 +591,8 @@ func TestBrowserCountSheetStaysOpenUntilClosed(t *testing.T) {
 	if err := expect.Locator(stated).ToBeHidden(); err != nil {
 		t.Errorf("the Count sheet still shows the Stock Item's form: %v", err)
 	}
-	if err := expect.Locator(sheet).Not().ToContainText("Counted"); err != nil {
-		t.Errorf("the Count sheet still confirms the last Count: %v", err)
+	if err := expect.Locator(sheet.Locator(".sheet-body")).Not().ToContainText("Counted"); err != nil {
+		t.Errorf("the Count sheet still holds the last Count: %v", err)
 	}
 }
 
@@ -610,7 +639,137 @@ func TestBrowserAddsAnIngredientFromTheCountSheet(t *testing.T) {
 	if err := count.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
 		t.Fatalf("save the Count: %v", err)
 	}
-	if err := expect.Locator(count).ToContainText("Counted salmon: 300 g in the pantry."); err != nil {
-		t.Errorf("the new Ingredient's Count isn't confirmed: %v", err)
+	b.IsConfirmed(t, "Counted salmon: 300 g in the pantry.")
+}
+
+// A Count's floating Notice shows over the Count sheet, which stays open with its form
+// where it was, newest first over the one before. It stops its time while hovered or
+// focused, goes when its time runs out, which the test runs out without waiting, and
+// closes with its Close, the sheet staying open. Without motion its time still runs out.
+func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	addsRiceInTheBrowser(t, b)
+	expect := playwright.NewPlaywrightAssertions()
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
+	top := func() float64 {
+		t.Helper()
+		box, err := sheet.Locator(".sheet-body > :first-child").BoundingBox()
+		if err != nil || box == nil {
+			t.Fatalf("find the top of the Count sheet's body: %v", err)
+		}
+		return box.Y
+	}
+	counts := func(stated string) {
+		t.Helper()
+		if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "rice"}).Click(); err != nil {
+			t.Fatalf("choose rice: %v", err)
+		}
+		if err := sheet.GetByLabel("How much is there").Fill(stated); err != nil {
+			t.Fatalf("state the quantity: %v", err)
+		}
+		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
+			t.Fatalf("save the Count: %v", err)
+		}
+	}
+	// noticeTime is the notice's time, as the Web Animations API tells it: its state, and
+	// its name, which reduced motion changes.
+	noticeTime := func(notice playwright.Locator, what string) string {
+		t.Helper()
+		got, err := notice.Evaluate(`(n, what) => { const a = n.getAnimations().find((a) => a.animationName.startsWith("notice-")); return a ? (what === "name" ? a.animationName : a.playState) : "none" }`, what)
+		if err != nil {
+			t.Fatalf("read the notice's time: %v", err)
+		}
+		return got.(string)
+	}
+	// runsOut runs out the time of each notice in el, el included.
+	runsOut := func(el playwright.Locator) {
+		t.Helper()
+		if _, err := el.Evaluate(`(el) => [el, ...el.querySelectorAll(".notice")].forEach((n) => n.getAnimations().forEach((a) => a.finish()))`, nil); err != nil {
+			t.Fatalf("run the notice's time out: %v", err)
+		}
+	}
+
+	// Adding rice's Notice goes back over the page as its sheet closes.
+	if err := expect.Locator(b.Notices().First()).ToBeVisible(); err != nil {
+		t.Fatalf("adding rice's Notice isn't over the page: %v", err)
+	}
+	runsOut(b.Locator("#notices"))
+	if err := expect.Locator(b.Notices()).ToHaveCount(0); err != nil {
+		t.Fatalf("adding rice's Notice stays once its time has run out: %v", err)
+	}
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}).First().Click(); err != nil {
+		t.Fatalf("open the Count sheet: %v", err)
+	}
+	if err := expect.Locator(sheet.GetByRole("searchbox")).ToBeFocused(); err != nil {
+		t.Fatalf("the Count sheet doesn't open on its search: %v", err)
+	}
+	before := top()
+	counts("700")
+	b.IsConfirmed(t, "Counted rice: 700 g in the pantry.")
+	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
+		t.Errorf("the Count sheet closed after a Count: %v", err)
+	}
+	if after := top(); after != before {
+		t.Errorf("the Count sheet's body moved from %v to %v on a Count", before, after)
+	}
+	first := b.Notices().First()
+	onTop, err := first.Evaluate(`(n) => { const r = n.getBoundingClientRect(); return n.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) }`, nil)
+	if err != nil || onTop != true {
+		t.Errorf("the Notice isn't over the Count sheet: %v %v", onTop, err)
+	}
+	b.Shot(t, "notice-over-count")
+
+	counts("650")
+	if err := expect.Locator(b.Notices().Locator(".notice-text")).ToHaveText([]any{"Counted rice: 650 g in the pantry.", "Counted rice: 700 g in the pantry."}); err != nil {
+		t.Errorf("the Notices aren't newest first: %v", err)
+	}
+
+	newest := b.Notices().Filter(playwright.LocatorFilterOptions{HasText: "650 g"})
+	if err := newest.Hover(); err != nil {
+		t.Fatalf("hover the Notice: %v", err)
+	}
+	if got := noticeTime(newest, "state"); got != "paused" {
+		t.Errorf("a hovered Notice's time is %s, want paused", got)
+	}
+	if err := sheet.GetByRole("heading", playwright.LocatorGetByRoleOptions{Name: "Count"}).Hover(); err != nil {
+		t.Fatalf("leave the Notice: %v", err)
+	}
+	if got := noticeTime(newest, "state"); got != "running" {
+		t.Errorf("a Notice left's time is %s, want running", got)
+	}
+	if err := newest.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close notice"}).Focus(); err != nil {
+		t.Fatalf("focus the Notice's Close: %v", err)
+	}
+	if got := noticeTime(newest, "state"); got != "paused" {
+		t.Errorf("a focused Notice's time is %s, want paused", got)
+	}
+	runsOut(newest)
+	if err := expect.Locator(newest).ToHaveCount(0); err != nil {
+		t.Errorf("the Notice stays once its time has run out: %v", err)
+	}
+
+	older := b.Notices().Filter(playwright.LocatorFilterOptions{HasText: "700 g"})
+	if err := older.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close notice"}).Click(); err != nil {
+		t.Fatalf("close the Notice: %v", err)
+	}
+	if err := expect.Locator(b.Notices()).ToHaveCount(0); err != nil {
+		t.Errorf("Close doesn't close the Notice: %v", err)
+	}
+	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
+		t.Errorf("closing the Notice closes the Count sheet: %v", err)
+	}
+
+	if err := b.EmulateMedia(playwright.PageEmulateMediaOptions{ReducedMotion: playwright.ReducedMotionReduce}); err != nil {
+		t.Fatalf("reduce motion: %v", err)
+	}
+	counts("600")
+	still := b.Notices().First()
+	if got := noticeTime(still, "name"); got != "notice-wait" {
+		t.Errorf("without motion the Notice's time is %s, want notice-wait", got)
+	}
+	runsOut(still)
+	if err := expect.Locator(b.Notices()).ToHaveCount(0); err != nil {
+		t.Errorf("without motion the Notice stays once its time has run out: %v", err)
 	}
 }

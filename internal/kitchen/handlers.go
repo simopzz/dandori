@@ -137,9 +137,9 @@ func (h Handlers) ShowCountList(w http.ResponseWriter, r *http.Request) {
 }
 
 // Count saves a Count at the moment it arrives. Posted from the sheet by htmx, it answers
-// with the sheet's body, so the sheet stays open: cleared with the Count confirmed,
-// telling the page under it to list its stock again, or as typed with why it was refused.
-// A plain post lands on the Count page.
+// with the sheet's body, so the sheet stays open for the next one: cleared, the Count
+// confirmed in a floating Notice, telling the page under it to list its stock again; or
+// as typed with why it was refused. A plain post lands on the Count page, confirming it.
 func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 	ctx, now := r.Context(), h.Clock.Now()
 	id, err := strconv.ParseInt(r.PostFormValue("ingredient"), 10, 64)
@@ -157,9 +157,8 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	location, stated, f := parseCountForm(r, ing)
-	var saved int64
 	if len(f.Errs) == 0 {
-		saved, err = h.Service.Count(ctx, now, id, location, stated, f.Note)
+		err = h.Service.Count(ctx, now, id, location, stated, f.Note)
 		switch {
 		case errors.Is(err, ErrStaple):
 			f.Errs["stated"] = web.Tf(ctx, msgStaple, ing.Name)
@@ -173,21 +172,21 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 			httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
 			return
 		}
-		h.answer(w, r, http.StatusUnprocessableEntity, now, f)
+		h.answer(w, r, http.StatusUnprocessableEntity, now, f, "")
 		return
 	}
-	counted := url.Values{"counted": {strconv.FormatInt(saved, 10)}}
+	counted := web.Tf(ctx, msgCounted, ing.Name, quantity(ctx, stated, ing.Unit), web.T(ctx, inLocations[location]))
 	if !httpx.IsHTMX(r) {
-		http.Redirect(w, r, "/kitchen/count?"+counted.Encode(), http.StatusSeeOther)
+		web.RedirectWithNotice(w, r, "/kitchen/count", counted)
 		return
 	}
-	cleared, err := h.startCount(ctx, now, counted)
+	cleared, err := h.startCount(ctx, now, nil)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "start a Count", err)
 		return
 	}
 	w.Header().Set("HX-Trigger", movementSaved)
-	h.answer(w, r, http.StatusOK, now, cleared)
+	h.answer(w, r, http.StatusOK, now, cleared, counted)
 }
 
 // ShowMove is the form that moves a Stock Item as a page of its own, for a browser
@@ -231,8 +230,9 @@ func (h Handlers) startMove(w http.ResponseWriter, r *http.Request) *MoveForm {
 }
 
 // Move saves a move at the moment it arrives. Posted from the sheet by htmx, it answers
-// with the move confirmed, telling the page under it to list its stock again, or the form
-// as typed with why it was refused. A plain post lands on the Kitchen page.
+// with the move confirmed in a floating Notice, closing the sheet and telling the page
+// under it to list its stock again; or with the form as typed with why it was refused. A
+// plain post lands on the Kitchen page, confirming it.
 func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 	ctx, now := r.Context(), h.Clock.Now()
 	id, err := strconv.ParseInt(r.PostFormValue("ingredient"), 10, 64)
@@ -274,12 +274,13 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, movePage(now, f))
 		return
 	}
+	text := web.Tf(ctx, msgMoved, quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[f.To]))
 	if !httpx.IsHTMX(r) {
-		http.Redirect(w, r, "/kitchen", http.StatusSeeOther)
+		web.RedirectWithNotice(w, r, "/kitchen", text)
 		return
 	}
-	w.Header().Set("HX-Trigger", movementSaved)
-	httpx.Render(w, r, h.Log, http.StatusOK, movedNotice(ing, f.To, moved))
+	w.Header().Set("HX-Trigger", movementSaved+", "+web.CloseSheet)
+	httpx.Render(w, r, h.Log, http.StatusOK, web.FragmentWithNotice(nil, text))
 }
 
 // CountNew answers an add the User made to count the Ingredient id: its Count form, in
@@ -298,28 +299,28 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	}
 	w.Header().Set("HX-Retarget", "#"+web.SideSheetBody(countSheetID))
 	w.Header().Set("HX-Reswap", "innerHTML")
-	h.answer(w, r, http.StatusOK, now, f)
+	h.answer(w, r, http.StatusOK, now, f, "")
 }
 
-// answer shows f as the sheet's body when htmx sent the request, else as the Count page.
-func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now time.Time, f CountForm) {
+// answer shows f as the sheet's body when htmx sent the request, with notice, if any, in
+// a floating Notice; else as the Count page.
+func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now time.Time, f CountForm, notice string) {
 	if httpx.IsHTMX(r) {
-		httpx.Render(w, r, h.Log, status, countBody(f))
+		body := countBody(f)
+		if notice != "" {
+			body = web.FragmentWithNotice(body, notice)
+		}
+		httpx.Render(w, r, h.Log, status, body)
 		return
 	}
 	httpx.Render(w, r, h.Log, status, countPage(now, f))
 }
 
-// startCount is the Count form as query asks for it: the Count counted confirmed; its
-// Ingredient ingredient chosen, if Service.StartCount allows it, in its Storage Location
-// location or else its usual one; or else the search for q.
+// startCount is the Count form as query asks for it: its Ingredient ingredient chosen, if
+// Service.StartCount allows it, in its Storage Location location or else its usual one;
+// or else the search for q.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
 	f := CountForm{Query: strings.TrimSpace(query.Get("q"))}
-	if id, err := strconv.ParseInt(query.Get("counted"), 10, 64); err == nil {
-		if f.Counted, err = h.Service.FindCount(ctx, id); err != nil {
-			return f, err
-		}
-	}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {
 		ing, believed, ok, err := h.Service.StartCount(ctx, now, id)
 		if err != nil {

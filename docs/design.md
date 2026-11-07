@@ -29,7 +29,7 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-text-soft` | `#5c5a54` soft ink | labels, hints, metadata |
 | `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
 | `--color-rule-strong` | `#2d3352` navy | section rules, input underlines, borders of controls |
-| `--color-fill` | navy | primary buttons, the chosen segment |
+| `--color-fill` | navy | primary buttons, the chosen segment, a floating Notice |
 | `--color-fill-dither` | `#4b5582` slate | dithered over the fill: the chosen segment, a button's hover |
 | `--color-on-fill` | paper | text on a fill or on the accent |
 | `--color-accent` | `#b8321b` vermilion seal | attention only (see below) |
@@ -49,8 +49,9 @@ for decoration or emphasis. It is not the current tab's marker: vermilion on
 navy is about 2:1, below the 3:1 a non-text indicator needs, so the marker is
 salmon.
 
-**Navy is structure**, not attention: it fills primary buttons and the chosen
-segment, draws section rules and input underlines, and is the shell. The
+**Navy is structure**, not attention: it fills primary buttons, the chosen
+segment and a floating Notice, draws section rules and input underlines, and is
+the shell. The
 banner's other colours (slate, cream, peach, salmon, snow) are only in the
 sky and the pixel art, with three exceptions named above: slate in a
 control's dither, cream behind a tag, salmon on the current tab and in the
@@ -101,8 +102,9 @@ section rule is two flat strokes, not a blend).
 
 The sun, Fuji and its tree line are bitmaps in `pixels.go`, rendered on the
 server as inline SVG, one path per colour, each filled by a `px-*` class from a
-`--color-sky-*` token. There is no runtime JS for presentation but the busy
-button's (see [Busy](#busy)). The sun and Fuji appear in the sky; the sun
+`--color-sky-*` token. There is no runtime JS for presentation but two small
+scripts in `Layout`: the busy button's (see [Busy](#busy)) and the floating
+Notices' (see [Notices](#notices)). The sun and Fuji appear in the sky; the sun
 alone is the **seal** (`Seal`) on an urgent row.
 
 Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
@@ -150,6 +152,42 @@ answered or failed. Neither needs anything from a page.
 Don't add an `hx-indicator` of a page's own for a slow request. Work that calls
 the model is a Run, and shows its Trace instead.
 
+## Notices
+
+A **floating Notice** says something happened as asked ("Moved 300 g of rice
+to the freezer."), the same way on every page. It never says something went
+wrong: a refusal stays on its field, and a failure is an `Alert`.
+
+- **Where**: at the top of the screen on every width, above everything, an
+  open sheet included: sheets rise from the bottom on a phone, where the
+  keyboard would cover it. On desktop it is centred over the column, right of
+  the rail. Several stack, newest first.
+- **What**: a navy block, the pixel check, paper text and a `Close` with the
+  44px target; a paper line round its inside edge is its time, draining
+  clockwise in steps. It drops in, and after about 5 seconds rises out and is
+  gone. Hovering it, or focus in it, stops its time. `role="status"`, so it is
+  announced.
+- **How a page gives one**: a plain post answers with
+  `web.RedirectWithNotice(w, r, path, text)`, and the page it lands on shows it
+  once (a cookie the `web.Notices` middleware reads and forgets once a page
+  renders, not on a redirect), without JS too; reloading that page doesn't
+  show it again. An htmx answer wraps its fragment in
+  `web.FragmentWithNotice(fragment, text)` (an `<hx-partial>` into `#notices`),
+  or passes no fragment to only confirm. A page that confirms with no write, such
+  as the Ingredient just picked, renders with `web.WithNotice(ctx, text)`.
+- **Its script**: `Layout`'s `showNotices` raises the Notices into the top
+  layer as a popover, after the sheets, as a page loads and after each swap.
+  An open sheet makes the rest of the page inert, so they go inside the top
+  sheet, still drawn over it, and leave it as it starts to close (on
+  `beforetoggle`, while they still have their animations), keeping their time.
+  They move before a swap adds a Notice, so it lands in a live region already
+  in place, and is announced. It
+  takes a Notice away when its time (the `notice-time` animation in `app.css`)
+  ends, or on `Close`. With no JS the Notice still shows, stops while hovered
+  and goes when its time runs out, all in CSS; only `Close` needs the script.
+- **Closing a sheet with it**: an answer to a form in a sheet that is done, as a
+  move is, triggers `web.CloseSheet` with `HX-Trigger`, and that sheet closes.
+
 ## Components
 
 All in package `web`. Feature pages compose these; they don't style base
@@ -188,7 +226,7 @@ elements themselves.
 | `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
-| `Notice()` | Something happened as asked ("Profile saved."). |
+| Floating Notice | Something happened as asked ("Profile saved."), floating at the top of the screen: `web.RedirectWithNotice` for a plain post, `web.FragmentWithNotice` for an htmx answer, `web.WithNotice` for a page. `Layout` shows it; see [Notices](#notices). There is no in-flow notice: one in the page or sheet it confirms pushed the form down, and the list changing behind a sheet may be off-screen. |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
 | `AddSheet(id, title, open)` | A page's primary add action: a square vermilion `+` opening the add form as a sheet, from the bottom on a phone, centred on desktop, over a navy dithered veil. Every sheet is modal, a `<dialog>` opened with `showModal()`: the page behind it is inert and holds still, Tab stays in it, and a tap on the veil or Esc closes it, the top one where one sheet is open over another. A sheet taller than the screen scrolls itself, and only itself. A tap outside discards a half-filled form, without asking. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. One per page. |
 | `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil, and modal as every sheet is (see `AddSheet`). Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
@@ -226,10 +264,12 @@ and closing.
 - Touch targets are at least `--tap` (44px).
 - Focus is always visible: a 2px vermilion ring on every control, inputs
   included, so a focused field stands out from an invalid one. On the navy
-  tabs the ring is salmon (5.8:1), as vermilion there is about 2:1.
+  tabs and a floating Notice the ring is salmon (5.8:1), as vermilion there is
+  about 2:1.
 - `prefers-reduced-motion` turns off transitions and animations: the busy
   bar's blocks and a busy button's dither stand still.
-  The bar still waits its 300 ms.
+  The bar still waits its 300 ms. A floating Notice appears and goes with no
+  transition, its line still and whole, and still goes when its time runs out.
 - Meaning is never carried by colour alone: an error says what is wrong and
   is marked `!`, an invalid field has a thicker underline and
   `aria-invalid`, an urgent row has the pixel seal *and* text, the current tab
@@ -255,5 +295,5 @@ and closing.
 - **Don't** add rounded corners, stepped corners, shadows, smooth gradients or
   a second accent.
 - **Don't** add an icon font, a stroke icon or runtime JS for presentation
-  (the busy button's script is the one exception).
+  (the busy button's and the floating Notices' scripts are the exceptions).
 - **Don't** set body text, labels or rows in the pixel face.
