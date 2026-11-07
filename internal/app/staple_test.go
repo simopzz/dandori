@@ -198,4 +198,12 @@ func TestBrowserMarksAStapleInTheSideSheet(t *testing.T) {
 		t.Fatalf("open rice's row again: %v", err)
 	}
 	b.Shot(t, "staple-marked")
+	movements := row.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Movements"})
+	if err := movements.ScrollIntoViewIfNeeded(); err != nil {
+		t.Fatalf("rice's row links no Movements: %v", err)
+	}
+	if err := expect.Locator(row.GetByLabel("Staple")).ToBeChecked(); err != nil {
+		t.Errorf("rice's row isn't marked a Staple: %v", err)
+	}
+	b.Shot(t, "staple-row")
 }
