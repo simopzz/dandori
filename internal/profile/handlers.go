@@ -77,7 +77,7 @@ func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	if !h.setLanguage(w, r, l) {
 		return
 	}
-	web.RedirectWithNotice(w, r, "/profile", web.T(web.WithLanguage(r.Context(), l), msgSaved))
+	web.Answer{RedirectTo: "/profile", Notice: web.T(web.WithLanguage(r.Context(), l), msgSaved)}.Write(w, r, h.Log)
 }
 
 // goneToTodayIfChosen sends a User who has chosen their Language to Today, and reports

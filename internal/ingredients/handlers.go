@@ -39,7 +39,12 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	if f.Picked != "" {
 		q = f.Picked
 	}
-	h.render(w, r, http.StatusOK, sheetView{Add: f, Q: q}, false)
+	if a, ok := h.answer(w, r, sheetView{Add: f, Q: q}); ok {
+		if a.Notice != "" {
+			r = r.WithContext(web.WithNotice(r.Context(), a.Notice))
+		}
+		httpx.Render(w, r, h.Log, http.StatusOK, a.Page)
+	}
 }
 
 // ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
@@ -47,7 +52,13 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) ShowSheet(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	picked := query.Get("picked")
-	h.render(w, r, http.StatusOK, sheetView{Add: AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Picked: picked}, Q: picked}, true)
+	if a, ok := h.answer(w, r, sheetView{Add: AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Picked: picked}, Q: picked}); ok {
+		body := a.Fragment
+		if a.Notice != "" {
+			body = web.FragmentWithNotice(body, a.Notice)
+		}
+		httpx.Render(w, r, h.Log, http.StatusOK, body)
+	}
 }
 
 // ShowList is the list of the User's Ingredients alone, searched for its query q, which
@@ -83,21 +94,20 @@ func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
 // added to count, unless it is a Staple, which is never counted, goes on to its Count.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	ing, f := parseAddForm(r)
-	fragment := httpx.IsHTMX(r)
 	if len(f.Errs) > 0 {
-		h.render(w, r, http.StatusUnprocessableEntity, sheetView{Add: f}, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, sheetView{Add: f}, "", "")
 		return
 	}
 	confirmed := r.PostFormValue("confirm") == f.Name
 	id, err := h.Service.Add(r.Context(), web.LanguageOf(r.Context()), ing, confirmed)
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"] = web.Tf(r.Context(), msgNameTaken, taken.Existing)
-		h.render(w, r, http.StatusUnprocessableEntity, sheetView{Add: f}, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, sheetView{Add: f}, "", "")
 		return
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		f.Suggested = suggested.Closest
-		h.render(w, r, http.StatusUnprocessableEntity, sheetView{Add: f}, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, sheetView{Add: f}, "", "")
 		return
 	}
 	if err != nil {
@@ -108,11 +118,7 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		h.CountNew(w, r, id)
 		return
 	}
-	if !fragment {
-		web.RedirectWithNotice(w, r, "/ingredients", web.Tf(r.Context(), msgAdded, ing.Name))
-		return
-	}
-	h.render(w, r, http.StatusOK, sheetView{Add: AddForm{Added: ing.Name}}, true)
+	h.answerWrite(w, r, http.StatusOK, sheetView{Add: AddForm{Added: ing.Name}}, "", "/ingredients")
 }
 
 // Edit edits the Ingredient id. Posted from the side sheet by htmx, it answers with the
@@ -130,25 +136,24 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ing, f := parseAddForm(r)
 	view := sheetView{Edit: EditForm{ID: id, AddForm: f}, Q: r.PostFormValue("q")}
-	fragment := httpx.IsHTMX(r)
 	if len(f.Errs) > 0 {
-		h.render(w, r, http.StatusUnprocessableEntity, view, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, view, "", "")
 		return
 	}
 	counted, err := h.Service.Edit(ctx, web.LanguageOf(ctx), h.Clock.Now(), id, ing, r.PostFormValue("confirm") == f.Name)
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		view.Edit.Errs["name"] = web.Tf(ctx, msgNameTaken, taken.Existing)
-		h.render(w, r, http.StatusUnprocessableEntity, view, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, view, "", "")
 		return
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		view.Edit.Suggested = suggested.Closest
-		h.render(w, r, http.StatusUnprocessableEntity, view, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, view, "", "")
 		return
 	}
 	if fixed, ok := errors.AsType[*UnitFixedError](err); ok {
 		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitFixed, web.T(ctx, recordedIn[fixed.Unit]))
-		h.render(w, r, http.StatusUnprocessableEntity, view, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, view, "", "")
 		return
 	}
 	if errors.Is(err, ErrNoIngredient) {
@@ -163,10 +168,7 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	if len(counted) > 0 {
 		notice = stapleNotice(ctx, ing, counted)
 	}
-	if fragment {
-		w.Header().Set("HX-Trigger", Saved)
-	}
-	h.done(w, r, sheetView{Q: view.Q, Notice: notice}, fragment)
+	h.answerWrite(w, r, http.StatusOK, sheetView{Q: view.Q, Notice: notice}, Saved, searched(view.Q))
 }
 
 // stapleNotice confirms ing marked a Staple, with each of its Stock Items counted, in
@@ -193,11 +195,11 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	q, fragment := r.PostFormValue("q"), httpx.IsHTMX(r)
+	q := r.PostFormValue("q")
 	name, err := h.Service.Delete(ctx, id)
 	if errors.Is(err, ErrHasMovements) {
 		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.T(ctx, msgHasMovements)}, Q: q}
-		h.render(w, r, http.StatusUnprocessableEntity, view, fragment)
+		h.answerWrite(w, r, http.StatusUnprocessableEntity, view, "", "")
 		return
 	}
 	if errors.Is(err, ErrNoIngredient) {
@@ -208,21 +210,15 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "delete an Ingredient", err)
 		return
 	}
-	h.done(w, r, sheetView{Q: q, Notice: web.Tf(ctx, msgDeleted, name)}, fragment)
+	h.answerWrite(w, r, http.StatusOK, sheetView{Q: q, Notice: web.Tf(ctx, msgDeleted, name)}, "", searched(q))
 }
 
-// done answers a write view confirms: as the sheet's body when fragment is set, else by
-// redirecting to the Ingredients page searched as it was.
-func (h Handlers) done(w http.ResponseWriter, r *http.Request, view sheetView, fragment bool) {
-	if fragment {
-		h.render(w, r, http.StatusOK, view, true)
-		return
+// searched is the Ingredients page searched for q, where a plain post lands.
+func searched(q string) string {
+	if q == "" {
+		return "/ingredients"
 	}
-	to := "/ingredients"
-	if view.Q != "" {
-		to += "?q=" + url.QueryEscape(view.Q)
-	}
-	web.RedirectWithNotice(w, r, to, view.Notice)
+	return "/ingredients?q=" + url.QueryEscape(q)
 }
 
 // sheetView is what the Ingredients show: the add form, the Ingredient being edited, the
@@ -239,13 +235,23 @@ type sheetView struct {
 	Notice string
 }
 
-// render answers with view, its list the User's Ingredients a search for its Q finds, as
-// the sheet's body when fragment is set, else as the Ingredients page.
-func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, view sheetView, fragment bool) {
+// answerWrite answers a write with view, triggering trigger and landing a plain post on
+// redirectTo when either is set.
+func (h Handlers) answerWrite(w http.ResponseWriter, r *http.Request, status int, view sheetView, trigger, redirectTo string) {
+	if a, ok := h.answer(w, r, view); ok {
+		a.Status, a.Trigger, a.RedirectTo = status, trigger, redirectTo
+		a.Write(w, r, h.Log)
+	}
+}
+
+// answer is view, its list the User's Ingredients a search for its Q finds, as the
+// Ingredients page and as the sheet's body, with the Notice confirming what was done. On
+// a failure it answers r itself and reports false.
+func (h Handlers) answer(w http.ResponseWriter, r *http.Request, view sheetView) (web.Answer, bool) {
 	ings, withMovements, err := h.Service.Listing(r.Context(), view.Q)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
-		return
+		return web.Answer{}, false
 	}
 	view.WithMovements = withMovements
 	f := &view.Add
@@ -260,16 +266,5 @@ func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, vie
 	case f.Picked != "":
 		notice = web.Tf(r.Context(), msgPicked, f.Picked)
 	}
-	if fragment {
-		body := sheetBody(ings, view)
-		if notice != "" {
-			body = web.FragmentWithNotice(body, notice)
-		}
-		httpx.Render(w, r, h.Log, status, body)
-		return
-	}
-	if notice != "" {
-		r = r.WithContext(web.WithNotice(r.Context(), notice))
-	}
-	httpx.Render(w, r, h.Log, status, page(h.Clock.Now(), ings, view))
+	return web.Answer{Page: page(h.Clock.Now(), ings, view), Fragment: sheetBody(ings, view), Notice: notice}, true
 }

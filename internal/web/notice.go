@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -15,9 +16,9 @@ import (
 // page it lands on, which shows it once.
 const noticeCookie = "notice"
 
-// RedirectWithNotice answers a plain post with a redirect to path, whose page says text
+// redirectWithNotice answers a plain post with a redirect to path, whose page says text
 // in a floating Notice, once: a reload of that page, or Back to it, doesn't show it.
-func RedirectWithNotice(w http.ResponseWriter, r *http.Request, path, text string) {
+func redirectWithNotice(w http.ResponseWriter, r *http.Request, path, text string) {
 	http.SetCookie(w, noticeCookieOf(r, base64.RawURLEncoding.EncodeToString([]byte(text)), 0))
 	http.Redirect(w, r, path, http.StatusSeeOther)
 }
@@ -30,7 +31,7 @@ func noticeCookieOf(r *http.Request, value string, maxAge int) *http.Cookie {
 	}
 }
 
-// Notices hands the floating Notice RedirectWithNotice left to the page r asks for, for
+// Notices hands the floating Notice redirectWithNotice left to the page r asks for, for
 // Layout to show, and forgets it once that page renders. A fragment htmx swaps into part
 // of a page, or a redirect on, as to sign in, leaves it for the page after.
 func Notices(next http.Handler) http.Handler {
@@ -98,4 +99,43 @@ func FragmentWithNotice(c templ.Component, text string) templ.Component {
 		}
 		return noticePartial(text).Render(ctx, w)
 	})
+}
+
+// Answer is the answer to a write, as ADR-0009 has it. To htmx, it is Fragment followed
+// by Notice in a floating Notice, with Trigger in HX-Trigger. To a plain browser, it is
+// a redirect to RedirectTo, whose page says Notice, when that is set, or else Page,
+// saying Notice. One with neither Fragment nor Trigger answers a boosted form, so htmx
+// gets what a plain browser does.
+type Answer struct {
+	// Status is the status of a fragment or page, 200 when unset.
+	Status                      int
+	Page, Fragment              templ.Component
+	Notice, Trigger, RedirectTo string
+}
+
+// Write answers r with a.
+func (a Answer) Write(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
+	status := a.Status
+	if status == 0 {
+		status = http.StatusOK
+	}
+	if httpx.IsHTMX(r) && (a.Fragment != nil || a.Trigger != "") {
+		if a.Trigger != "" {
+			w.Header().Set("HX-Trigger", a.Trigger)
+		}
+		body := a.Fragment
+		if a.Notice != "" {
+			body = FragmentWithNotice(a.Fragment, a.Notice)
+		}
+		httpx.Render(w, r, log, status, body)
+		return
+	}
+	if a.RedirectTo != "" {
+		redirectWithNotice(w, r, a.RedirectTo, a.Notice)
+		return
+	}
+	if a.Notice != "" {
+		r = r.WithContext(WithNotice(r.Context(), a.Notice))
+	}
+	httpx.Render(w, r, log, status, a.Page)
 }

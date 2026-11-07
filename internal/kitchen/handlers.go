@@ -165,12 +165,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(f.Errs) > 0 {
 		f.Believed = rec.Held
-		h.answer(w, r, http.StatusUnprocessableEntity, now, f, "")
-		return
-	}
-	counted := web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location]))
-	if !httpx.IsHTMX(r) {
-		web.RedirectWithNotice(w, r, "/kitchen/count", counted)
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: countPage(now, f), Fragment: countBody(f)}.Write(w, r, h.Log)
 		return
 	}
 	cleared, err := h.startCount(ctx, now, nil)
@@ -178,8 +173,10 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "start a Count", err)
 		return
 	}
-	w.Header().Set("HX-Trigger", movementSaved)
-	h.answer(w, r, http.StatusOK, now, cleared, counted)
+	web.Answer{
+		Fragment: countBody(cleared), Trigger: movementSaved, RedirectTo: "/kitchen/count",
+		Notice: web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location])),
+	}.Write(w, r, h.Log)
 }
 
 // ShowMove is the form that moves a Stock Item as a page of its own, for a browser
@@ -250,20 +247,13 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 	ing := rec.Ingredient
 	if len(rec.Problems) > 0 {
 		f := postedMoveForm(r, ing, from, rec.Held, rec.Problems)
-		if httpx.IsHTMX(r) {
-			httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, moveForm(f))
-			return
-		}
-		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, movePage(now, f))
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: movePage(now, f), Fragment: moveForm(f)}.Write(w, r, h.Log)
 		return
 	}
-	text := web.Tf(ctx, msgMoved, web.Quantity(ctx, rec.Movement.Change, ing.Unit), ing.Name, web.T(ctx, toLocations[rec.Movement.To]))
-	if !httpx.IsHTMX(r) {
-		web.RedirectWithNotice(w, r, "/kitchen", text)
-		return
-	}
-	w.Header().Set("HX-Trigger", movementSaved+", "+web.CloseSheet)
-	httpx.Render(w, r, h.Log, http.StatusOK, web.FragmentWithNotice(nil, text))
+	web.Answer{
+		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Notice: web.Tf(ctx, msgMoved, web.Quantity(ctx, rec.Movement.Change, ing.Unit), ing.Name, web.T(ctx, toLocations[rec.Movement.To])),
+	}.Write(w, r, h.Log)
 }
 
 // CountNew answers an add the User made to count the Ingredient id: its Count form, in
@@ -282,21 +272,7 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	}
 	w.Header().Set("HX-Retarget", "#"+web.SideSheetBody(countSheetID))
 	w.Header().Set("HX-Reswap", "innerHTML")
-	h.answer(w, r, http.StatusOK, now, f, "")
-}
-
-// answer shows f as the sheet's body when htmx sent the request, with notice, if any, in
-// a floating Notice; else as the Count page.
-func (h Handlers) answer(w http.ResponseWriter, r *http.Request, status int, now time.Time, f CountForm, notice string) {
-	if httpx.IsHTMX(r) {
-		body := countBody(f)
-		if notice != "" {
-			body = web.FragmentWithNotice(body, notice)
-		}
-		httpx.Render(w, r, h.Log, status, body)
-		return
-	}
-	httpx.Render(w, r, h.Log, status, countPage(now, f))
+	web.Answer{Fragment: countBody(f)}.Write(w, r, h.Log)
 }
 
 // startCount is the Count form as query asks for it: its Ingredient ingredient chosen, if
