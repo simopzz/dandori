@@ -15,9 +15,9 @@ import (
 // page it lands on, which shows it once.
 const noticeCookie = "notice"
 
-// RedirectWithNotice answers a plain post with a redirect to path, whose page says text
+// redirectWithNotice answers a plain post with a redirect to path, whose page says text
 // in a floating Notice, once: a reload of that page, or Back to it, doesn't show it.
-func RedirectWithNotice(w http.ResponseWriter, r *http.Request, path, text string) {
+func redirectWithNotice(w http.ResponseWriter, r *http.Request, path, text string) {
 	http.SetCookie(w, noticeCookieOf(r, base64.RawURLEncoding.EncodeToString([]byte(text)), 0))
 	http.Redirect(w, r, path, http.StatusSeeOther)
 }
@@ -30,7 +30,7 @@ func noticeCookieOf(r *http.Request, value string, maxAge int) *http.Cookie {
 	}
 }
 
-// Notices hands the floating Notice RedirectWithNotice left to the page r asks for, for
+// Notices hands the floating Notice redirectWithNotice left to the page r asks for, for
 // Layout to show, and forgets it once that page renders. A fragment htmx swaps into part
 // of a page, or a redirect on, as to sign in, leaves it for the page after.
 func Notices(next http.Handler) http.Handler {

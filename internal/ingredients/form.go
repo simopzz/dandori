@@ -12,15 +12,14 @@ import (
 // nutrients are the add form's nutritional value fields, in the order it shows them.
 var nutrients = []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"}
 
-// AddForm is the add form as shown: what was typed, why it was refused by field in the
-// User's Language, and, once an Ingredient was added, its name.
+// AddForm is the add form as shown: what was typed, and why it was refused by field in
+// the User's Language.
 type AddForm struct {
 	Name, Unit, Usual string
 	// Values are the nutritional values as typed, by field.
 	Values map[string]string
 	Staple bool
 	Errs   map[string]string
-	Added  string
 	// Suggested is the Ingredient the name typed is close to, which the User may have
 	// meant; Picked is the one they said they meant, which adds nothing.
 	Suggested, Picked string
