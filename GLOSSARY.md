@@ -77,7 +77,7 @@ The record of every Movement in the kitchen, in the order they happen; what the 
 _Avoid_: Inventory log, history
 
 **Movement**:
-One change to what the kitchen holds, with when it happened and what caused it: Stock Items delivered, put away or moved between Storage Locations, used up by a Prep Session, or counted (spoiled stock included); Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report), with a note of theirs if they like; nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it. A Movement never happened before one it was checked against: a Count or move made while another was being recorded happens no earlier than that one.
+One change to what the kitchen holds, with when it happened and what caused it: Stock Items delivered, put away or moved between Storage Locations, used up by a Prep Session, or counted (spoiled stock included); Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report), with a note of theirs if they like; nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
 _Avoid_: Transaction, delta, stock change
 
 **Today**:
