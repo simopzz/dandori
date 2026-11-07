@@ -120,14 +120,19 @@ func TestBrowserATapOutsideOrEscClosesTheTopSheetOnly(t *testing.T) {
 		}
 	}
 
+	// The screen's left edge, halfway down, is outside both sheets on a desktop: the
+	// Count centred, the Movements from the right.
+	tapsTheVeil := func() {
+		t.Helper()
+		if err := b.Mouse().Click(8, 360); err != nil {
+			t.Fatalf("tap the veil: %v", err)
+		}
+	}
+
 	opensTheMovementsOverTheCount()
-	if err := b.Mouse().Click(8, 360); err != nil {
-		t.Fatalf("tap outside the sheets: %v", err)
-	}
+	tapsTheVeil()
 	closesTheMovementsAlone("a tap outside")
-	if err := b.Mouse().Click(8, 360); err != nil {
-		t.Fatalf("tap outside the Count sheet: %v", err)
-	}
+	tapsTheVeil()
 	if err := expect.Locator(count).ToBeHidden(); err != nil {
 		t.Errorf("a second tap outside doesn't close the Count sheet: %v", err)
 	}
@@ -152,12 +157,13 @@ func TestBrowserTabStaysInAnOpenSheet(t *testing.T) {
 	if err := playwright.NewPlaywrightAssertions().Locator(stated).ToBeFocused(); err != nil {
 		t.Fatalf("the Count sheet doesn't open on its quantity: %v", err)
 	}
-	controls, err := b.Evaluate(`document.getElementById("count").querySelectorAll("a, button, input, select, textarea").length`)
-	if err != nil {
-		t.Fatalf("count the sheet's controls: %v", err)
+	found, err := b.Evaluate(`document.getElementById("count").querySelectorAll("a, button, input, select, textarea").length`)
+	controls, ok := found.(int)
+	if err != nil || !ok {
+		t.Fatalf("count the sheet's controls: %v, %v", found, err)
 	}
 	inSheet := 0
-	for range 2*controls.(int) + 2 {
+	for range 2*controls + 2 {
 		if err := b.Keyboard().Press("Tab"); err != nil {
 			t.Fatalf("press Tab: %v", err)
 		}
@@ -173,7 +179,7 @@ func TestBrowserTabStaysInAnOpenSheet(t *testing.T) {
 			t.Fatalf("Tab leaves the sheet for %v", where)
 		}
 	}
-	if inSheet <= controls.(int) {
+	if inSheet <= controls {
 		t.Errorf("Tab doesn't come back round the sheet: %d of its stops in it, for %v controls", inSheet, controls)
 	}
 }
