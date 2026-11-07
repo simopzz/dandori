@@ -111,25 +111,24 @@ type Holding struct {
 // it at now, or nil if they have no such Ingredient.
 func (s *Service) Holding(ctx context.Context, now time.Time, id int64) (holding *Holding, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		holding, _, err = loadHolding(ctx, tx, now, id)
+		movements, err := ledger.LoadMovements(ctx, tx)
+		if err != nil {
+			return err
+		}
+		holding, err = loadHolding(ctx, tx, domain.NewLedger(movements), now, id)
 		return err
 	})
 	return holding, err
 }
 
 // loadHolding is the Holding of the Ingredient id, or nil if there is none, as a Movement
-// written at now would find it, with the Ledger that adds it up.
-func loadHolding(ctx context.Context, q db.Querier, now time.Time, id int64) (*Holding, domain.Ledger, error) {
+// written at now would find it in l.
+func loadHolding(ctx context.Context, q db.Querier, l domain.Ledger, now time.Time, id int64) (*Holding, error) {
 	ing, ok, err := ingredients.LoadIngredient(ctx, q, id)
 	if err != nil || !ok {
-		return nil, domain.Ledger{}, err
+		return nil, err
 	}
-	movements, err := ledger.LoadMovements(ctx, q)
-	if err != nil {
-		return nil, domain.Ledger{}, err
-	}
-	l := domain.NewLedger(movements)
-	return &Holding{Ingredient: ing, Held: l.HeldAt(l.WriteAt(now), id)}, l, nil
+	return &Holding{Ingredient: ing, Held: l.HeldAt(l.WriteAt(now), id)}, nil
 }
 
 // Countable is the signed-in User's Ingredients a search for query finds, Staples left
@@ -170,24 +169,23 @@ type Recorded struct {
 // Counting a Staple is ErrStaple, with what was read.
 func (s *Service) Count(ctx context.Context, now time.Time, id int64, location domain.StorageLocation, stated, note string) (rec *Recorded, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := ledger.Lock(ctx, tx); err != nil {
-			return err
-		}
-		holding, l, err := loadHolding(ctx, tx, now, id)
-		if err != nil || holding == nil {
-			return err
-		}
-		rec = &Recorded{Holding: *holding}
-		q, problems := domain.ParseCount(holding.Ingredient.Unit, location, stated)
-		rec.Problems = problems
-		switch {
-		case len(problems) > 0:
-			return nil
-		case holding.Ingredient.Staple:
-			return ErrStaple
-		}
-		rec.Movement = l.Count(now, domain.StockKey{Ingredient: id, Location: location}, q, strings.TrimSpace(note))
-		return ledger.SaveMovement(ctx, tx, rec.Movement)
+		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+			holding, err := loadHolding(ctx, tx, l, now, id)
+			if err != nil || holding == nil {
+				return nil, err
+			}
+			rec = &Recorded{Holding: *holding}
+			q, problems := domain.ParseCount(holding.Ingredient.Unit, location, stated)
+			rec.Problems = problems
+			switch {
+			case len(problems) > 0:
+				return nil, nil
+			case holding.Ingredient.Staple:
+				return nil, ErrStaple
+			}
+			rec.Movement = l.Count(now, domain.StockKey{Ingredient: id, Location: location}, q, strings.TrimSpace(note))
+			return []domain.Movement{rec.Movement}, nil
+		})
 	})
 	return rec, err
 }
@@ -199,24 +197,23 @@ func (s *Service) Count(ctx context.Context, now time.Time, id int64, location d
 // signed-in User has no such Ingredient.
 func (s *Service) Move(ctx context.Context, now time.Time, id int64, from, to domain.StorageLocation, moved, note string) (rec *Recorded, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := ledger.Lock(ctx, tx); err != nil {
-			return err
-		}
-		holding, l, err := loadHolding(ctx, tx, now, id)
-		if err != nil || holding == nil {
-			return err
-		}
-		rec = &Recorded{Holding: *holding}
-		q, problems := domain.ParseMove(holding.Ingredient.Unit, from, to, moved)
-		if rec.Problems = problems; len(problems) > 0 {
-			return nil
-		}
-		var problem domain.Problem
-		if rec.Movement, problem = l.Move(now, domain.StockKey{Ingredient: id, Location: from}, to, q, strings.TrimSpace(note)); problem != "" {
-			rec.Problems["quantity"] = problem
-			return nil
-		}
-		return ledger.SaveMovement(ctx, tx, rec.Movement)
+		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+			holding, err := loadHolding(ctx, tx, l, now, id)
+			if err != nil || holding == nil {
+				return nil, err
+			}
+			rec = &Recorded{Holding: *holding}
+			q, problems := domain.ParseMove(holding.Ingredient.Unit, from, to, moved)
+			if rec.Problems = problems; len(problems) > 0 {
+				return nil, nil
+			}
+			var problem domain.Problem
+			if rec.Movement, problem = l.Move(now, domain.StockKey{Ingredient: id, Location: from}, to, q, strings.TrimSpace(note)); problem != "" {
+				rec.Problems["quantity"] = problem
+				return nil, nil
+			}
+			return []domain.Movement{rec.Movement}, nil
+		})
 	})
 	return rec, err
 }

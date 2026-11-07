@@ -21,7 +21,7 @@ import (
 // BeatEvery is how often the scheduler beats, on the clock.
 const BeatEvery = 5 * time.Minute
 
-// Service brings kitchens up to now.
+// Service brings kitchens up to now, on every request and the scheduler's beat.
 type Service struct {
 	pool *pgxpool.Pool
 	log  *slog.Logger
@@ -32,26 +32,41 @@ func New(pool *pgxpool.Pool, log *slog.Logger) *Service {
 	return &Service{pool: pool, log: log}
 }
 
-// CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
-// some of it to nothing at now, as marking it a Staple does, in q's transaction, and is
-// the Movements written, in Storage Location order, each with what its Stock Item held.
-// It holds the kitchen first, as a Count does, so no Count or move of it slips in before
-// q's transaction ends.
-func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) ([]domain.Movement, error) {
-	if err := Lock(ctx, q); err != nil {
-		return nil, err
+// Write holds the signed-in User's kitchen until q's transaction ends, hands write the
+// Kitchen Ledger as it then stands, and saves the Movements write makes of it, unless it
+// fails. Every write of Movements goes through it, so none is checked against a Ledger
+// another write has since changed.
+func Write(ctx context.Context, q db.Querier, write func(domain.Ledger) ([]domain.Movement, error)) error {
+	if err := lock(ctx, q); err != nil {
+		return err
 	}
 	movements, err := LoadMovements(ctx, q)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	counted := domain.NewLedger(movements).CountToNothing(now, id)
-	for _, m := range counted {
-		if err := SaveMovement(ctx, q, m); err != nil {
-			return nil, err
+	written, err := write(domain.NewLedger(movements))
+	if err != nil {
+		return err
+	}
+	for _, m := range written {
+		if err := saveMovement(ctx, q, m); err != nil {
+			return err
 		}
 	}
-	return counted, nil
+	return nil
+}
+
+// CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
+// some of it to nothing at now, as marking it a Staple does, in q's transaction, and is
+// the Movements written, in Storage Location order, each with what its Stock Item held.
+// It holds the kitchen, as a Count does, so no Count or move of it slips in before q's
+// transaction ends.
+func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) (counted []domain.Movement, err error) {
+	err = Write(ctx, q, func(l domain.Ledger) ([]domain.Movement, error) {
+		counted = l.CountToNothing(now, id)
+		return counted, nil
+	})
+	return counted, err
 }
 
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it

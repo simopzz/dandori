@@ -56,10 +56,9 @@ func loadBeat(ctx context.Context, q db.Querier) (time.Time, bool, error) {
 	return *at, true, nil
 }
 
-// Lock holds the signed-in User's kitchen until q's transaction ends, so what one Count
+// lock holds the signed-in User's kitchen until q's transaction ends, so what one Count
 // or move read isn't changed by another before it writes. BringUpToNow made their row.
-// Every write of Movements takes it first; nothing outside this package does.
-func Lock(ctx context.Context, q db.Querier) error {
+func lock(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `SELECT 1 FROM kitchen FOR UPDATE`)
 	return err
 }
@@ -90,9 +89,9 @@ func LoadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 	})
 }
 
-// SaveMovement appends m to the signed-in User's Kitchen Ledger. A move keeps nothing of
+// saveMovement appends m to the signed-in User's Kitchen Ledger. A move keeps nothing of
 // what was believed or stated, and a blank Storage Location to or note is none.
-func SaveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
+func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 	var believed, stated *float64
 	if m.Cause != domain.Moved {
 		b, s := m.Believed.Number(), m.Stated.Number()
@@ -110,7 +109,7 @@ func SaveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 // id, for the Ingredients, whose unit is then fixed. It holds the kitchen first, as a
 // Count or move does, so none of them writes a Movement of it until q's transaction ends.
 func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
-	if err := Lock(ctx, q); err != nil {
+	if err := lock(ctx, q); err != nil {
 		return false, err
 	}
 	var has bool
