@@ -56,7 +56,29 @@ func (h *Harness) browser(t testing.TB, options playwright.BrowserNewPageOptions
 	if err != nil {
 		t.Fatalf("open a page: %v", err)
 	}
+	failOnPageErrors(t, page)
 	return &Browser{Page: page, url: h.URL, auth: h.Auth}
+}
+
+// failOnPageErrors fails the test, as it ends, for each error page's scripts threw and
+// nothing caught, which the User would only see in the console.
+func failOnPageErrors(t testing.TB, page playwright.Page) {
+	var (
+		mu     sync.Mutex
+		thrown []error
+	)
+	page.OnPageError(func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		thrown = append(thrown, err)
+	})
+	t.Cleanup(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, err := range thrown {
+			t.Errorf("the page threw: %v", err)
+		}
+	})
 }
 
 // notInstalled skips the test when what failed is likely a browser not
