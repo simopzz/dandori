@@ -85,7 +85,7 @@ func parseMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageLo
 // refusal says why refused was refused, of unit, on the form's quantity.
 func refusal(ctx context.Context, refused MoveRefused, unit domain.Unit) string {
 	if refused.Problem == domain.MoreThanHeld {
-		return web.Tf(ctx, msgMoreThanHeld, quantity(ctx, refused.Held, unit))
+		return web.Tf(ctx, msgMoreThanHeld, web.Quantity(ctx, refused.Held, unit))
 	}
 	return web.T(ctx, web.ProblemMessage(refused.Problem, moveProblemMessages))
 }

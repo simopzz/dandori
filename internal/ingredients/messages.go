@@ -56,6 +56,15 @@ var (
 		En: "Its Movements are recorded in %s, so its unit stays, even counted to nothing.",
 		It: "I suoi Movimenti sono registrati in %s, quindi l'unità resta, anche contato a zero.",
 	}
+	msgMovements     = web.Message{En: "Movements", It: "Movimenti"}
+	msgStapleCounted = web.Message{
+		En: "%s counted to nothing: it's a Staple now.",
+		It: "%s: contato a zero, ora è una Base.",
+	}
+	msgQuantityOf   = web.Message{En: "%s of %s", It: "%s di %s"}
+	msgQuantityOfIn = web.Message{En: "%s of %s %s", It: "%s di %s %s"}
+	msgQuantityIn   = web.Message{En: "%s %s", It: "%s %s"}
+	msgAnd          = web.Message{En: "%s and %s", It: "%s e %s"}
 	msgHasMovements = web.Message{
 		En: "It has Movements, so it can't be deleted: the Kitchen Ledger keeps every one.",
 		It: "Ha dei Movimenti, quindi non si può eliminare: il Registro della Cucina li conserva tutti.",

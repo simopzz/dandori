@@ -70,7 +70,9 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, kitchen.HasMovements)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, ingredients.Kitchen{
+		HasMovements: kitchen.HasMovements, CountToNothing: kitchen.CountToNothing, WithMovements: kitchen.WithMovements,
+	})}
 	a.kitchen = kitchen.New(pool, log, a.ingredients)
 	a.today = today.New(a.profile, a.kitchen)
 	if err := a.ping(ctx); err != nil {

@@ -102,7 +102,7 @@ templ list(ings []domain.Ingredient, view sheetView) {
 		@web.Rows() {
 			for _, ing := range ings {
 				@web.EditRow(view.Edit.ID == ing.ID, rowSummary(ing)) {
-					@editForm(ing, editing(ing, view.Edit), view.Q)
+					@editForm(ing, editing(ing, view.Edit), view.Q, view.WithMovements[ing.ID])
 				}
 			}
 		}
@@ -137,8 +137,10 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 
 // editForm edits ing, posted from its row, swapping the side sheet's body when htmx posts
 // it, searched for q as it was. Its Delete belongs to the delete form beside it, as forms
-// don't nest, so Enter still saves.
-templ editForm(ing domain.Ingredient, f EditForm, q string) {
+// don't nest, so Enter still saves. When some Movement refers to it, withMovements, a
+// link opens its Movements in its usual Storage Location, which reach the other two: the
+// only way to them for a Staple, which no Stock Item holds.
+templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) {
 	<form
 		id={ editFormID(ing.ID) }
 		method="post"
@@ -165,6 +167,12 @@ templ editForm(ing domain.Ingredient, f EditForm, q string) {
 				}
 			</div>
 			@ingredientFields(f.AddForm)
+			@stapleCheck(f.Staple)
+			if withMovements {
+				@web.TextLink(templ.Attributes{"href": movementsURL(ing)}) {
+					{ web.T(ctx, msgMovements) }
+				}
+			}
 			@web.ActionsApart() {
 				@web.Button(templ.Attributes{"type": "submit"}) {
 					{ web.T(ctx, msgSave) }
@@ -186,6 +194,19 @@ templ editForm(ing domain.Ingredient, f EditForm, q string) {
 	>
 		<input type="hidden" name="q" value={ q }/>
 	</form>
+}
+
+// stapleCheck marks an Ingredient a Staple, checked when staple says it is one.
+templ stapleCheck(staple bool) {
+	@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
+		<input type="checkbox" name="staple" value="on" checked?={ staple }/>
+	}
+}
+
+// movementsURL is the page of ing's Movements in its usual Storage Location.
+func movementsURL(ing domain.Ingredient) string {
+	query := url.Values{"ingredient": {strconv.FormatInt(ing.ID, 10)}, "location": {string(ing.Usual)}}
+	return "/kitchen/movements?" + query.Encode()
 }
 
 // ingredientURL is the path of the Ingredient id, then rest.
@@ -239,9 +260,7 @@ templ addForm(f AddForm) {
 					</div>
 				</div>
 				@ingredientFields(f)
-				@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
-					<input type="checkbox" name="staple" value="on" checked?={ f.Staple }/>
-				}
+				@stapleCheck(f.Staple)
 				@web.Actions() {
 					@web.Button(templ.Attributes{"type": "submit"}) {
 						{ web.T(ctx, msgAdd) }

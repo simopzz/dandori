@@ -202,17 +202,23 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 }
 
 // loadHeld is what the Stock Item key holds at, for a Count or a move that has hold of
-// the kitchen. One that overlapped it may have taken the lock first with a later time:
-// what that wrote is believed all the same.
+// the kitchen, as heldAt adds it up.
 func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, error) {
 	movements, err := loadMovements(ctx, q)
 	if err != nil {
 		return 0, err
 	}
+	return domain.AddUp(movements, heldAt(movements, at))[key].Held, nil
+}
+
+// heldAt is the moment to add movements up to for a write at at that has hold of the
+// kitchen: at, or the last Movement's time, if one that overlapped it took the lock first
+// with a later time, so what that wrote is believed all the same.
+func heldAt(movements []domain.Movement, at time.Time) time.Time {
 	if n := len(movements); n > 0 && movements[n-1].At.After(at) {
-		at = movements[n-1].At
+		return movements[n-1].At
 	}
-	return domain.AddUp(movements, at)[key].Held, nil
+	return at
 }
 
 // MoveRefused is a move domain.CheckMove refused: why, and what was held.
@@ -241,6 +247,35 @@ func (s *Service) Move(ctx context.Context, at time.Time, id int64, from, to dom
 		}
 		return saveMove(ctx, tx, at, id, from, to, moved, strings.TrimSpace(note))
 	})
+}
+
+// CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
+// some of it to nothing at at, as marking it a Staple does, in q's transaction, and is
+// what each held, in Storage Location order. It holds the kitchen first, as a Count
+// does, so no Count or move of it slips in before q's transaction ends. The Ingredients
+// call it, and app wires it, as this feature depends on theirs.
+func CountToNothing(ctx context.Context, q db.Querier, at time.Time, id int64) ([]ingredients.CountedToNothing, error) {
+	if err := lockKitchen(ctx, q); err != nil {
+		return nil, err
+	}
+	movements, err := loadMovements(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	at = heldAt(movements, at)
+	items := domain.AddUp(movements, at)
+	var counted []ingredients.CountedToNothing
+	for _, location := range domain.StorageLocations {
+		held := items[domain.StockKey{Ingredient: id, Location: location}].Held
+		if held <= 0 {
+			continue
+		}
+		if err := saveStapleCount(ctx, q, at, id, location, held); err != nil {
+			return nil, err
+		}
+		counted = append(counted, ingredients.CountedToNothing{Location: location, Believed: held})
+	}
+	return counted, nil
 }
 
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it

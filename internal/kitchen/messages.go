@@ -81,14 +81,6 @@ var locationHeadings = map[domain.StorageLocation]web.Message{
 	domain.Freezer: {En: "Freezer", It: "Congelatore"},
 }
 
-// inLocations say where in each Storage Location, as Italian takes each with its
-// own preposition.
-var inLocations = map[domain.StorageLocation]web.Message{
-	domain.Pantry:  {En: "in the pantry", It: "in dispensa"},
-	domain.Fridge:  {En: "in the fridge", It: "in frigo"},
-	domain.Freezer: {En: "in the freezer", It: "nel congelatore"},
-}
-
 // movedToLocations and movedFromLocations tell a move's cause on the Stock Item it left
 // and the one it reached, and toLocations where a move went, as Italian takes each
 // Storage Location with its own preposition.
@@ -112,7 +104,8 @@ var (
 
 // causeNames tell the cause of a Movement, which the Kitchen Ledger stores as data.
 var causeNames = map[domain.Cause]web.Message{
-	domain.Counted: {En: "Counted", It: "Contato"},
+	domain.Counted:      {En: "Counted", It: "Contato"},
+	domain.MarkedStaple: {En: "Marked a Staple", It: "Segnato come Base"},
 }
 
 // causeText tells the cause of m as a Movement of the Stock Item in location.
@@ -124,22 +117,4 @@ func causeText(ctx context.Context, m domain.StockMovement, location domain.Stor
 		return web.T(ctx, movedFromLocations[m.Key.Location])
 	}
 	return web.T(ctx, movedToLocations[m.To])
-}
-
-// unitQuantities write a quantity of each Unit.
-var unitQuantities = map[domain.Unit]web.Message{
-	domain.Grams:       {En: "%s g", It: "%s g"},
-	domain.Millilitres: {En: "%s ml", It: "%s ml"},
-	domain.Pieces:      {En: "%s pieces", It: "%s pezzi"},
-}
-
-// msgOnePiece is one piece, which alone isn't plural.
-var msgOnePiece = web.Message{En: "1 piece", It: "1 pezzo"}
-
-// quantity is q of unit as the request's Language writes it.
-func quantity(ctx context.Context, q domain.Quantity, unit domain.Unit) string {
-	if unit == domain.Pieces && q == domain.QuantityOf(1) {
-		return web.T(ctx, msgOnePiece)
-	}
-	return web.Tf(ctx, unitQuantities[unit], web.Number(ctx, q.Number()))
 }

@@ -100,16 +100,16 @@ func amount(v *float64) domain.Amount {
 	return domain.Known(*v)
 }
 
-// updateIngredient sets the signed-in User's Ingredient id to ing, under its normalised
-// name; its Staple flag stays as it is.
+// updateIngredient sets the signed-in User's Ingredient id to ing, its Staple flag
+// included, under its normalised name.
 func updateIngredient(ctx context.Context, q db.Querier, id int64, ing domain.Ingredient, normalised string) error {
 	n := ing.Nutrition
 	_, err := q.Exec(ctx, `
 		UPDATE ingredient SET name = $2, normalised_name = $3, unit = $4, kcal = $5, protein = $6, carbs = $7,
-			fat = $8, fibre = $9, sugar = $10, storage_location = $11
+			fat = $8, fibre = $9, sugar = $10, storage_location = $11, staple = $12
 		WHERE id = $1`,
 		id, ing.Name, normalised, string(ing.Unit), n.Kcal.Value, n.Protein.Value, n.Carbs.Value, n.Fat.Value,
-		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual))
+		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), ing.Staple)
 	return err
 }
 

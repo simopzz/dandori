@@ -58,7 +58,14 @@ const (
 	Counted Cause = "counted"
 	// Moved is the Cause of a move.
 	Moved Cause = "moved"
+	// MarkedStaple is the Cause of the Count to nothing that marking its Ingredient a
+	// Staple makes of each Stock Item holding some of it.
+	MarkedStaple Cause = "staple"
 )
+
+// keepsBelieved says whether a Movement of cause c kept what Dandori believed before it,
+// as a Count does.
+func (c Cause) keepsBelieved() bool { return c == Counted || c == MarkedStaple }
 
 // Why a move is refused.
 const (
@@ -81,7 +88,8 @@ type Movement struct {
 	To     StorageLocation
 	Change Quantity
 	Cause  Cause
-	// Believed is what a Count kept of what Dandori believed before it.
+	// Believed is what a Count, or the Count to nothing a Staple makes, kept of what
+	// Dandori believed before it.
 	Believed Quantity
 	// Note is the User's, if any.
 	Note string
@@ -129,8 +137,8 @@ func (m Movement) changeTo(key StockKey) (change Quantity, touches bool) {
 }
 
 // StockMovements is every one of movements, in the order they happened, that touched the
-// Stock Item key, with what it held before and after each. A Count starts from what it
-// kept of what Dandori believed.
+// Stock Item key, with what it held before and after each. A Count, and a Staple's Count
+// to nothing, starts from what it kept of what Dandori believed.
 func StockMovements(movements []Movement, key StockKey) []StockMovement {
 	var (
 		touched []StockMovement
@@ -141,7 +149,7 @@ func StockMovements(movements []Movement, key StockKey) []StockMovement {
 		if !touches {
 			continue
 		}
-		if m.Cause == Counted {
+		if m.Cause.keepsBelieved() {
 			held = m.Believed
 		}
 		touched = append(touched, StockMovement{Movement: m, Before: held, After: held + change})

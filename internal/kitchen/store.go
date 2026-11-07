@@ -119,3 +119,29 @@ func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
 	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM movement WHERE ingredient_id = $1)`, id).Scan(&has)
 	return has, err
 }
+
+// saveStapleCount appends the Count to nothing that marking the Ingredient id a Staple
+// makes of its Stock Item in location, which held believed: it keeps that, states
+// nothing and has no note.
+func saveStapleCount(ctx context.Context, q db.Querier, at time.Time, id int64, location domain.StorageLocation, believed domain.Quantity) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO movement (happened_at, ingredient_id, storage_location, change, cause_kind, believed, stated)
+		VALUES ($1, $2, $3, $4, $5, $6, 0)`,
+		at, id, string(location), (-believed).Number(), string(domain.MarkedStaple), believed.Number())
+	return err
+}
+
+// WithMovements is the ids of the signed-in User's Ingredients that some Movement refers
+// to, in q's transaction, for the Ingredients, whose rows link to their Movements.
+func WithMovements(ctx context.Context, q db.Querier) (map[int64]bool, error) {
+	rows, err := q.Query(ctx, `SELECT DISTINCT ingredient_id FROM movement`)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	with := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		with[id] = true
+	}
+	return with, err
+}

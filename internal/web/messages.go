@@ -1,6 +1,10 @@
 package web
 
-import "github.com/simopzz/dandori/internal/domain"
+import (
+	"context"
+
+	"github.com/simopzz/dandori/internal/domain"
+)
 
 // The shell's and the shared components' Messages.
 var (
@@ -27,4 +31,30 @@ func ProblemMessage(problem domain.Problem, own map[domain.Problem]Message) Mess
 		return m
 	}
 	return problems[problem]
+}
+
+// InLocations say where in each Storage Location, as Italian takes each Storage
+// Location with its own preposition.
+var InLocations = map[domain.StorageLocation]Message{
+	domain.Pantry:  {En: "in the pantry", It: "in dispensa"},
+	domain.Fridge:  {En: "in the fridge", It: "in frigo"},
+	domain.Freezer: {En: "in the freezer", It: "nel congelatore"},
+}
+
+// unitQuantities write a quantity of each Unit.
+var unitQuantities = map[domain.Unit]Message{
+	domain.Grams:       {En: "%s g", It: "%s g"},
+	domain.Millilitres: {En: "%s ml", It: "%s ml"},
+	domain.Pieces:      {En: "%s pieces", It: "%s pezzi"},
+}
+
+// msgOnePiece is one piece, which alone isn't plural.
+var msgOnePiece = Message{En: "1 piece", It: "1 pezzo"}
+
+// Quantity is q of unit as the request's Language writes it.
+func Quantity(ctx context.Context, q domain.Quantity, unit domain.Unit) string {
+	if unit == domain.Pieces && q == domain.QuantityOf(1) {
+		return T(ctx, msgOnePiece)
+	}
+	return Tf(ctx, unitQuantities[unit], Number(ctx, q.Number()))
 }

@@ -118,7 +118,8 @@ templ showNotices() {
 				if (focused) top()?.querySelector("[autofocus], input, select, textarea, button")?.focus();
 			};
 			document.addEventListener("DOMContentLoaded", raise);
-			document.addEventListener("htmx:before:swap", place);
+			// Called bare, so the event isn't taken for the host.
+			document.addEventListener("htmx:before:swap", () => place());
 			document.addEventListener("htmx:after:swap", raise);
 			// A closed sheet takes their time with it: they leave as it starts to close.
 			document.addEventListener("beforetoggle", (e) => {
