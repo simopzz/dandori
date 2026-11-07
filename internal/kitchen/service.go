@@ -106,6 +106,16 @@ func (s *Service) StockItemMovements(ctx context.Context, id int64, location dom
 	return item, err
 }
 
+// Moved is the ids of the signed-in User's Ingredients that some Movement refers to,
+// whose Movements the Ingredients link to.
+func (s *Service) Moved(ctx context.Context) (moved map[int64]bool, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		moved, err = loadMovedIngredients(ctx, tx)
+		return err
+	})
+	return moved, err
+}
+
 // Believed is what the signed-in User's Kitchen Ledger believes each Storage Location
 // holds of the Ingredient id at now, as loadBelieved adds it up.
 func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (believed map[domain.StorageLocation]domain.Quantity, err error) {
@@ -202,17 +212,23 @@ func (s *Service) Count(ctx context.Context, at time.Time, id int64, location do
 }
 
 // loadHeld is what the Stock Item key holds at, for a Count or a move that has hold of
-// the kitchen. One that overlapped it may have taken the lock first with a later time:
-// what that wrote is believed all the same.
+// the kitchen, as heldAt adds it up.
 func loadHeld(ctx context.Context, q db.Querier, at time.Time, key domain.StockKey) (domain.Quantity, error) {
 	movements, err := loadMovements(ctx, q)
 	if err != nil {
 		return 0, err
 	}
+	return domain.AddUp(movements, heldAt(movements, at))[key].Held, nil
+}
+
+// heldAt is the moment to add movements up to for a write at at that has hold of the
+// kitchen: at, or the last Movement's time, if one that overlapped it took the lock first
+// with a later time, so what that wrote is believed all the same.
+func heldAt(movements []domain.Movement, at time.Time) time.Time {
 	if n := len(movements); n > 0 && movements[n-1].At.After(at) {
-		at = movements[n-1].At
+		return movements[n-1].At
 	}
-	return domain.AddUp(movements, at)[key].Held, nil
+	return at
 }
 
 // MoveRefused is a move domain.CheckMove refused: why, and what was held.

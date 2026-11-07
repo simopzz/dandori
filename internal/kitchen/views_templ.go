@@ -115,9 +115,9 @@ func page(now time.Time, stock []Held, f CountForm) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(movementSaved + " from:body")
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(movementSaved + " from:body, " + ingredients.Saved + " from:body")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 36, Col: 87}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 36, Col: 124}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -435,9 +435,9 @@ func stockList(now time.Time, stock []Held) templ.Component {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var21 string
-							templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(quantity(ctx, h.Item.Held, h.Ingredient.Unit))
+							templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(ingredients.Quantity(ctx, h.Item.Held, h.Ingredient.Unit))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 90, Col: 78}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 90, Col: 90}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 							if templ_7745c5c3_Err != nil {
@@ -553,9 +553,9 @@ func stockList(now time.Time, stock []Held) templ.Component {
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var29 string
-								templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, inLocations[h.Location]))
+								templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, ingredients.InLocations[h.Location]))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 101, Col: 89}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 101, Col: 101}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 								if templ_7745c5c3_Err != nil {
@@ -832,9 +832,9 @@ func movementsBody(now time.Time, item StockItemMovements, inSheet bool) templ.C
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var42 string
-							templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgBeforeAfter, quantity(ctx, m.Before, item.Ingredient.Unit), quantity(ctx, m.After, item.Ingredient.Unit)))
+							templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgBeforeAfter, ingredients.Quantity(ctx, m.Before, item.Ingredient.Unit), ingredients.Quantity(ctx, m.After, item.Ingredient.Unit)))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 166, Col: 153}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 166, Col: 177}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 							if templ_7745c5c3_Err != nil {
@@ -1654,7 +1654,7 @@ func locationChoices(ctx context.Context, f CountForm) []web.Choice {
 	for i, l := range domain.StorageLocations {
 		choices[i] = web.Choice{
 			Value: string(l),
-			Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
+			Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), ingredients.Quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
 		}
 	}
 	return choices
@@ -2025,7 +2025,7 @@ func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
 		if l != f.From {
 			choices = append(choices, web.Choice{
 				Value: string(l),
-				Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
+				Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), ingredients.Quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
 			})
 		}
 	}

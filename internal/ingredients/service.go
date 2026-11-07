@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -54,15 +55,28 @@ var ErrNoIngredient = errors.New("the User has no such Ingredient")
 // and depends on this feature, so app wires it.
 type HasMovements func(ctx context.Context, q db.Querier, id int64) (bool, error)
 
+// CountedToNothing is a Stock Item counted to nothing as its Ingredient was marked a
+// Staple: its Storage Location, and what Dandori believed it held.
+type CountedToNothing struct {
+	Location domain.StorageLocation
+	Believed domain.Quantity
+}
+
+// CountToNothing counts each Stock Item of the Ingredient id holding some of it to
+// nothing at at, in q's transaction, and is what each held, in Storage Location order.
+// The kitchen owns Movements and depends on this feature, so app wires it.
+type CountToNothing func(ctx context.Context, q db.Querier, at time.Time, id int64) ([]CountedToNothing, error)
+
 // Service is the signed-in User's Ingredients.
 type Service struct {
-	pool         *pgxpool.Pool
-	hasMovements HasMovements
+	pool           *pgxpool.Pool
+	hasMovements   HasMovements
+	countToNothing CountToNothing
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, hasMovements HasMovements) *Service {
-	return &Service{pool: pool, hasMovements: hasMovements}
+func New(pool *pgxpool.Pool, hasMovements HasMovements, countToNothing CountToNothing) *Service {
+	return &Service{pool: pool, hasMovements: hasMovements, countToNothing: countToNothing}
 }
 
 // Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
@@ -96,13 +110,15 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 }
 
 // Edit sets the signed-in User's Ingredient id, whose Language is l, to ing, which has no
-// Problems; its Staple flag stays as it is. A name that normalises as another's is a
-// *NameTakenError. A new name only close to another's is a *SuggestedError, unless
-// confirmed says the User meant the name typed. A unit changed once Movements refer to
-// the Ingredient is a *UnitFixedError, and one they haven't got is ErrNoIngredient.
-func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, ing domain.Ingredient, confirmed bool) error {
+// Problems, at at. Marking it a Staple counts its stock to nothing in the same
+// transaction, and counted is each Stock Item that held some; unmarking it starts it from
+// nothing. A name that normalises as another's is a *NameTakenError. A new name only
+// close to another's is a *SuggestedError, unless confirmed says the User meant the name
+// typed. A unit changed once Movements refer to the Ingredient is a *UnitFixedError, and
+// one they haven't got is ErrNoIngredient.
+func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id int64, ing domain.Ingredient, confirmed bool) (counted []CountedToNothing, err error) {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		current, ok, err := LoadIngredient(ctx, tx, id)
 		if err != nil {
 			return err
@@ -136,8 +152,17 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, ing dom
 				return &UnitFixedError{Unit: current.Unit}
 			}
 		}
+		if ing.Staple && !current.Staple {
+			if counted, err = s.countToNothing(ctx, tx, at, id); err != nil {
+				return err
+			}
+		}
 		return updateIngredient(ctx, tx, id, ing, normalised)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return counted, nil
 }
 
 // Delete deletes the signed-in User's Ingredient id, and is its name. One that Movements
