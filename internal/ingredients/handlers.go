@@ -171,14 +171,14 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 
 // stapleNotice confirms ing marked a Staple, with each of its Stock Items counted, in
 // counted, to nothing: one by its quantity alone, several each with its Storage Location.
-func stapleNotice(ctx context.Context, ing domain.Ingredient, counted []CountedToNothing) string {
+func stapleNotice(ctx context.Context, ing domain.Ingredient, counted []domain.Movement) string {
 	first := web.Quantity(ctx, counted[0].Believed, ing.Unit)
 	if len(counted) == 1 {
 		return web.Tf(ctx, msgStapleCounted, web.Tf(ctx, msgQuantityOf, first, ing.Name))
 	}
-	parts := []string{web.Tf(ctx, msgQuantityOfIn, first, ing.Name, web.T(ctx, web.InLocations[counted[0].Location]))}
+	parts := []string{web.Tf(ctx, msgQuantityOfIn, first, ing.Name, web.T(ctx, web.InLocations[counted[0].Key.Location]))}
 	for _, c := range counted[1:] {
-		parts = append(parts, web.Tf(ctx, msgQuantityIn, web.Quantity(ctx, c.Believed, ing.Unit), web.T(ctx, web.InLocations[c.Location])))
+		parts = append(parts, web.Tf(ctx, msgQuantityIn, web.Quantity(ctx, c.Believed, ing.Unit), web.T(ctx, web.InLocations[c.Key.Location])))
 	}
 	last := len(parts) - 1
 	listed := web.Tf(ctx, msgAnd, strings.Join(parts[:last], ", "), parts[last])

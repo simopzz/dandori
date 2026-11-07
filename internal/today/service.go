@@ -8,19 +8,19 @@ import (
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
-	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/profile"
 )
 
 // Service is what Today shows the signed-in User.
 type Service struct {
 	profile *profile.Service
-	kitchen *kitchen.Service
+	ledger  *ledger.Service
 }
 
 // New creates the Service.
-func New(profile *profile.Service, kitchen *kitchen.Service) *Service {
-	return &Service{profile: profile, kitchen: kitchen}
+func New(profile *profile.Service, ledger *ledger.Service) *Service {
+	return &Service{profile: profile, ledger: ledger}
 }
 
 // Day is what Today shows at a moment.
@@ -39,7 +39,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	if err != nil {
 		return Day{}, err
 	}
-	beat, beaten, err := s.kitchen.LastBeat(ctx)
+	beat, beaten, err := s.ledger.LastBeat(ctx)
 	if err != nil {
 		return Day{}, err
 	}

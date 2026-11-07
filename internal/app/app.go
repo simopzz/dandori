@@ -24,6 +24,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/today"
 	"github.com/simopzz/dandori/internal/web"
@@ -52,6 +53,7 @@ type App struct {
 	profile     *profile.Service
 	ingredients *ingredients.Service
 	kitchen     *kitchen.Service
+	ledger      *ledger.Service
 	today       *today.Service
 }
 
@@ -70,11 +72,9 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, ingredients.Kitchen{
-		HasMovements: kitchen.HasMovements, CountToNothing: kitchen.CountToNothing, WithMovements: kitchen.WithMovements,
-	})}
-	a.kitchen = kitchen.New(pool, log, a.ingredients)
-	a.today = today.New(a.profile, a.kitchen)
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool), ledger: ledger.New(pool, log)}
+	a.kitchen = kitchen.New(pool, a.ingredients)
+	a.today = today.New(a.profile, a.ledger)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -91,14 +91,14 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 // Close releases the database connections.
 func (a *App) Close() { a.pool.Close() }
 
-// Schedule starts the scheduler, which beats on the app's clock every kitchen.BeatEvery
+// Schedule starts the scheduler, which beats on the app's clock every ledger.BeatEvery
 // and brings every User's kitchen up to now, until ctx ends. Each beat is a span.
 func (a *App) Schedule(ctx context.Context) {
 	tracer := a.spans.Tracer("github.com/simopzz/dandori/internal/app")
-	a.clock.Every(ctx, kitchen.BeatEvery, func(at time.Time) {
+	a.clock.Every(ctx, ledger.BeatEvery, func(at time.Time) {
 		ctx, span := tracer.Start(ctx, "kitchen beat")
 		defer span.End()
-		a.kitchen.Beat(ctx, at)
+		a.ledger.Beat(ctx, at)
 	})
 }
 
@@ -111,7 +111,7 @@ func (a *App) Schedule(ctx context.Context) {
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
-	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
+	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
