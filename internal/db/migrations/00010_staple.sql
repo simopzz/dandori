@@ -10,6 +10,9 @@ ALTER TABLE movement
     );
 
 -- +goose Down
+-- The narrower CHECK can't hold while Staples' Counts to nothing remain, so they go: the
+-- Kitchen Ledger forgets them, and each Staple's stock adds up to what it was before.
+DELETE FROM movement WHERE cause_kind = 'staple';
 ALTER TABLE movement
     DROP CONSTRAINT movement_staple_check,
     DROP CONSTRAINT movement_cause_kind_check,

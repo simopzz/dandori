@@ -24,9 +24,6 @@ type Handlers struct {
 	// CountNew answers an add the User made to count the Ingredient id, which app wires
 	// to the kitchen, since that feature depends on this one.
 	CountNew func(w http.ResponseWriter, r *http.Request, id int64)
-	// Moved is the ids of the Ingredients some Movement refers to, whose rows link to
-	// their Movements, which app wires to the kitchen too.
-	Moved func(ctx context.Context) (map[int64]bool, error)
 }
 
 // Saved is the event an edit triggers, with HX-Trigger, so a page showing Stock Items
@@ -57,15 +54,12 @@ func (h Handlers) ShowSheet(w http.ResponseWriter, r *http.Request) {
 // the search swaps in as the User types.
 func (h Handlers) ShowList(w http.ResponseWriter, r *http.Request) {
 	view := sheetView{Q: r.URL.Query().Get("q")}
-	ings, err := h.Service.Search(r.Context(), view.Q)
+	ings, withMovements, err := h.Service.Listing(r.Context(), view.Q)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "search the Ingredients", err)
 		return
 	}
-	if view.Moved, err = h.Moved(r.Context()); err != nil {
-		httpx.ServerError(w, r, h.Log, "find the Ingredients with Movements", err)
-		return
-	}
+	view.WithMovements = withMovements
 	httpx.Render(w, r, h.Log, http.StatusOK, list(ings, view))
 }
 
@@ -167,7 +161,7 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 	notice := web.Tf(ctx, msgSaved, ing.Name)
 	if len(counted) > 0 {
-		notice = countedText(ctx, ing, counted)
+		notice = stapleNotice(ctx, ing, counted)
 	}
 	if fragment {
 		w.Header().Set("HX-Trigger", Saved)
@@ -175,17 +169,17 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	h.done(w, r, sheetView{Q: view.Q, Notice: notice}, fragment)
 }
 
-// countedText confirms ing marked a Staple, with each of its Stock Items counted, in
+// stapleNotice confirms ing marked a Staple, with each of its Stock Items counted, in
 // counted, to nothing: one by its quantity alone, several each with its Storage Location.
-func countedText(ctx context.Context, ing domain.Ingredient, counted []CountedToNothing) string {
+func stapleNotice(ctx context.Context, ing domain.Ingredient, counted []CountedToNothing) string {
+	first := web.Quantity(ctx, counted[0].Believed, ing.Unit)
 	if len(counted) == 1 {
-		return web.Tf(ctx, msgStapleCounted, web.Tf(ctx, msgQuantityOf, Quantity(ctx, counted[0].Believed, ing.Unit), ing.Name))
+		return web.Tf(ctx, msgStapleCounted, web.Tf(ctx, msgQuantityOf, first, ing.Name))
 	}
-	parts := make([]string, len(counted))
-	for i, c := range counted {
-		parts[i] = web.Tf(ctx, msgQuantityIn, Quantity(ctx, c.Believed, ing.Unit), web.T(ctx, InLocations[c.Location]))
+	parts := []string{web.Tf(ctx, msgQuantityOfIn, first, ing.Name, web.T(ctx, web.InLocations[counted[0].Location]))}
+	for _, c := range counted[1:] {
+		parts = append(parts, web.Tf(ctx, msgQuantityIn, web.Quantity(ctx, c.Believed, ing.Unit), web.T(ctx, web.InLocations[c.Location])))
 	}
-	parts[0] = web.Tf(ctx, msgQuantityOfIn, Quantity(ctx, counted[0].Believed, ing.Unit), ing.Name, web.T(ctx, InLocations[counted[0].Location]))
 	last := len(parts) - 1
 	listed := web.Tf(ctx, msgAnd, strings.Join(parts[:last], ", "), parts[last])
 	return web.Tf(ctx, msgStapleCounted, listed)
@@ -235,10 +229,11 @@ func (h Handlers) done(w http.ResponseWriter, r *http.Request, view sheetView, f
 // search, which Ingredients have Movements, and a Notice confirming what was done, when
 // something was.
 type sheetView struct {
-	Add   AddForm
-	Edit  EditForm
-	Q     string
-	Moved map[int64]bool
+	Add  AddForm
+	Edit EditForm
+	Q    string
+	// WithMovements is the ids of the Ingredients some Movement refers to.
+	WithMovements map[int64]bool
 	// Notice confirms a write. Without one, Add's Added is confirmed, or else its
 	// Picked, which only an Ingredient of the User's of that name is.
 	Notice string
@@ -247,15 +242,12 @@ type sheetView struct {
 // render answers with view, its list the User's Ingredients a search for its Q finds, as
 // the sheet's body when fragment is set, else as the Ingredients page.
 func (h Handlers) render(w http.ResponseWriter, r *http.Request, status int, view sheetView, fragment bool) {
-	ings, err := h.Service.Search(r.Context(), view.Q)
+	ings, withMovements, err := h.Service.Listing(r.Context(), view.Q)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 		return
 	}
-	if view.Moved, err = h.Moved(r.Context()); err != nil {
-		httpx.ServerError(w, r, h.Log, "find the Ingredients with Movements", err)
-		return
-	}
+	view.WithMovements = withMovements
 	f := &view.Add
 	if !slices.ContainsFunc(ings, func(ing domain.Ingredient) bool { return ing.Name == f.Picked }) {
 		f.Picked = ""

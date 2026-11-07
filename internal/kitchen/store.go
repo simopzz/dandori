@@ -9,7 +9,6 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
-	"github.com/simopzz/dandori/internal/ingredients"
 )
 
 // loadUserIDs is every User's id. Run outside db.AsUser, as the app's own role, it sees
@@ -132,46 +131,17 @@ func saveStapleCount(ctx context.Context, q db.Querier, at time.Time, id int64, 
 	return err
 }
 
-// CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
-// some of it to nothing at at, as marking it a Staple does, in q's transaction, and is
-// what each held, in Storage Location order. It holds the kitchen first, as a Count
-// does, so no Count or move of it slips in before q's transaction ends. The Ingredients
-// call it, and app wires it, as this feature depends on theirs.
-func CountToNothing(ctx context.Context, q db.Querier, at time.Time, id int64) ([]ingredients.CountedToNothing, error) {
-	if err := lockKitchen(ctx, q); err != nil {
-		return nil, err
-	}
-	movements, err := loadMovements(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-	at = heldAt(movements, at)
-	items := domain.AddUp(movements, at)
-	var counted []ingredients.CountedToNothing
-	for _, location := range domain.StorageLocations {
-		held := items[domain.StockKey{Ingredient: id, Location: location}].Held
-		if held <= 0 {
-			continue
-		}
-		if err := saveStapleCount(ctx, q, at, id, location, held); err != nil {
-			return nil, err
-		}
-		counted = append(counted, ingredients.CountedToNothing{Location: location, Believed: held})
-	}
-	return counted, nil
-}
-
-// loadMovedIngredients is the ids of the signed-in User's Ingredients that some Movement
-// refers to.
-func loadMovedIngredients(ctx context.Context, q db.Querier) (map[int64]bool, error) {
+// WithMovements is the ids of the signed-in User's Ingredients that some Movement refers
+// to, in q's transaction, for the Ingredients, whose rows link to their Movements.
+func WithMovements(ctx context.Context, q db.Querier) (map[int64]bool, error) {
 	rows, err := q.Query(ctx, `SELECT DISTINCT ingredient_id FROM movement`)
 	if err != nil {
 		return nil, err
 	}
 	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
-	moved := make(map[int64]bool, len(ids))
+	with := make(map[int64]bool, len(ids))
 	for _, id := range ids {
-		moved[id] = true
+		with[id] = true
 	}
-	return moved, err
+	return with, err
 }

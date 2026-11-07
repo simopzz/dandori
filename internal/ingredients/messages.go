@@ -1,8 +1,6 @@
 package ingredients
 
 import (
-	"context"
-
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -109,30 +107,4 @@ var StorageLocationNames = map[domain.StorageLocation]web.Message{
 	domain.Pantry:  {En: "pantry", It: "dispensa"},
 	domain.Fridge:  {En: "fridge", It: "frigo"},
 	domain.Freezer: {En: "freezer", It: "congelatore"},
-}
-
-// InLocations say where in each Storage Location, as Italian takes each Storage
-// Location with its own preposition.
-var InLocations = map[domain.StorageLocation]web.Message{
-	domain.Pantry:  {En: "in the pantry", It: "in dispensa"},
-	domain.Fridge:  {En: "in the fridge", It: "in frigo"},
-	domain.Freezer: {En: "in the freezer", It: "nel congelatore"},
-}
-
-// unitQuantities write a quantity of each Unit.
-var unitQuantities = map[domain.Unit]web.Message{
-	domain.Grams:       {En: "%s g", It: "%s g"},
-	domain.Millilitres: {En: "%s ml", It: "%s ml"},
-	domain.Pieces:      {En: "%s pieces", It: "%s pezzi"},
-}
-
-// msgOnePiece is one piece, which alone isn't plural.
-var msgOnePiece = web.Message{En: "1 piece", It: "1 pezzo"}
-
-// Quantity is q of unit as the request's Language writes it.
-func Quantity(ctx context.Context, q domain.Quantity, unit domain.Unit) string {
-	if unit == domain.Pieces && q == domain.QuantityOf(1) {
-		return web.T(ctx, msgOnePiece)
-	}
-	return web.Tf(ctx, unitQuantities[unit], web.Number(ctx, q.Number()))
 }

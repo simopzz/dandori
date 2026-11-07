@@ -67,16 +67,27 @@ type CountedToNothing struct {
 // The kitchen owns Movements and depends on this feature, so app wires it.
 type CountToNothing func(ctx context.Context, q db.Querier, at time.Time, id int64) ([]CountedToNothing, error)
 
+// WithMovements is the ids of the Ingredients some Movement refers to, in q's
+// transaction. The kitchen owns Movements, so app wires it.
+type WithMovements func(ctx context.Context, q db.Querier) (map[int64]bool, error)
+
+// Kitchen is what the Ingredients need of the Kitchen Ledger, which owns Movements and
+// depends on this feature, so app wires it.
+type Kitchen struct {
+	HasMovements   HasMovements
+	CountToNothing CountToNothing
+	WithMovements  WithMovements
+}
+
 // Service is the signed-in User's Ingredients.
 type Service struct {
-	pool           *pgxpool.Pool
-	hasMovements   HasMovements
-	countToNothing CountToNothing
+	pool    *pgxpool.Pool
+	kitchen Kitchen
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, hasMovements HasMovements, countToNothing CountToNothing) *Service {
-	return &Service{pool: pool, hasMovements: hasMovements, countToNothing: countToNothing}
+func New(pool *pgxpool.Pool, kitchen Kitchen) *Service {
+	return &Service{pool: pool, kitchen: kitchen}
 }
 
 // Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
@@ -144,7 +155,7 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 			}
 		}
 		if ing.Unit != current.Unit {
-			moved, err := s.hasMovements(ctx, tx, id)
+			moved, err := s.kitchen.HasMovements(ctx, tx, id)
 			if err != nil {
 				return err
 			}
@@ -153,7 +164,7 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 			}
 		}
 		if ing.Staple && !current.Staple {
-			if counted, err = s.countToNothing(ctx, tx, at, id); err != nil {
+			if counted, err = s.kitchen.CountToNothing(ctx, tx, at, id); err != nil {
 				return err
 			}
 		}
@@ -177,7 +188,7 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 		if !ok {
 			return ErrNoIngredient
 		}
-		moved, err := s.hasMovements(ctx, tx, id)
+		moved, err := s.kitchen.HasMovements(ctx, tx, id)
 		if err != nil {
 			return err
 		}
@@ -242,11 +253,31 @@ func (s *Service) Search(ctx context.Context, query string) ([]domain.Ingredient
 	if err != nil {
 		return nil, err
 	}
+	return search(query, ings), nil
+}
+
+// Listing is what Search finds for query, with the ids of the signed-in User's
+// Ingredients some Movement refers to, read together, for the Ingredients' list.
+func (s *Service) Listing(ctx context.Context, query string) (found []domain.Ingredient, withMovements map[int64]bool, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		ings, err := LoadIngredients(ctx, tx)
+		if err != nil {
+			return err
+		}
+		found = search(query, ings)
+		withMovements, err = s.kitchen.WithMovements(ctx, tx)
+		return err
+	})
+	return found, withMovements, err
+}
+
+// search is the ones of ings a search for query finds by spelling, the most alike first.
+func search(query string, ings []domain.Ingredient) []domain.Ingredient {
 	var found []domain.Ingredient
 	for _, i := range domain.SearchIngredients(query, names(ings)) {
 		found = append(found, ings[i])
 	}
-	return found, nil
+	return found
 }
 
 // names are ings' names, in their order.

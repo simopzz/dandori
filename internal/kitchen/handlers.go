@@ -14,7 +14,6 @@ import (
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
-	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -176,7 +175,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		h.answer(w, r, http.StatusUnprocessableEntity, now, f, "")
 		return
 	}
-	counted := web.Tf(ctx, msgCounted, ing.Name, ingredients.Quantity(ctx, stated, ing.Unit), web.T(ctx, ingredients.InLocations[location]))
+	counted := web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, stated, ing.Unit), web.T(ctx, web.InLocations[location]))
 	if !httpx.IsHTMX(r) {
 		web.RedirectWithNotice(w, r, "/kitchen/count", counted)
 		return
@@ -275,7 +274,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, movePage(now, f))
 		return
 	}
-	text := web.Tf(ctx, msgMoved, ingredients.Quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[f.To]))
+	text := web.Tf(ctx, msgMoved, web.Quantity(ctx, moved, ing.Unit), ing.Name, web.T(ctx, toLocations[f.To]))
 	if !httpx.IsHTMX(r) {
 		web.RedirectWithNotice(w, r, "/kitchen", text)
 		return

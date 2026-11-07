@@ -108,8 +108,8 @@ func TestUnmarkingAStapleStartsItFromNothing(t *testing.T) {
 }
 
 // Posted from the side sheet by htmx, marking a Staple answers with the sheet's body,
-// confirming what was counted, and tells the Kitchen page under it to list its Stock
-// Items again.
+// confirming what was counted, and tells the page under it that an Ingredient changed:
+// TestBrowserMarksAStapleInTheSideSheet sees the Kitchen page list its stock again.
 func TestTheIngredientsSheetMarksAStapleInPlace(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "700", "")
@@ -124,13 +124,6 @@ func TestTheIngredientsSheetMarksAStapleInPlace(t *testing.T) {
 	}
 	if got := marked.Header.Get("HX-Trigger"); got != "ingredient-saved" {
 		t.Errorf("marking rice from the sheet triggers %q, want ingredient-saved", got)
-	}
-	if !strings.Contains(s.HTMXGet(t, "/kitchen").Body, `hx-trigger="movement-saved from:body, ingredient-saved from:body"`) {
-		t.Errorf("the Kitchen page's stock doesn't list itself again on ingredient-saved")
-	}
-	stock := s.HTMXGet(t, "/kitchen/stock")
-	if shown := apptest.Text(stock.Body); !strings.Contains(shown, "Nothing in your kitchen yet.") {
-		t.Errorf("the Kitchen page's stock, listed again, shows: %s", shown)
 	}
 }
 

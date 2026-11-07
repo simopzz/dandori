@@ -515,7 +515,7 @@ func list(ings []domain.Ingredient, view sheetView) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = editForm(ing, editing(ing, view.Edit), view.Q, view.Moved[ing.ID]).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = editForm(ing, editing(ing, view.Edit), view.Q, view.WithMovements[ing.ID]).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -648,10 +648,10 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 
 // editForm edits ing, posted from its row, swapping the side sheet's body when htmx posts
 // it, searched for q as it was. Its Delete belongs to the delete form beside it, as forms
-// don't nest, so Enter still saves. Once moved, some Movement refers to it, and a link
-// opens its Movements in its usual Storage Location, which reach the other two: the only
-// way to them for a Staple, which no Stock Item holds.
-func editForm(ing domain.Ingredient, f EditForm, q string, moved bool) templ.Component {
+// don't nest, so Enter still saves. When some Movement refers to it, withMovements, a
+// link opens its Movements in its usual Storage Location, which reach the other two: the
+// only way to them for a Staple, which no Stock Item holds.
+func editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -819,7 +819,7 @@ func editForm(ing domain.Ingredient, f EditForm, q string, moved bool) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if moved {
+		if withMovements {
 			templ_7745c5c3_Var40 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)

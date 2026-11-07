@@ -106,16 +106,6 @@ func (s *Service) StockItemMovements(ctx context.Context, id int64, location dom
 	return item, err
 }
 
-// Moved is the ids of the signed-in User's Ingredients that some Movement refers to,
-// whose Movements the Ingredients link to.
-func (s *Service) Moved(ctx context.Context) (moved map[int64]bool, err error) {
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		moved, err = loadMovedIngredients(ctx, tx)
-		return err
-	})
-	return moved, err
-}
-
 // Believed is what the signed-in User's Kitchen Ledger believes each Storage Location
 // holds of the Ingredient id at now, as loadBelieved adds it up.
 func (s *Service) Believed(ctx context.Context, now time.Time, id int64) (believed map[domain.StorageLocation]domain.Quantity, err error) {
@@ -257,6 +247,35 @@ func (s *Service) Move(ctx context.Context, at time.Time, id int64, from, to dom
 		}
 		return saveMove(ctx, tx, at, id, from, to, moved, strings.TrimSpace(note))
 	})
+}
+
+// CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
+// some of it to nothing at at, as marking it a Staple does, in q's transaction, and is
+// what each held, in Storage Location order. It holds the kitchen first, as a Count
+// does, so no Count or move of it slips in before q's transaction ends. The Ingredients
+// call it, and app wires it, as this feature depends on theirs.
+func CountToNothing(ctx context.Context, q db.Querier, at time.Time, id int64) ([]ingredients.CountedToNothing, error) {
+	if err := lockKitchen(ctx, q); err != nil {
+		return nil, err
+	}
+	movements, err := loadMovements(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	at = heldAt(movements, at)
+	items := domain.AddUp(movements, at)
+	var counted []ingredients.CountedToNothing
+	for _, location := range domain.StorageLocations {
+		held := items[domain.StockKey{Ingredient: id, Location: location}].Held
+		if held <= 0 {
+			continue
+		}
+		if err := saveStapleCount(ctx, q, at, id, location, held); err != nil {
+			return nil, err
+		}
+		counted = append(counted, ingredients.CountedToNothing{Location: location, Believed: held})
+	}
+	return counted, nil
 }
 
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it

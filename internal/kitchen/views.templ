@@ -87,7 +87,7 @@ templ stockList(now time.Time, stock []Held) {
 								{ h.Ingredient.Name }
 							}
 						</span>
-						<span class="row-figure">{ ingredients.Quantity(ctx, h.Item.Held, h.Ingredient.Unit) }</span>
+						<span class="row-figure">{ web.Quantity(ctx, h.Item.Held, h.Ingredient.Unit) }</span>
 						if !h.Item.Counted.IsZero() {
 							<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
 						}
@@ -98,7 +98,7 @@ templ stockList(now time.Time, stock []Held) {
 							}
 							@web.SideSheetLink(moveSheetID, stockItemURL("/kitchen/move", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/move/sheet", h.Ingredient.ID, h.Location)) {
 								{ web.T(ctx, msgMove) }
-								<span class="sr-only">{ h.Ingredient.Name } { web.T(ctx, ingredients.InLocations[h.Location]) }</span>
+								<span class="sr-only">{ h.Ingredient.Name } { web.T(ctx, web.InLocations[h.Location]) }</span>
 							}
 						</span>
 					}
@@ -163,7 +163,7 @@ templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
 				for _, m := range item.Movements {
 					@web.Row() {
 						<span class="row-title">{ causeText(ctx, m, item.Location) }</span>
-						<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, ingredients.Quantity(ctx, m.Before, item.Ingredient.Unit), ingredients.Quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
+						<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, item.Ingredient.Unit), web.Quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
 						<span class="row-meta">
 							<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
 							if m.Note != "" {
@@ -363,7 +363,7 @@ func locationChoices(ctx context.Context, f CountForm) []web.Choice {
 	for i, l := range domain.StorageLocations {
 		choices[i] = web.Choice{
 			Value: string(l),
-			Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), ingredients.Quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
+			Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), web.Quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
 		}
 	}
 	return choices
@@ -444,7 +444,7 @@ func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
 		if l != f.From {
 			choices = append(choices, web.Choice{
 				Value: string(l),
-				Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), ingredients.Quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
+				Label: web.Tf(ctx, msgHolds, web.T(ctx, ingredients.StorageLocationNames[l]), web.Quantity(ctx, f.Believed[l], f.Ingredient.Unit)),
 			})
 		}
 	}
