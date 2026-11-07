@@ -142,7 +142,8 @@ func Languages(next http.Handler) http.Handler {
 			q.Del(languageParam)
 			u := *r.URL
 			u.RawQuery = q.Encode()
-			http.Redirect(w, r, u.RequestURI(), http.StatusSeeOther)
+			// One leading slash: a browser reads // as another site's address.
+			http.Redirect(w, r, "/"+strings.TrimLeft(u.RequestURI(), "/"), http.StatusSeeOther)
 			return
 		}
 		if c, err := r.Cookie(languageCookie); err == nil {

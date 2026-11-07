@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"net/http"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/apptest"
@@ -161,4 +163,24 @@ func TestTheLanguageStaysOnceTheUserHasAnIngredient(t *testing.T) {
 	s.Sees("Your kitchen already holds Ingredients or Recipes in this Language, so it stays.")
 	s.Open("/")
 	s.Sees("Monday 2 November")
+}
+
+// The Language switch opens a page of this site again, whatever slashes its path begins
+// with: a browser reads a location beginning with // as another site's.
+func TestTheLanguageSwitchStaysOnThisSite(t *testing.T) {
+	h := apptest.Start(t)
+	unfollowed := *h.Client
+	unfollowed.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	res, err := unfollowed.Get(h.URL + "//evil.example/sign-in?lang=it")
+	if err != nil {
+		t.Fatalf("open the Language switch: %v", err)
+	}
+	res.Body.Close()
+
+	if got := res.Header.Get("Location"); !strings.HasPrefix(got, "/") || strings.HasPrefix(got, "//") {
+		t.Errorf("the Language switch redirects to %q, want a path on this site", got)
+	}
+	if !slices.ContainsFunc(res.Cookies(), func(c *http.Cookie) bool { return c.Value == "it" }) {
+		t.Errorf("the Language switch set no Language cookie: %v", res.Cookies())
+	}
 }
