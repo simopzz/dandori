@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"maps"
+	"reflect"
 	"testing"
 	"time"
 
@@ -352,7 +353,7 @@ func TestTheLedgerWritesAMovement(t *testing.T) {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				got := domain.NewLedger(c.movements).Count(onMonday(10), riceFridge, 3000, "")
-				if got != c.want {
+				if !reflect.DeepEqual(got, c.want) {
 					t.Errorf("the Count is %+v, want %+v", got, c.want)
 				}
 				lastLinesAgree(t, append(c.movements, got))
@@ -389,7 +390,7 @@ func TestTheLedgerWritesAMovement(t *testing.T) {
 				if problem != "" {
 					return
 				}
-				if want := (domain.Movement{At: c.wantAt, Key: riceFridge, To: domain.Freezer, Change: c.moved, Cause: domain.Moved}); got != want {
+				if want := (domain.Movement{At: c.wantAt, Key: riceFridge, To: domain.Freezer, Change: c.moved, Cause: domain.Moved}); !reflect.DeepEqual(got, want) {
 					t.Errorf("the move is %+v, want %+v", got, want)
 				}
 				lastLinesAgree(t, append(c.movements, got))
@@ -413,7 +414,7 @@ func TestTheLedgerWritesAMovement(t *testing.T) {
 			t.Fatalf("the Counts to nothing are %+v, want %+v", got, want)
 		}
 		for i := range want {
-			if got[i] != want[i] {
+			if !reflect.DeepEqual(got[i], want[i]) {
 				t.Errorf("Count to nothing %d is %+v, want %+v", i, got[i], want[i])
 			}
 		}

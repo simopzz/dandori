@@ -11,3 +11,5 @@ bin/
 # Snapshots and network captures the Playwright MCP server writes.
 .playwright-mcp/
 .env.provision
+
+.ua

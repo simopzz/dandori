@@ -2,9 +2,11 @@ package kitchen
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -77,4 +79,35 @@ func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageL
 		f.Errs["quantity"] = web.T(ctx, web.ProblemMessage(problem, moveProblemMessages))
 	}
 	return f
+}
+
+// PortionsForm is the Add Portions form as shown: what was typed, the nutritional values
+// by field, and why each field was refused, in the User's Language.
+type PortionsForm struct {
+	Name, HowMany, Note string
+	Location            domain.StorageLocation
+	Values, Errs        map[string]string
+}
+
+// parsePortionsForm reads the Add Portions form posted in r as the Portions it adds, and
+// the form as typed with why each field is refused, if any is.
+func parsePortionsForm(r *http.Request) (domain.NewPortions, PortionsForm) {
+	ctx := r.Context()
+	nutrition, values, errs := ingredients.PostedNutrition(r)
+	f := PortionsForm{
+		Name: strings.TrimSpace(r.PostFormValue("name")), HowMany: strings.TrimSpace(r.PostFormValue("how_many")),
+		Note: strings.TrimSpace(r.PostFormValue("note")), Location: domain.StorageLocation(r.PostFormValue("location")),
+		Values: values, Errs: errs,
+	}
+	if f.Name == "" {
+		f.Errs["name"] = web.T(ctx, msgPortionNameRequired)
+	}
+	howMany, problem := domain.ParseHowMany(f.HowMany)
+	if problem != "" {
+		f.Errs["how_many"] = web.T(ctx, web.ProblemMessage(problem, howManyProblemMessages))
+	}
+	if !slices.Contains(domain.StorageLocations, f.Location) {
+		f.Errs["location"], f.Location = web.T(ctx, msgChooseWhere), ""
+	}
+	return domain.NewPortions{Name: f.Name, HowMany: howMany, Location: f.Location, Nutrition: nutrition, Note: f.Note}, f
 }

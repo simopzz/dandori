@@ -262,6 +262,26 @@ func (s *Scenario) AddsIngredient(ing Ingredient) {
 	s.record(fmt.Sprintf("adds the Ingredient %q: %d %s", ing.Name, s.page.StatusCode, s.page.Path))
 }
 
+// Portions are what the Add Portions form is filled with: a blank field stays blank.
+type Portions struct {
+	Name, HowMany, Location, Kcal, Protein, Carbs, Fat, Fibre, Sugar, Note string
+}
+
+// AddsPortions adds p with the Add Portions page, posted as a browser without htmx.
+func (s *Scenario) AddsPortions(p Portions) {
+	s.t.Helper()
+	s.Open("/kitchen/portions")
+	form := Form(s.t, s.page.Body, "portions-form")
+	for field, v := range map[string]string{
+		"name": p.Name, "how_many": p.HowMany, "location": p.Location, "kcal": p.Kcal, "protein": p.Protein,
+		"carbs": p.Carbs, "fat": p.Fat, "fibre": p.Fibre, "sugar": p.Sugar, "note": p.Note,
+	} {
+		form.Values.Set(field, v)
+	}
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("adds %s of the Portions %q: %d %s", p.HowMany, p.Name, s.page.StatusCode, s.page.Path))
+}
+
 // EditsIngredient edits the Ingredient named name with its edit form on the page open,
 // setting every field to ing's, posted as a browser without htmx.
 func (s *Scenario) EditsIngredient(name string, ing Ingredient) {

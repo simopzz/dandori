@@ -44,7 +44,7 @@ func (h Handlers) UpToNow(next http.Handler) http.Handler {
 // Show is the Kitchen page.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	now := h.Clock.Now()
-	stock, err := h.Service.Stock(r.Context(), now)
+	contents, err := h.Service.Contents(r.Context(), now)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
 		return
@@ -54,19 +54,19 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "start a Count", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, page(now, stock, f))
+	httpx.Render(w, r, h.Log, http.StatusOK, page(now, contents, f))
 }
 
 // ShowStock is what the Kitchen page lists alone, which it swaps in after each
 // Count or move.
 func (h Handlers) ShowStock(w http.ResponseWriter, r *http.Request) {
 	now := h.Clock.Now()
-	stock, err := h.Service.Stock(r.Context(), now)
+	contents, err := h.Service.Contents(r.Context(), now)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, stockList(now, stock))
+	httpx.Render(w, r, h.Log, http.StatusOK, stockList(now, contents))
 }
 
 // ShowMovements is a Stock Item's Movements as a page of their own, for a
@@ -181,6 +181,37 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		a.Fragment = countBody(cleared)
 	}
 	a.Write(w, r, h.Log)
+}
+
+// ShowPortions is the Add Portions form as a page of its own, for a browser without htmx.
+func (h Handlers) ShowPortions(w http.ResponseWriter, r *http.Request) {
+	httpx.Render(w, r, h.Log, http.StatusOK, portionsPage(h.Clock.Now(), PortionsForm{}))
+}
+
+// ShowPortionsSheet is the Add Portions sheet's body.
+func (h Handlers) ShowPortionsSheet(w http.ResponseWriter, r *http.Request) {
+	httpx.Render(w, r, h.Log, http.StatusOK, portionsForm(PortionsForm{}))
+}
+
+// AddPortions adds the Portions posted, at the moment they arrive. Posted from the sheet
+// by htmx, it answers with them confirmed in a floating Notice, closing the sheet and
+// telling the page under it to list its stock again; or with the form as typed with why
+// it was refused. A plain post lands on the Kitchen page, confirming it.
+func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
+	ctx, now := r.Context(), h.Clock.Now()
+	p, f := parsePortionsForm(r)
+	if len(f.Errs) > 0 {
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f)}.Write(w, r, h.Log)
+		return
+	}
+	if err := h.Service.AddPortions(ctx, now, p); err != nil {
+		httpx.ServerError(w, r, h.Log, "add Portions", err)
+		return
+	}
+	web.Answer{
+		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Notice: web.Tf(ctx, msgAddedPortions, p.Name, p.HowMany, web.T(ctx, toLocations[p.Location])),
+	}.Write(w, r, h.Log)
 }
 
 // ShowMove is the form that moves a Stock Item as a page of its own, for a browser

@@ -773,11 +773,16 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 /* add: a square seal button and a sheet over a navy veil */
 
-.fab {
+.fab-group {
   position: fixed;
   z-index: 11;
   right: var(--space-5);
   bottom: calc(var(--tabs-height) + var(--space-4) + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 1px;
+}
+
+.fab {
   width: 3.5rem;
   height: 3.5rem;
   display: grid;
@@ -790,6 +795,21 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 }
 
 .fab .icon { width: 1.5rem; height: 1.5rem; }
+
+.fab-more { width: var(--tap); }
+
+.fab-more .icon { width: 1rem; height: 1rem; }
+
+/* What else a page adds, opening over its fab-group. */
+.fab-menu {
+  position: fixed;
+  inset: auto var(--space-5) calc(var(--tabs-height) + var(--space-4) + 3.5rem + var(--space-2) + env(safe-area-inset-bottom)) auto;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-rule-strong);
+}
 
 .sheet {
   margin: auto 0 0;
@@ -815,7 +835,9 @@ html:has(dialog:modal) { overflow: hidden; }
 .sheet-head h2 { font-size: 1.5rem; margin: 0; }
 
 @media (min-width: 900px) {
-  .fab { bottom: var(--space-6); right: var(--space-6); }
+  .fab-group { bottom: var(--space-6); right: var(--space-6); }
+
+  .fab-menu { inset: auto var(--space-6) calc(var(--space-6) + 3.5rem + var(--space-2)) auto; }
 
   .sheet { margin: auto; width: 28rem; border: 1px solid var(--color-rule-strong); }
 

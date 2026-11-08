@@ -371,11 +371,24 @@ templ Tag(accent bool, title string) {
 
 // AddSheet is a page's primary add action: a square + that opens the add
 // form, the children, as a sheet. open shows it already open, for a
-// rejected submission, with focus on the first rejected field.
-templ AddSheet(id, title string, open bool) {
-	<button class="fab" type="button" commandfor={ id } command="show-modal" aria-label={ title }>
-		@Icon("plus")
-	</button>
+// rejected submission, with focus on the first rejected field. more, if not
+// nil, is what else the page adds, in a menu a chevron beside the + opens.
+templ AddSheet(id, title string, open bool, more templ.Component) {
+	<div class="fab-group">
+		<button class="fab" type="button" commandfor={ id } command="show-modal" aria-label={ title }>
+			@Icon("plus")
+		</button>
+		if more != nil {
+			<button class="fab fab-more" type="button" popovertarget={ id + "-more" } aria-label={ T(ctx, msgMoreToAdd) }>
+				@Icon("chevron-down")
+			</button>
+		}
+	</div>
+	if more != nil {
+		<div id={ id + "-more" } class="fab-menu" popover>
+			@more
+		</div>
+	}
 	@sheet(id, "sheet", title, open) {
 		{ children... }
 	}
