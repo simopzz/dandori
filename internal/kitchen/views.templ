@@ -92,10 +92,24 @@ templ contentsList(now time.Time, contents Contents) {
 			@web.Rows() {
 				for _, p := range group.portions {
 					@web.Row() {
-						<span class="row-title">{ p.Name }</span>
-						<span class="row-figure">{ web.Tf(ctx, msgTimes, p.Count) }</span>
+						<span class="row-title">
+							@web.SideSheetLink(movementsSheetID, lotURL("/kitchen/portions/movements", p), lotURL("/kitchen/portions/movements/sheet", p)) {
+								{ p.Name }
+							}
+						</span>
+						<span class="row-figure">{ web.Tf(ctx, msgTimes, p.Count()) }</span>
 						<span class="row-meta">
 							@ingredients.NutritionFacts(web.T(ctx, msgPerPortion), p.Nutrition)
+						</span>
+						<span class="row-action">
+							@web.SideSheetLink(countSheetID, lotURL("/kitchen/portions/count", p), lotURL("/kitchen/portions/count/sheet", p)) {
+								{ web.T(ctx, msgCount) }
+								<span class="sr-only">{ p.Name } { web.T(ctx, web.InLocations[p.Location]) }</span>
+							}
+							@web.SideSheetLink(moveSheetID, lotURL("/kitchen/portions/move", p), lotURL("/kitchen/portions/move/sheet", p)) {
+								{ web.T(ctx, msgMove) }
+								<span class="sr-only">{ p.Name } { web.T(ctx, web.InLocations[p.Location]) }</span>
+							}
 						</span>
 					}
 				}
@@ -130,7 +144,7 @@ templ contentsList(now time.Time, contents Contents) {
 // locationGroup is what one Storage Location holds.
 type locationGroup struct {
 	location domain.StorageLocation
-	portions []domain.PortionGroup
+	portions []domain.PortionLot
 	held     []Held
 }
 
@@ -183,24 +197,30 @@ templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
 			}
 		}
 	}
-	@web.Section(0, web.Tf(ctx, msgStockItem, item.Ingredient.Name, web.T(ctx, locationHeadings[item.Location]))) {
-		if len(item.Movements) == 0 {
-			@web.Empty() {
-				{ web.T(ctx, msgNoMovements) }
-			}
-		} else {
-			@web.Rows() {
-				for _, m := range item.Movements {
-					@web.Row() {
-						<span class="row-title">{ causeText(ctx, m, item.Location) }</span>
-						<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, item.Ingredient.Unit), web.Quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
-						<span class="row-meta">
-							<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
-							if m.Note != "" {
-								<em>{ m.Note }</em>
-							}
-						</span>
-					}
+	@web.Section(0, web.Tf(ctx, msgHeldIn, item.Ingredient.Name, web.T(ctx, locationHeadings[item.Location]))) {
+		@movementRows(now, item.Movements, item.Location, item.Ingredient.Unit)
+	}
+}
+
+// movementRows are Movements in location, newest first, or that there are none, each
+// with its cause, what it held before and after, in unit, when it happened and its note.
+templ movementRows(now time.Time, movements []domain.StockMovement, location domain.StorageLocation, unit domain.Unit) {
+	if len(movements) == 0 {
+		@web.Empty() {
+			{ web.T(ctx, msgNoMovements) }
+		}
+	} else {
+		@web.Rows() {
+			for _, m := range movements {
+				@web.Row() {
+					<span class="row-title">{ causeText(ctx, m, location) }</span>
+					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, unit), web.Quantity(ctx, m.After, unit)) }</span>
+					<span class="row-meta">
+						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
+						if m.Note != "" {
+							<em>{ m.Note }</em>
+						}
+					</span>
 				}
 			}
 		}
@@ -451,7 +471,7 @@ templ portionsForm(f PortionsForm) {
 				@web.Hint() {
 					{ web.T(ctx, msgPortionWhere) }
 				}
-				@web.Segmented(web.T(ctx, msgPortionWhere), "location", portionLocations(ctx), string(f.Location), f.Errs["location"])
+				@web.Segmented(web.T(ctx, msgPortionWhere), "location", portionLocations(ctx, ""), string(f.Location), f.Errs["location"])
 			</div>
 			@web.Hint() {
 				{ web.T(ctx, msgPortionValuesHint) }
@@ -469,13 +489,144 @@ templ portionsForm(f PortionsForm) {
 	</form>
 }
 
-// portionLocations are the Storage Locations Portions can be added to.
-func portionLocations(ctx context.Context) []web.Choice {
-	choices := make([]web.Choice, len(domain.StorageLocations))
-	for i, l := range domain.StorageLocations {
-		choices[i] = web.Choice{Value: string(l), Label: web.T(ctx, ingredients.StorageLocationNames[l])}
+// portionLocations are the Storage Locations Portions can go to, all but except.
+func portionLocations(ctx context.Context, except domain.StorageLocation) []web.Choice {
+	var choices []web.Choice
+	for _, l := range domain.StorageLocations {
+		if l != except {
+			choices = append(choices, web.Choice{Value: string(l), Label: web.T(ctx, ingredients.StorageLocationNames[l])})
+		}
 	}
 	return choices
+}
+
+// lotURL is path, asking for the Lot p by its oldest Portion.
+func lotURL(path string, p domain.PortionLot) templ.SafeURL {
+	query := url.Values{"portion": {strconv.FormatInt(p.IDs[0], 10)}, "location": {string(p.Location)}}
+	return templ.SafeURL(path + "?" + query.Encode())
+}
+
+// lotMovementsPage is a Lot's Movements as a page of their own, for a browser without
+// htmx: the sheet's body, under the page's header.
+templ lotMovementsPage(now time.Time, item LotMovements) {
+	@web.Layout(web.T(ctx, msgMovementsTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgMovements), now)
+		@lotMovementsBody(now, item)
+	}
+}
+
+// lotMovementsBody is a Lot's Movements, newest first, to read: a mistake in one is
+// corrected by another Count, never here.
+templ lotMovementsBody(now time.Time, item LotMovements) {
+	@web.Section(0, web.Tf(ctx, msgHeldIn, item.Lot.Name, web.T(ctx, locationHeadings[item.Lot.Location]))) {
+		@movementRows(now, item.Movements, item.Lot.Location, domain.PortionUnit)
+	}
+}
+
+// portionCountPage is the form that counts a Lot as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header.
+templ portionCountPage(now time.Time, f PortionLotForm) {
+	@web.Layout(web.T(ctx, msgCountTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgCount), now)
+		<div id={ web.SideSheetBody(countSheetID) }>
+			@portionCountForm(f)
+		</div>
+	}
+}
+
+// portionCountForm counts f's Lot, swapping the sheet's body when htmx posts it.
+templ portionCountForm(f PortionLotForm) {
+	<form
+		id="count-form"
+		method="post"
+		action="/kitchen/portions/count"
+		hx-post="/kitchen/portions/count"
+		hx-target={ "#" + web.SideSheetBody(countSheetID) }
+		hx-swap="innerHTML"
+	>
+		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
+		<input type="hidden" name="location" value={ string(f.Lot.Location) }/>
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, f.Lot.Name, web.T(ctx, locationHeadings[f.Lot.Location]))) {
+			<div class="stack">
+				@web.Hint() {
+					{ web.Tf(ctx, msgLotHolds, f.Lot.Count()) }
+				}
+				@wholeNumberField(web.T(ctx, msgHowMany), "stated", "0", f.Typed, f.Errs["stated"])
+				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+					<input name="note" value={ f.Note } autocomplete="off"/>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgCount) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// wholeNumberField is the focused field a Portion Lot's form reads how many from.
+templ wholeNumberField(label, name, min, value, err string) {
+	@web.Field(label, "", err) {
+		<input
+			type="number"
+			inputmode="numeric"
+			min={ min }
+			step="1"
+			name={ name }
+			value={ value }
+			required
+			autocomplete="off"
+			autofocus
+			{ ingredients.Invalid(err)... }
+		/>
+	}
+}
+
+// portionMovePage is the form that moves a Lot as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header.
+templ portionMovePage(now time.Time, f PortionLotForm) {
+	@web.Layout(web.T(ctx, msgMoveTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgMove), now)
+		<div id={ web.SideSheetBody(moveSheetID) }>
+			@portionMoveForm(f)
+		</div>
+	}
+}
+
+// portionMoveForm moves some or all of f's Lot, swapping the sheet's body when htmx
+// posts it. Its target starts unchosen, so nothing goes to the wrong place by default.
+templ portionMoveForm(f PortionLotForm) {
+	<form
+		id="move-form"
+		method="post"
+		action="/kitchen/portions/move"
+		hx-post="/kitchen/portions/move"
+		hx-target={ "#" + web.SideSheetBody(moveSheetID) }
+		hx-swap="innerHTML"
+	>
+		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
+		<input type="hidden" name="location" value={ string(f.Lot.Location) }/>
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, f.Lot.Name, web.T(ctx, locationHeadings[f.Lot.Location]))) {
+			<div class="stack">
+				@wholeNumberField(web.T(ctx, msgMovePortionsQuantity), "quantity", "1", f.Typed, f.Errs["quantity"])
+				<div>
+					@web.Hint() {
+						{ web.T(ctx, msgPortionWhere) }
+					}
+					@web.Segmented(web.T(ctx, msgPortionWhere), "to", portionLocations(ctx, f.Lot.Location), f.To, f.Errs["to"])
+				</div>
+				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+					<input name="note" value={ f.Note } autocomplete="off"/>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgMove) }
+					}
+				}
+			</div>
+		}
+	</form>
 }
 
 // movePage is the form that moves a Stock Item as a page of its own, for a browser
@@ -502,7 +653,7 @@ templ moveForm(f MoveForm) {
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
 		<input type="hidden" name="location" value={ string(f.From) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgStockItem, f.Ingredient.Name, web.T(ctx, locationHeadings[f.From]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, f.Ingredient.Name, web.T(ctx, locationHeadings[f.From]))) {
 			<div class="stack">
 				@web.Field(web.T(ctx, msgMoveQuantity), "", f.Errs["quantity"]) {
 					<input

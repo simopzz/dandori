@@ -68,6 +68,10 @@ _Avoid_: Cook session, batch, meal prep, direct meal
 One ready-to-eat serving produced by a Prep Session, or added by the user without one (someone else cooked it, or Dandori never saw it made), with a name and estimated nutritional values; kept in a Storage Location and assigned to at most one Slot.
 _Avoid_: Serving, leftover
 
+**Portion Lot**:
+The alike Portions (same name and nutritional values) kept in one Storage Location: to Portions what a Stock Item is to an Ingredient. It has no identity beyond what they share, so the same food in another Storage Location is another Portion Lot.
+_Avoid_: Portion group
+
 **Ingredient**:
 A food as such (chicken breast, rolled oats), measured in one unit (grams, millilitres or pieces), with its nutritional values (calories, protein, carbs, fat, fibre and sugar, the last two possibly unknown, which is never zero) per 100 g, per 100 ml or per piece, and the Storage Location it is usually kept in; what a Recipe lists and what a Stock Item is a quantity of. It is measured as it goes into a dish: drained, for food packed in liquid.
 _Avoid_: Pantry item, product
@@ -89,7 +93,7 @@ The user's confirmation, before an upcoming Cycle is planned, of every Portion a
 _Avoid_: Stocktake, inventory count
 
 **Count**:
-A correction the user makes by saying how much of a Stock Item, or how many alike Portions (same name, nutritional values and Storage Location), the kitchen actually holds: a Movement of the difference from what Dandori believed, which keeps both. Counting Portions down takes those without a Slot first, then the one with the latest Slot; counting them up adds more alike. It stands: a Movement recorded after it but dated before it, such as an Exception logged after the fact, never changes what the kitchen held once it was counted.
+A correction the user makes by saying how much of a Stock Item, or of a Portion Lot, the kitchen actually holds: a Movement of the difference from what Dandori believed, which keeps both. Counting Portions down takes those without a Slot first, then the one with the latest Slot; counting them up adds more alike. It stands: a Movement recorded after it but dated before it, such as an Exception logged after the fact, never changes what the kitchen held once it was counted.
 _Avoid_: Adjustment, delta entry
 
 **Staple**:

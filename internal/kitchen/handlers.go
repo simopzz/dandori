@@ -216,6 +216,175 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 	}.Write(w, r, h.Log)
 }
 
+// askedLot reads which Portion Lot a request asks for: one Portion of it and its Storage
+// Location. With neither, it answers r itself and ok is false.
+func askedLot(w http.ResponseWriter, r *http.Request, portion, location string) (_ domain.LotKey, ok bool) {
+	id, err := strconv.ParseInt(portion, 10, 64)
+	key := domain.LotKey{Portion: id, Location: domain.StorageLocation(location)}
+	if err != nil || !slices.Contains(domain.StorageLocations, key.Location) {
+		http.NotFound(w, r)
+		return domain.LotKey{}, false
+	}
+	return key, true
+}
+
+// lotMovements is the Portion Lot r's query asks for with its Movements. With no such
+// Portion, or on a failure, it answers r itself and is nil.
+func (h Handlers) lotMovements(w http.ResponseWriter, r *http.Request) *LotMovements {
+	key, ok := askedLot(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
+	if !ok {
+		return nil
+	}
+	item, err := h.Service.LotMovements(r.Context(), h.Clock.Now(), key)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load a Portion Lot's Movements", err)
+		return nil
+	}
+	if item == nil {
+		http.NotFound(w, r)
+	}
+	return item
+}
+
+// ShowLotMovements is a Portion Lot's Movements as a page of their own, for a browser
+// without htmx.
+func (h Handlers) ShowLotMovements(w http.ResponseWriter, r *http.Request) {
+	if item := h.lotMovements(w, r); item != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, lotMovementsPage(h.Clock.Now(), *item))
+	}
+}
+
+// ShowLotMovementsSheet is the Movements sheet's body: a Portion Lot's Movements.
+func (h Handlers) ShowLotMovementsSheet(w http.ResponseWriter, r *http.Request) {
+	if item := h.lotMovements(w, r); item != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, lotMovementsBody(h.Clock.Now(), *item))
+	}
+}
+
+// startLotForm is the form for the Portion Lot r's query asks for. Holding none, it can't
+// be counted or moved; then, or on a failure, it answers r itself and is nil.
+func (h Handlers) startLotForm(w http.ResponseWriter, r *http.Request) *PortionLotForm {
+	key, ok := askedLot(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
+	if !ok {
+		return nil
+	}
+	lot, err := h.Service.PortionLot(r.Context(), h.Clock.Now(), key)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "start a form for a Portion Lot", err)
+		return nil
+	}
+	if lot == nil || lot.Count() == 0 {
+		http.NotFound(w, r)
+		return nil
+	}
+	return &PortionLotForm{Portion: key.Portion, Lot: *lot}
+}
+
+// ShowPortionCount is the form that counts a Portion Lot as a page of its own, for a
+// browser without htmx.
+func (h Handlers) ShowPortionCount(w http.ResponseWriter, r *http.Request) {
+	if f := h.startLotForm(w, r); f != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, portionCountPage(h.Clock.Now(), *f))
+	}
+}
+
+// ShowPortionCountSheet is the Count sheet's body: the form that counts a Portion Lot.
+func (h Handlers) ShowPortionCountSheet(w http.ResponseWriter, r *http.Request) {
+	if f := h.startLotForm(w, r); f != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, portionCountForm(*f))
+	}
+}
+
+// CountPortions saves a Count of a Portion Lot at the moment it arrives. Posted from the
+// sheet by htmx, it answers with the Count confirmed in a floating Notice, closing the
+// sheet and telling the page under it to list its stock again; or with the form as typed
+// with why it was refused. A plain post lands on the Kitchen page, confirming it. One
+// that recorded nothing confirms nothing.
+func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
+	ctx, now := r.Context(), h.Clock.Now()
+	key, ok := askedLot(w, r, r.PostFormValue("portion"), r.PostFormValue("location"))
+	if !ok {
+		return
+	}
+	rec, err := h.Service.CountPortions(ctx, now, key, r.PostFormValue("stated"), r.PostFormValue("note"))
+	switch {
+	case err != nil:
+		httpx.ServerError(w, r, h.Log, "save a Count of Portions", err)
+		return
+	case rec == nil:
+		http.NotFound(w, r)
+		return
+	}
+	if problem, refused := rec.Problems["stated"]; refused {
+		f := postedLotForm(r, key.Portion, rec.Lot, "stated")
+		f.Errs["stated"] = web.T(ctx, web.ProblemMessage(problem, portionCountProblemMessages))
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionCountPage(now, f), Fragment: portionCountForm(f)}.Write(w, r, h.Log)
+		return
+	}
+	var notice string
+	if len(rec.Movement.Portions) > 0 {
+		notice = web.Tf(ctx, msgCounted, rec.Lot.Name, web.Quantity(ctx, rec.Movement.Stated, domain.PortionUnit), web.T(ctx, web.InLocations[key.Location]))
+	}
+	web.Answer{Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
+}
+
+// startLotMove is the form that moves the Portion Lot r's query asks for, all of it to
+// start with, or nil as startLotForm is.
+func (h Handlers) startLotMove(w http.ResponseWriter, r *http.Request) *PortionLotForm {
+	f := h.startLotForm(w, r)
+	if f != nil {
+		f.Typed = strconv.Itoa(f.Lot.Count())
+	}
+	return f
+}
+
+// ShowPortionMove is the form that moves a Portion Lot as a page of its own, for a
+// browser without htmx.
+func (h Handlers) ShowPortionMove(w http.ResponseWriter, r *http.Request) {
+	if f := h.startLotMove(w, r); f != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, portionMovePage(h.Clock.Now(), *f))
+	}
+}
+
+// ShowPortionMoveSheet is the Move sheet's body: the form that moves a Portion Lot.
+func (h Handlers) ShowPortionMoveSheet(w http.ResponseWriter, r *http.Request) {
+	if f := h.startLotMove(w, r); f != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, portionMoveForm(*f))
+	}
+}
+
+// MovePortions saves a move of a Portion Lot at the moment it arrives, answering as
+// Move does.
+func (h Handlers) MovePortions(w http.ResponseWriter, r *http.Request) {
+	ctx, now := r.Context(), h.Clock.Now()
+	key, ok := askedLot(w, r, r.PostFormValue("portion"), r.PostFormValue("location"))
+	if !ok {
+		return
+	}
+	rec, err := h.Service.MovePortions(ctx, now, key, domain.StorageLocation(r.PostFormValue("to")), r.PostFormValue("quantity"), r.PostFormValue("note"))
+	switch {
+	case err != nil:
+		httpx.ServerError(w, r, h.Log, "save a move of Portions", err)
+		return
+	case rec == nil:
+		http.NotFound(w, r)
+		return
+	}
+	if len(rec.Problems) > 0 {
+		f := postedLotForm(r, key.Portion, rec.Lot, "quantity")
+		f.Errs = moveErrs(ctx, rec.Problems, web.Tf(ctx, msgPortionsMoreThanHeld, rec.Lot.Count()), portionMoveProblemMessages)
+		if f.Errs["to"] != "" {
+			f.To = ""
+		}
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionMovePage(now, f), Fragment: portionMoveForm(f)}.Write(w, r, h.Log)
+		return
+	}
+	web.Answer{
+		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Notice: web.Tf(ctx, msgMovedPortions, rec.Lot.Name, len(rec.Movement.Portions), web.T(ctx, toLocations[rec.Movement.To])),
+	}.Write(w, r, h.Log)
+}
+
 // ShowMove is the form that moves a Stock Item as a page of its own, for a browser
 // without htmx.
 func (h Handlers) ShowMove(w http.ResponseWriter, r *http.Request) {

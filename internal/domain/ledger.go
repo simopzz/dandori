@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -74,6 +75,7 @@ func (c Cause) Sets() bool { return c == Counted || c == MarkedStaple }
 const (
 	NothingMoved Problem = "nothing moved"
 	MoreThanHeld Problem = "more than held"
+	TooManyAlike Problem = "too many alike"
 )
 
 // StockKey identifies a Stock Item: there is one per Ingredient and Storage Location.
@@ -206,19 +208,31 @@ func (l Ledger) At(at time.Time) map[StockKey]StockItem {
 	return items
 }
 
-// PortionsAt is where each Portion added by a moment is, by its id. A Portion is only
-// ever added so far, so the Movement that lists it says where it is.
+// PortionsAt is where each Portion the kitchen holds at a moment is, by its id. One a
+// Count took is not held, so has no entry.
 func (l Ledger) PortionsAt(at time.Time) map[int64]StorageLocation {
 	where := map[int64]StorageLocation{}
 	for _, m := range l.movements {
-		if m.At.After(at) {
-			continue
-		}
-		for _, id := range m.Portions {
-			where[id] = m.Key.Location
+		if !m.At.After(at) {
+			m.placePortions(where)
 		}
 	}
 	return where
+}
+
+// placePortions updates where with what m does to the Portions it lists: a move takes
+// them to To, a Count down removes them, and anything else puts them in Key's place.
+func (m Movement) placePortions(where map[int64]StorageLocation) {
+	for _, id := range m.Portions {
+		switch {
+		case m.Cause == Moved:
+			where[id] = m.To
+		case m.Cause == Counted && m.Change < 0:
+			delete(where, id)
+		default:
+			where[id] = m.Key.Location
+		}
+	}
 }
 
 // HeldAt is what each Storage Location holds of the Ingredient id at a moment. A Storage
@@ -283,6 +297,87 @@ func (l Ledger) AddPortions(now time.Time, location StorageLocation, ids []int64
 		At: l.WriteAt(now), Key: StockKey{Location: location}, Portions: ids,
 		Change: QuantityOf(float64(len(ids))), Cause: Added, Note: note,
 	}
+}
+
+// CountPortions is the one Movement, written at now, of a Count that g holds stated, with
+// the User's note, which keeps what was believed and stated. It lists the Portions added
+// if stated is more than g holds, which are added; those it takes if less, as g.takes
+// picks them from slots; and all of g if it is the same, so the Movement is still g's.
+func (l Ledger) CountPortions(now time.Time, g PortionLot, stated Quantity, added []int64, slots map[int64]time.Time, note string) Movement {
+	listed := g.IDs
+	switch change := stated - g.held(); {
+	case change > 0:
+		listed = added
+	case change < 0:
+		listed = g.takes(int((-change).Number()), slots)
+	}
+	return Movement{
+		At: l.WriteAt(now), Key: StockKey{Location: g.Location}, Portions: listed,
+		Change: stated - g.held(), Cause: Counted, Believed: g.held(), Stated: stated, Note: note,
+	}
+}
+
+// MovePortions is the one Movement, written at now, that moves moved of the oldest
+// Portions of g to join the Portion Lot target, with the User's note. When CheckMove
+// refuses it against what g holds, or target can't fit them, problem says why and there
+// is no move.
+func (l Ledger) MovePortions(now time.Time, g, target PortionLot, moved Quantity, note string) (_ Movement, problem Problem) {
+	if problem = CheckMove(g.held(), moved); problem != "" {
+		return Movement{}, problem
+	}
+	n := int(moved.Number())
+	if problem = target.CheckFits(n); problem != "" {
+		return Movement{}, problem
+	}
+	return Movement{
+		At: l.WriteAt(now), Key: StockKey{Location: g.Location}, To: target.Location, Portions: g.IDs[:n],
+		Change: moved, Cause: Moved, Note: note,
+	}, ""
+}
+
+// LotMovements is the Movements of the Portion Lot key names, in the order they happened,
+// with what it held before and after each, from when the oldest Portion it holds now
+// arrived there.
+func (l Ledger) LotMovements(portions []Portion, key LotKey) []StockMovement {
+	alike := map[int64]bool{}
+	if i := slices.IndexFunc(portions, func(p Portion) bool { return p.ID == key.Portion }); i >= 0 {
+		for _, p := range portions {
+			alike[p.ID] = portions[i].alike(p)
+		}
+	}
+	var touched []StockMovement
+	where, arrived := map[int64]StorageLocation{}, map[int64]int{}
+	heldHere := func() (held int) {
+		for _, at := range where {
+			if at == key.Location {
+				held++
+			}
+		}
+		return held
+	}
+	for _, m := range l.movements {
+		if !slices.ContainsFunc(m.Portions, func(id int64) bool { return alike[id] }) {
+			continue
+		}
+		was, before := maps.Clone(where), heldHere()
+		m.placePortions(where)
+		if m.Key.Location != key.Location && m.To != key.Location {
+			continue
+		}
+		for _, id := range m.Portions {
+			if where[id] == key.Location && was[id] != key.Location {
+				arrived[id] = len(touched)
+			}
+		}
+		touched = append(touched, StockMovement{Movement: m, Before: portionCount(before), After: portionCount(heldHere())})
+	}
+	start := len(touched)
+	for id, at := range arrived {
+		if where[id] == key.Location {
+			start = min(start, at)
+		}
+	}
+	return touched[start:]
 }
 
 // Move is the move, written at now, of moved from the Stock Item key to the Storage

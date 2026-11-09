@@ -377,3 +377,29 @@ func (s *Scenario) Counts(name, location, stated, note string) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("counts %s of %s in %q: %d %s", stated, name, location, s.page.StatusCode, s.page.Path))
 }
+
+// LinkQuery opens the Kitchen page and is the query of its link showing text, such as a
+// Portion Lot's "Count lasagne in the freezer".
+func (s *Scenario) LinkQuery(text string) string {
+	s.t.Helper()
+	s.Open("/kitchen")
+	_, query, ok := strings.Cut(Link(s.t, s.page.Body, text), "?")
+	if !ok {
+		s.t.Fatalf("the link %q has no query", text)
+	}
+	s.record(fmt.Sprintf("reads the query of %q: %s", text, query))
+	return query
+}
+
+// CountsPortions opens the Kitchen page, follows the Lot's link (such as "Count lasagne
+// in the freezer") and posts its form as a browser without htmx: stated, with note.
+func (s *Scenario) CountsPortions(link, stated, note string) {
+	s.t.Helper()
+	s.Open("/kitchen")
+	s.Follows(link)
+	form := Form(s.t, s.page.Body, "count-form")
+	form.Values.Set("stated", stated)
+	form.Values.Set("note", note)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("%s: %s: %d %s", link, stated, s.page.StatusCode, s.page.Path))
+}

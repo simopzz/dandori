@@ -16,7 +16,7 @@ var (
 	lasagne = apptest.Portions{Name: "lasagne", HowMany: "3", Location: "freezer", Kcal: "620", Protein: "32", Carbs: "58", Fat: "28", Fibre: "4", Sugar: "8"}
 )
 
-// Portions no Prep Session produced are added from the Kitchen page and show as one group
+// Portions no Prep Session produced are added from the Kitchen page and show as one Lot
 // under their Storage Location, above its Stock Items.
 func TestAddedPortionsShowGroupedAboveTheStockItems(t *testing.T) {
 	s := kitchenWith(t, peas)
@@ -25,7 +25,7 @@ func TestAddedPortionsShowGroupedAboveTheStockItems(t *testing.T) {
 	s.AddsPortions(lasagne)
 	s.IsAt("/kitchen")
 	s.IsConfirmed("Added lasagne × 3 to the freezer.")
-	s.Sees("Freezer lasagne × 3 per Portion: 620 kcal protein 32 g carbs 58 g fat 28 g fibre 4 g sugar 8 g peas 400 g")
+	s.Sees("Freezer lasagne × 3 per Portion: 620 kcal protein 32 g carbs 58 g fat 28 g fibre 4 g sugar 8 g Count lasagne in the freezer Move lasagne in the freezer peas 400 g")
 }
 
 // Calories, protein, carbs and fat are required, each refused on its field with what was
@@ -99,8 +99,8 @@ func TestAddingPortionsTakesAWholeNumberOfAtLeastOne(t *testing.T) {
 }
 
 // Alike means the same name, ignoring case and surrounding space, the same values and the
-// same Storage Location: anything else is another group.
-func TestPortionsGroupOnlyWhenAlike(t *testing.T) {
+// same Storage Location: anything else is another Lot.
+func TestPortionsShareALotOnlyWhenAlike(t *testing.T) {
 	s := kitchenWith(t)
 	s.AddsPortions(lasagne)
 
@@ -198,7 +198,7 @@ func TestAddingPortionsAnswersHTMXWithAFragment(t *testing.T) {
 
 // The chevron only chooses what the + adds, and the + opens that sheet. A refused add
 // comes back in it with focus on the refused field; one accepted closes it, shows the
-// group and leaves the choice, which a new page forgets.
+// Lot and leaves the choice, which a new page forgets.
 func TestBrowserAddsPortionsInTheSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -276,10 +276,10 @@ func TestBrowserAddsPortionsInTheSheet(t *testing.T) {
 		t.Errorf("the sheet doesn't close: %v", err)
 	}
 	if err := expect.Locator(b.Locator("#stock")).ToContainText("lasagne"); err != nil {
-		t.Errorf("the group isn't listed: %v", err)
+		t.Errorf("the lot isn't listed: %v", err)
 	}
 	if err := expect.Locator(b.Locator("#stock")).ToContainText("× 3"); err != nil {
-		t.Errorf("the group isn't counted: %v", err)
+		t.Errorf("the lot isn't counted: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 	b.Shot(t, "portions-listed")
@@ -294,4 +294,315 @@ func TestBrowserAddsPortionsInTheSheet(t *testing.T) {
 	if err := expect.Locator(plus).ToBeHidden(); err != nil {
 		t.Errorf("a new page remembers the choice: %v", err)
 	}
+}
+
+// The links on a Lot of lasagne in the freezer.
+const (
+	countLasagne = "Count lasagne in the freezer"
+	moveLasagne  = "Move lasagne in the freezer"
+)
+
+// A Count up adds Portions alike, which show with the Lot.
+func TestCountingPortionsUpAddsMoreAlike(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+
+	s.CountsPortions(countLasagne, "5", "")
+	s.IsAt("/kitchen")
+	s.IsConfirmed("Counted lasagne: 5 in the freezer.")
+	s.Sees("Freezer lasagne × 5 per Portion: 620 kcal protein 32 g carbs 58 g fat 28 g fibre 4 g sugar 8 g")
+	s.DoesNotSee("× 3")
+}
+
+// A Count down removes Portions, and a Count to nothing removes the Lot from the page.
+func TestCountingPortionsDownRemovesThem(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+
+	s.CountsPortions(countLasagne, "1", "ate two")
+	s.IsConfirmed("Counted lasagne: 1 in the freezer.")
+	s.Sees("lasagne × 1")
+
+	s.CountsPortions(countLasagne, "0", "")
+	s.DoesNotSee("lasagne")
+	s.Sees("Nothing in your kitchen yet.")
+}
+
+// A Count below 0, not a whole number, or above what one Count takes is refused on its
+// field, with what was typed kept and nothing changed.
+func TestCountingPortionsRefusesWhatIsNotACount(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+
+	for typed, why := range map[string]string{
+		"-1":  "Can't be below 0.",
+		"1.5": "Must be a whole number.",
+		"100": "Must be at most 99.",
+		"":    "Say how many.",
+	} {
+		s.CountsPortions(countLasagne, typed, "")
+		s.IsRefused()
+		s.Sees(why)
+		if got := apptest.Form(t, s.Page().Body, "count-form").Get("stated"); got != typed {
+			t.Errorf("the refused form holds %q, want %q", got, typed)
+		}
+	}
+	s.Open("/kitchen")
+	s.Sees("lasagne × 3")
+}
+
+// Moving some leaves two Lots, and moving all the rest joins it to them, leaving one.
+func TestMovingPortions(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+
+	s.Moves(moveLasagne, "2", "fridge", "to thaw")
+	s.IsAt("/kitchen")
+	s.IsConfirmed("Moved lasagne × 2 to the fridge.")
+	s.Sees("Fridge lasagne × 2")
+	s.Sees("Freezer lasagne × 1")
+
+	s.Moves(moveLasagne, "", "fridge", "")
+	s.IsConfirmed("Moved lasagne × 1 to the fridge.")
+	s.Sees("Fridge lasagne × 3")
+	s.DoesNotSee("Freezer")
+}
+
+// A move above what the Lot holds is refused on its field, and so is a move of none,
+// part of one, or to nowhere.
+func TestMovingPortionsRefusesWhatTheLotCannotGive(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+
+	for _, c := range []struct{ typed, to, why string }{
+		{"4", "fridge", "This Portion Lot holds 3. If there are more, count them first."},
+		{"0", "fridge", "Say how many to move."},
+		{"1.5", "fridge", "Must be a whole number."},
+		{"1", "", "Choose where it goes."},
+	} {
+		s.Moves(moveLasagne, c.typed, c.to, "")
+		s.IsRefused()
+		s.Sees(c.why)
+	}
+	s.Open("/kitchen")
+	s.Sees("lasagne × 3")
+}
+
+// A Lot's Movements show newest first, with cause, before and after, and the note; one
+// act is one Movement, and a move tells where it went on the side it left.
+func TestALotsMovementsTellWhyItHoldsWhatItDoes(t *testing.T) {
+	s := kitchenWith(t)
+	s.At("Mon 10:00")
+	s.AddsPortions(lasagne)
+	s.At("Mon 11:00")
+	s.CountsPortions(countLasagne, "2", "ate one")
+	s.At("Mon 12:00")
+	s.Moves(moveLasagne, "1", "fridge", "to thaw")
+
+	s.Open("/kitchen/portions/movements?" + s.LinkQuery(countLasagne))
+	s.Sees("lasagne · Freezer")
+	s.Sees("Moved to the fridge 2 → 1 Mon 2 Nov 12:00 to thaw Counted 3 → 2 Mon 2 Nov 11:00 ate one Added 0 → 3 Mon 2 Nov 10:00")
+	if got := strings.Count(apptest.Text(s.Page().Body), "Counted"); got != 1 {
+		t.Errorf("the Count shows as %d Movements, want one", got)
+	}
+
+	s.Open("/kitchen/portions/movements?" + s.LinkQuery("Move lasagne in the fridge"))
+	s.Sees("lasagne · Fridge")
+	s.Sees("Moved from the freezer 0 → 1")
+	s.DoesNotSee("Added")
+}
+
+// A Count that changes nothing is one Movement like any other, and is the Lot's.
+func TestAPortionCountThatChangesNothingIsAMovement(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+	s.CountsPortions(countLasagne, "3", "")
+
+	s.Open("/kitchen")
+	s.Sees("lasagne × 3")
+	s.Follows("lasagne")
+	s.Sees("Counted 3 → 3")
+}
+
+// A Lot emptied and filled again starts its Movements over.
+func TestALotsMovementsBeginWithWhatItHoldsNow(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+	s.CountsPortions(countLasagne, "0", "")
+	s.AddsPortions(lasagne)
+
+	s.Open("/kitchen")
+	s.Follows("lasagne")
+	s.Sees("Added 0 → 3")
+	s.DoesNotSee("Counted")
+}
+
+func TestALotsMovementsInItalian(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("Italiano")
+	s.At("Mon 14:05")
+	s.AddsPortions(lasagne)
+	s.CountsPortions("Conta lasagne nel congelatore", "2", "mangiata una")
+	s.IsConfirmed("Contato lasagne: 2 nel congelatore.")
+
+	s.Open("/kitchen")
+	s.Follows("lasagne")
+	s.Sees("Movimenti")
+	s.Sees("lasagne · Congelatore")
+	s.Sees("Contato 3 → 2 Lun 2 Nov 14:05 mangiata una Aggiunte 0 → 3")
+
+	s.Moves("Sposta lasagne nel congelatore", "1", "fridge", "")
+	s.Open("/kitchen/portions/movements?" + s.LinkQuery("Sposta lasagne nel congelatore"))
+	s.Sees("Spostato in frigo 2 → 1")
+	s.Open("/kitchen/portions/movements?" + s.LinkQuery("Sposta lasagne in frigo"))
+	s.Sees("Spostato dal congelatore 0 → 1")
+}
+
+// A Portion that isn't the User's, or a place that is no Storage Location, is no Lot.
+func TestNoLotIsNotFound(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+	query := s.LinkQuery(countLasagne)
+
+	for _, path := range []string{
+		"/kitchen/portions/movements?portion=999&location=freezer",
+		"/kitchen/portions/count?portion=999&location=freezer",
+		"/kitchen/portions/move?portion=999&location=freezer",
+		"/kitchen/portions/count?" + strings.ReplaceAll(query, "freezer", "garage"),
+	} {
+		if got := s.Get(t, path); got.StatusCode != http.StatusNotFound {
+			t.Errorf("%s answered %d, want 404", path, got.StatusCode)
+		}
+	}
+}
+
+// A Count and a move of Portions, posted by htmx, answer with no page: refused, the form
+// as a fragment with what was typed; saved, a Notice for the sheet to close under.
+func TestPortionFormsAnswerHTMXWithFragments(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+
+	for link, form := range map[string]struct {
+		id, field, refused, saved, notice string
+	}{
+		countLasagne: {"count-form", "stated", "-1", "2", "Counted lasagne: 2 in the freezer."},
+		moveLasagne:  {"move-form", "quantity", "9", "1", "Moved lasagne × 1 to the fridge."},
+	} {
+		s.Open("/kitchen")
+		s.Follows(link)
+		f := apptest.Form(t, s.Page().Body, form.id)
+		f.Values.Set("to", "fridge")
+
+		f.Values.Set(form.field, form.refused)
+		refused := s.HTMXPostForm(t, f.Action, f.Values)
+		if refused.StatusCode != http.StatusUnprocessableEntity || strings.Contains(refused.Body, "<html") {
+			t.Fatalf("%s refused answered %d, want 422 and a fragment:\n%s", link, refused.StatusCode, refused.Body)
+		}
+		if got := apptest.Form(t, refused.Body, form.id).Get(form.field); got != form.refused {
+			t.Errorf("%s: the refused fragment holds %q", link, got)
+		}
+
+		f.Values.Set(form.field, form.saved)
+		saved := s.HTMXPostForm(t, f.Action, f.Values)
+		if saved.StatusCode != http.StatusOK || strings.Contains(saved.Body, "<html") || !strings.Contains(apptest.Text(saved.Body), form.notice) {
+			t.Errorf("%s saved answered %d, want 200 and its Notice:\n%s", link, saved.StatusCode, saved.Body)
+		}
+		if got := saved.Header.Get("HX-Trigger"); !strings.Contains(got, "movement-saved") || !strings.Contains(got, "close-sheet") {
+			t.Errorf("%s saved triggers %q, want the page relisted and the sheet closed", link, got)
+		}
+	}
+}
+
+// A Lot's Movements open in the side sheet, leaving the User on the Kitchen page, which
+// a plain URL stands in for without htmx.
+func TestBrowserOpensALotsMovementsInPlace(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen/portions")
+	expect := playwright.NewPlaywrightAssertions()
+	for label, value := range map[string]string{"Name": "lasagne", "How many": "3", "Calories": "620", "Protein": "32", "Carbs": "58", "Fat": "28"} {
+		if err := b.GetByLabel(label).Fill(value); err != nil {
+			t.Fatalf("fill %s: %v", label, err)
+		}
+	}
+	if err := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: "freezer"}).Click(); err != nil {
+		t.Fatalf("choose the freezer: %v", err)
+	}
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Add", Exact: playwright.Bool(true)}).Click(); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	b.IsConfirmed(t, "Added lasagne × 3 to the freezer.")
+	b.Open(t, "/kitchen")
+	b.Sees(t, "lasagne")
+	b.Shot(t, "portion-lot-row")
+
+	link := b.Locator("#stock").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "lasagne", Exact: playwright.Bool(true)})
+	href, err := link.GetAttribute("href")
+	if err != nil || !strings.HasPrefix(href, "/kitchen/portions/movements?") {
+		t.Fatalf("the lot's plain URL is %q: %v", href, err)
+	}
+	if err := link.Click(); err != nil {
+		t.Fatalf("open lasagne: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Movements"})
+	if err := expect.Locator(sheet).ToContainText("Added"); err != nil {
+		t.Fatalf("the Movements don't open: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("0 → 3"); err != nil {
+		t.Errorf("the Movements show the wrong before and after: %v", err)
+	}
+	b.Shot(t, "portion-lot-movements")
+	b.IsAt(t, "/kitchen")
+}
+
+// A Portion Lot never holds more than 99: an add that would take it past that is refused
+// on its field, and nothing is added.
+func TestAddingPortionsRefusesMoreThanALotHolds(t *testing.T) {
+	s := kitchenWith(t)
+	p := lasagne
+	p.HowMany = "99"
+	s.AddsPortions(p)
+
+	p.HowMany = "1"
+	s.AddsPortions(p)
+	s.IsRefused()
+	s.Sees("That would make more than 99 alike here.")
+	s.Open("/kitchen")
+	s.Sees("lasagne × 99")
+}
+
+// A move that would take the Portion Lot it joins past 99 is refused on its field.
+func TestMovingPortionsRefusesMoreThanALotHolds(t *testing.T) {
+	s := kitchenWith(t)
+	p := lasagne
+	p.HowMany = "99"
+	s.AddsPortions(p)
+	p.HowMany, p.Location = "1", "fridge"
+	s.AddsPortions(p)
+
+	s.Moves("Move lasagne in the fridge", "1", "freezer", "")
+	s.IsRefused()
+	s.Sees("That would make more than 99 alike here.")
+	s.Open("/kitchen")
+	s.Sees("Fridge lasagne × 1")
+}
+
+// Posting a Count of nothing from a form another write has overtaken finds nothing to
+// record, so confirms nothing.
+func TestAStaleCountToNothingConfirmsNothing(t *testing.T) {
+	s := kitchenWith(t)
+	s.AddsPortions(lasagne)
+	s.Open("/kitchen")
+	s.Follows(countLasagne)
+	form := apptest.Form(t, s.Page().Body, "count-form")
+	form.Values.Set("stated", "0")
+
+	s.PostForm(t, form.Action, form.Values)
+	again := s.PostForm(t, form.Action, form.Values)
+	if got := apptest.Notices(t, again.Body); len(got) != 0 {
+		t.Errorf("a Count that recorded nothing is confirmed: %v", got)
+	}
+	s.Open("/kitchen")
+	s.Sees("Nothing in your kitchen yet.")
 }

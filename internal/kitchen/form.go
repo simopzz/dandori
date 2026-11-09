@@ -69,16 +69,46 @@ func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageL
 		Quantity: strings.TrimSpace(r.PostFormValue("quantity")), Note: r.PostFormValue("note"),
 		Errs: map[string]string{},
 	}
+	f.Errs = moveErrs(ctx, problems, web.Tf(ctx, msgMoreThanHeld, web.Quantity(ctx, held[from], ing.Unit)), moveProblemMessages)
+	if f.Errs["to"] != "" {
+		f.To = ""
+	}
+	return f
+}
+
+// moveErrs is why each field of a move was refused, by problems, in the User's
+// Language: moreThanHeld if it was more than is held, and messages for its quantity's
+// other problems.
+func moveErrs(ctx context.Context, problems map[string]domain.Problem, moreThanHeld string, messages map[domain.Problem]web.Message) map[string]string {
+	errs := map[string]string{}
 	if _, refused := problems["to"]; refused {
-		f.Errs["to"], f.To = web.T(ctx, msgChooseTarget), ""
+		errs["to"] = web.T(ctx, msgChooseTarget)
 	}
 	switch problem, refused := problems["quantity"]; {
 	case problem == domain.MoreThanHeld:
-		f.Errs["quantity"] = web.Tf(ctx, msgMoreThanHeld, web.Quantity(ctx, held[from], ing.Unit))
+		errs["quantity"] = moreThanHeld
 	case refused:
-		f.Errs["quantity"] = web.T(ctx, web.ProblemMessage(problem, moveProblemMessages))
+		errs["quantity"] = web.T(ctx, web.ProblemMessage(problem, messages))
 	}
-	return f
+	return errs
+}
+
+// PortionLotForm is the form that counts or moves a Portion Lot, as shown:
+// Portion is one of them, which names the Lot, and Typed, To and Note are as typed,
+// with Errs why each field was refused, in the User's Language.
+type PortionLotForm struct {
+	Portion         int64
+	Lot             domain.PortionLot
+	Typed, To, Note string
+	Errs            map[string]string
+}
+
+// postedLotForm is the form posted in r for lot, as typed in field.
+func postedLotForm(r *http.Request, portion int64, lot domain.PortionLot, field string) PortionLotForm {
+	return PortionLotForm{
+		Portion: portion, Lot: lot, Typed: strings.TrimSpace(r.PostFormValue(field)),
+		To: r.PostFormValue("to"), Note: r.PostFormValue("note"), Errs: map[string]string{},
+	}
 }
 
 // PortionsForm is the Add Portions form as shown: what was typed, the nutritional values
