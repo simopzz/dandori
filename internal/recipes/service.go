@@ -78,12 +78,8 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, rec dom
 		if taken != 0 {
 			return &NameTakenError{ID: taken, Existing: existing}
 		}
-		updated, err := updateRecipe(ctx, tx, id, rec, normalised)
-		if err != nil {
+		if err := updateRecipe(ctx, tx, id, rec, normalised); err != nil {
 			return err
-		}
-		if !updated {
-			return ErrNoRecipe
 		}
 		if err := deleteRecipeIngredients(ctx, tx, id); err != nil {
 			return err
@@ -132,7 +128,7 @@ func (s *Service) Search(ctx context.Context, query string) ([]domain.Recipe, er
 		names[i] = rec.Name
 	}
 	found := []domain.Recipe{}
-	for _, i := range domain.SearchIngredients(query, names) {
+	for _, i := range domain.SearchNames(query, names) {
 		found = append(found, recipes[i])
 	}
 	return found, nil

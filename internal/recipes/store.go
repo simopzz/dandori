@@ -58,15 +58,18 @@ func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised
 	return id, err == nil, err
 }
 
-// updateRecipe sets the signed-in User's Recipe id to rec under its normalised name;
-// updated says they have one.
-func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe, normalised string) (updated bool, err error) {
+// updateRecipe sets the signed-in User's Recipe id to rec under its normalised name, or
+// is ErrNoRecipe.
+func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe, normalised string) error {
 	tag, err := q.Exec(ctx, `
 		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
 			slot_kinds = $7, appliances = $8, steps = $9
 		WHERE id = $1`,
 		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps)
-	return tag.RowsAffected() == 1, err
+	if err == nil && tag.RowsAffected() == 0 {
+		return ErrNoRecipe
+	}
+	return err
 }
 
 // deleteRecipeIngredients takes every Ingredient off the Recipe id.
