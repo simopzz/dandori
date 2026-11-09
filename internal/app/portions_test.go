@@ -534,6 +534,8 @@ func TestBrowserOpensALotsMovementsInPlace(t *testing.T) {
 	}
 	b.IsConfirmed(t, "Added lasagne × 3 to the freezer.")
 	b.Open(t, "/kitchen")
+	b.Sees(t, "lasagne")
+	b.Shot(t, "portion-lot-row")
 
 	link := b.Locator("#stock").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "lasagne", Exact: playwright.Bool(true)})
 	href, err := link.GetAttribute("href")
@@ -550,6 +552,7 @@ func TestBrowserOpensALotsMovementsInPlace(t *testing.T) {
 	if err := expect.Locator(sheet).ToContainText("0 → 3"); err != nil {
 		t.Errorf("the Movements show the wrong before and after: %v", err)
 	}
+	b.Shot(t, "portion-lot-movements")
 	b.IsAt(t, "/kitchen")
 }
 
