@@ -35,20 +35,9 @@ const listID = "recipe-list"
 // searchForm searches the User's Recipes as they type, swapping the list alone when htmx
 // sends it, so the field keeps its focus; without htmx it opens the page searched.
 templ searchForm(q string) {
-	<form
-		id="recipe-search"
-		role="search"
-		method="get"
-		action="/recipes"
-		hx-get="/recipes/list"
-		hx-trigger="submit, input delay:300ms"
-		hx-target={ "#" + listID }
-		hx-swap="innerHTML"
-	>
-		@web.SearchField(web.T(ctx, msgSearch)) {
-			<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off"/>
-		}
-	</form>
+	@web.ListSearch("recipe-search", "/recipes", "/recipes/list", listID, web.T(ctx, msgSearch)) {
+		<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off"/>
+	}
 }
 
 // recipeList is the User's Recipes a search for q found, or why there are none.
@@ -90,9 +79,11 @@ func kindsOf(ctx context.Context, kinds []domain.SlotKind) string {
 templ recipePage(now time.Time, rec domain.Recipe) {
 	@web.Layout(web.Tf(ctx, msgRecipeTitle, rec.Name), web.RecipesTab) {
 		@web.PageHeader("レシピ", rec.Name, now) {
-			@web.TextLink(templ.Attributes{"href": recipeURL(rec.ID) + "/edit"}) {
-				{ web.T(ctx, msgEdit) }
-			}
+			<p class="lede">
+				@web.TextLink(templ.Attributes{"href": recipeURL(rec.ID) + "/edit"}) {
+					{ web.T(ctx, msgEdit) }
+				}
+			</p>
 		}
 		<dl>
 			<dt>{ web.T(ctx, msgMakes) }</dt>

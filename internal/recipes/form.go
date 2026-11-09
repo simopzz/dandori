@@ -57,10 +57,7 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 	f := RecipeForm{
 		ID: rec.ID, Name: rec.Name, Portions: strconv.Itoa(rec.Portions), Active: strconv.Itoa(rec.ActiveMinutes),
 		Total: strconv.Itoa(rec.TotalMinutes), Appliances: strings.Join(rec.Appliances, "\n"), Steps: rec.Steps,
-		Known: known, Errs: map[string]string{},
-	}
-	for _, kind := range rec.Kinds {
-		f.Slots = append(f.Slots, string(kind))
+		Slots: slotKindsOf(rec.Kinds), Known: known, Errs: map[string]string{},
 	}
 	for _, ri := range rec.Ingredients {
 		f.Ingredients = append(f.Ingredients, IngredientRow{

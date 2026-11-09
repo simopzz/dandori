@@ -177,6 +177,26 @@ templ SearchField(label string) {
 	</label>
 }
 
+// ListSearch searches a list as the User types, swapping listURL's answer into the
+// element listID alone when htmx sends it, so the field keeps its focus; without htmx it
+// opens action searched. The children are the input of its SearchField, named by label.
+templ ListSearch(id, action, listURL, listID, label string) {
+	<form
+		id={ id }
+		role="search"
+		method="get"
+		action={ templ.SafeURL(action) }
+		hx-get={ listURL }
+		hx-trigger="submit, input delay:300ms"
+		hx-target={ "#" + listID }
+		hx-swap="innerHTML"
+	>
+		@SearchField(label) {
+			{ children... }
+		}
+	</form>
+}
+
 // TimeField is a Field for a time of day, HH:MM, holding value.
 templ TimeField(label, name, value, err string) {
 	@Field(label, "", err) {
