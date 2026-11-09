@@ -196,20 +196,40 @@ func TestAddingPortionsAnswersHTMXWithAFragment(t *testing.T) {
 	}
 }
 
-// The chevron beside the + opens the Add Portions sheet. A refused add comes back in it
-// with focus on the refused field; one accepted closes it and shows the group.
+// The chevron only chooses what the + adds, and the + opens that sheet. A refused add
+// comes back in it with focus on the refused field; one accepted closes it, shows the
+// group and leaves the choice, which a new page forgets.
 func TestBrowserAddsPortionsInTheSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
 	expect := playwright.NewPlaywrightAssertions()
 
-	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "More to add"}).Click(); err != nil {
-		t.Fatalf("open what else to add: %v", err)
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Choose what to add"}).Click(); err != nil {
+		t.Fatalf("open what to add: %v", err)
 	}
-	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Add Portions"}).Click(); err != nil {
-		t.Fatalf("open the Add Portions sheet: %v", err)
+	choice := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: "Add Portions"})
+	if err := choice.Click(); err != nil {
+		t.Fatalf("choose Portions: %v", err)
+	}
+	if err := expect.Locator(choice).ToBeHidden(); err != nil {
+		t.Errorf("choosing doesn't close the menu: %v", err)
+	}
+	count := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count", Exact: playwright.Bool(true)})
+	if err := expect.Locator(count).ToBeHidden(); err != nil {
+		t.Errorf("the + still counts: %v", err)
+	}
+	plus := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Add Portions"})
+	if err := expect.Locator(plus).ToBeFocused(); err != nil {
+		t.Errorf("choosing doesn't leave focus on the +: %v", err)
 	}
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Add Portions"})
+	if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+		t.Errorf("choosing opens the sheet by itself: %v", err)
+	}
+	b.Shot(t, "add-choice")
+	if err := plus.Click(); err != nil {
+		t.Fatalf("open the Add Portions sheet: %v", err)
+	}
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Fatalf("the Add Portions sheet doesn't open: %v", err)
 	}
@@ -263,4 +283,15 @@ func TestBrowserAddsPortionsInTheSheet(t *testing.T) {
 	}
 	b.IsAt(t, "/kitchen")
 	b.Shot(t, "portions-listed")
+	if err := expect.Locator(plus).ToBeVisible(); err != nil {
+		t.Errorf("adding forgets what the + adds: %v", err)
+	}
+
+	b.Open(t, "/kitchen")
+	if err := expect.Locator(count).ToBeVisible(); err != nil {
+		t.Errorf("a new page doesn't start on Count: %v", err)
+	}
+	if err := expect.Locator(plus).ToBeHidden(); err != nil {
+		t.Errorf("a new page remembers the choice: %v", err)
+	}
 }

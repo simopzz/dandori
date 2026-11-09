@@ -13,7 +13,7 @@ var (
 	msgMainNav        = Message{En: "Main", It: "Principale"}
 	msgLanguageSwitch = Message{En: "Language", It: "Lingua"}
 	msgChange         = Message{En: "Change", It: "Modifica"}
-	msgMoreToAdd      = Message{En: "More to add", It: "Altro da aggiungere"}
+	msgChooseAdd      = Message{En: "Choose what to add", It: "Scegli cosa aggiungere"}
 	msgClose          = Message{En: "Close", It: "Chiudi"}
 	msgCloseNotice    = Message{En: "Close notice", It: "Chiudi avviso"}
 )

@@ -27,8 +27,8 @@ const portionsSheetID = "portions"
 const contentsID = "stock"
 
 // page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
-// action opens, cleared each time it closes, the Add Portions sheet beside it, and each
-// Stock Item's Movements and its move, and the Ingredients, in their side sheets.
+// action opens, cleared each time it closes, the Add Portions sheet it can open instead,
+// and, in side sheets, each Stock Item's Movements and move, and the Ingredients.
 templ page(now time.Time, contents Contents, f CountForm) {
 	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
@@ -39,7 +39,11 @@ templ page(now time.Time, contents Contents, f CountForm) {
 		<div id={ contentsID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body, " + ingredients.Saved + " from:body" }>
 			@contentsList(now, contents)
 		</div>
-		@web.AddSheet(countSheetID, web.T(ctx, msgCount), false, addPortionsLink()) {
+		@web.AddButton([]web.AddChoice{
+			{Sheet: countSheetID, Title: web.T(ctx, msgCount), Icon: "tally"},
+			{Sheet: portionsSheetID, Title: web.T(ctx, msgAddPortions), Icon: "bowl", Href: "/kitchen/portions", Src: "/kitchen/portions/sheet"},
+		})
+		@web.AddSheet(countSheetID, web.T(ctx, msgCount), false) {
 			@web.SheetBody(countSheetID) {
 				@countBody(f)
 			}
@@ -55,15 +59,10 @@ templ page(now time.Time, contents Contents, f CountForm) {
 		}
 		@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
 		@web.SideSheet(moveSheetID, web.T(ctx, msgMove))
-		@web.SideSheet(portionsSheetID, web.T(ctx, msgAddPortions))
+		@web.AddSheet(portionsSheetID, web.T(ctx, msgAddPortions), false) {
+			@web.SheetBody(portionsSheetID)
+		}
 		@ingredients.Sheet()
-	}
-}
-
-// addPortionsLink opens the Add Portions sheet; without htmx it opens the page of it.
-templ addPortionsLink() {
-	@web.SideSheetLink(portionsSheetID, "/kitchen/portions", "/kitchen/portions/sheet") {
-		{ web.T(ctx, msgAddPortions) }
 	}
 }
 

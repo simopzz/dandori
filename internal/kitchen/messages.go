@@ -58,7 +58,7 @@ var (
 	msgPortionName         = web.Message{En: "Name", It: "Nome"}
 	msgPortionNameRequired = web.Message{En: "Give it a name.", It: "Dagli un nome."}
 	msgHowMany             = web.Message{En: "How many", It: "Quante"}
-	msgPortionWhere        = web.Message{En: "Where they are kept", It: "Dove si tengono"}
+	msgPortionWhere        = web.Message{En: "Where", It: "Dove"}
 	msgPortionValuesHint   = web.Message{
 		En: "Per Portion: calories in kcal, the rest in grams. Fibre and sugar may be left blank.",
 		It: "Per Porzione: calorie in kcal, il resto in grammi. Fibre e zuccheri si possono lasciare vuoti.",
