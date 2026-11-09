@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // maxPortions bounds how many Portions are added at once: each is a row of its own.
@@ -79,7 +80,80 @@ type PortionGroup struct {
 	Name      string
 	Nutrition Nutrition
 	Location  StorageLocation
-	Count     int
+	// IDs are the Portions it holds, oldest first.
+	IDs []int64
+}
+
+// PortionUnit is the Unit Portions are told in. No Ingredient has it: it only makes
+// ParseCount and ParseMove take whole numbers.
+const PortionUnit Unit = "portion"
+
+// Count is how many Portions g holds.
+func (g PortionGroup) Count() int { return len(g.IDs) }
+
+// Held is how many Portions g holds, as a Quantity.
+func (g PortionGroup) Held() Quantity { return portionCount(len(g.IDs)) }
+
+// portionCount is n Portions as a Quantity.
+func portionCount(n int) Quantity { return QuantityOf(float64(n)) }
+
+// MoreAlike are the Portions a Count of stated adds to g, above what it holds.
+func (g PortionGroup) MoreAlike(stated Quantity) NewPortions {
+	return NewPortions{Name: g.Name, HowMany: int((stated - g.Held()).Number()), Location: g.Location, Nutrition: g.Nutrition}
+}
+
+// takes is the n Portions of g a Count down takes: those without a Slot, oldest first,
+// then the latest Slot. slots has each one's Slot, nil until there are Slots.
+func (g PortionGroup) takes(n int, slots map[int64]time.Time) []int64 {
+	order := slices.Clone(g.IDs)
+	slices.SortStableFunc(order, func(a, b int64) int {
+		slotA, slotB := slots[a], slots[b]
+		if slotA.IsZero() != slotB.IsZero() {
+			if slotA.IsZero() {
+				return -1
+			}
+			return 1
+		}
+		return slotB.Compare(slotA)
+	})
+	return order[:n]
+}
+
+// ParsePortionCount reads a Count of a group as the User typed it: a whole number of at
+// most maxPortions, with why each field is refused, by field, if any is.
+func ParsePortionCount(location StorageLocation, stated string) (Quantity, map[string]Problem) {
+	q, problems := ParseCount(PortionUnit, location, stated)
+	if q > portionCount(maxPortions) {
+		problems["stated"] = TooLarge
+	}
+	return q, problems
+}
+
+// GroupOf is the group alike the Portion id in location, as where says the kitchen holds
+// them: empty, and named as that Portion is, if location holds none. ok is false if
+// portions, oldest first, has no such Portion.
+func GroupOf(portions []Portion, where map[int64]StorageLocation, id int64, location StorageLocation) (_ PortionGroup, ok bool) {
+	i := slices.IndexFunc(portions, func(p Portion) bool { return p.ID == id })
+	if i < 0 {
+		return PortionGroup{}, false
+	}
+	asked := portions[i]
+	group := PortionGroup{Name: asked.Name, Nutrition: asked.Nutrition, Location: location}
+	for _, p := range portions {
+		if where[p.ID] == location && asked.alike(p) {
+			if group.Count() == 0 {
+				group.Name = p.Name
+			}
+			group.IDs = append(group.IDs, p.ID)
+		}
+	}
+	return group, true
+}
+
+// alike says whether two Portions have the same name, ignoring case and surrounding
+// space, and nutritional values.
+func (p Portion) alike(other Portion) bool {
+	return portionName(p.Name) == portionName(other.Name) && p.Nutrition == other.Nutrition
 }
 
 // portionName is the key two alike Portions' names share.
@@ -108,7 +182,7 @@ func GroupPortions(portions []Portion, where map[int64]StorageLocation) []Portio
 			found[key] = i
 			groups = append(groups, PortionGroup{Name: p.Name, Nutrition: p.Nutrition, Location: location})
 		}
-		groups[i].Count++
+		groups[i].IDs = append(groups[i].IDs, p.ID)
 	}
 	slices.SortStableFunc(groups, func(a, b PortionGroup) int {
 		return cmp.Or(

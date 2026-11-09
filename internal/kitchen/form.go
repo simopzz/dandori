@@ -81,6 +81,16 @@ func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageL
 	return f
 }
 
+// PortionGroupForm is the form that counts or moves a group of alike Portions, as shown:
+// Portion is one of them, which names the group, and Typed, To and Note are as typed,
+// with Errs why each field was refused, in the User's Language.
+type PortionGroupForm struct {
+	Portion         int64
+	Group           domain.PortionGroup
+	Typed, To, Note string
+	Errs            map[string]string
+}
+
 // PortionsForm is the Add Portions form as shown: what was typed, the nutritional values
 // by field, and why each field was refused, in the User's Language.
 type PortionsForm struct {

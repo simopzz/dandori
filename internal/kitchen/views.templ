@@ -92,10 +92,24 @@ templ contentsList(now time.Time, contents Contents) {
 			@web.Rows() {
 				for _, p := range group.portions {
 					@web.Row() {
-						<span class="row-title">{ p.Name }</span>
-						<span class="row-figure">{ web.Tf(ctx, msgTimes, p.Count) }</span>
+						<span class="row-title">
+							@web.SideSheetLink(movementsSheetID, groupURL("/kitchen/portions/movements", p), groupURL("/kitchen/portions/movements/sheet", p)) {
+								{ p.Name }
+							}
+						</span>
+						<span class="row-figure">{ web.Tf(ctx, msgTimes, p.Count()) }</span>
 						<span class="row-meta">
 							@ingredients.NutritionFacts(web.T(ctx, msgPerPortion), p.Nutrition)
+						</span>
+						<span class="row-action">
+							@web.SideSheetLink(countSheetID, groupURL("/kitchen/portions/count", p), groupURL("/kitchen/portions/count/sheet", p)) {
+								{ web.T(ctx, msgCount) }
+								<span class="sr-only">{ p.Name } { web.T(ctx, web.InLocations[p.Location]) }</span>
+							}
+							@web.SideSheetLink(moveSheetID, groupURL("/kitchen/portions/move", p), groupURL("/kitchen/portions/move/sheet", p)) {
+								{ web.T(ctx, msgMove) }
+								<span class="sr-only">{ p.Name } { web.T(ctx, web.InLocations[p.Location]) }</span>
+							}
 						</span>
 					}
 				}
@@ -184,23 +198,29 @@ templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
 		}
 	}
 	@web.Section(0, web.Tf(ctx, msgStockItem, item.Ingredient.Name, web.T(ctx, locationHeadings[item.Location]))) {
-		if len(item.Movements) == 0 {
-			@web.Empty() {
-				{ web.T(ctx, msgNoMovements) }
-			}
-		} else {
-			@web.Rows() {
-				for _, m := range item.Movements {
-					@web.Row() {
-						<span class="row-title">{ causeText(ctx, m, item.Location) }</span>
-						<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, item.Ingredient.Unit), web.Quantity(ctx, m.After, item.Ingredient.Unit)) }</span>
-						<span class="row-meta">
-							<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
-							if m.Note != "" {
-								<em>{ m.Note }</em>
-							}
-						</span>
-					}
+		@movementRows(now, item.Movements, item.Location, item.Ingredient.Unit)
+	}
+}
+
+// movementRows are Movements in location, newest first, or that there are none, each
+// with its cause, what it held before and after, in unit, when it happened and its note.
+templ movementRows(now time.Time, movements []domain.StockMovement, location domain.StorageLocation, unit domain.Unit) {
+	if len(movements) == 0 {
+		@web.Empty() {
+			{ web.T(ctx, msgNoMovements) }
+		}
+	} else {
+		@web.Rows() {
+			for _, m := range movements {
+				@web.Row() {
+					<span class="row-title">{ causeText(ctx, m, location) }</span>
+					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, unit), web.Quantity(ctx, m.After, unit)) }</span>
+					<span class="row-meta">
+						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
+						if m.Note != "" {
+							<em>{ m.Note }</em>
+						}
+					</span>
 				}
 			}
 		}
@@ -474,6 +494,154 @@ func portionLocations(ctx context.Context) []web.Choice {
 	choices := make([]web.Choice, len(domain.StorageLocations))
 	for i, l := range domain.StorageLocations {
 		choices[i] = web.Choice{Value: string(l), Label: web.T(ctx, ingredients.StorageLocationNames[l])}
+	}
+	return choices
+}
+
+// groupURL is path, asking for the group p by its oldest Portion.
+func groupURL(path string, p domain.PortionGroup) templ.SafeURL {
+	query := url.Values{"portion": {strconv.FormatInt(p.IDs[0], 10)}, "location": {string(p.Location)}}
+	return templ.SafeURL(path + "?" + query.Encode())
+}
+
+// groupMovementsPage is a group's Movements as a page of their own, for a browser without
+// htmx: the sheet's body, under the page's header.
+templ groupMovementsPage(now time.Time, item GroupMovements) {
+	@web.Layout(web.T(ctx, msgMovementsTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgMovements), now)
+		@groupMovementsBody(now, item)
+	}
+}
+
+// groupMovementsBody is a group's Movements, newest first, to read: a mistake in one is
+// corrected by another Count, never here.
+templ groupMovementsBody(now time.Time, item GroupMovements) {
+	@web.Section(0, web.Tf(ctx, msgStockItem, item.Group.Name, web.T(ctx, locationHeadings[item.Group.Location]))) {
+		@movementRows(now, item.Movements, item.Group.Location, domain.PortionUnit)
+	}
+}
+
+// portionCountPage is the form that counts a group as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header.
+templ portionCountPage(now time.Time, f PortionGroupForm) {
+	@web.Layout(web.T(ctx, msgCountTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgCount), now)
+		<div id={ web.SideSheetBody(countSheetID) }>
+			@portionCountForm(f)
+		</div>
+	}
+}
+
+// portionCountForm counts f's group, swapping the sheet's body when htmx posts it.
+templ portionCountForm(f PortionGroupForm) {
+	<form
+		id="count-form"
+		method="post"
+		action="/kitchen/portions/count"
+		hx-post="/kitchen/portions/count"
+		hx-target={ "#" + web.SideSheetBody(countSheetID) }
+		hx-swap="innerHTML"
+	>
+		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
+		<input type="hidden" name="location" value={ string(f.Group.Location) }/>
+		@web.FieldGroup(0, web.Tf(ctx, msgStockItem, f.Group.Name, web.T(ctx, locationHeadings[f.Group.Location]))) {
+			<div class="stack">
+				@web.Hint() {
+					{ web.Tf(ctx, msgGroupHolds, f.Group.Count()) }
+				}
+				@web.Field(web.T(ctx, msgHowMany), "", f.Errs["stated"]) {
+					<input
+						type="number"
+						inputmode="numeric"
+						min="0"
+						step="1"
+						name="stated"
+						value={ f.Typed }
+						required
+						autocomplete="off"
+						autofocus
+						{ ingredients.Invalid(f.Errs["stated"])... }
+					/>
+				}
+				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+					<input name="note" value={ f.Note } autocomplete="off"/>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgCount) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// portionMovePage is the form that moves a group as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header.
+templ portionMovePage(now time.Time, f PortionGroupForm) {
+	@web.Layout(web.T(ctx, msgMoveTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgMove), now)
+		<div id={ web.SideSheetBody(moveSheetID) }>
+			@portionMoveForm(f)
+		</div>
+	}
+}
+
+// portionMoveForm moves some or all of f's group, swapping the sheet's body when htmx
+// posts it. Its target starts unchosen, so nothing goes to the wrong place by default.
+templ portionMoveForm(f PortionGroupForm) {
+	<form
+		id="move-form"
+		method="post"
+		action="/kitchen/portions/move"
+		hx-post="/kitchen/portions/move"
+		hx-target={ "#" + web.SideSheetBody(moveSheetID) }
+		hx-swap="innerHTML"
+	>
+		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
+		<input type="hidden" name="location" value={ string(f.Group.Location) }/>
+		@web.FieldGroup(0, web.Tf(ctx, msgStockItem, f.Group.Name, web.T(ctx, locationHeadings[f.Group.Location]))) {
+			<div class="stack">
+				@web.Field(web.T(ctx, msgMovePortionsQuantity), "", f.Errs["quantity"]) {
+					<input
+						type="number"
+						inputmode="numeric"
+						min="1"
+						step="1"
+						name="quantity"
+						value={ f.Typed }
+						required
+						autocomplete="off"
+						autofocus
+						{ ingredients.Invalid(f.Errs["quantity"])... }
+					/>
+				}
+				<div>
+					@web.Hint() {
+						{ web.T(ctx, msgPortionWhere) }
+					}
+					@web.Segmented(web.T(ctx, msgPortionWhere), "to", groupTargets(ctx, f.Group.Location), f.To, f.Errs["to"])
+				</div>
+				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+					<input name="note" value={ f.Note } autocomplete="off"/>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgMove) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// groupTargets are the Storage Locations a group in from can move to.
+func groupTargets(ctx context.Context, from domain.StorageLocation) []web.Choice {
+	var choices []web.Choice
+	for _, l := range domain.StorageLocations {
+		if l != from {
+			choices = append(choices, web.Choice{Value: string(l), Label: web.T(ctx, ingredients.StorageLocationNames[l])})
+		}
 	}
 	return choices
 }

@@ -47,6 +47,7 @@ var unitQuantities = map[domain.Unit]Message{
 	domain.Grams:       {En: "%s g", It: "%s g"},
 	domain.Millilitres: {En: "%s ml", It: "%s ml"},
 	domain.Pieces:      {En: "%s pieces", It: "%s pezzi"},
+	domain.PortionUnit: {En: "%s", It: "%s"},
 }
 
 // msgOnePiece is one piece, which alone isn't plural.
