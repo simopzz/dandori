@@ -16,11 +16,6 @@ import (
 templ library(now time.Time, recipes []domain.Recipe) {
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
-		@web.Actions() {
-			@web.ButtonLink(templ.SafeURL("/recipes/new")) {
-				{ web.T(ctx, msgWrite) }
-			}
-		}
 		@web.Section(0, web.T(ctx, msgRecipes)) {
 			if len(recipes) == 0 {
 				@web.Empty() {
@@ -41,6 +36,7 @@ templ library(now time.Time, recipes []domain.Recipe) {
 				}
 			}
 		}
+		@web.AddButton([]web.AddChoice{{Title: web.T(ctx, msgWrite), Href: "/recipes/new"}})
 	}
 }
 
@@ -142,8 +138,8 @@ templ formPage(now time.Time, f RecipeForm) {
 // knownIngredients is the id of the list of names a row's name offers as the User types.
 const knownIngredients = "known-ingredients"
 
-// recipeForm is the one form every Recipe is written with. Its add buttons post the form
-// back with one more row without the script, which adds the row in place.
+// recipeForm is the one form every Recipe is written with. Its add buttons ask htmx for
+// one more row, and without htmx post the form back with one.
 templ recipeForm(f RecipeForm) {
 	<form id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
 		if f.Confirm {
@@ -191,23 +187,17 @@ templ recipeForm(f RecipeForm) {
 					<option value={ ing.Name }></option>
 				}
 			</datalist>
-			<template id="ingredients-template">
-				@ingredientRow(0, IngredientRow{})
-			</template>
-			@web.TextButton(addButton("ingredients")) {
+			@web.TextButton(addButton("ingredients", "/recipes/ingredient-row/blank", "#ingredients [name^=ing_name_]")) {
 				{ web.T(ctx, msgAddIngredient) }
 			}
 		}
 		@web.FieldGroup(2, web.T(ctx, msgSteps)) {
 			<ol id="steps" class="draft-steps">
 				for _, step := range f.Steps {
-					@stepRow(step)
+					@stepRow(step, false)
 				}
 			</ol>
-			<template id="steps-template">
-				@stepRow("")
-			</template>
-			@web.TextButton(addButton("steps")) {
+			@web.TextButton(addButton("steps", "/recipes/step-row/blank", "")) {
 				{ web.T(ctx, msgAddStep) }
 			}
 		}
@@ -225,9 +215,18 @@ templ recipeForm(f RecipeForm) {
 	<script src="/static/recipe-form.js"></script>
 }
 
-// addButton adds a row to the list named list.
-func addButton(list string) templ.Attributes {
-	return templ.Attributes{"type": "submit", "name": "add", "value": list, "formnovalidate": true, "data-add": list}
+// addButton adds to the list named list the row at src, which is told the fields of
+// include. A second press while the first loads is dropped, or both would count the same
+// rows and take the same number.
+func addButton(list, src, include string) templ.Attributes {
+	attrs := templ.Attributes{
+		"type": "submit", "name": "add", "value": list, "formnovalidate": true,
+		"hx-get": src, "hx-target": "#" + list, "hx-swap": "beforeend", "hx-sync": "this:drop",
+	}
+	if include != "" {
+		attrs["hx-include"] = include
+	}
+	return attrs
 }
 
 // numberField is a Field for a whole number.
@@ -237,9 +236,9 @@ templ numberField(label web.Message, name, value, err string) {
 	}
 }
 
-// stepRow is one step of the form.
-templ stepRow(step string) {
-	<li><textarea name="steps" rows="2" aria-label={ web.T(ctx, msgStep) }>{ step }</textarea></li>
+// stepRow is one step of the form, taking focus as it arrives when focus says so.
+templ stepRow(step string, focus bool) {
+	<li><textarea name="steps" rows="2" aria-label={ web.T(ctx, msgStep) } autofocus?={ focus }>{ step }</textarea></li>
 }
 
 // ingredientRow is the row at index i: its name, which says what it is as the User leaves
@@ -252,6 +251,7 @@ templ ingredientRow(i int, row IngredientRow) {
 				value={ row.Name }
 				list={ knownIngredients }
 				autocomplete="off"
+				autofocus?={ row.Focus }
 				hx-get="/recipes/ingredient-row"
 				hx-trigger="change"
 				hx-target="next .ingredient-details"

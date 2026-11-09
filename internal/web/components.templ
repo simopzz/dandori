@@ -372,7 +372,8 @@ templ Tag(accent bool, title string) {
 
 // AddChoice is one thing a page's floating button adds, in the sheet Sheet, titled Title
 // and drawn as Icon. Src is the fragment that sheet's SheetBody loads as it opens, and
-// Href the page of it without htmx; a sheet that already holds its body has neither.
+// Href the page of it without htmx; a sheet that already holds its body has neither. One
+// with no Sheet is a link to the page Href, for a form too long for a sheet.
 type AddChoice struct {
 	Sheet, Title, Icon string
 	Href, Src          templ.SafeURL
@@ -385,7 +386,11 @@ type AddChoice struct {
 templ AddButton(choices []AddChoice) {
 	<div class="fab-group">
 		for _, c := range choices {
-			if c.Src == "" {
+			if c.Sheet == "" {
+				<a class="fab fab-choice" href={ c.Href } aria-label={ c.Title }>
+					@addFace(c, len(choices) > 1)
+				</a>
+			} else if c.Src == "" {
 				<button class="fab fab-choice" type="button" commandfor={ c.Sheet } command="show-modal" aria-label={ c.Title }>
 					@addFace(c, len(choices) > 1)
 				</button>

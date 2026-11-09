@@ -22,7 +22,9 @@ type IngredientRow struct {
 	// New says the name is no Ingredient of the User's. Confirming says its fields are
 	// only now shown, so nothing about them is refused yet.
 	New, Confirming bool
-	Errs            map[string]string
+	// Focus says the row takes focus as it arrives.
+	Focus bool
+	Errs  map[string]string
 }
 
 // RecipeForm is the Recipe form as shown: what was typed, why it was refused by field,

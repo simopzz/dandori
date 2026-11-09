@@ -140,6 +140,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /recipes", signedIn(recs.Add))
 	mux.Handle("GET /recipes/new", signedIn(recs.ShowNew))
 	mux.Handle("GET /recipes/ingredient-row", signedIn(recs.ShowRow))
+	mux.Handle("GET /recipes/ingredient-row/blank", signedIn(recs.ShowBlankRow))
+	mux.Handle("GET /recipes/step-row/blank", signedIn(recs.ShowBlankStep))
 	mux.Handle("GET /recipes/{id}", signedIn(recs.Show))
 	mux.Handle("GET /kitchen", signedIn(kit.Show))
 	mux.Handle("GET /kitchen/stock", signedIn(kit.ShowContents))

@@ -76,8 +76,22 @@ func (h Handlers) ShowRow(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, rowDetails(i, row))
 }
 
+// ShowBlankRow is one more empty Ingredient row, numbered after the ones it is told of.
+func (h Handlers) ShowBlankRow(w http.ResponseWriter, r *http.Request) {
+	n := 0
+	for r.URL.Query().Has(rowField("name", n)) {
+		n++
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, ingredientRow(n, IngredientRow{Focus: true}))
+}
+
+// ShowBlankStep is one more empty step.
+func (h Handlers) ShowBlankStep(w http.ResponseWriter, r *http.Request) {
+	httpx.Render(w, r, h.Log, http.StatusOK, stepRow("", true))
+}
+
 // Add saves the Recipe posted, with its new Ingredients. A form that adds a row, for a
-// browser without the form's script, comes back with one more and saves nothing. One the
+// browser without htmx, comes back with one more and saves nothing. One the
 // form refuses comes back as typed with why, a row of an unknown name opened to confirm.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mxschmitt/playwright-go"
+
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -257,9 +259,19 @@ func TestARowsNameShowsTheKnownUnitOrTheNewIngredientsFields(t *testing.T) {
 	}
 }
 
-// Without the script, the add buttons post the form back with one more row, saving
+// htmx asks the server for one more row, numbered after those the form has.
+func TestABlankRowIsNumberedAfterTheFormsRows(t *testing.T) {
+	s := kitchenWith(t, rice)
+
+	row := s.HTMXGet(t, "/recipes/ingredient-row/blank?ing_name_0=Rice&ing_name_1=")
+	if !strings.Contains(row.Body, `name="ing_name_2"`) || strings.Contains(row.Body, "<html") {
+		t.Errorf("the blank row came back as %s", row.Body)
+	}
+}
+
+// Without htmx, the add buttons post the form back with one more row, saving
 // nothing and refusing nothing.
-func TestAddingARowWithoutTheScriptKeepsWhatWasTyped(t *testing.T) {
+func TestAddingARowWithoutHTMXKeepsWhatWasTyped(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Open("/recipes/new")
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
@@ -299,6 +311,42 @@ func TestBrowserAddsAnIngredientRowAndConfirmsANewOne(t *testing.T) {
 		t.Fatalf("the new Ingredient's fields never showed: %v", err)
 	}
 	b.Shot(t, "recipe-form")
+}
+
+// In a browser, each add gives one more row, numbered after the last, with focus in it.
+func TestBrowserEachAddGivesANumberedRowAndFocusesIt(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	b.Open(t, "/recipes/new")
+
+	focused := func(selector string) {
+		t.Helper()
+		if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(selector)).ToBeFocused(); err != nil {
+			t.Errorf("%s isn't focused: %v", selector, err)
+		}
+	}
+	b.Click(t, "Add an Ingredient")
+	focused(`[name="ing_name_1"]`)
+	b.Click(t, "Add an Ingredient")
+	focused(`[name="ing_name_2"]`)
+	b.Click(t, "Add a step")
+	focused(`#steps li:nth-child(2) textarea`)
+}
+
+// In a browser, the Library's floating + opens the Recipe form.
+func TestBrowserTheFloatingPlusOpensTheRecipeForm(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	b.Open(t, "/recipes")
+
+	if err := b.Locator(`a.fab[aria-label="Write a Recipe"]`).Click(); err != nil {
+		t.Fatalf("press the +: %v", err)
+	}
+	b.IsAt(t, "/recipes/new")
 }
 
 // In a browser, a rejected form comes back with focus on the invalid field.
