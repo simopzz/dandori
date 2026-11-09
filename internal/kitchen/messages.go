@@ -52,6 +52,21 @@ var (
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
 	msgHappened       = web.Message{En: "%s %s", It: "%s %s"}
 
+	msgAddPortions         = web.Message{En: "Add Portions", It: "Aggiungi Porzioni"}
+	msgAddPortionsTitle    = web.Message{En: "Add Portions · Dandori", It: "Aggiungi Porzioni · Dandori"}
+	msgAddedPortions       = web.Message{En: "Added %s × %d %s.", It: "Aggiunto: %s × %d %s."}
+	msgPortionName         = web.Message{En: "Name", It: "Nome"}
+	msgPortionNameRequired = web.Message{En: "Give it a name.", It: "Dagli un nome."}
+	msgHowMany             = web.Message{En: "How many", It: "Quante"}
+	msgPortionWhere        = web.Message{En: "Where", It: "Dove"}
+	msgPortionValuesHint   = web.Message{
+		En: "Per Portion: calories in kcal, the rest in grams. Fibre and sugar may be left blank.",
+		It: "Per Porzione: calorie in kcal, il resto in grammi. Fibre e zuccheri si possono lasciare vuoti.",
+	}
+	msgAdd        = web.Message{En: "Add", It: "Aggiungi"}
+	msgPerPortion = web.Message{En: "per Portion", It: "per Porzione"}
+	msgTimes      = web.Message{En: "× %d", It: "× %d"}
+
 	msgChooseWhere = web.Message{En: "Choose where it is kept.", It: "Scegli dove si tiene."}
 	msgStaple      = web.Message{En: "%s is a Staple: it is never counted.", It: "%s è una Base: non si conta mai."}
 )
@@ -72,6 +87,13 @@ var moveProblemMessages = map[domain.Problem]web.Message{
 	domain.NothingMoved: {En: "Say how much to move.", It: "Di' quanto spostare."},
 	domain.NotWhole:     {En: "Grams and millilitres are whole numbers.", It: "Grammi e millilitri sono numeri interi."},
 	domain.TooLarge:     {En: "Must be below 1000000.", It: "Deve essere sotto 1000000."},
+}
+
+// howManyProblemMessages say why how many Portions to add is refused.
+var howManyProblemMessages = map[domain.Problem]web.Message{
+	domain.Required: {En: "Say how many.", It: "Di' quante."},
+	domain.NotWhole: {En: "Must be a whole number of at least 1.", It: "Deve essere un numero intero, almeno 1."},
+	domain.TooLarge: {En: "Must be at most 99.", It: "Deve essere al massimo 99."},
 }
 
 // locationHeadings head each Storage Location's Stock Items.
@@ -106,6 +128,7 @@ var (
 var causeNames = map[domain.Cause]web.Message{
 	domain.Counted:      {En: "Counted", It: "Contato"},
 	domain.MarkedStaple: {En: "Marked a Staple", It: "Segnato come Base"},
+	domain.Added:        {En: "Added", It: "Aggiunte"},
 }
 
 // causeText tells the cause of m as a Movement of the Stock Item in location.

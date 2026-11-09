@@ -62,11 +62,13 @@ const (
 	// MarkedStaple is the Cause of the Count to nothing that marking its Ingredient a
 	// Staple makes of each Stock Item holding some of it.
 	MarkedStaple Cause = "staple"
+	// Added is the Cause of Portions no Prep Session produced, which the User adds.
+	Added Cause = "added"
 )
 
-// sets says whether a Movement of cause c sets what its Stock Item holds to what was
+// Sets says whether a Movement of cause c sets what its Stock Item holds to what was
 // stated, keeping what Dandori believed before it, as a Count does.
-func (c Cause) sets() bool { return c == Counted || c == MarkedStaple }
+func (c Cause) Sets() bool { return c == Counted || c == MarkedStaple }
 
 // Why a move is refused.
 const (
@@ -89,6 +91,9 @@ type Movement struct {
 	To     StorageLocation
 	Change Quantity
 	Cause  Cause
+	// Portions are the Portions a Movement of them touches, in Key's Storage Location,
+	// with no Ingredient in Key; it is empty for a Movement of a Stock Item.
+	Portions []int64
 	// Believed is what a Count, or the Count to nothing a Staple makes, kept of what
 	// Dandori believed before it, and Stated what it was told the Stock Item holds.
 	Believed, Stated Quantity
@@ -155,7 +160,7 @@ func ParseMove(unit Unit, from, to StorageLocation, moved string) (Quantity, map
 // sets its Stock Item to what was stated, whatever came before it.
 func (m Movement) after(key StockKey, held Quantity) (_ Quantity, touches bool) {
 	switch {
-	case m.Key == key && m.Cause.sets():
+	case m.Key == key && m.Cause.Sets():
 		return m.Stated, true
 	case m.Key == key && m.Cause == Moved:
 		return held - m.Change, true
@@ -180,7 +185,7 @@ func NewLedger(movements []Movement) Ledger { return Ledger{movements: movements
 func (l Ledger) At(at time.Time) map[StockKey]StockItem {
 	items := map[StockKey]StockItem{}
 	for _, m := range l.movements {
-		if m.At.After(at) {
+		if m.At.After(at) || len(m.Portions) > 0 {
 			continue
 		}
 		keys := []StockKey{m.Key}
@@ -199,6 +204,21 @@ func (l Ledger) At(at time.Time) map[StockKey]StockItem {
 		}
 	}
 	return items
+}
+
+// PortionsAt is where each Portion added by a moment is, by its id. A Portion is only
+// ever added so far, so the Movement that lists it says where it is.
+func (l Ledger) PortionsAt(at time.Time) map[int64]StorageLocation {
+	where := map[int64]StorageLocation{}
+	for _, m := range l.movements {
+		if m.At.After(at) {
+			continue
+		}
+		for _, id := range m.Portions {
+			where[id] = m.Key.Location
+		}
+	}
+	return where
 }
 
 // HeldAt is what each Storage Location holds of the Ingredient id at a moment. A Storage
@@ -227,7 +247,7 @@ func (l Ledger) Movements(key StockKey) []StockMovement {
 			continue
 		}
 		before := held
-		if m.Cause.sets() {
+		if m.Cause.Sets() {
 			before = m.Believed
 		}
 		touched = append(touched, StockMovement{Movement: m, Before: before, After: after})
@@ -254,6 +274,15 @@ func (l Ledger) Count(now time.Time, key StockKey, stated Quantity, note string)
 	at := l.WriteAt(now)
 	believed := l.At(at)[key].Held
 	return Movement{At: at, Key: key, Change: stated - believed, Cause: Counted, Believed: believed, Stated: stated, Note: note}
+}
+
+// AddPortions is the one Movement, written at now, that adds the Portions ids to
+// location, with the User's note.
+func (l Ledger) AddPortions(now time.Time, location StorageLocation, ids []int64, note string) Movement {
+	return Movement{
+		At: l.WriteAt(now), Key: StockKey{Location: location}, Portions: ids,
+		Change: QuantityOf(float64(len(ids))), Cause: Added, Note: note,
+	}
 }
 
 // Move is the move, written at now, of moved from the Stock Item key to the Storage

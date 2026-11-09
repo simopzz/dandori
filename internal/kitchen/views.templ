@@ -20,22 +20,29 @@ const movementsSheetID = "movements"
 // moveSheetID is the Move sheet's id.
 const moveSheetID = "move"
 
-// stockID is the id of the list a Count or a move refreshes.
-const stockID = "stock"
+// portionsSheetID is the Add Portions sheet's id.
+const portionsSheetID = "portions"
+
+// contentsID is the id of the list every write to the Kitchen Ledger refreshes.
+const contentsID = "stock"
 
 // page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
-// action opens, cleared each time it closes, and each Stock Item's Movements and its
-// move, and the Ingredients, a click away in their side sheets.
-templ page(now time.Time, stock []Held, f CountForm) {
+// action opens, cleared each time it closes, the Add Portions sheet it can open instead,
+// and, in side sheets, each Stock Item's Movements and move, and the Ingredients.
+templ page(now time.Time, contents Contents, f CountForm) {
 	@web.Layout(web.T(ctx, msgKitchenTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgKitchen), now) {
 			<p class="lede">
 				@ingredients.SheetLink()
 			</p>
 		}
-		<div id={ stockID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body, " + ingredients.Saved + " from:body" }>
-			@stockList(now, stock)
+		<div id={ contentsID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body, " + ingredients.Saved + " from:body" }>
+			@contentsList(now, contents)
 		</div>
+		@web.AddButton([]web.AddChoice{
+			{Sheet: countSheetID, Title: web.T(ctx, msgCount), Icon: "tally"},
+			{Sheet: portionsSheetID, Title: web.T(ctx, msgAddPortions), Icon: "bowl", Href: "/kitchen/portions", Src: "/kitchen/portions/sheet"},
+		})
 		@web.AddSheet(countSheetID, web.T(ctx, msgCount), false) {
 			@web.SheetBody(countSheetID) {
 				@countBody(f)
@@ -52,6 +59,9 @@ templ page(now time.Time, stock []Held, f CountForm) {
 		}
 		@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
 		@web.SideSheet(moveSheetID, web.T(ctx, msgMove))
+		@web.AddSheet(portionsSheetID, web.T(ctx, msgAddPortions), false) {
+			@web.SheetBody(portionsSheetID)
+		}
 		@ingredients.Sheet()
 	}
 }
@@ -69,17 +79,26 @@ templ countPage(now time.Time, f CountForm) {
 	}
 }
 
-// stockList is every Stock Item holding more than nothing under its Storage Location,
-// or how to start when there is none.
-templ stockList(now time.Time, stock []Held) {
-	if len(stock) == 0 {
+// contentsList is what the kitchen holds under each Storage Location, its Portions above
+// its Stock Items, or how to start when it holds nothing.
+templ contentsList(now time.Time, contents Contents) {
+	if len(contents.Held) == 0 && len(contents.Portions) == 0 {
 		@web.Empty() {
 			{ web.T(ctx, msgEmptyKitchen) }
 		}
 	}
-	for i, group := range byLocation(stock) {
+	for i, group := range byLocation(contents) {
 		@web.Section(i+1, web.T(ctx, locationHeadings[group.location])) {
 			@web.Rows() {
+				for _, p := range group.portions {
+					@web.Row() {
+						<span class="row-title">{ p.Name }</span>
+						<span class="row-figure">{ web.Tf(ctx, msgTimes, p.Count) }</span>
+						<span class="row-meta">
+							@ingredients.NutritionFacts(web.T(ctx, msgPerPortion), p.Nutrition)
+						</span>
+					}
+				}
 				for _, h := range group.held {
 					@web.Row() {
 						<span class="row-title">
@@ -108,21 +127,32 @@ templ stockList(now time.Time, stock []Held) {
 	}
 }
 
-// locationGroup is one Storage Location's Stock Items.
+// locationGroup is what one Storage Location holds.
 type locationGroup struct {
 	location domain.StorageLocation
+	portions []domain.PortionGroup
 	held     []Held
 }
 
-// byLocation splits stock, in Storage Location order, into a group each.
-func byLocation(stock []Held) []locationGroup {
+// byLocation splits contents into a group for each Storage Location holding anything,
+// in Storage Location order.
+func byLocation(contents Contents) []locationGroup {
 	var groups []locationGroup
-	for _, h := range stock {
-		if len(groups) == 0 || groups[len(groups)-1].location != h.Location {
-			groups = append(groups, locationGroup{location: h.Location})
+	for _, location := range domain.StorageLocations {
+		g := locationGroup{location: location}
+		for _, p := range contents.Portions {
+			if p.Location == location {
+				g.portions = append(g.portions, p)
+			}
 		}
-		last := &groups[len(groups)-1]
-		last.held = append(last.held, h)
+		for _, h := range contents.Held {
+			if h.Location == location {
+				g.held = append(g.held, h)
+			}
+		}
+		if len(g.portions) > 0 || len(g.held) > 0 {
+			groups = append(groups, g)
+		}
 	}
 	return groups
 }
@@ -375,6 +405,77 @@ func quantityStep(unit domain.Unit) string {
 		return "0.1"
 	}
 	return "1"
+}
+
+// portionsPage is the Add Portions form as a page of its own, for a browser without
+// htmx: the sheet's body, under the page's header.
+templ portionsPage(now time.Time, f PortionsForm) {
+	@web.Layout(web.T(ctx, msgAddPortionsTitle), web.KitchenTab) {
+		@web.PageHeader("台所", web.T(ctx, msgAddPortions), now)
+		<div id={ web.SideSheetBody(portionsSheetID) }>
+			@portionsForm(f)
+		</div>
+	}
+}
+
+// portionsForm adds Portions no Prep Session produced, swapping the sheet's body when
+// htmx posts it. Its Storage Location starts unchosen, so nothing lands in the wrong
+// place by default.
+templ portionsForm(f PortionsForm) {
+	<form
+		id="portions-form"
+		method="post"
+		action="/kitchen/portions"
+		hx-post="/kitchen/portions"
+		hx-target={ "#" + web.SideSheetBody(portionsSheetID) }
+		hx-swap="innerHTML"
+	>
+		<div class="stack">
+			@web.Field(web.T(ctx, msgPortionName), "", f.Errs["name"]) {
+				<input name="name" value={ f.Name } required autocomplete="off" autofocus { ingredients.Invalid(f.Errs["name"])... }/>
+			}
+			@web.Field(web.T(ctx, msgHowMany), "", f.Errs["how_many"]) {
+				<input
+					type="number"
+					inputmode="numeric"
+					min="1"
+					step="1"
+					name="how_many"
+					value={ f.HowMany }
+					required
+					autocomplete="off"
+					{ ingredients.Invalid(f.Errs["how_many"])... }
+				/>
+			}
+			<div>
+				@web.Hint() {
+					{ web.T(ctx, msgPortionWhere) }
+				}
+				@web.Segmented(web.T(ctx, msgPortionWhere), "location", portionLocations(ctx), string(f.Location), f.Errs["location"])
+			</div>
+			@web.Hint() {
+				{ web.T(ctx, msgPortionValuesHint) }
+			}
+			@ingredients.NutritionFields(f.Values, f.Errs)
+			@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
+				<input name="note" value={ f.Note } autocomplete="off"/>
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					{ web.T(ctx, msgAdd) }
+				}
+			}
+		</div>
+	</form>
+}
+
+// portionLocations are the Storage Locations Portions can be added to.
+func portionLocations(ctx context.Context) []web.Choice {
+	choices := make([]web.Choice, len(domain.StorageLocations))
+	for i, l := range domain.StorageLocations {
+		choices[i] = web.Choice{Value: string(l), Label: web.T(ctx, ingredients.StorageLocationNames[l])}
+	}
+	return choices
 }
 
 // movePage is the form that moves a Stock Item as a page of its own, for a browser

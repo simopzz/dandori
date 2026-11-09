@@ -57,7 +57,7 @@ A Recipe parsed from text the user pasted, or drafted by the planner for a Plan 
 _Avoid_: Pending recipe, import
 
 **Recipe Library**:
-The persisted collection of every Recipe the user has accepted, whether imported or agent-generated.
+The persisted collection of every Recipe the user has accepted or written by hand, whether imported or agent-generated.
 _Avoid_: Cookbook, recipe database
 
 **Prep Session**:
@@ -65,7 +65,7 @@ One preparation of food that yields one or more Portions: cooking or assembling 
 _Avoid_: Cook session, batch, meal prep, direct meal
 
 **Portion**:
-One ready-to-eat serving produced by a Prep Session, or brought in ready-made (someone else cooked it), with a name and estimated nutritional values; kept in a Storage Location and assigned to at most one Slot.
+One ready-to-eat serving produced by a Prep Session, or added by the user without one (someone else cooked it, or Dandori never saw it made), with a name and estimated nutritional values; kept in a Storage Location and assigned to at most one Slot.
 _Avoid_: Serving, leftover
 
 **Ingredient**:
@@ -77,7 +77,7 @@ The record of every Movement in the kitchen, in the order they happen; what the 
 _Avoid_: Inventory log, history
 
 **Movement**:
-One change to what the kitchen holds, with when it happened and what caused it: Stock Items delivered, put away or moved between Storage Locations, used up by a Prep Session, or counted (spoiled stock included); Portions prepared, moved between Storage Locations, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report), with a note of theirs if they like; nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
+One change to what the kitchen holds, with when it happened and what caused it: Stock Items delivered, put away or moved between Storage Locations, used up by a Prep Session, or counted (spoiled stock included); Portions prepared, added, moved between Storage Locations, counted, eaten or discarded. It is assumed when Dandori takes it to have happened as planned, and reported when the user says what happened (a Count, an Exception, a Delivery report), with a note of theirs if they like; nothing assumed needs the user's confirmation. An assumed Movement is recorded once, when its time passes, as the Plan and its Recipes were then: changing them later never changes it.
 _Avoid_: Transaction, delta, stock change
 
 **Today**:
@@ -89,7 +89,7 @@ The user's confirmation, before an upcoming Cycle is planned, of every Portion a
 _Avoid_: Stocktake, inventory count
 
 **Count**:
-A correction the user makes by saying how much of a Stock Item, or how many Portions, the kitchen actually holds: a Movement of the difference from what Dandori believed, which keeps both. It stands: a Movement recorded after it but dated before it, such as an Exception logged after the fact, never changes what the kitchen held once it was counted.
+A correction the user makes by saying how much of a Stock Item, or how many alike Portions (same name, nutritional values and Storage Location), the kitchen actually holds: a Movement of the difference from what Dandori believed, which keeps both. Counting Portions down takes those without a Slot first, then the one with the latest Slot; counting them up adds more alike. It stands: a Movement recorded after it but dated before it, such as an Exception logged after the fact, never changes what the kitchen held once it was counted.
 _Avoid_: Adjustment, delta entry
 
 **Staple**:
@@ -113,7 +113,7 @@ The one language a User's Dandori speaks: its pages, and every Food Term. Chosen
 _Avoid_: Content Language, locale, app language
 
 **Food Term**:
-Food written in a User's Language: an Ingredient or Recipe name, a step, an appliance, the Profile's exclusions and allergies, and what the agent says about food.
+Food written in a User's Language: an Ingredient, Recipe or Portion name, a step, an appliance, the Profile's exclusions and allergies, and what the agent says about food.
 _Avoid_: Food content, kitchen data
 
 **User**:
@@ -183,6 +183,7 @@ _Avoid_: Log entry, step
 - A Prep Session at dinner yields three Portions by default: eaten now, eaten as lunch two days later, and a third scheduled two to three days after the second is eaten. The third is typically frozen. Other Prep Sessions yield as many Portions as their planned eating needs, often a single one eaten straight away.
 - A Prep Session never yields more Portions than it has planned eating for. A Portion may still be without a Slot: when its planned eating falls after the Cycle ends, when it is carried over from a previous one, or while an Exception awaits a Plan Proposal. The planner uses Portions without a Slot before scheduling new Prep Sessions.
 - A Prep Session of a Recipe scales its Ingredients to the Portions the Prep Session yields and to their size, which it chooses between three quarters and one and a half of a Portion as the Recipe is written, the same for all of them: a Recipe that makes four Portions, cooked for three at the size written, uses three quarters of each Ingredient; cooked for three at one and a quarter, a little under one each. A Portion's nutritional values scale with its size. A Recipe keeps the Portions it makes as written, so it can be checked against where it came from.
+- No two of a User's Recipes share a name. Editing a Recipe changes only what is yet to be recorded: Portions already prepared keep their name and nutritional values, and an approved Plan is never rechecked.
 - Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg), or one the kitchen can't make from the other, which the Grocery List must buy as such (minced chicken is not chicken breast). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values: on its Recipe Draft, where they can be edited, or by approving a Plan Proposal that prepares the draft as it is.
 - Every Food Term is in the User's Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.

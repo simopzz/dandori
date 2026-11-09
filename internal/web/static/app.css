@@ -58,6 +58,7 @@
   --focus-ring: 2px solid var(--color-accent);
   --rail-width: 13rem;
   --tabs-height: 3.75rem;
+  --fab-size: 3.5rem;
   --measure: 42rem;
 }
 
@@ -773,13 +774,17 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 /* add: a square seal button and a sheet over a navy veil */
 
-.fab {
+.fab-group {
   position: fixed;
   z-index: 11;
   right: var(--space-5);
   bottom: calc(var(--tabs-height) + var(--space-4) + env(safe-area-inset-bottom));
-  width: 3.5rem;
-  height: 3.5rem;
+  display: flex;
+}
+
+.fab {
+  width: var(--fab-size);
+  height: var(--fab-size);
   display: grid;
   place-items: center;
   background: var(--color-accent);
@@ -790,6 +795,50 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 }
 
 .fab .icon { width: 1.5rem; height: 1.5rem; }
+
+.fab-more { width: var(--tap); border-left: 1px solid var(--color-surface); }
+
+/* With a chevron, the + shows what it adds; the menu's choice hides the others.
+   shortcut: a rule for each of two choices, a third option needs its own line. */
+.fab-group:has(.fab-more) .fab-choice {
+  width: auto;
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fab-group:has(+ .fab-menu label:nth-child(1) input:checked) > .fab-choice:not(:nth-child(1)),
+.fab-group:has(+ .fab-menu label:nth-child(2) input:checked) > .fab-choice:not(:nth-child(2)) { display: none; }
+
+.fab-more .icon { width: 1rem; height: 1rem; }
+
+/* What else a page adds, opening over its fab-group. */
+.fab-menu {
+  position: fixed;
+  inset: auto var(--space-5) calc(var(--tabs-height) + var(--space-4) + var(--fab-size) + var(--space-2) + env(safe-area-inset-bottom)) auto;
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-rule-strong);
+}
+
+.fab-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  white-space: nowrap;
+}
+
+.fab-option input { position: absolute; inset: 0; opacity: 0; margin: 0; min-height: 0; cursor: pointer; }
+
+.fab-option:has(input:checked) { background: var(--color-fill); color: var(--color-on-fill); }
+
+.fab-option:has(input:focus-visible) { outline: var(--focus-ring); outline-offset: 2px; }
 
 .sheet {
   margin: auto 0 0;
@@ -815,7 +864,9 @@ html:has(dialog:modal) { overflow: hidden; }
 .sheet-head h2 { font-size: 1.5rem; margin: 0; }
 
 @media (min-width: 900px) {
-  .fab { bottom: var(--space-6); right: var(--space-6); }
+  .fab-group { bottom: var(--space-6); right: var(--space-6); }
+
+  .fab-menu { inset: auto var(--space-6) calc(var(--space-6) + var(--fab-size) + var(--space-2)) auto; }
 
   .sheet { margin: auto; width: 28rem; border: 1px solid var(--color-rule-strong); }
 

@@ -18,8 +18,8 @@ var (
 	msgContinue      = web.Message{En: "Continue", It: "Continua"}
 	msgChooseOne     = web.Message{En: "Choose English or Italiano.", It: "Scegli English o Italiano."}
 	msgLanguageStays = web.Message{
-		En: "Your kitchen already holds Ingredients or Recipes in this Language, so it stays.",
-		It: "La tua cucina ha già Ingredienti o Ricette in questa lingua, quindi resta questa.",
+		En: "Your kitchen already holds Ingredients, Recipes or Portions in this Language, so it stays.",
+		It: "La tua cucina ha già Ingredienti, Ricette o Porzioni in questa lingua, quindi resta questa.",
 	}
 	msgProfile      = web.Message{En: "Profile", It: "Profilo"}
 	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}

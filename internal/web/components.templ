@@ -289,6 +289,7 @@ templ Segmented(legend, name string, choices []Choice, selected, err string) {
 		class="seg"
 		if err != "" {
 			aria-invalid="true"
+			tabindex="-1"
 		}
 	>
 		<legend class="sr-only">{ legend }</legend>
@@ -369,13 +370,68 @@ templ Tag(accent bool, title string) {
 	</span>
 }
 
-// AddSheet is a page's primary add action: a square + that opens the add
-// form, the children, as a sheet. open shows it already open, for a
-// rejected submission, with focus on the first rejected field.
+// AddChoice is one thing a page's floating button adds, in the sheet Sheet, titled Title
+// and drawn as Icon. Src is the fragment that sheet's SheetBody loads as it opens, and
+// Href the page of it without htmx; a sheet that already holds its body has neither.
+type AddChoice struct {
+	Sheet, Title, Icon string
+	Href, Src          templ.SafeURL
+}
+
+// AddButton is a page's primary add action: a square + that opens the sheet of the first
+// of choices. With more than one, the + shows the icon of what it adds, and a chevron
+// beside it chooses another: choosing changes what the + adds and opens nothing, and a
+// new page starts on the first again.
+templ AddButton(choices []AddChoice) {
+	<div class="fab-group">
+		for _, c := range choices {
+			if c.Src == "" {
+				<button class="fab fab-choice" type="button" commandfor={ c.Sheet } command="show-modal" aria-label={ c.Title }>
+					@addFace(c, len(choices) > 1)
+				</button>
+			} else {
+				@sheetLink("fab fab-choice", c.Sheet, c.Href, c.Src, templ.Attributes{"aria-label": c.Title}) {
+					@addFace(c, len(choices) > 1)
+				}
+			}
+		}
+		if len(choices) > 1 {
+			<button class="fab fab-more" type="button" popovertarget="add-choices" aria-label={ T(ctx, msgChooseAdd) }>
+				@Icon("chevron-down")
+			</button>
+		}
+	</div>
+	if len(choices) > 1 {
+		<div id="add-choices" class="fab-menu" popover { choosesAdd... }>
+			for i, c := range choices {
+				<label class="fab-option">
+					<input type="radio" name="add-choice" autocomplete="off" checked?={ i == 0 }/>
+					@Icon(c.Icon)
+					{ c.Title }
+				</label>
+			}
+		</div>
+	}
+}
+
+// addFace is what the + of c shows: with others to choose from, the icon of what it adds.
+templ addFace(c AddChoice, chosen bool) {
+	@Icon("plus")
+	if chosen {
+		@Icon(c.Icon)
+	}
+}
+
+// choosesAdd closes the menu of choices on a choice and leaves focus on the + it made,
+// which sits in the fab-group at the same place as its option in the menu.
+var choosesAdd = templ.Attributes{
+	"hx-on:change": "this.hidePopover(); this.previousElementSibling.children[[...this.children].indexOf(event.target.closest('label'))].focus()",
+}
+
+// AddSheet is the sheet of an add form, the children: from the bottom on a phone, centred
+// on desktop. An AddButton opens it. open shows it already open, for a rejected
+// submission, with focus on the first rejected field.
 templ AddSheet(id, title string, open bool) {
-	<button class="fab" type="button" commandfor={ id } command="show-modal" aria-label={ title }>
-		@Icon("plus")
-	</button>
 	@sheet(id, "sheet", title, open) {
 		{ children... }
 	}
@@ -473,8 +529,15 @@ templ SideSheetLink(id string, href, src templ.SafeURL) {
 // SideSheetLinkWith is a SideSheetLink with more attrs, such as an hx-include that adds
 // to src what the page around it says at that moment.
 templ SideSheetLinkWith(id string, href, src templ.SafeURL, attrs templ.Attributes) {
+	@sheetLink("sheet-link", id, href, src, attrs) {
+		{ children... }
+	}
+}
+
+// sheetLink is a link of class that opens the sheet id, as SideSheetLink does.
+templ sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attributes) {
 	<a
-		class="sheet-link"
+		class={ class }
 		href={ href }
 		hx-get={ string(src) }
 		hx-target={ "#" + SideSheetBody(id) }

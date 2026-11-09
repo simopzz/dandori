@@ -1,6 +1,7 @@
 package ingredients
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,24 +62,13 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 		Usual:    r.PostFormValue("usual"),
 		Staple:   r.PostFormValue("staple") != "",
 		Counting: r.PostFormValue("counting") != "",
-		Values:   map[string]string{},
-		Errs:     map[string]string{},
 	}
-	amounts := map[string]domain.Amount{}
-	for _, field := range nutrients {
-		f.Values[field] = strings.TrimSpace(r.PostFormValue(field))
-		a, problem := domain.ParseAmount(f.Values[field])
-		if problem != "" {
-			f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
-		}
-		amounts[field] = a
-	}
+	f.Values = PostedNutrition(r)
+	nutrition, problems := domain.ParseNutrition(f.Values)
+	f.Errs = NutritionErrs(ctx, problems)
 	ing := domain.Ingredient{
 		Name: f.Name, Unit: domain.Unit(f.Unit), Usual: domain.StorageLocation(f.Usual), Staple: f.Staple,
-		Nutrition: domain.Nutrition{
-			Kcal: amounts["kcal"], Protein: amounts["protein"], Carbs: amounts["carbs"], Fat: amounts["fat"],
-			Fibre: amounts["fibre"], Sugar: amounts["sugar"],
-		},
+		Nutrition: nutrition,
 	}
 	for field, problem := range ing.Problems() {
 		if _, refused := f.Errs[field]; refused {
@@ -87,6 +77,27 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 		f.Errs[field] = web.T(ctx, problemMessage(field, problem))
 	}
 	return ing, f
+}
+
+// PostedNutrition is the nutritional values posted in r as typed, by field.
+func PostedNutrition(r *http.Request) map[string]string {
+	values := map[string]string{}
+	for _, field := range nutrients {
+		values[field] = strings.TrimSpace(r.PostFormValue(field))
+	}
+	return values
+}
+
+// NutritionErrs is why each nutritional value is refused, by field, in the User's
+// Language, from problems, which may hold other fields too.
+func NutritionErrs(ctx context.Context, problems map[string]domain.Problem) map[string]string {
+	errs := map[string]string{}
+	for _, field := range nutrients {
+		if problem, refused := problems[field]; refused {
+			errs[field] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
+		}
+	}
+	return errs
 }
 
 // problemMessage says why field is refused for problem.

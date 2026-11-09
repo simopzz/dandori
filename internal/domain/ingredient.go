@@ -101,10 +101,45 @@ func ParseAmount(typed string) (Amount, Problem) {
 	return Known(v), ""
 }
 
+// Problems is what is missing from n, by field: the four values always known.
+func (n Nutrition) Problems() map[string]Problem {
+	problems := map[string]Problem{}
+	for field, a := range map[string]Amount{"kcal": n.Kcal, "protein": n.Protein, "carbs": n.Carbs, "fat": n.Fat} {
+		if !a.Known {
+			problems[field] = Required
+		}
+	}
+	return problems
+}
+
+// ParseNutrition reads nutritional values as the User typed them, by field, with why
+// each field is refused, by field, if any is: one that isn't a valid amount, or is one
+// of the four always known and is left blank.
+func ParseNutrition(typed map[string]string) (Nutrition, map[string]Problem) {
+	problems := map[string]Problem{}
+	read := func(field string) Amount {
+		a, problem := ParseAmount(typed[field])
+		if problem != "" {
+			problems[field] = problem
+		}
+		return a
+	}
+	n := Nutrition{
+		Kcal: read("kcal"), Protein: read("protein"), Carbs: read("carbs"), Fat: read("fat"),
+		Fibre: read("fibre"), Sugar: read("sugar"),
+	}
+	for field, problem := range n.Problems() {
+		if _, refused := problems[field]; !refused {
+			problems[field] = problem
+		}
+	}
+	return n, problems
+}
+
 // Problems is what is missing from i, by field: its name, unit, usual Storage Location,
 // and the four nutritional values every Ingredient has. A whole Ingredient has none.
 func (i Ingredient) Problems() map[string]Problem {
-	problems := map[string]Problem{}
+	problems := i.Nutrition.Problems()
 	if strings.TrimSpace(i.Name) == "" {
 		problems["name"] = Required
 	}
@@ -113,11 +148,6 @@ func (i Ingredient) Problems() map[string]Problem {
 	}
 	if !slices.Contains(StorageLocations, i.Usual) {
 		problems["usual"] = Required
-	}
-	for field, a := range map[string]Amount{"kcal": i.Nutrition.Kcal, "protein": i.Nutrition.Protein, "carbs": i.Nutrition.Carbs, "fat": i.Nutrition.Fat} {
-		if !a.Known {
-			problems[field] = Required
-		}
 	}
 	return problems
 }

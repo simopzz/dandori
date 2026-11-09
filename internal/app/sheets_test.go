@@ -82,7 +82,7 @@ func TestBrowserATapBehindASheetClosesItAndPressesNothing(t *testing.T) {
 	}
 
 	opensTheCountSheet(t, b)
-	tapsBehind(t, b, "the +", b.Locator(".fab"))
+	tapsBehind(t, b, "the +", b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}))
 	if err := expect.Locator(count).ToBeHidden(); err != nil {
 		t.Errorf("a tap on the + behind the Count sheet leaves it open: %v", err)
 	}

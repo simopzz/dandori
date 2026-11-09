@@ -120,7 +120,7 @@ templ rowSummary(ing domain.Ingredient) {
 	}
 	<span class="row-meta">
 		<span>{ web.T(ctx, StorageLocationNames[ing.Usual]) }</span>
-		@nutritionFacts(ing)
+		@NutritionFacts(web.T(ctx, perUnit[ing.Unit]), ing.Nutrition)
 	</span>
 }
 
@@ -295,18 +295,24 @@ templ ingredientFields(f AddForm) {
 	@web.Hint() {
 		{ web.T(ctx, msgNutritionHint) }
 	}
+	@NutritionFields(f.Values, f.Errs)
+}
+
+// NutritionFields are the six nutritional value fields, with the values as typed and why
+// each was refused, by field. Fibre and sugar may be left blank.
+templ NutritionFields(values, errs map[string]string) {
 	@web.FieldRow() {
 		for _, n := range nutrients {
-			@web.Field(web.T(ctx, nutrientNames[n]), "", f.Errs[n]) {
+			@web.Field(web.T(ctx, nutrientNames[n]), "", errs[n]) {
 				<input
 					type="number"
 					inputmode="decimal"
 					step="0.1"
 					min="0"
 					name={ n }
-					value={ f.Values[n] }
+					value={ values[n] }
 					required?={ n != "fibre" && n != "sugar" }
-					{ Invalid(f.Errs[n])... }
+					{ Invalid(errs[n])... }
 				/>
 			}
 		}
@@ -354,12 +360,12 @@ func Invalid(err string) templ.Attributes {
 	return templ.Attributes{"aria-invalid": "true"}
 }
 
-// nutritionFacts are ing's nutritional values, per its unit, one span each for a row's
-// details: calories, then grams of the rest, an unknown one a dash that a screen reader
-// says is unknown.
-templ nutritionFacts(ing domain.Ingredient) {
-	<span>{ web.T(ctx, perUnit[ing.Unit]) }: { web.Tf(ctx, msgKcalValue, web.Number(ctx, ing.Nutrition.Kcal.Value)) }</span>
-	for _, g := range gramFacts(ing.Nutrition) {
+// NutritionFacts are the nutritional values n, per what per says, one span each for a
+// row's details: calories, then grams of the rest, an unknown one a dash that a screen
+// reader says is unknown.
+templ NutritionFacts(per string, n domain.Nutrition) {
+	<span>{ per }: { web.Tf(ctx, msgKcalValue, web.Number(ctx, n.Kcal.Value)) }</span>
+	for _, g := range gramFacts(n) {
 		<span>
 			{ web.T(ctx, g.name) + " " }
 			if g.amount.Known {

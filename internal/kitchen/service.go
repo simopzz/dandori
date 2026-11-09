@@ -40,10 +40,16 @@ type Held struct {
 	Item       domain.StockItem
 }
 
-// Stock is what the signed-in User's Kitchen Ledger adds up to at now: every Stock Item
-// holding more than nothing, by Storage Location, then by name.
-func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
-	var held []Held
+// Contents is what the kitchen holds, for the Kitchen page: its Stock Items and its
+// groups of alike Portions, each by Storage Location and then by name.
+type Contents struct {
+	Held     []Held
+	Portions []domain.PortionGroup
+}
+
+// Contents is what the signed-in User's Kitchen Ledger adds up to at now.
+func (s *Service) Contents(ctx context.Context, now time.Time) (Contents, error) {
+	var c Contents
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		ings, err := ingredients.LoadIngredients(ctx, tx)
 		if err != nil {
@@ -53,18 +59,24 @@ func (s *Service) Stock(ctx context.Context, now time.Time) ([]Held, error) {
 		if err != nil {
 			return err
 		}
-		items := domain.NewLedger(movements).At(now)
+		portions, err := ledger.LoadPortions(ctx, tx)
+		if err != nil {
+			return err
+		}
+		l := domain.NewLedger(movements)
+		c.Portions = domain.GroupPortions(portions, l.PortionsAt(now))
+		items := l.At(now)
 		for _, location := range domain.StorageLocations {
 			for _, ing := range ings {
 				item := items[domain.StockKey{Ingredient: ing.ID, Location: location}]
 				if item.Held > 0 {
-					held = append(held, Held{Ingredient: ing, Location: location, Item: item})
+					c.Held = append(c.Held, Held{Ingredient: ing, Location: location, Item: item})
 				}
 			}
 		}
 		return nil
 	})
-	return held, err
+	return c, err
 }
 
 // StockItemMovements is one Stock Item with its Movements, newest first.
@@ -188,6 +200,25 @@ func (s *Service) Count(ctx context.Context, now time.Time, id int64, location d
 		})
 	})
 	return rec, err
+}
+
+// AddPortions adds at now the Portions the User typed, as domain.ParsePortions reads
+// them: each Portion a row of its own and one Movement that lists them. Refused, it
+// writes nothing and says why, by field.
+func (s *Service) AddPortions(ctx context.Context, now time.Time, typed domain.TypedPortions) (domain.NewPortions, map[string]domain.Problem, error) {
+	p, problems := domain.ParsePortions(typed)
+	if len(problems) > 0 {
+		return p, problems, nil
+	}
+	return p, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+			ids, err := ledger.SavePortions(ctx, tx, p)
+			if err != nil {
+				return nil, err
+			}
+			return []domain.Movement{l.AddPortions(now, p.Location, ids, p.Note)}, nil
+		})
+	})
 }
 
 // Move records at now a move of the Ingredient id from one Storage Location to another,
