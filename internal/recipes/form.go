@@ -1,0 +1,213 @@
+package recipes
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// IngredientRow is one row of the Recipe form as shown: what was typed, and for an
+// Ingredient not known the rest of what makes it one, to confirm.
+type IngredientRow struct {
+	Name, Quantity, Unit, Usual string
+	Values                      map[string]string
+	Staple                      bool
+	// New says the name is no Ingredient of the User's. Confirming says its fields are
+	// only now shown, so nothing about them is refused yet.
+	New, Confirming bool
+	Errs            map[string]string
+}
+
+// RecipeForm is the Recipe form as shown: what was typed, why it was refused by field,
+// and the Ingredients the User has, to pick from.
+type RecipeForm struct {
+	Action                                    string
+	Submit                                    web.Message
+	Name, Portions, Active, Total, Appliances string
+	Slots                                     []string
+	Steps                                     []string
+	Ingredients                               []IngredientRow
+	Known                                     []domain.Ingredient
+	Errs                                      map[string]string
+	// Taken is the Recipe the name typed is already.
+	TakenID   int64
+	TakenName string
+	// Confirm says some Ingredient's fields are shown for the first time.
+	Confirm bool
+}
+
+// blankForm is the form to write a new Recipe with, with an empty row and step to start.
+func blankForm(known []domain.Ingredient) RecipeForm {
+	return newForm(RecipeForm{Known: known, Errs: map[string]string{}})
+}
+
+// newForm is f as the form to write a new Recipe, with a row and a step to type in.
+func newForm(f RecipeForm) RecipeForm {
+	f.Action, f.Submit = "/recipes", msgSave
+	if len(f.Ingredients) == 0 {
+		f.Ingredients = []IngredientRow{{}}
+	}
+	if len(f.Steps) == 0 {
+		f.Steps = []string{""}
+	}
+	return f
+}
+
+// byName is known by the key that identifies each for a User speaking l.
+func byName(l domain.Language, known []domain.Ingredient) map[string]domain.Ingredient {
+	m := make(map[string]domain.Ingredient, len(known))
+	for _, ing := range known {
+		m[domain.NormaliseIngredientName(l, ing.Name)] = ing
+	}
+	return m
+}
+
+// rowField is the form field of field on the row at index i.
+func rowField(field string, i int) string { return fmt.Sprintf("ing_%s_%d", field, i) }
+
+// readRow reads the row at index i of form, matching its name to known, as an Ingredient
+// (one without an ID being new) and the row as shown. settled says the User has seen
+// the row for what it is now: a new one's fields, or a known one as known.
+func readRow(ctx context.Context, form url.Values, i int, known map[string]domain.Ingredient) (ing domain.Ingredient, row IngredientRow, settled bool) {
+	in := func(field string) string { return strings.TrimSpace(form.Get(rowField(field, i))) }
+	row = IngredientRow{Name: in("name"), Quantity: in("quantity"), Errs: map[string]string{}}
+	seen := in("new")
+	ing, isKnown := known[domain.NormaliseIngredientName(web.LanguageOf(ctx), row.Name)]
+	if isKnown {
+		row.Name, row.Unit = ing.Name, string(ing.Unit)
+		return ing, row, seen != "true"
+	}
+	if row.Name == "" {
+		return ing, row, true
+	}
+	row.New, row.Confirming = true, seen != "true"
+	row.Unit, row.Usual, row.Staple = in("unit"), in("usual"), in("staple") != ""
+	row.Values = map[string]string{}
+	for _, field := range []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"} {
+		row.Values[field] = in(field)
+	}
+	nutrition, problems := domain.ParseNutrition(row.Values)
+	ing = domain.Ingredient{
+		Name: row.Name, Unit: domain.Unit(row.Unit), Usual: domain.StorageLocation(row.Usual), Staple: row.Staple,
+		Nutrition: nutrition,
+	}
+	if !row.Confirming {
+		row.Errs = ingredients.NutritionErrs(ctx, problems)
+	}
+	return ing, row, !row.Confirming
+}
+
+// readForm reads a posted Recipe form, matching its rows to known. It is the Recipe, the
+// form to show back, and whether the Recipe can be saved: it is valid and the User has
+// seen every new Ingredient's fields.
+func readForm(ctx context.Context, form url.Values, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
+	l := web.LanguageOf(ctx)
+	get := func(field string) string { return strings.TrimSpace(form.Get(field)) }
+	f := newForm(RecipeForm{
+		Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"), Appliances: form.Get("appliances"),
+		Steps: nonBlank(form["steps"]), Slots: form["slots"], Known: known, Errs: map[string]string{},
+	})
+	rec := domain.Recipe{Name: f.Name, Appliances: nonBlank(strings.Split(f.Appliances, "\n")), Steps: nonBlank(form["steps"])}
+	for _, kind := range domain.SlotKinds {
+		if slices.Contains(f.Slots, string(kind)) {
+			rec.Kinds = append(rec.Kinds, kind)
+		}
+	}
+	refuse := func(field string, problem domain.Problem) {
+		if _, refused := f.Errs[field]; !refused && problem != "" {
+			f.Errs[field] = web.T(ctx, fieldMessage(field, problem))
+		}
+	}
+	var problem domain.Problem
+	rec.Portions, problem = domain.ParseHowMany(f.Portions)
+	refuse("portions", problem)
+	rec.ActiveMinutes, problem = domain.ParseMinutes(f.Active)
+	refuse("active", problem)
+	rec.TotalMinutes, problem = domain.ParseMinutes(f.Total)
+	refuse("total", problem)
+
+	names := byName(l, known)
+	var rows []IngredientRow
+	for i := 0; form.Has(rowField("name", i)); i++ {
+		ing, row, settled := readRow(ctx, form, i, names)
+		if row.Name == "" && row.Quantity == "" {
+			continue // a blank row, or one cleared to remove it
+		}
+		f.Confirm = f.Confirm || !settled
+		unit := ing.Unit
+		if !slices.Contains(domain.Units, unit) {
+			unit = domain.Pieces // not chosen yet, so any quantity the unit may allow
+		}
+		quantity, qp := domain.ParseQuantity(unit, row.Quantity)
+		if qp != "" {
+			row.Errs["quantity"] = web.T(ctx, web.ProblemMessage(qp, quantityMessages))
+		}
+		rec.Ingredients = append(rec.Ingredients, domain.RecipeIngredient{Ingredient: ing, Quantity: quantity})
+		rows = append(rows, row)
+	}
+	recipeProblems, rowProblems := rec.Problems(l)
+	for field, problem := range recipeProblems {
+		refuse(field, problem)
+	}
+	ok := true
+	for i, problems := range rowProblems {
+		for field, problem := range problems {
+			own := field == "name" || field == "quantity"
+			if _, refused := rows[i].Errs[field]; refused || (!own && (rows[i].Confirming || rows[i].Name == "")) {
+				continue
+			}
+			rows[i].Errs[field] = rowProblem(ctx, field, problem)
+		}
+		ok = ok && len(rows[i].Errs) == 0
+	}
+	f.Ingredients = rows
+	f = newForm(f)
+	return rec, f, ok && len(f.Errs) == 0 && !f.Confirm
+}
+
+// rowProblem says why field of a row is refused.
+func rowProblem(ctx context.Context, field string, problem domain.Problem) string {
+	switch field {
+	case "name":
+		return web.T(ctx, web.ProblemMessage(problem, rowNameMessages))
+	case "quantity":
+		return web.T(ctx, web.ProblemMessage(problem, quantityMessages))
+	}
+	return web.T(ctx, ingredients.ProblemMessage(field, problem))
+}
+
+// typed is row as the fields confirming its new Ingredient show it.
+func (row IngredientRow) typed() ingredients.TypedIngredient {
+	return ingredients.TypedIngredient{
+		Unit: row.Unit, Usual: row.Usual, Staple: row.Staple, Values: row.Values, Errs: row.Errs, Focus: row.Confirming,
+	}
+}
+
+// nonBlank is lines trimmed, without the blank ones.
+func nonBlank(lines []string) []string {
+	out := []string{}
+	for _, line := range lines {
+		if line = strings.TrimSpace(line); line != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+// rowIndex is the row a fragment's query is about, from its name field's number.
+func rowIndex(query url.Values) (int, bool) {
+	for field := range query {
+		if n, ok := strings.CutPrefix(field, "ing_name_"); ok {
+			i, err := strconv.Atoi(n)
+			return i, err == nil && i >= 0
+		}
+	}
+	return 0, false
+}

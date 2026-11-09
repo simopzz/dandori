@@ -881,32 +881,24 @@ html:has(dialog:modal) { overflow: hidden; }
   }
 }
 
-/* Recipe Draft form: its Ingredient grid and step list */
+/* Recipe form: its Ingredient rows and step list */
 
 .ingredient-grid { margin-bottom: var(--space-3); }
 
-.ingredient-head,
 .ingredient-row {
   display: grid;
-  grid-template-columns: 2.75rem minmax(7rem, 2.2fr) 4.5rem 4.75rem repeat(4, minmax(3.25rem, 1fr));
-  gap: 0 var(--space-3);
+  grid-template-columns: minmax(0, 1fr) 6rem;
+  gap: var(--space-3);
   align-items: start;
-  padding: var(--space-2) 0;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-rule);
 }
 
-.ingredient-head { font-size: 0.75rem; letter-spacing: 0.08em; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); }
+.ingredient-details { grid-column: 1 / -1; display: grid; gap: var(--space-3); justify-items: stretch; }
 
-.ingredient-row { border-bottom: 1px solid var(--color-rule); }
+.ingredient-details:empty { display: none; }
 
-.ingredient-row .ingredient-status,
-.ingredient-row .unit { align-self: center; }
-
-.ingredient-row .known { grid-column: span 4; align-self: center; font-size: 0.85rem; color: var(--color-text-soft); }
-
-.ingredient-row .ingredient-error,
-.ingredient-row .ingredient-suggestion { grid-column: 2 / -1; }
-
-.ingredient-suggestion { margin-top: var(--space-2); }
+.ingredient-details .tag { justify-self: start; }
 
 .cell-label {
   position: absolute;
@@ -918,20 +910,6 @@ html:has(dialog:modal) { overflow: hidden; }
 }
 
 @media (max-width: 40rem) {
-  .ingredient-head { display: none; }
-
-  .ingredient-row { grid-template-columns: repeat(4, 1fr); gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; }
-
-  .ingredient-row > :nth-child(-n + 3) { grid-column: 1 / -1; }
-
-  .ingredient-row .ingredient-status:empty { display: none; }
-
-  .ingredient-row > :nth-child(4),
-  .ingredient-row > :nth-child(5) { grid-column: span 2; }
-
-  .ingredient-row .ingredient-error,
-  .ingredient-row .ingredient-suggestion { grid-column: 1 / -1; }
-
   .cell-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 }
 

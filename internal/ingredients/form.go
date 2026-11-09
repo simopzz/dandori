@@ -74,7 +74,7 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 		if _, refused := f.Errs[field]; refused {
 			continue
 		}
-		f.Errs[field] = web.T(ctx, problemMessage(field, problem))
+		f.Errs[field] = web.T(ctx, ProblemMessage(field, problem))
 	}
 	return ing, f
 }
@@ -100,8 +100,8 @@ func NutritionErrs(ctx context.Context, problems map[string]domain.Problem) map[
 	return errs
 }
 
-// problemMessage says why field is refused for problem.
-func problemMessage(field string, problem domain.Problem) web.Message {
+// ProblemMessage says why field of an Ingredient is refused for problem.
+func ProblemMessage(field string, problem domain.Problem) web.Message {
 	switch field {
 	case "name":
 		return msgNameRequired

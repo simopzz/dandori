@@ -13,6 +13,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/recipes"
 )
 
 // loadLanguage reads the signed-in User's Language, if they have chosen one. It has no
@@ -62,12 +63,16 @@ func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	return err
 }
 
-// loadFoodTerms is the signed-in User's Food Terms: their Ingredients and Portions.
+// loadFoodTerms is the signed-in User's Food Terms: Ingredients, Portions and Recipes.
 func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) {
 	ings, err := ingredients.CountIngredients(ctx, q)
 	if err != nil {
 		return domain.FoodTerms{}, err
 	}
 	portions, err := ledger.CountPortions(ctx, q)
-	return domain.FoodTerms{Ingredients: ings, Portions: portions}, err
+	if err != nil {
+		return domain.FoodTerms{}, err
+	}
+	recs, err := recipes.CountRecipes(ctx, q)
+	return domain.FoodTerms{Ingredients: ings, Portions: portions, Recipes: recs}, err
 }

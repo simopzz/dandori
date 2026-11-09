@@ -279,7 +279,7 @@ templ ingredientFields(f AddForm) {
 			<select name="unit" required { Invalid(f.Errs["unit"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, u := range domain.Units {
-					<option value={ string(u) } selected?={ f.Unit == string(u) }>{ web.T(ctx, unitNames[u]) }</option>
+					<option value={ string(u) } selected?={ f.Unit == string(u) }>{ web.T(ctx, UnitNames[u]) }</option>
 				}
 			</select>
 		}
@@ -301,6 +301,48 @@ templ ingredientFields(f AddForm) {
 // NutritionFields are the six nutritional value fields, with the values as typed and why
 // each was refused, by field. Fibre and sugar may be left blank.
 templ NutritionFields(values, errs map[string]string) {
+	@nutritionFields(func(field string) string { return field }, values, errs)
+}
+
+// TypedIngredient is a new Ingredient's fields as typed, with why each was refused.
+// Focus marks them as those a refused form hands the focus to.
+type TypedIngredient struct {
+	Unit, Usual string
+	Values      map[string]string
+	Staple      bool
+	Errs        map[string]string
+	Focus       bool
+}
+
+// NewIngredientFields confirm a new Ingredient inside another form, whose field names
+// are named gives them: its unit, usual Storage Location, Staple flag and values.
+templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
+	@web.FieldRow() {
+		@web.Field(web.T(ctx, msgUnit), "", ing.Errs["unit"]) {
+			<select name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... }>
+				<option value="">{ web.T(ctx, msgChoose) }</option>
+				for _, u := range domain.Units {
+					<option value={ string(u) } selected?={ ing.Unit == string(u) }>{ web.T(ctx, UnitNames[u]) }</option>
+				}
+			</select>
+		}
+		@web.Field(web.T(ctx, msgUsual), "", ing.Errs["usual"]) {
+			<select name={ named("usual") } { Invalid(ing.Errs["usual"])... }>
+				<option value="">{ web.T(ctx, msgChoose) }</option>
+				for _, l := range domain.StorageLocations {
+					<option value={ string(l) } selected?={ ing.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
+				}
+			</select>
+		}
+	}
+	@nutritionFields(named, ing.Values, ing.Errs)
+	@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
+		<input type="checkbox" name={ named("staple") } value="on" checked?={ ing.Staple }/>
+	}
+}
+
+// nutritionFields are the six fields as NutritionFields has them, named as named says.
+templ nutritionFields(named func(string) string, values, errs map[string]string) {
 	@web.FieldRow() {
 		for _, n := range nutrients {
 			@web.Field(web.T(ctx, nutrientNames[n]), "", errs[n]) {
@@ -309,7 +351,7 @@ templ NutritionFields(values, errs map[string]string) {
 					inputmode="decimal"
 					step="0.1"
 					min="0"
-					name={ n }
+					name={ named(n) }
 					value={ values[n] }
 					required?={ n != "fibre" && n != "sugar" }
 					{ Invalid(errs[n])... }

@@ -1,7 +1,6 @@
 package today
 
 import (
-	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -16,11 +15,3 @@ var (
 	msgNoCycle        = web.Message{En: "No Cycle yet.", It: "Ancora nessun Ciclo."}
 	msgOpenKitchen    = web.Message{En: "Open your kitchen", It: "Apri la tua cucina"}
 )
-
-// slotKindNames are each SlotKind's name, as a page shows it.
-var slotKindNames = map[domain.SlotKind]web.Message{
-	domain.Breakfast: {En: "breakfast", It: "colazione"},
-	domain.Lunch:     {En: "lunch", It: "pranzo"},
-	domain.Snack:     {En: "snack", It: "spuntino"},
-	domain.Dinner:    {En: "dinner", It: "cena"},
-}

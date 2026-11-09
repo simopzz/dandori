@@ -26,6 +26,7 @@ import (
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/profile"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/today"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -52,6 +53,7 @@ type App struct {
 	auth        *auth.Service
 	profile     *profile.Service
 	ingredients *ingredients.Service
+	recipes     *recipes.Service
 	kitchen     *kitchen.Service
 	ledger      *ledger.Service
 	today       *today.Service
@@ -72,7 +74,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool), ledger: ledger.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
+	a.recipes = recipes.New(pool, a.ingredients)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.today = today.New(a.profile, a.ledger)
 	if err := a.ping(ctx); err != nil {
@@ -113,6 +116,7 @@ func (a *App) Handler() http.Handler {
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
 	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
+	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
@@ -132,6 +136,11 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /{$}", signedIn(day.Show))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
+	mux.Handle("GET /recipes", signedIn(recs.Library))
+	mux.Handle("POST /recipes", signedIn(recs.Add))
+	mux.Handle("GET /recipes/new", signedIn(recs.ShowNew))
+	mux.Handle("GET /recipes/ingredient-row", signedIn(recs.ShowRow))
+	mux.Handle("GET /recipes/{id}", signedIn(recs.Show))
 	mux.Handle("GET /kitchen", signedIn(kit.Show))
 	mux.Handle("GET /kitchen/stock", signedIn(kit.ShowContents))
 	mux.Handle("GET /kitchen/movements", signedIn(kit.ShowMovements))

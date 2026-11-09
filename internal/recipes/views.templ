@@ -1,0 +1,287 @@
+package recipes
+
+import (
+	"context"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// library is the Recipe Library page: the way to write a Recipe, and the User's Recipes.
+templ library(now time.Time, recipes []domain.Recipe) {
+	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
+		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
+		@web.Actions() {
+			@web.ButtonLink(templ.SafeURL("/recipes/new")) {
+				{ web.T(ctx, msgWrite) }
+			}
+		}
+		@web.Section(0, web.T(ctx, msgRecipes)) {
+			if len(recipes) == 0 {
+				@web.Empty() {
+					{ web.T(ctx, msgNoRecipes) }
+				}
+			} else {
+				@web.Rows() {
+					for _, rec := range recipes {
+						@web.Row() {
+							<a class="row-title" href={ templ.SafeURL(recipeURL(rec.ID)) }>{ rec.Name }</a>
+							<span class="row-meta">
+								<span>{ kindsOf(ctx, rec.Kinds) }</span>
+								<span>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</span>
+								<span>{ web.Tf(ctx, msgKcalPer, web.Number(ctx, rec.NutritionPerPortion().Kcal.Value)) }</span>
+							</span>
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// kindsOf names kinds in the order of a day.
+func kindsOf(ctx context.Context, kinds []domain.SlotKind) string {
+	names := make([]string, len(kinds))
+	for i, k := range kinds {
+		names[i] = web.T(ctx, web.SlotKindNames[k])
+	}
+	return strings.Join(names, ", ")
+}
+
+// recipePage is one Recipe, all of it, its header leaving room for a rating later.
+templ recipePage(now time.Time, rec domain.Recipe) {
+	@web.Layout(web.Tf(ctx, msgRecipeTitle, rec.Name), web.RecipesTab) {
+		@web.PageHeader("レシピ", rec.Name, now)
+		<dl>
+			<dt>{ web.T(ctx, msgMakes) }</dt>
+			<dd>
+				if rec.Portions == 1 {
+					{ web.T(ctx, msgMakesOne) }
+				} else {
+					{ web.Tf(ctx, msgMakesValue, rec.Portions) }
+				}
+			</dd>
+			<dt>{ web.T(ctx, msgActiveShort) }</dt>
+			<dd>{ web.Tf(ctx, msgMinutes, rec.ActiveMinutes) }</dd>
+			<dt>{ web.T(ctx, msgTotalShort) }</dt>
+			<dd>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</dd>
+			<dt>{ web.T(ctx, msgSlots) }</dt>
+			<dd>{ kindsOf(ctx, rec.Kinds) }</dd>
+			if len(rec.Appliances) > 0 {
+				<dt>{ web.T(ctx, msgNeeds) }</dt>
+				<dd>{ strings.Join(rec.Appliances, ", ") }</dd>
+			}
+		</dl>
+		@web.Section(0, web.T(ctx, msgPerPortion)) {
+			@perPortion(rec.NutritionPerPortion())
+		}
+		@web.Section(1, web.T(ctx, msgIngredients)) {
+			@web.Rows() {
+				for _, ri := range rec.Ingredients {
+					@web.Row() {
+						<span class="row-title">{ ri.Ingredient.Name }</span>
+						<span class="row-figure">{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
+					}
+				}
+			}
+		}
+		if len(rec.Steps) > 0 {
+			@web.Section(2, web.T(ctx, msgSteps)) {
+				<ol>
+					for _, step := range rec.Steps {
+						<li>{ step }</li>
+					}
+				</ol>
+			}
+		}
+	}
+}
+
+// perPortion is one Portion's nutritional values, fibre and sugar a floor when some of
+// the Recipe's Ingredients don't know them, and a dash a screen reader says is unknown
+// when none does.
+templ perPortion(n domain.PortionNutrition) {
+	<p class="row-meta">
+		<span>{ web.Tf(ctx, msgKcal, web.Number(ctx, n.Kcal.Value)) }</span>
+		<span>{ web.T(ctx, msgProtein) + " " + web.Tf(ctx, msgGrams, web.Number(ctx, n.Protein.Value)) }</span>
+		<span>{ web.T(ctx, msgCarbs) + " " + web.Tf(ctx, msgGrams, web.Number(ctx, n.Carbs.Value)) }</span>
+		<span>{ web.T(ctx, msgFat) + " " + web.Tf(ctx, msgGrams, web.Number(ctx, n.Fat.Value)) }</span>
+		@floored(msgFibre, n.Fibre, n.FibreFloor)
+		@floored(msgSugar, n.Sugar, n.SugarFloor)
+	</p>
+}
+
+// floored is one value in grams that may be a floor, or unknown.
+templ floored(name web.Message, a domain.Amount, floor bool) {
+	<span>
+		{ web.T(ctx, name) + " " }
+		if !a.Known {
+			<span aria-hidden="true">–</span>
+			<span class="sr-only">{ web.T(ctx, msgUnknown) }</span>
+		} else if floor {
+			{ web.Tf(ctx, msgAtLeastGrams, web.Number(ctx, a.Value)) }
+		} else {
+			{ web.Tf(ctx, msgGrams, web.Number(ctx, a.Value)) }
+		}
+	</span>
+}
+
+// formPage is the Recipe form as a page.
+templ formPage(now time.Time, f RecipeForm) {
+	@web.Layout(web.T(ctx, msgWriteTitle), web.RecipesTab) {
+		@web.PageHeader("レシピ", web.T(ctx, msgWrite), now)
+		@recipeForm(f)
+	}
+}
+
+// knownIngredients is the id of the list of names a row's name offers as the User types.
+const knownIngredients = "known-ingredients"
+
+// recipeForm is the one form every Recipe is written with. Its add buttons post the form
+// back with one more row without the script, which adds the row in place.
+templ recipeForm(f RecipeForm) {
+	<form id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
+		if f.Confirm {
+			@web.Alert() {
+				{ web.T(ctx, msgConfirmNew) }
+			}
+		}
+		<div class="stack section">
+			<div>
+				@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
+					<input name="name" value={ f.Name } required autocomplete="off" { ingredients.Invalid(f.Errs["name"])... }/>
+				}
+				if f.TakenID != 0 {
+					@web.TextLink(templ.Attributes{"href": recipeURL(f.TakenID)}) {
+						{ f.TakenName }
+					}
+				}
+			</div>
+			@web.FieldRow() {
+				@numberField(msgPortions, "portions", f.Portions, f.Errs["portions"])
+				@numberField(msgActive, "active", f.Active, f.Errs["active"])
+				@numberField(msgTotal, "total", f.Total, f.Errs["total"])
+			}
+			<fieldset class="stack">
+				<legend class="field-label">{ web.T(ctx, msgSlots) }</legend>
+				for _, kind := range domain.SlotKinds {
+					@web.Check(web.T(ctx, web.SlotKindNames[kind]), "") {
+						<input type="checkbox" name="slots" value={ string(kind) } checked?={ slices.Contains(f.Slots, string(kind)) } { ingredients.Invalid(f.Errs["slots"])... }/>
+					}
+				}
+				@web.FieldError(f.Errs["slots"])
+			</fieldset>
+		</div>
+		@web.FieldGroup(1, web.T(ctx, msgIngredients)) {
+			@web.Hint() {
+				{ web.T(ctx, msgRowsHint) }
+			}
+			@web.FieldError(f.Errs["ingredients"])
+			<div id="ingredients" class="ingredient-grid">
+				for i, row := range f.Ingredients {
+					@ingredientRow(i, row)
+				}
+			</div>
+			<datalist id={ knownIngredients }>
+				for _, ing := range f.Known {
+					<option value={ ing.Name }></option>
+				}
+			</datalist>
+			<template id="ingredients-template">
+				@ingredientRow(0, IngredientRow{})
+			</template>
+			@web.TextButton(addButton("ingredients")) {
+				{ web.T(ctx, msgAddIngredient) }
+			}
+		}
+		@web.FieldGroup(2, web.T(ctx, msgSteps)) {
+			<ol id="steps" class="draft-steps">
+				for _, step := range f.Steps {
+					@stepRow(step)
+				}
+			</ol>
+			<template id="steps-template">
+				@stepRow("")
+			</template>
+			@web.TextButton(addButton("steps")) {
+				{ web.T(ctx, msgAddStep) }
+			}
+		}
+		<div class="section">
+			@web.Field(web.T(ctx, msgAppliances), web.T(ctx, msgOnePerLine), "") {
+				<textarea name="appliances" rows="3">{ f.Appliances }</textarea>
+			}
+		</div>
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				{ web.T(ctx, f.Submit) }
+			}
+		}
+	</form>
+	<script src="/static/recipe-form.js"></script>
+}
+
+// addButton adds a row to the list named list.
+func addButton(list string) templ.Attributes {
+	return templ.Attributes{"type": "submit", "name": "add", "value": list, "formnovalidate": true, "data-add": list}
+}
+
+// numberField is a Field for a whole number.
+templ numberField(label web.Message, name, value, err string) {
+	@web.Field(web.T(ctx, label), "", err) {
+		<input type="number" inputmode="numeric" name={ name } value={ value } required { ingredients.Invalid(err)... }/>
+	}
+}
+
+// stepRow is one step of the form.
+templ stepRow(step string) {
+	<li><textarea name="steps" rows="2" aria-label={ web.T(ctx, msgStep) }>{ step }</textarea></li>
+}
+
+// ingredientRow is the row at index i: its name, which says what it is as the User leaves
+// it, and its quantity, with what the name leads to beneath them.
+templ ingredientRow(i int, row IngredientRow) {
+	<div class="ingredient-row">
+		@web.Field(web.T(ctx, msgIngredient), "", row.Errs["name"]) {
+			<input
+				name={ rowField("name", i) }
+				value={ row.Name }
+				list={ knownIngredients }
+				autocomplete="off"
+				hx-get="/recipes/ingredient-row"
+				hx-trigger="change"
+				hx-target="next .ingredient-details"
+				hx-swap="innerHTML"
+				hx-include="closest .ingredient-row"
+				{ ingredients.Invalid(row.Errs["name"])... }
+			/>
+		}
+		@web.Field(web.T(ctx, msgQuantity), "", row.Errs["quantity"]) {
+			<input name={ rowField("quantity", i) } value={ row.Quantity } inputmode="decimal" autocomplete="off" { ingredients.Invalid(row.Errs["quantity"])... }/>
+		}
+		<div class="ingredient-details">
+			@rowDetails(i, row)
+		</div>
+	</div>
+}
+
+// rowDetails is what the row at index i shows beneath its name: nothing while it has
+// none, the unit of a known Ingredient, or the fields that confirm a new one.
+templ rowDetails(i int, row IngredientRow) {
+	if row.Name != "" {
+		<input type="hidden" name={ rowField("new", i) } value={ strconv.FormatBool(row.New) }/>
+		if row.New {
+			@web.Tag(true, "") {
+				{ web.T(ctx, msgNew) }
+			}
+			@ingredients.NewIngredientFields(func(field string) string { return rowField(field, i) }, row.typed())
+		} else {
+			<span class="field-hint">{ web.Tf(ctx, msgMeasuredIn, web.T(ctx, ingredients.UnitNames[domain.Unit(row.Unit)])) }</span>
+		}
+	}
+}

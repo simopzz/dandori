@@ -44,6 +44,17 @@ func (e *UnitFixedError) Error() string {
 	return fmt.Sprintf("the Ingredient's Movements are recorded in %s", e.Unit)
 }
 
+// InRecipeError is an Ingredient not deleted, or its unit not changed, because Recipes
+// list it in quantities of its unit: Recipe, the first of them by name, and Others more.
+type InRecipeError struct {
+	Recipe string
+	Others int
+}
+
+func (e *InRecipeError) Error() string {
+	return fmt.Sprintf("the Recipe %q and %d more list the Ingredient", e.Recipe, e.Others)
+}
+
 // ErrHasMovements is an Ingredient not deleted because Movements refer to it: deleting it
 // would take part of the Kitchen Ledger's history with it.
 var ErrHasMovements = errors.New("movements refer to the Ingredient")
@@ -51,18 +62,39 @@ var ErrHasMovements = errors.New("movements refer to the Ingredient")
 // ErrNoIngredient is an Ingredient the signed-in User hasn't got.
 var ErrNoIngredient = errors.New("the User has no such Ingredient")
 
+// RecipesUsing is the first by name of the signed-in User's Recipes that list the
+// Ingredient id, or "" if none does, and how many others do. The recipes feature, which
+// depends on this one, reads it, and app wires it.
+type RecipesUsing func(ctx context.Context, q db.Querier, id int64) (first string, others int, err error)
+
 // Service is the signed-in User's Ingredients.
-type Service struct{ pool *pgxpool.Pool }
+type Service struct {
+	pool         *pgxpool.Pool
+	recipesUsing RecipesUsing
+}
 
 // New creates the Service.
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+func New(pool *pgxpool.Pool, recipesUsing RecipesUsing) *Service {
+	return &Service{pool: pool, recipesUsing: recipesUsing}
+}
+
+// notInRecipe is an *InRecipeError if a Recipe lists the Ingredient id.
+func (s *Service) notInRecipe(ctx context.Context, q db.Querier, id int64) error {
+	first, others, err := s.recipesUsing(ctx, q, id)
+	if err != nil {
+		return err
+	}
+	if first != "" {
+		return &InRecipeError{Recipe: first, Others: others}
+	}
+	return nil
+}
 
 // Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
 // is its id. One whose name normalises as another's is a *NameTakenError. One whose name
 // is only close to another's is a *SuggestedError, unless confirmed says the User meant
 // the name typed.
 func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredient, confirmed bool) (id int64, err error) {
-	normalised := domain.NormaliseIngredientName(l, ing.Name)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if !confirmed {
 			known, err := LoadIngredients(ctx, tx)
@@ -73,18 +105,26 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 				return &SuggestedError{Closest: closest}
 			}
 		}
-		var added bool
-		id, added, err = saveIngredient(ctx, tx, ing, normalised)
-		if err != nil || added {
-			return err
-		}
-		existing, err := loadNameOf(ctx, tx, normalised)
-		if err != nil {
-			return err
-		}
-		return &NameTakenError{Existing: existing}
+		id, err = AddIn(ctx, tx, l, ing)
+		return err
 	})
 	return id, err
+}
+
+// AddIn adds ing, which has no Problems, for the signed-in User, whose Language is l, in
+// the caller's transaction, and is its id: for a feature creating Ingredients with what
+// it saves. One whose name normalises as another's is a *NameTakenError.
+func AddIn(ctx context.Context, q db.Querier, l domain.Language, ing domain.Ingredient) (int64, error) {
+	normalised := domain.NormaliseIngredientName(l, ing.Name)
+	id, added, err := saveIngredient(ctx, q, ing, normalised)
+	if err != nil || added {
+		return id, err
+	}
+	existing, err := loadNameOf(ctx, q, normalised)
+	if err != nil {
+		return 0, err
+	}
+	return 0, &NameTakenError{Existing: existing}
 }
 
 // Edit sets the signed-in User's Ingredient id, whose Language is l, to ing, which has no
@@ -93,7 +133,8 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 // it starts it from nothing. A name that normalises as another's is a *NameTakenError. A
 // new name only close to another's is a *SuggestedError, unless confirmed says the User
 // meant the name typed. A unit changed once Movements refer to the Ingredient is a
-// *UnitFixedError, and one they haven't got is ErrNoIngredient.
+// *UnitFixedError, or an *InRecipeError once a Recipe lists it, and one they haven't got
+// is ErrNoIngredient.
 func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id int64, ing domain.Ingredient, confirmed bool) (counted []domain.Movement, err error) {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -129,6 +170,9 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 			if moved {
 				return &UnitFixedError{Unit: current.Unit}
 			}
+			if err := s.notInRecipe(ctx, tx, id); err != nil {
+				return err
+			}
 		}
 		if ing.Staple && !current.Staple {
 			if counted, err = ledger.CountToNothing(ctx, tx, at, id); err != nil {
@@ -144,8 +188,8 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 }
 
 // Delete deletes the signed-in User's Ingredient id, and is its name. One that Movements
-// refer to is ErrHasMovements, which the database also holds to, and one they haven't got
-// is ErrNoIngredient.
+// refer to is ErrHasMovements and one a Recipe lists an *InRecipeError, both of which the
+// database also holds to, and one they haven't got is ErrNoIngredient.
 func (s *Service) Delete(ctx context.Context, id int64) (name string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		ing, ok, err := LoadIngredient(ctx, tx, id)
@@ -162,10 +206,16 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 		if moved {
 			return ErrHasMovements
 		}
+		if err := s.notInRecipe(ctx, tx, id); err != nil {
+			return err
+		}
 		name = ing.Name
 		return deleteIngredient(ctx, tx, id)
 	})
 	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == foreignKeyViolation {
+		if pgErr.ConstraintName == recipeForeignKey {
+			return s.Delete(ctx, id) // a Recipe listed it meanwhile: now the check finds it
+		}
 		return "", ErrHasMovements
 	}
 	return name, err
@@ -173,6 +223,9 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 
 // foreignKeyViolation is Postgres's code for a row deleted while another refers to it.
 const foreignKeyViolation = "23503"
+
+// recipeForeignKey is the constraint keeping an Ingredient a Recipe lists.
+const recipeForeignKey = "recipe_ingredient_ingredient_fkey"
 
 // Suggest is the name of the signed-in User's Ingredient that name is close to, which
 // they may have meant, or "" if there is none.
