@@ -202,10 +202,15 @@ func (s *Service) Count(ctx context.Context, now time.Time, id int64, location d
 	return rec, err
 }
 
-// AddPortions adds p, which the form has checked, at now: each Portion a row of its own
-// and one Movement that lists them.
-func (s *Service) AddPortions(ctx context.Context, now time.Time, p domain.NewPortions) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+// AddPortions adds at now the Portions the User typed, as domain.ParsePortions reads
+// them: each Portion a row of its own and one Movement that lists them. Refused, it
+// writes nothing and says why, by field.
+func (s *Service) AddPortions(ctx context.Context, now time.Time, typed domain.TypedPortions) (domain.NewPortions, map[string]domain.Problem, error) {
+	p, problems := domain.ParsePortions(typed)
+	if len(problems) > 0 {
+		return p, problems, nil
+	}
+	return p, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
 			ids, err := ledger.SavePortions(ctx, tx, p)
 			if err != nil {

@@ -112,6 +112,30 @@ func (n Nutrition) Problems() map[string]Problem {
 	return problems
 }
 
+// ParseNutrition reads nutritional values as the User typed them, by field, with why
+// each field is refused, by field, if any is: one that isn't a valid amount, or is one
+// of the four always known and is left blank.
+func ParseNutrition(typed map[string]string) (Nutrition, map[string]Problem) {
+	problems := map[string]Problem{}
+	read := func(field string) Amount {
+		a, problem := ParseAmount(typed[field])
+		if problem != "" {
+			problems[field] = problem
+		}
+		return a
+	}
+	n := Nutrition{
+		Kcal: read("kcal"), Protein: read("protein"), Carbs: read("carbs"), Fat: read("fat"),
+		Fibre: read("fibre"), Sugar: read("sugar"),
+	}
+	for field, problem := range n.Problems() {
+		if _, refused := problems[field]; !refused {
+			problems[field] = problem
+		}
+	}
+	return n, problems
+}
+
 // Problems is what is missing from i, by field: its name, unit, usual Storage Location,
 // and the four nutritional values every Ingredient has. A whole Ingredient has none.
 func (i Ingredient) Problems() map[string]Problem {

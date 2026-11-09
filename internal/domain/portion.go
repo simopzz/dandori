@@ -27,6 +27,34 @@ type NewPortions struct {
 	Note      string
 }
 
+// TypedPortions are Portions as the User typed them, Nutrition by field.
+type TypedPortions struct {
+	Name, HowMany, Note string
+	Location            StorageLocation
+	Nutrition           map[string]string
+}
+
+// ParsePortions reads Portions as the User typed them, with why each field is refused,
+// by field, if any is: they need a name, how many, a Storage Location and the values
+// every food has.
+func ParsePortions(typed TypedPortions) (NewPortions, map[string]Problem) {
+	nutrition, problems := ParseNutrition(typed.Nutrition)
+	name := strings.TrimSpace(typed.Name)
+	if name == "" {
+		problems["name"] = Required
+	}
+	howMany, problem := ParseHowMany(typed.HowMany)
+	if problem != "" {
+		problems["how_many"] = problem
+	}
+	if !slices.Contains(StorageLocations, typed.Location) {
+		problems["location"] = Required
+	}
+	return NewPortions{
+		Name: name, HowMany: howMany, Location: typed.Location, Nutrition: nutrition, Note: strings.TrimSpace(typed.Note),
+	}, problems
+}
+
 // ParseHowMany reads how many Portions to add as the User typed it: a whole number of
 // at least 1 and at most maxPortions.
 func ParseHowMany(typed string) (int, Problem) {
@@ -51,7 +79,7 @@ type PortionGroup struct {
 	Name      string
 	Nutrition Nutrition
 	Location  StorageLocation
-	Portions  int
+	Count     int
 }
 
 // portionName is the key two alike Portions' names share.
@@ -80,7 +108,7 @@ func GroupPortions(portions []Portion, where map[int64]StorageLocation) []Portio
 			found[key] = i
 			groups = append(groups, PortionGroup{Name: p.Name, Nutrition: p.Nutrition, Location: location})
 		}
-		groups[i].Portions++
+		groups[i].Count++
 	}
 	slices.SortStableFunc(groups, func(a, b PortionGroup) int {
 		return cmp.Or(

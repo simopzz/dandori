@@ -206,7 +206,8 @@ func (l Ledger) At(at time.Time) map[StockKey]StockItem {
 	return items
 }
 
-// PortionsAt is where each Portion the kitchen holds at a moment is, by its id.
+// PortionsAt is where each Portion added by a moment is, by its id. A Portion is only
+// ever added so far, so the Movement that lists it says where it is.
 func (l Ledger) PortionsAt(at time.Time) map[int64]StorageLocation {
 	where := map[int64]StorageLocation{}
 	for _, m := range l.movements {

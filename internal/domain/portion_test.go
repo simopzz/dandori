@@ -54,11 +54,11 @@ func TestGroupPortions(t *testing.T) {
 	}
 
 	want := []domain.PortionGroup{
-		{Name: "lasagne", Nutrition: values, Location: domain.Fridge, Portions: 1},
-		{Name: "chili", Nutrition: values, Location: domain.Freezer, Portions: 1},
-		{Name: "Lasagne", Nutrition: values, Location: domain.Freezer, Portions: 2},
-		{Name: "lasagne", Nutrition: lighter, Location: domain.Freezer, Portions: 1},
-		{Name: "lasagne", Nutrition: knownFibre, Location: domain.Freezer, Portions: 1},
+		{Name: "lasagne", Nutrition: values, Location: domain.Fridge, Count: 1},
+		{Name: "chili", Nutrition: values, Location: domain.Freezer, Count: 1},
+		{Name: "Lasagne", Nutrition: values, Location: domain.Freezer, Count: 2},
+		{Name: "lasagne", Nutrition: lighter, Location: domain.Freezer, Count: 1},
+		{Name: "lasagne", Nutrition: knownFibre, Location: domain.Freezer, Count: 1},
 	}
 	if got := domain.GroupPortions(portions, where); !reflect.DeepEqual(got, want) {
 		t.Errorf("GroupPortions =\n%+v\nwant\n%+v", got, want)
@@ -84,5 +84,33 @@ func TestAddingPortionsIsOneMovement(t *testing.T) {
 	}
 	if got := l.At(added); len(got) != 0 {
 		t.Errorf("adding Portions touches the Stock Items: %v", got)
+	}
+}
+
+func TestParsePortions(t *testing.T) {
+	values := map[string]string{"kcal": "620", "protein": "32", "carbs": "58", "fat": "28", "fibre": "", "sugar": "8"}
+	want := domain.NewPortions{
+		Name: "Lasagne", HowMany: 3, Location: domain.Freezer, Note: "from Sunday",
+		Nutrition: domain.Nutrition{Kcal: domain.Known(620), Protein: domain.Known(32), Carbs: domain.Known(58), Fat: domain.Known(28), Sugar: domain.Known(8)},
+	}
+
+	got, problems := domain.ParsePortions(domain.TypedPortions{
+		Name: " Lasagne ", HowMany: "3", Location: domain.Freezer, Nutrition: values, Note: " from Sunday ",
+	})
+	if len(problems) != 0 || !reflect.DeepEqual(got, want) {
+		t.Errorf("ParsePortions = %+v, %v; want %+v and no problems", got, problems, want)
+	}
+
+	// Everything refused is refused at once, an optional value only if it is garbled.
+	_, problems = domain.ParsePortions(domain.TypedPortions{
+		Name: "  ", HowMany: "100", Location: "garage",
+		Nutrition: map[string]string{"kcal": "", "protein": "x", "carbs": "1", "fat": "1", "fibre": "-1", "sugar": ""},
+	})
+	wantProblems := map[string]domain.Problem{
+		"name": domain.Required, "how_many": domain.TooLarge, "location": domain.Required,
+		"kcal": domain.Required, "protein": domain.NotANumber, "fibre": domain.Negative,
+	}
+	if !reflect.DeepEqual(problems, wantProblems) {
+		t.Errorf("problems = %v, want %v", problems, wantProblems)
 	}
 }

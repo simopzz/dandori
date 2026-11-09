@@ -133,7 +133,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("GET /kitchen", signedIn(kit.Show))
-	mux.Handle("GET /kitchen/stock", signedIn(kit.ShowStock))
+	mux.Handle("GET /kitchen/stock", signedIn(kit.ShowContents))
 	mux.Handle("GET /kitchen/movements", signedIn(kit.ShowMovements))
 	mux.Handle("GET /kitchen/movements/sheet", signedIn(kit.ShowMovementsSheet))
 	mux.Handle("GET /kitchen/count", signedIn(kit.ShowCount))

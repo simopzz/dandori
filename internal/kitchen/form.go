@@ -1,8 +1,8 @@
 package kitchen
 
 import (
+	"context"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -89,25 +89,30 @@ type PortionsForm struct {
 	Values, Errs        map[string]string
 }
 
-// parsePortionsForm reads the Add Portions form posted in r as the Portions it adds, and
-// the form as typed with why each field is refused, if any is.
-func parsePortionsForm(r *http.Request) (domain.NewPortions, PortionsForm) {
-	ctx := r.Context()
-	nutrition, values, errs := ingredients.PostedNutrition(r)
-	f := PortionsForm{
+// postedPortions is the Add Portions form posted in r, as typed.
+func postedPortions(r *http.Request) domain.TypedPortions {
+	return domain.TypedPortions{
 		Name: strings.TrimSpace(r.PostFormValue("name")), HowMany: strings.TrimSpace(r.PostFormValue("how_many")),
 		Note: strings.TrimSpace(r.PostFormValue("note")), Location: domain.StorageLocation(r.PostFormValue("location")),
-		Values: values, Errs: errs,
+		Nutrition: ingredients.PostedNutrition(r),
 	}
-	if f.Name == "" {
+}
+
+// refusedPortionsForm is the Add Portions form as typed, with why each field was refused,
+// by problems.
+func refusedPortionsForm(ctx context.Context, typed domain.TypedPortions, problems map[string]domain.Problem) PortionsForm {
+	f := PortionsForm{
+		Name: typed.Name, HowMany: typed.HowMany, Note: typed.Note, Location: typed.Location,
+		Values: typed.Nutrition, Errs: ingredients.NutritionErrs(ctx, problems),
+	}
+	if _, refused := problems["name"]; refused {
 		f.Errs["name"] = web.T(ctx, msgPortionNameRequired)
 	}
-	howMany, problem := domain.ParseHowMany(f.HowMany)
-	if problem != "" {
+	if problem, refused := problems["how_many"]; refused {
 		f.Errs["how_many"] = web.T(ctx, web.ProblemMessage(problem, howManyProblemMessages))
 	}
-	if !slices.Contains(domain.StorageLocations, f.Location) {
+	if _, refused := problems["location"]; refused {
 		f.Errs["location"], f.Location = web.T(ctx, msgChooseWhere), ""
 	}
-	return domain.NewPortions{Name: f.Name, HowMany: howMany, Location: f.Location, Nutrition: nutrition, Note: f.Note}, f
+	return f
 }

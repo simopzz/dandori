@@ -1,6 +1,7 @@
 package ingredients
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,8 +63,9 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 		Staple:   r.PostFormValue("staple") != "",
 		Counting: r.PostFormValue("counting") != "",
 	}
-	var nutrition domain.Nutrition
-	nutrition, f.Values, f.Errs = PostedNutrition(r)
+	f.Values = PostedNutrition(r)
+	nutrition, problems := domain.ParseNutrition(f.Values)
+	f.Errs = NutritionErrs(ctx, problems)
 	ing := domain.Ingredient{
 		Name: f.Name, Unit: domain.Unit(f.Unit), Usual: domain.StorageLocation(f.Usual), Staple: f.Staple,
 		Nutrition: nutrition,
@@ -77,31 +79,25 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 	return ing, f
 }
 
-// PostedNutrition reads the nutritional values posted in r, with the values as typed and
-// why each field is refused, by field, in the User's Language: the four always known
-// are required.
-func PostedNutrition(r *http.Request) (n domain.Nutrition, values, errs map[string]string) {
-	ctx := r.Context()
-	values, errs = map[string]string{}, map[string]string{}
-	amounts := map[string]domain.Amount{}
+// PostedNutrition is the nutritional values posted in r as typed, by field.
+func PostedNutrition(r *http.Request) map[string]string {
+	values := map[string]string{}
 	for _, field := range nutrients {
 		values[field] = strings.TrimSpace(r.PostFormValue(field))
-		a, problem := domain.ParseAmount(values[field])
-		if problem != "" {
+	}
+	return values
+}
+
+// NutritionErrs is why each nutritional value is refused, by field, in the User's
+// Language, from problems, which may hold other fields too.
+func NutritionErrs(ctx context.Context, problems map[string]domain.Problem) map[string]string {
+	errs := map[string]string{}
+	for _, field := range nutrients {
+		if problem, refused := problems[field]; refused {
 			errs[field] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
 		}
-		amounts[field] = a
 	}
-	n = domain.Nutrition{
-		Kcal: amounts["kcal"], Protein: amounts["protein"], Carbs: amounts["carbs"], Fat: amounts["fat"],
-		Fibre: amounts["fibre"], Sugar: amounts["sugar"],
-	}
-	for field, problem := range n.Problems() {
-		if _, refused := errs[field]; !refused {
-			errs[field] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
-		}
-	}
-	return n, values, errs
+	return errs
 }
 
 // problemMessage says why field is refused for problem.

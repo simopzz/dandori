@@ -57,16 +57,16 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, page(now, contents, f))
 }
 
-// ShowStock is what the Kitchen page lists alone, which it swaps in after each
-// Count or move.
-func (h Handlers) ShowStock(w http.ResponseWriter, r *http.Request) {
+// ShowContents is what the Kitchen page lists alone, which it swaps in after each
+// write to the Kitchen Ledger.
+func (h Handlers) ShowContents(w http.ResponseWriter, r *http.Request) {
 	now := h.Clock.Now()
 	contents, err := h.Service.Contents(r.Context(), now)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, stockList(now, contents))
+	httpx.Render(w, r, h.Log, http.StatusOK, contentsList(now, contents))
 }
 
 // ShowMovements is a Stock Item's Movements as a page of their own, for a
@@ -199,13 +199,15 @@ func (h Handlers) ShowPortionsSheet(w http.ResponseWriter, r *http.Request) {
 // it was refused. A plain post lands on the Kitchen page, confirming it.
 func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 	ctx, now := r.Context(), h.Clock.Now()
-	p, f := parsePortionsForm(r)
-	if len(f.Errs) > 0 {
-		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f)}.Write(w, r, h.Log)
+	typed := postedPortions(r)
+	p, problems, err := h.Service.AddPortions(ctx, now, typed)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "add Portions", err)
 		return
 	}
-	if err := h.Service.AddPortions(ctx, now, p); err != nil {
-		httpx.ServerError(w, r, h.Log, "add Portions", err)
+	if len(problems) > 0 {
+		f := refusedPortionsForm(ctx, typed, problems)
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f)}.Write(w, r, h.Log)
 		return
 	}
 	web.Answer{

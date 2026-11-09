@@ -31,8 +31,8 @@ const moveSheetID = "move"
 // portionsSheetID is the Add Portions sheet's id.
 const portionsSheetID = "portions"
 
-// stockID is the id of the list a Count or a move refreshes.
-const stockID = "stock"
+// contentsID is the id of the list every write to the Kitchen Ledger refreshes.
+const contentsID = "stock"
 
 // page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
 // action opens, cleared each time it closes, the Add Portions sheet beside it, and each
@@ -105,9 +105,9 @@ func page(now time.Time, contents Contents, f CountForm) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(stockID)
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(contentsID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 39, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 39, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -120,7 +120,7 @@ func page(now time.Time, contents Contents, f CountForm) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(movementSaved + " from:body, " + ingredients.Saved + " from:body")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 39, Col: 124}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 39, Col: 127}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -130,7 +130,7 @@ func page(now time.Time, contents Contents, f CountForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = stockList(now, contents).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = contentsList(now, contents).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -369,9 +369,9 @@ func countPage(now time.Time, f CountForm) templ.Component {
 	})
 }
 
-// stockList is what the kitchen holds under each Storage Location, its Portions above
+// contentsList is what the kitchen holds under each Storage Location, its Portions above
 // its Stock Items, or how to start when it holds nothing.
-func stockList(now time.Time, contents Contents) templ.Component {
+func contentsList(now time.Time, contents Contents) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -477,9 +477,9 @@ func stockList(now time.Time, contents Contents) templ.Component {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var23 string
-							templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgTimes, p.Portions))
+							templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgTimes, p.Count))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 97, Col: 66}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/views.templ`, Line: 97, Col: 63}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 							if templ_7745c5c3_Err != nil {

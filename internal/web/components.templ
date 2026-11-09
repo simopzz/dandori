@@ -289,6 +289,7 @@ templ Segmented(legend, name string, choices []Choice, selected, err string) {
 		class="seg"
 		if err != "" {
 			aria-invalid="true"
+			tabindex="-1"
 		}
 	>
 		<legend class="sr-only">{ legend }</legend>
