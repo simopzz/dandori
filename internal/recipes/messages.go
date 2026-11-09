@@ -17,7 +17,7 @@ var (
 	msgSave         = web.Message{En: "Save Recipe", It: "Salva la Ricetta"}
 
 	msgName       = web.Message{En: "Name", It: "Nome"}
-	msgPortions   = web.Message{En: "Portions as written", It: "Porzioni come scritta"}
+	msgPortions   = web.Message{En: "Portions", It: "Porzioni"}
 	msgActive     = web.Message{En: "Active minutes", It: "Minuti attivi"}
 	msgTotal      = web.Message{En: "Total minutes", It: "Minuti totali"}
 	msgSlots      = web.Message{En: "Eaten at", It: "Si mangia a"}
