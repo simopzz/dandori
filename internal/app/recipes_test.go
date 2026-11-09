@@ -248,6 +248,10 @@ func TestARowsNameShowsTheKnownUnitOrTheNewIngredientsFields(t *testing.T) {
 	if shown := apptest.Text(unknown.Body); !strings.Contains(shown, "Calories") || strings.Contains(shown, "Required") {
 		t.Errorf("a new name shows %q", shown)
 	}
+	renamed := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=seitan&ing_new_2=true")
+	if shown := apptest.Text(renamed.Body); strings.Contains(shown, "Required") {
+		t.Errorf("renaming a new row refuses its blank values before any save: %q", shown)
+	}
 	if !strings.Contains(unknown.Body, `name="ing_kcal_2"`) || !strings.Contains(unknown.Body, `value="120"`) {
 		t.Errorf("the fields aren't numbered for the row or lost what was typed: %s", unknown.Body)
 	}
@@ -316,5 +320,29 @@ func TestBrowserARejectedRecipeFocusesItsInvalidField(t *testing.T) {
 	focused, err := active.Evaluate("el => el === document.activeElement", nil)
 	if err != nil || focused != true {
 		t.Errorf("the invalid field isn't focused: %v %v", focused, err)
+	}
+}
+
+// In a browser, a Recipe with no Ingredient comes back focused on the first row.
+func TestBrowserARecipeWithNoIngredientFocusesTheFirstRow(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	b.Open(t, "/recipes/new")
+
+	for field, v := range map[string]string{"name": "Bowl", "portions": "2", "active": "5", "total": "10"} {
+		if err := b.Locator(`[name="` + field + `"]`).Fill(v); err != nil {
+			t.Fatalf("fill %s: %v", field, err)
+		}
+	}
+	if err := b.GetByLabel("lunch").Check(); err != nil {
+		t.Fatalf("choose lunch: %v", err)
+	}
+	b.Click(t, "Save Recipe")
+	b.Sees(t, "List at least one Ingredient.")
+	got, err := b.Locator(`[name="ing_name_0"]`).Evaluate("el => el === document.activeElement", nil)
+	if err != nil || got != true {
+		t.Errorf("the first row isn't focused: %v %v", got, err)
 	}
 }

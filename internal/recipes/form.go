@@ -169,6 +169,11 @@ func readForm(ctx context.Context, form url.Values, known []domain.Ingredient) (
 	}
 	f.Ingredients = rows
 	f = newForm(f)
+	if msg := f.Errs["ingredients"]; msg != "" { // on the row left to fill in, to focus it
+		f.Ingredients[0].Errs = map[string]string{"name": msg}
+		delete(f.Errs, "ingredients")
+		ok = false
+	}
 	return rec, f, ok && len(f.Errs) == 0 && !f.Confirm
 }
 

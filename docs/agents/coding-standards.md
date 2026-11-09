@@ -30,8 +30,8 @@ Rules code review checks against. Each says what it protects.
 - **No per-feature restyling of base elements.** No selectors like
   `.profile input` or `.stock-form select` in `app.css`: change the base style
   for everyone, or add a component. The exceptions are the feature components
-  `docs/design.md` names (the Recipe Draft form's `ingredient-grid` and
-  `draft-steps`, the Run `trace` panel); a new one is catalogued there first. *Protects: a form control looks and
+  `docs/design.md` names (the Recipe form's `ingredient-grid`, `ingredient-row`,
+  `ingredient-details` and `draft-steps`, the Run `trace` panel); a new one is catalogued there first. *Protects: a form control looks and
   behaves the same on every page.*
 - **The accessibility baseline in `docs/design.md` holds**: AA contrast,
   44px touch targets, visible focus, reduced motion, and meaning never carried

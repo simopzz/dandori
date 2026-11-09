@@ -181,7 +181,6 @@ templ recipeForm(f RecipeForm) {
 			@web.Hint() {
 				{ web.T(ctx, msgRowsHint) }
 			}
-			@web.FieldError(f.Errs["ingredients"])
 			<div id="ingredients" class="ingredient-grid">
 				for i, row := range f.Ingredients {
 					@ingredientRow(i, row)

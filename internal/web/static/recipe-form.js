@@ -15,4 +15,4 @@ for (const button of document.querySelectorAll("#recipe-form [data-add]")) {
     item.querySelector("input, textarea").focus();
   });
 }
-document.querySelector("#recipe-form [aria-invalid=true], #recipe-form [data-confirm]")?.focus();
+(document.querySelector("#recipe-form [aria-invalid=true]") ?? document.querySelector("#recipe-form [data-confirm]"))?.focus();

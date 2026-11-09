@@ -72,7 +72,7 @@ func (h Handlers) ShowRow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, row, _ := readRow(r.Context(), query, i, byName(web.LanguageOf(r.Context()), known))
-	row.Confirming = false
+	row.Confirming, row.Errs = false, nil // nothing is refused before a save
 	httpx.Render(w, r, h.Log, http.StatusOK, rowDetails(i, row))
 }
 

@@ -105,7 +105,7 @@ func (r Recipe) Problems(l Language) (map[string]Problem, []map[string]Problem) 
 }
 
 // NutritionPerPortion is r's Ingredients' nutritional values divided over its Portions,
-// each rounded to a whole number.
+// each rounded to a whole number, a floor rounded down.
 func (r Recipe) NutritionPerPortion() PortionNutrition {
 	if r.Portions < 1 {
 		return PortionNutrition{}
@@ -125,7 +125,10 @@ func (r Recipe) NutritionPerPortion() PortionNutrition {
 		if !known {
 			return Unknown, false
 		}
-		return Known(math.Round(total / float64(r.Portions))), unknown
+		if unknown {
+			return Known(math.Floor(total / float64(r.Portions))), true // rounded up, it would claim more than is known
+		}
+		return Known(math.Round(total / float64(r.Portions))), false
 	}
 	var n PortionNutrition
 	n.Kcal, _ = perPortion(func(n Nutrition) Amount { return n.Kcal })

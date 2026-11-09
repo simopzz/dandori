@@ -61,7 +61,7 @@ func TestRecipeNutritionPerPortionIsAFloorWhenAValueIsUnknown(t *testing.T) {
 		{"every Ingredient knows it", []domain.RecipeIngredient{{Ingredient: rice, Quantity: grams(200)}}, domain.Known(3), false},
 		{"some Ingredients know it", []domain.RecipeIngredient{
 			{Ingredient: rice, Quantity: grams(200)}, {Ingredient: oil, Quantity: grams(30)},
-		}, domain.Known(3), true},
+		}, domain.Known(2), true}, // 2.6 g: "at least 3 g" would claim more than is known
 		{"no Ingredient knows it", []domain.RecipeIngredient{{Ingredient: oil, Quantity: grams(30)}}, domain.Unknown, false},
 	}
 	for _, tt := range tests {
