@@ -30,8 +30,10 @@ type IngredientRow struct {
 // RecipeForm is the Recipe form as shown: what was typed, why it was refused by field,
 // and the Ingredients the User has, to pick from.
 type RecipeForm struct {
+	// ID is the Recipe being edited, or 0 for a new one.
+	ID                                        int64
 	Action                                    string
-	Submit                                    web.Message
+	Title, Heading, Submit                    web.Message
 	Name, Portions, Active, Total, Appliances string
 	Slots                                     []string
 	Steps                                     []string
@@ -50,9 +52,30 @@ func blankForm(known []domain.Ingredient) RecipeForm {
 	return newForm(RecipeForm{Known: known, Errs: map[string]string{}})
 }
 
-// newForm is f as the form to write a new Recipe, with a row and a step to type in.
+// formOf is the form to edit rec with, holding it as it is.
+func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) RecipeForm {
+	f := RecipeForm{
+		ID: rec.ID, Name: rec.Name, Portions: strconv.Itoa(rec.Portions), Active: strconv.Itoa(rec.ActiveMinutes),
+		Total: strconv.Itoa(rec.TotalMinutes), Appliances: strings.Join(rec.Appliances, "\n"), Steps: rec.Steps,
+		Known: known, Errs: map[string]string{},
+	}
+	for _, kind := range rec.Kinds {
+		f.Slots = append(f.Slots, string(kind))
+	}
+	for _, ri := range rec.Ingredients {
+		f.Ingredients = append(f.Ingredients, IngredientRow{
+			Name: ri.Ingredient.Name, Quantity: web.Number(ctx, ri.Quantity.Number()), Unit: string(ri.Ingredient.Unit),
+		})
+	}
+	return newForm(f)
+}
+
+// newForm is f as the form to post, with a row and a step to type in.
 func newForm(f RecipeForm) RecipeForm {
-	f.Action, f.Submit = "/recipes", msgSave
+	f.Action, f.Title, f.Heading, f.Submit = "/recipes", msgWriteTitle, msgWrite, msgSave
+	if f.ID != 0 {
+		f.Action, f.Title, f.Heading = recipeURL(f.ID), msgEditTitle, msgEditHeading
+	}
 	if len(f.Ingredients) == 0 {
 		f.Ingredients = []IngredientRow{{}}
 	}
@@ -106,14 +129,14 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 	return ing, row, !row.Confirming
 }
 
-// readForm reads a posted Recipe form, matching its rows to known. It is the Recipe, the
-// form to show back, and whether the Recipe can be saved: it is valid and the User has
-// seen every new Ingredient's fields.
-func readForm(ctx context.Context, form url.Values, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
+// readForm reads a posted form for the Recipe id, 0 for a new one, matching its rows to
+// known. It is the Recipe, the form to show back, and whether the Recipe can be saved: it
+// is valid and the User has seen every new Ingredient's fields.
+func readForm(ctx context.Context, form url.Values, id int64, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
 	l := web.LanguageOf(ctx)
 	get := func(field string) string { return strings.TrimSpace(form.Get(field)) }
 	f := newForm(RecipeForm{
-		Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"), Appliances: form.Get("appliances"),
+		ID: id, Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"), Appliances: form.Get("appliances"),
 		Steps: nonBlank(form["steps"]), Slots: form["slots"], Known: known, Errs: map[string]string{},
 	})
 	rec := domain.Recipe{Name: f.Name, Appliances: nonBlank(strings.Split(f.Appliances, "\n")), Steps: nonBlank(form["steps"])}

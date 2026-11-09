@@ -19,14 +19,27 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
-// Library is the Recipe Library page.
+// Library is the Recipe Library page, searched for its query q.
 func (h Handlers) Library(w http.ResponseWriter, r *http.Request) {
-	recipes, err := h.Service.List(r.Context())
+	q := r.URL.Query().Get("q")
+	recipes, err := h.Service.Search(r.Context(), q)
 	if err != nil {
-		httpx.ServerError(w, r, h.Log, "list the Recipes", err)
+		httpx.ServerError(w, r, h.Log, "search the Recipes", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, library(h.Clock.Now(), recipes))
+	httpx.Render(w, r, h.Log, http.StatusOK, library(h.Clock.Now(), recipes, q))
+}
+
+// ShowList is the list of Recipes alone, searched for its query q, which the search swaps
+// in as the User types.
+func (h Handlers) ShowList(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	recipes, err := h.Service.Search(r.Context(), q)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "search the Recipes", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, recipeList(recipes, q))
 }
 
 // Show is the Recipe's own page.
@@ -90,10 +103,64 @@ func (h Handlers) ShowBlankStep(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, stepRow("", true))
 }
 
-// Add saves the Recipe posted, with its new Ingredients. A form that adds a row, for a
-// browser without htmx, comes back with one more and saves nothing. One the
-// form refuses comes back as typed with why, a row of an unknown name opened to confirm.
-func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
+// ShowEdit is the form to edit a Recipe with.
+func (h Handlers) ShowEdit(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	rec, err := h.Service.Find(ctx, id)
+	if errors.Is(err, ErrNoRecipe) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the Recipe", err)
+		return
+	}
+	known, err := h.Service.KnownIngredients(ctx)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), formOf(ctx, rec, known)))
+}
+
+// Add saves the Recipe posted as a new one.
+func (h Handlers) Add(w http.ResponseWriter, r *http.Request) { h.save(w, r, 0) }
+
+// Edit saves the Recipe posted over the Recipe in the path.
+func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
+	if id, ok := httpx.PathID(w, r); ok {
+		h.save(w, r, id)
+	}
+}
+
+// Delete deletes a Recipe, its Ingredients staying in the User's kitchen.
+func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	name, err := h.Service.Delete(ctx, id)
+	if errors.Is(err, ErrNoRecipe) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "delete a Recipe", err)
+		return
+	}
+	web.Answer{Notice: web.Tf(ctx, msgDeleted, name), RedirectTo: "/recipes"}.Write(w, r, h.Log)
+}
+
+// save saves the Recipe posted, with its new Ingredients, over the Recipe id, or as a new
+// one if id is 0. A form that adds a row, for a browser without htmx, comes back with one
+// more and saves nothing. One the form refuses comes back as typed with why, a row of an
+// unknown name opened to confirm.
+func (h Handlers) save(w http.ResponseWriter, r *http.Request, id int64) {
 	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -104,7 +171,7 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 		return
 	}
-	rec, f, ok := readForm(ctx, r.PostForm, known)
+	rec, f, ok := readForm(ctx, r.PostForm, id, known)
 	switch r.PostForm.Get("add") {
 	case "ingredients":
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), withRow(f)))
@@ -120,7 +187,17 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		refused(f)
 		return
 	}
-	id, err := h.Service.Add(ctx, web.LanguageOf(ctx), rec)
+	notice := msgSaved
+	if id == 0 {
+		notice = msgAdded
+		id, err = h.Service.Add(ctx, web.LanguageOf(ctx), rec)
+	} else {
+		err = h.Service.Edit(ctx, web.LanguageOf(ctx), id, rec)
+	}
+	if errors.Is(err, ErrNoRecipe) {
+		http.NotFound(w, r)
+		return
+	}
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"], f.TakenID, f.TakenName = web.T(ctx, msgNameTaken), taken.ID, taken.Existing
 		refused(f)
@@ -131,15 +208,15 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 			httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 			return
 		}
-		_, f, _ = readForm(ctx, r.PostForm, known)
+		_, f, _ = readForm(ctx, r.PostForm, f.ID, known)
 		refused(f)
 		return
 	}
 	if err != nil {
-		httpx.ServerError(w, r, h.Log, "add a Recipe", err)
+		httpx.ServerError(w, r, h.Log, "save a Recipe", err)
 		return
 	}
-	web.Answer{Notice: web.Tf(ctx, msgAdded, rec.Name), RedirectTo: recipeURL(id)}.Write(w, r, h.Log)
+	web.Answer{Notice: web.Tf(ctx, notice, rec.Name), RedirectTo: recipeURL(id)}.Write(w, r, h.Log)
 }
 
 // withRow is f with one more Ingredient row, showing nothing refused yet.

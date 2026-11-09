@@ -52,32 +52,90 @@ func (s *Service) Add(ctx context.Context, l domain.Language, rec domain.Recipe)
 			return err
 		}
 		if !added {
-			taken, existing, err := loadTaken(ctx, tx, normalised)
+			taken, existing, err := loadTaken(ctx, tx, normalised, 0)
 			if err != nil {
 				return err
 			}
 			return &NameTakenError{ID: taken, Existing: existing}
 		}
-		for i, ri := range rec.Ingredients {
-			if ri.Ingredient.ID != 0 {
-				continue
-			}
-			if rec.Ingredients[i].Ingredient.ID, err = ingredients.AddIn(ctx, tx, l, ri.Ingredient); err != nil {
-				return err
-			}
-		}
-		return saveRecipeIngredients(ctx, tx, id, rec)
+		return saveIngredients(ctx, tx, l, id, rec)
 	})
 	return id, err
 }
 
-// List is the signed-in User's Recipes by name.
-func (s *Service) List(ctx context.Context) (recipes []domain.Recipe, err error) {
+// Edit sets the signed-in User's Recipe id, whose Language is l, to rec, which has no
+// Problems, adding its new Ingredients, all or nothing. Only the Recipe changes: what is
+// already recorded keeps its own name and values. A name another of theirs has is a
+// *NameTakenError, a new Ingredient added since the form was read an
+// *ingredients.NameTakenError, and one they haven't got is ErrNoRecipe.
+func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, rec domain.Recipe) error {
+	normalised := domain.NormaliseRecipeName(rec.Name)
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		taken, existing, err := loadTaken(ctx, tx, normalised, id)
+		if err != nil {
+			return err
+		}
+		if taken != 0 {
+			return &NameTakenError{ID: taken, Existing: existing}
+		}
+		updated, err := updateRecipe(ctx, tx, id, rec, normalised)
+		if err != nil {
+			return err
+		}
+		if !updated {
+			return ErrNoRecipe
+		}
+		if err := deleteRecipeIngredients(ctx, tx, id); err != nil {
+			return err
+		}
+		return saveIngredients(ctx, tx, l, id, rec)
+	})
+}
+
+// Delete deletes the signed-in User's Recipe id with its own rows, freeing its
+// Ingredients, and is its name, or ErrNoRecipe.
+func (s *Service) Delete(ctx context.Context, id int64) (name string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		name, err = deleteRecipe(ctx, tx, id)
+		return err
+	})
+	return name, err
+}
+
+// saveIngredients adds rec's new Ingredients for a User speaking l, in the caller's
+// transaction, and lists all of them on the Recipe id.
+func saveIngredients(ctx context.Context, tx pgx.Tx, l domain.Language, id int64, rec domain.Recipe) (err error) {
+	for i, ri := range rec.Ingredients {
+		if ri.Ingredient.ID != 0 {
+			continue
+		}
+		if rec.Ingredients[i].Ingredient.ID, err = ingredients.AddIn(ctx, tx, l, ri.Ingredient); err != nil {
+			return err
+		}
+	}
+	return saveRecipeIngredients(ctx, tx, id, rec)
+}
+
+// Search is the signed-in User's Recipes whose names a search for query finds, most alike
+// first, or all of them by name for a blank query.
+func (s *Service) Search(ctx context.Context, query string) ([]domain.Recipe, error) {
+	var recipes []domain.Recipe
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		recipes, err = loadRecipes(ctx, tx, nil)
 		return err
 	})
-	return recipes, err
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(recipes))
+	for i, rec := range recipes {
+		names[i] = rec.Name
+	}
+	found := []domain.Recipe{}
+	for _, i := range domain.SearchIngredients(query, names) {
+		found = append(found, recipes[i])
+	}
+	return found, nil
 }
 
 // Find is the signed-in User's Recipe id, or ErrNoRecipe.

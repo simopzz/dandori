@@ -10,11 +10,19 @@ var (
 	msgRecipes      = web.Message{En: "Recipes", It: "Ricette"}
 	msgRecipesTitle = web.Message{En: "Recipes · Dandori", It: "Ricette · Dandori"}
 	msgNoRecipes    = web.Message{En: "No Recipes yet.", It: "Ancora nessuna Ricetta."}
+	msgSearch       = web.Message{En: "Search", It: "Cerca"}
+	msgNoMatch      = web.Message{En: "No Recipe is like %s.", It: "Nessuna Ricetta somiglia a %s."}
 	msgWrite        = web.Message{En: "Write a Recipe", It: "Scrivi una Ricetta"}
 	msgWriteTitle   = web.Message{En: "Write a Recipe · Dandori", It: "Scrivi una Ricetta · Dandori"}
 	msgRecipeTitle  = web.Message{En: "%s · Dandori", It: "%s · Dandori"}
 	msgAdded        = web.Message{En: "Added %s to the Recipe Library.", It: "%s aggiunta al Ricettario."}
 	msgSave         = web.Message{En: "Save Recipe", It: "Salva la Ricetta"}
+	msgSaved        = web.Message{En: "Saved %s.", It: "Salvata: %s."}
+	msgEdit         = web.Message{En: "Edit", It: "Modifica"}
+	msgEditHeading  = web.Message{En: "Edit a Recipe", It: "Modifica una Ricetta"}
+	msgEditTitle    = web.Message{En: "Edit a Recipe · Dandori", It: "Modifica una Ricetta · Dandori"}
+	msgDelete       = web.Message{En: "Delete", It: "Elimina"}
+	msgDeleted      = web.Message{En: "Deleted %s.", It: "Eliminata: %s."}
 
 	msgName       = web.Message{En: "Name", It: "Nome"}
 	msgPortions   = web.Message{En: "Portions", It: "Porzioni"}
