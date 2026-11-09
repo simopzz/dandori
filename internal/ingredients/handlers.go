@@ -156,6 +156,11 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
+	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
+		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitInRecipe, recipesNamed(ctx, inRecipe))
+		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
+		return
+	}
 	if errors.Is(err, ErrNoIngredient) {
 		http.NotFound(w, r)
 		return
@@ -202,6 +207,11 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
+	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
+		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.Tf(ctx, msgDeleteInRecipe, recipesNamed(ctx, inRecipe))}, Q: q}
+		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
+		return
+	}
 	if errors.Is(err, ErrNoIngredient) {
 		http.NotFound(w, r)
 		return
@@ -211,6 +221,17 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.answerWrite(w, r, web.Answer{Notice: web.Tf(ctx, msgDeleted, name), RedirectTo: searched(q)}, sheetView{Q: q})
+}
+
+// recipesNamed names the Recipes e says list an Ingredient: the first, and how many more.
+func recipesNamed(ctx context.Context, e *InRecipeError) string {
+	switch e.Others {
+	case 0:
+		return e.Recipe
+	case 1:
+		return web.Tf(ctx, msgOneMoreRecipe, e.Recipe)
+	}
+	return web.Tf(ctx, msgMoreRecipes, e.Recipe, e.Others)
 }
 
 // searched is the Ingredients page searched for q, where a plain post lands.

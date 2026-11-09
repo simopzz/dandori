@@ -9,6 +9,7 @@ type Tab string
 const (
 	NoTab      Tab = ""
 	SignedOut  Tab = "signed-out"
+	RecipesTab Tab = "/recipes"
 	KitchenTab Tab = "/kitchen"
 	ProfileTab Tab = "/profile"
 )
@@ -49,6 +50,7 @@ templ Layout(title string, current Tab) {
 				@sky("rail-sky", []string{"paper", "cream", "peach", "salmon"})
 				if current != SignedOut {
 					<div class="tabs">
+						@tab(RecipesTab, current, "book-open", T(ctx, msgRecipes), false)
 						@tab(KitchenTab, current, "package", T(ctx, msgKitchen), false)
 						@tab(ProfileTab, current, "user", T(ctx, msgProfile), false)
 					</div>

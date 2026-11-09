@@ -8,6 +8,7 @@ import (
 
 // The shell's and the shared components' Messages.
 var (
+	msgRecipes        = Message{En: "Recipes", It: "Ricette"}
 	msgKitchen        = Message{En: "Kitchen", It: "Cucina"}
 	msgProfile        = Message{En: "Profile", It: "Profilo"}
 	msgMainNav        = Message{En: "Main", It: "Principale"}
@@ -32,6 +33,14 @@ func ProblemMessage(problem domain.Problem, own map[domain.Problem]Message) Mess
 		return m
 	}
 	return problems[problem]
+}
+
+// SlotKindNames are each SlotKind's name, as a page shows it.
+var SlotKindNames = map[domain.SlotKind]Message{
+	domain.Breakfast: {En: "breakfast", It: "colazione"},
+	domain.Lunch:     {En: "lunch", It: "pranzo"},
+	domain.Snack:     {En: "snack", It: "spuntino"},
+	domain.Dinner:    {En: "dinner", It: "cena"},
 }
 
 // InLocations say where in each Storage Location, as Italian takes each Storage

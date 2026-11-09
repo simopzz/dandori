@@ -56,8 +56,12 @@ var (
 		En: "Its Movements are recorded in %s, so its unit stays, even counted to nothing.",
 		It: "I suoi Movimenti sono registrati in %s, quindi l'unità resta, anche contato a zero.",
 	}
-	msgMovements     = web.Message{En: "Movements", It: "Movimenti"}
-	msgStapleCounted = web.Message{
+	msgUnitInRecipe   = web.Message{En: "Used by %s, so its unit stays.", It: "In uso in %s, quindi l'unità resta."}
+	msgDeleteInRecipe = web.Message{En: "Used by %s, so it can't be deleted.", It: "In uso in %s, quindi non si può eliminare."}
+	msgOneMoreRecipe  = web.Message{En: "%s and one more Recipe", It: "%s e un'altra Ricetta"}
+	msgMoreRecipes    = web.Message{En: "%s and %d more Recipes", It: "%s e altre %d Ricette"}
+	msgMovements      = web.Message{En: "Movements", It: "Movimenti"}
+	msgStapleCounted  = web.Message{
 		En: "%s counted to nothing: it's a Staple now.",
 		It: "%s: contato a zero, ora è una Base.",
 	}
@@ -82,10 +86,10 @@ var problemMessages = map[domain.Problem]web.Message{
 	domain.TooLarge: {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 }
 
-// unitNames name each Unit as a choice, recordedIn as quantities are recorded in it, and
+// UnitNames name each Unit as a choice, recordedIn as quantities are recorded in it, and
 // perUnit is what nutritional values are per.
 var (
-	unitNames = map[domain.Unit]web.Message{
+	UnitNames = map[domain.Unit]web.Message{
 		domain.Grams:       {En: "g", It: "g"},
 		domain.Millilitres: {En: "ml", It: "ml"},
 		domain.Pieces:      {En: "piece", It: "pezzo"},

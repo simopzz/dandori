@@ -403,3 +403,67 @@ func (s *Scenario) CountsPortions(link, stated, note string) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("%s: %s: %d %s", link, stated, s.page.StatusCode, s.page.Path))
 }
+
+// RecipeRow is one Ingredient row of the Recipe form: its name and quantity, and, when
+// Confirmed says its fields were shown, the rest of a new Ingredient.
+type RecipeRow struct {
+	Ingredient
+	Quantity  string
+	Confirmed bool
+}
+
+// Recipe is a Recipe as the Recipe form takes it, each value as typed.
+type Recipe struct {
+	Name, Portions, Active, Total, Appliances string
+	Slots, Steps                              []string
+	Ingredients                               []RecipeRow
+}
+
+// Fill sets f, the Recipe form, to r.
+func (r Recipe) Fill(f FormData) {
+	for field, v := range map[string]string{
+		"name": r.Name, "portions": r.Portions, "active": r.Active, "total": r.Total, "appliances": r.Appliances,
+	} {
+		f.Values.Set(field, v)
+	}
+	f.Values["slots"], f.Values["steps"] = r.Slots, r.Steps
+	for field := range f.Values {
+		if strings.HasPrefix(field, "ing_") {
+			f.Values.Del(field)
+		}
+	}
+	for i, row := range r.Ingredients {
+		set := func(field, v string) { f.Values.Set(fmt.Sprintf("ing_%s_%d", field, i), v) }
+		set("name", row.Name)
+		set("quantity", row.Quantity)
+		if !row.Confirmed {
+			continue
+		}
+		set("new", "true")
+		for field, v := range map[string]string{
+			"unit": row.Unit, "usual": row.Usual, "kcal": row.Kcal, "protein": row.Protein,
+			"carbs": row.Carbs, "fat": row.Fat, "fibre": row.Fibre, "sugar": row.Sugar,
+		} {
+			set(field, v)
+		}
+		if row.Staple {
+			set("staple", "on")
+		}
+	}
+}
+
+// WritesRecipe writes r with the Recipe form, posted as a browser without htmx.
+func (s *Scenario) WritesRecipe(r Recipe) {
+	s.t.Helper()
+	s.Open("/recipes/new")
+	s.PostsRecipeForm(r)
+}
+
+// PostsRecipeForm posts the Recipe form on the page open, set to r.
+func (s *Scenario) PostsRecipeForm(r Recipe) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "recipe-form")
+	r.Fill(form)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("writes the Recipe %q: %d %s", r.Name, s.page.StatusCode, s.page.Path))
+}
