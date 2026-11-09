@@ -31,9 +31,9 @@ func TestParseHowMany(t *testing.T) {
 	}
 }
 
-// Alike Portions share a group, spelled as the oldest; a different Storage Location or
-// value makes another, and groups go by Storage Location, then name.
-func TestGroupPortions(t *testing.T) {
+// Alike Portions share a Lot, spelled as the oldest; a different Storage Location or
+// value makes another, and Lots go by Storage Location, then name.
+func TestPortionLots(t *testing.T) {
 	values := domain.Nutrition{Kcal: domain.Known(620), Protein: domain.Known(32), Carbs: domain.Known(58), Fat: domain.Known(28)}
 	lighter := values
 	lighter.Kcal = domain.Known(480)
@@ -53,15 +53,15 @@ func TestGroupPortions(t *testing.T) {
 		1: domain.Freezer, 2: domain.Freezer, 3: domain.Fridge, 4: domain.Freezer, 5: domain.Freezer, 6: domain.Freezer,
 	}
 
-	want := []domain.PortionGroup{
+	want := []domain.PortionLot{
 		{Name: "lasagne", Nutrition: values, Location: domain.Fridge, IDs: []int64{3}},
 		{Name: "chili", Nutrition: values, Location: domain.Freezer, IDs: []int64{6}},
 		{Name: "Lasagne", Nutrition: values, Location: domain.Freezer, IDs: []int64{1, 2}},
 		{Name: "lasagne", Nutrition: lighter, Location: domain.Freezer, IDs: []int64{4}},
 		{Name: "lasagne", Nutrition: knownFibre, Location: domain.Freezer, IDs: []int64{5}},
 	}
-	if got := domain.GroupPortions(portions, where); !reflect.DeepEqual(got, want) {
-		t.Errorf("GroupPortions =\n%+v\nwant\n%+v", got, want)
+	if got := domain.PortionLots(portions, where); !reflect.DeepEqual(got, want) {
+		t.Errorf("PortionLots =\n%+v\nwant\n%+v", got, want)
 	}
 }
 
@@ -146,9 +146,9 @@ func TestPortionsFollowTheirMovements(t *testing.T) {
 // whole is n Portions as a Quantity, as a Movement holds them.
 func whole(n float64) domain.Quantity { return domain.QuantityOf(n) }
 
-// A group is what is alike the Portion asked for, in that Storage Location; one no longer
-// held still names it, with nothing in it, and an unknown Portion has no group.
-func TestGroupOf(t *testing.T) {
+// A Lot is what is alike the Portion asked for, in that Storage Location; one no longer
+// held still names it, with nothing in it, and an unknown Portion has no Lot.
+func TestLotOf(t *testing.T) {
 	values := domain.Nutrition{Kcal: domain.Known(620), Protein: domain.Known(32), Carbs: domain.Known(58), Fat: domain.Known(28)}
 	lighter := values
 	lighter.Kcal = domain.Known(480)
@@ -160,18 +160,18 @@ func TestGroupOf(t *testing.T) {
 	}
 	where := map[int64]domain.StorageLocation{2: domain.Freezer, 3: domain.Freezer, 4: domain.Freezer}
 
-	got, ok := domain.GroupOf(portions, where, 3, domain.Freezer)
-	want := domain.PortionGroup{Name: "lasagne", Nutrition: values, Location: domain.Freezer, IDs: []int64{2, 3}}
+	got, ok := domain.LotOf(portions, where, domain.LotKey{Portion: 3, Location: domain.Freezer})
+	want := domain.PortionLot{Name: "lasagne", Nutrition: values, Location: domain.Freezer, IDs: []int64{2, 3}}
 	if !ok || !reflect.DeepEqual(got, want) {
-		t.Errorf("GroupOf = %+v, %v; want %+v", got, ok, want)
+		t.Errorf("LotOf = %+v, %v; want %+v", got, ok, want)
 	}
-	got, ok = domain.GroupOf(portions, where, 1, domain.Fridge)
-	want = domain.PortionGroup{Name: "Lasagne", Nutrition: values, Location: domain.Fridge}
+	got, ok = domain.LotOf(portions, where, domain.LotKey{Portion: 1, Location: domain.Fridge})
+	want = domain.PortionLot{Name: "Lasagne", Nutrition: values, Location: domain.Fridge}
 	if !ok || !reflect.DeepEqual(got, want) {
-		t.Errorf("GroupOf a place holding none = %+v, %v; want %+v", got, ok, want)
+		t.Errorf("LotOf a place holding none = %+v, %v; want %+v", got, ok, want)
 	}
-	if _, ok := domain.GroupOf(portions, where, 9, domain.Freezer); ok {
-		t.Error("an unknown Portion has a group")
+	if _, ok := domain.LotOf(portions, where, domain.LotKey{Portion: 9, Location: domain.Freezer}); ok {
+		t.Error("an unknown Portion has a lot")
 	}
 }
 
@@ -202,11 +202,11 @@ func TestParsePortionCount(t *testing.T) {
 
 // A Count keeps what was believed and stated. Counting down takes those without a Slot,
 // oldest first, then the latest Slot; counting up lists what was added; and a Count
-// that changes nothing lists the whole group, so its Movement can be told as the group's.
+// that changes nothing lists the whole Lot, so its Movement can be told as the Lot's.
 func TestCountingPortions(t *testing.T) {
 	now := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
 	tuesday, friday := now.AddDate(0, 0, 1), now.AddDate(0, 0, 4)
-	group := domain.PortionGroup{Name: "lasagne", Location: domain.Freezer, IDs: []int64{1, 2, 3, 4}}
+	lot := domain.PortionLot{Name: "lasagne", Location: domain.Freezer, IDs: []int64{1, 2, 3, 4}}
 	slots := map[int64]time.Time{2: tuesday, 3: friday}
 
 	cases := []struct {
@@ -222,10 +222,10 @@ func TestCountingPortions(t *testing.T) {
 		{"down, then the latest Slot", 1, nil, slots, -3, []int64{1, 4, 3}},
 		{"to nothing", 0, nil, slots, -4, []int64{1, 4, 3, 2}},
 		{"up, the Portions added", 6, []int64{7, 8}, nil, 2, []int64{7, 8}},
-		{"no change, the whole group", 4, nil, slots, 0, []int64{1, 2, 3, 4}},
+		{"no change, the whole lot", 4, nil, slots, 0, []int64{1, 2, 3, 4}},
 	}
 	for _, c := range cases {
-		m := domain.NewLedger(nil).CountPortions(now, group, whole(c.stated), c.added, c.slots, "note")
+		m := domain.NewLedger(nil).CountPortions(now, lot, whole(c.stated), c.added, c.slots, "note")
 		if m.Cause != domain.Counted || m.Change != whole(c.wantChange) || m.Believed != whole(4) || m.Stated != whole(c.stated) ||
 			m.Key.Location != domain.Freezer || m.Note != "note" || !m.At.Equal(now) {
 			t.Errorf("%s: the Movement is %+v", c.name, m)
@@ -236,22 +236,23 @@ func TestCountingPortions(t *testing.T) {
 	}
 }
 
-// Counting up adds more alike the group, spelled as it is.
+// Counting up adds more alike the Lot, spelled as it is.
 func TestCountingUpAddsMoreAlike(t *testing.T) {
 	values := domain.Nutrition{Kcal: domain.Known(620)}
-	group := domain.PortionGroup{Name: "Lasagne", Nutrition: values, Location: domain.Freezer, IDs: []int64{1}}
+	lot := domain.PortionLot{Name: "Lasagne", Nutrition: values, Location: domain.Freezer, IDs: []int64{1}}
 	want := domain.NewPortions{Name: "Lasagne", HowMany: 2, Location: domain.Freezer, Nutrition: values}
-	if got := group.MoreAlike(whole(3)); !reflect.DeepEqual(got, want) {
+	if got := lot.MoreAlike(whole(3)); !reflect.DeepEqual(got, want) {
 		t.Errorf("MoreAlike = %+v, want %+v", got, want)
 	}
 }
 
-// A move takes the oldest of the group, at least one and no more than it holds.
+// A move takes the oldest of the Lot, at least one and no more than it holds.
 func TestMovingPortions(t *testing.T) {
 	now := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
-	group := domain.PortionGroup{Name: "lasagne", Location: domain.Freezer, IDs: []int64{1, 2, 3}}
+	lot := domain.PortionLot{Name: "lasagne", Location: domain.Freezer, IDs: []int64{1, 2, 3}}
+	fridge := domain.PortionLot{Name: "lasagne", Location: domain.Fridge}
 
-	m, problem := domain.NewLedger(nil).MovePortions(now, group, domain.Fridge, whole(2), "to thaw")
+	m, problem := domain.NewLedger(nil).MovePortions(now, lot, fridge, whole(2), "to thaw")
 	want := domain.Movement{
 		At: now, Key: domain.StockKey{Location: domain.Freezer}, To: domain.Fridge, Change: whole(2),
 		Cause: domain.Moved, Portions: []int64{1, 2}, Note: "to thaw",
@@ -261,15 +262,15 @@ func TestMovingPortions(t *testing.T) {
 	}
 
 	for moved, want := range map[float64]domain.Problem{0: domain.NothingMoved, 4: domain.MoreThanHeld, 3: ""} {
-		if _, problem := domain.NewLedger(nil).MovePortions(now, group, domain.Fridge, whole(moved), ""); problem != want {
+		if _, problem := domain.NewLedger(nil).MovePortions(now, lot, fridge, whole(moved), ""); problem != want {
 			t.Errorf("moving %v of 3 is %q, want %q", moved, problem, want)
 		}
 	}
 }
 
-// A group's Movements begin when the oldest Portion it holds now arrived there, leaving
-// out an earlier life of the group, and each tells what it held before and after it.
-func TestGroupMovements(t *testing.T) {
+// A Lot's Movements begin when the oldest Portion it holds now arrived there, leaving
+// out an earlier life of the Lot, and each tells what it held before and after it.
+func TestLotMovements(t *testing.T) {
 	at := func(hour int) time.Time { return time.Date(2026, 11, 2, hour, 0, 0, 0, time.UTC) }
 	freezer := domain.StockKey{Location: domain.Freezer}
 	portions := []domain.Portion{{ID: 1, Name: "lasagne"}, {ID: 2, Name: "lasagne"}, {ID: 3, Name: "lasagne"}, {ID: 4, Name: "lasagne"}, {ID: 9, Name: "chili"}}
@@ -289,7 +290,7 @@ func TestGroupMovements(t *testing.T) {
 	check := func(location domain.StorageLocation, id int64, want []row) {
 		t.Helper()
 		var got []row
-		for _, m := range l.GroupMovements(portions, id, location) {
+		for _, m := range l.LotMovements(portions, domain.LotKey{Portion: id, Location: location}) {
 			got = append(got, row{m.At.Hour(), m.Before.Number(), m.After.Number()})
 		}
 		if !reflect.DeepEqual(got, want) {
@@ -299,4 +300,22 @@ func TestGroupMovements(t *testing.T) {
 	check(domain.Freezer, 4, []row{{10, 0, 3}, {11, 3, 2}, {12, 2, 1}})
 	check(domain.Fridge, 3, []row{{12, 0, 1}})
 	check(domain.Pantry, 4, nil)
+}
+
+// A Portion Lot holds at most 99, so one move or add that takes it past that is refused.
+func TestAPortionLotHoldsAtMost99(t *testing.T) {
+	now := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
+	full := domain.PortionLot{Location: domain.Fridge, IDs: make([]int64, 98)}
+
+	if problem := full.CheckFits(1); problem != "" {
+		t.Errorf("the 99th Portion doesn't fit: %q", problem)
+	}
+	if problem := full.CheckFits(2); problem != domain.TooManyAlike {
+		t.Errorf("the 100th Portion: %q, want %q", problem, domain.TooManyAlike)
+	}
+
+	lot := domain.PortionLot{Location: domain.Freezer, IDs: []int64{1, 2}}
+	if _, problem := domain.NewLedger(nil).MovePortions(now, lot, full, whole(2), ""); problem != domain.TooManyAlike {
+		t.Errorf("a move past 99: %q, want %q", problem, domain.TooManyAlike)
+	}
 }

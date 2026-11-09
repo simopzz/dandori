@@ -216,28 +216,28 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 	}.Write(w, r, h.Log)
 }
 
-// askedGroup reads which group of alike Portions a request asks for: one Portion of it
-// and its Storage Location. With neither, it answers r itself and ok is false.
-func askedGroup(w http.ResponseWriter, r *http.Request, portion, place string) (id int64, location domain.StorageLocation, ok bool) {
+// askedLot reads which Portion Lot a request asks for: one Portion of it and its Storage
+// Location. With neither, it answers r itself and ok is false.
+func askedLot(w http.ResponseWriter, r *http.Request, portion, location string) (_ domain.LotKey, ok bool) {
 	id, err := strconv.ParseInt(portion, 10, 64)
-	location = domain.StorageLocation(place)
-	if err != nil || !slices.Contains(domain.StorageLocations, location) {
+	key := domain.LotKey{Portion: id, Location: domain.StorageLocation(location)}
+	if err != nil || !slices.Contains(domain.StorageLocations, key.Location) {
 		http.NotFound(w, r)
-		return 0, "", false
+		return domain.LotKey{}, false
 	}
-	return id, location, true
+	return key, true
 }
 
-// groupMovements is the group r's query asks for with its Movements. With no such
+// lotMovements is the Portion Lot r's query asks for with its Movements. With no such
 // Portion, or on a failure, it answers r itself and is nil.
-func (h Handlers) groupMovements(w http.ResponseWriter, r *http.Request) *GroupMovements {
-	id, location, ok := askedGroup(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
+func (h Handlers) lotMovements(w http.ResponseWriter, r *http.Request) *LotMovements {
+	key, ok := askedLot(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
 	if !ok {
 		return nil
 	}
-	item, err := h.Service.GroupMovements(r.Context(), h.Clock.Now(), id, location)
+	item, err := h.Service.LotMovements(r.Context(), h.Clock.Now(), key)
 	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load a group's Movements", err)
+		httpx.ServerError(w, r, h.Log, "load a Portion Lot's Movements", err)
 		return nil
 	}
 	if item == nil {
@@ -246,74 +246,67 @@ func (h Handlers) groupMovements(w http.ResponseWriter, r *http.Request) *GroupM
 	return item
 }
 
-// ShowGroupMovements is a group's Movements as a page of their own, for a browser
+// ShowLotMovements is a Portion Lot's Movements as a page of their own, for a browser
 // without htmx.
-func (h Handlers) ShowGroupMovements(w http.ResponseWriter, r *http.Request) {
-	if item := h.groupMovements(w, r); item != nil {
-		httpx.Render(w, r, h.Log, http.StatusOK, groupMovementsPage(h.Clock.Now(), *item))
+func (h Handlers) ShowLotMovements(w http.ResponseWriter, r *http.Request) {
+	if item := h.lotMovements(w, r); item != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, lotMovementsPage(h.Clock.Now(), *item))
 	}
 }
 
-// ShowGroupMovementsSheet is the Movements sheet's body: a group's Movements.
-func (h Handlers) ShowGroupMovementsSheet(w http.ResponseWriter, r *http.Request) {
-	if item := h.groupMovements(w, r); item != nil {
-		httpx.Render(w, r, h.Log, http.StatusOK, groupMovementsBody(h.Clock.Now(), *item))
+// ShowLotMovementsSheet is the Movements sheet's body: a Portion Lot's Movements.
+func (h Handlers) ShowLotMovementsSheet(w http.ResponseWriter, r *http.Request) {
+	if item := h.lotMovements(w, r); item != nil {
+		httpx.Render(w, r, h.Log, http.StatusOK, lotMovementsBody(h.Clock.Now(), *item))
 	}
 }
 
-// startGroup is the form for the group r's query asks for. Holding none, it can't be
-// counted or moved; then, or on a failure, it answers r itself and is nil.
-func (h Handlers) startGroup(w http.ResponseWriter, r *http.Request) *PortionGroupForm {
-	id, location, ok := askedGroup(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
+// startLotForm is the form for the Portion Lot r's query asks for. Holding none, it can't
+// be counted or moved; then, or on a failure, it answers r itself and is nil.
+func (h Handlers) startLotForm(w http.ResponseWriter, r *http.Request) *PortionLotForm {
+	key, ok := askedLot(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
 	if !ok {
 		return nil
 	}
-	group, err := h.Service.PortionGroup(r.Context(), h.Clock.Now(), id, location)
+	lot, err := h.Service.PortionLot(r.Context(), h.Clock.Now(), key)
 	if err != nil {
-		httpx.ServerError(w, r, h.Log, "start a form for a group", err)
+		httpx.ServerError(w, r, h.Log, "start a form for a Portion Lot", err)
 		return nil
 	}
-	if group == nil || group.Count() == 0 {
+	if lot == nil || lot.Count() == 0 {
 		http.NotFound(w, r)
 		return nil
 	}
-	return &PortionGroupForm{Portion: id, Group: *group}
+	return &PortionLotForm{Portion: key.Portion, Lot: *lot}
 }
 
-// ShowPortionCount is the form that counts a group as a page of its own, for a browser
-// without htmx.
+// ShowPortionCount is the form that counts a Portion Lot as a page of its own, for a
+// browser without htmx.
 func (h Handlers) ShowPortionCount(w http.ResponseWriter, r *http.Request) {
-	if f := h.startGroup(w, r); f != nil {
+	if f := h.startLotForm(w, r); f != nil {
 		httpx.Render(w, r, h.Log, http.StatusOK, portionCountPage(h.Clock.Now(), *f))
 	}
 }
 
-// ShowPortionCountSheet is the Count sheet's body: the form that counts a group.
+// ShowPortionCountSheet is the Count sheet's body: the form that counts a Portion Lot.
 func (h Handlers) ShowPortionCountSheet(w http.ResponseWriter, r *http.Request) {
-	if f := h.startGroup(w, r); f != nil {
+	if f := h.startLotForm(w, r); f != nil {
 		httpx.Render(w, r, h.Log, http.StatusOK, portionCountForm(*f))
 	}
 }
 
-// postedGroupForm is the form posted in r for rec's group, as typed in field.
-func postedGroupForm(r *http.Request, id int64, rec *RecordedPortions, field string) PortionGroupForm {
-	return PortionGroupForm{
-		Portion: id, Group: rec.Group, Typed: strings.TrimSpace(r.PostFormValue(field)),
-		To: r.PostFormValue("to"), Note: r.PostFormValue("note"), Errs: map[string]string{},
-	}
-}
-
-// CountPortions saves a Count of a group at the moment it arrives. Posted from the sheet
-// by htmx, it answers with the Count confirmed in a floating Notice, closing the sheet
-// and telling the page under it to list its stock again; or with the form as typed with
-// why it was refused. A plain post lands on the Kitchen page, confirming it.
+// CountPortions saves a Count of a Portion Lot at the moment it arrives. Posted from the
+// sheet by htmx, it answers with the Count confirmed in a floating Notice, closing the
+// sheet and telling the page under it to list its stock again; or with the form as typed
+// with why it was refused. A plain post lands on the Kitchen page, confirming it. One
+// that recorded nothing confirms nothing.
 func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
 	ctx, now := r.Context(), h.Clock.Now()
-	id, location, ok := askedGroup(w, r, r.PostFormValue("portion"), r.PostFormValue("location"))
+	key, ok := askedLot(w, r, r.PostFormValue("portion"), r.PostFormValue("location"))
 	if !ok {
 		return
 	}
-	rec, err := h.Service.CountPortions(ctx, now, id, location, r.PostFormValue("stated"), r.PostFormValue("note"))
+	rec, err := h.Service.CountPortions(ctx, now, key, r.PostFormValue("stated"), r.PostFormValue("note"))
 	switch {
 	case err != nil:
 		httpx.ServerError(w, r, h.Log, "save a Count of Portions", err)
@@ -323,43 +316,52 @@ func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if problem, refused := rec.Problems["stated"]; refused {
-		f := postedGroupForm(r, id, rec, "stated")
+		f := postedLotForm(r, key.Portion, rec.Lot, "stated")
 		f.Errs["stated"] = web.T(ctx, web.ProblemMessage(problem, portionCountProblemMessages))
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionCountPage(now, f), Fragment: portionCountForm(f)}.Write(w, r, h.Log)
 		return
 	}
-	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
-		Notice: web.Tf(ctx, msgCounted, rec.Group.Name, web.Quantity(ctx, rec.Movement.Stated, domain.PortionUnit), web.T(ctx, web.InLocations[location])),
-	}.Write(w, r, h.Log)
+	var notice string
+	if len(rec.Movement.Portions) > 0 {
+		notice = web.Tf(ctx, msgCounted, rec.Lot.Name, web.Quantity(ctx, rec.Movement.Stated, domain.PortionUnit), web.T(ctx, web.InLocations[key.Location]))
+	}
+	web.Answer{Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
 }
 
-// ShowPortionMove is the form that moves a group as a page of its own, for a browser
-// without htmx.
+// startLotMove is the form that moves the Portion Lot r's query asks for, all of it to
+// start with, or nil as startLotForm is.
+func (h Handlers) startLotMove(w http.ResponseWriter, r *http.Request) *PortionLotForm {
+	f := h.startLotForm(w, r)
+	if f != nil {
+		f.Typed = strconv.Itoa(f.Lot.Count())
+	}
+	return f
+}
+
+// ShowPortionMove is the form that moves a Portion Lot as a page of its own, for a
+// browser without htmx.
 func (h Handlers) ShowPortionMove(w http.ResponseWriter, r *http.Request) {
-	if f := h.startGroup(w, r); f != nil {
-		f.Typed = strconv.Itoa(f.Group.Count())
+	if f := h.startLotMove(w, r); f != nil {
 		httpx.Render(w, r, h.Log, http.StatusOK, portionMovePage(h.Clock.Now(), *f))
 	}
 }
 
-// ShowPortionMoveSheet is the Move sheet's body: the form that moves a group, all of it
-// to start with.
+// ShowPortionMoveSheet is the Move sheet's body: the form that moves a Portion Lot.
 func (h Handlers) ShowPortionMoveSheet(w http.ResponseWriter, r *http.Request) {
-	if f := h.startGroup(w, r); f != nil {
-		f.Typed = strconv.Itoa(f.Group.Count())
+	if f := h.startLotMove(w, r); f != nil {
 		httpx.Render(w, r, h.Log, http.StatusOK, portionMoveForm(*f))
 	}
 }
 
-// MovePortions saves a move of a group at the moment it arrives, answering as Move does.
+// MovePortions saves a move of a Portion Lot at the moment it arrives, answering as
+// Move does.
 func (h Handlers) MovePortions(w http.ResponseWriter, r *http.Request) {
 	ctx, now := r.Context(), h.Clock.Now()
-	id, from, ok := askedGroup(w, r, r.PostFormValue("portion"), r.PostFormValue("location"))
+	key, ok := askedLot(w, r, r.PostFormValue("portion"), r.PostFormValue("location"))
 	if !ok {
 		return
 	}
-	rec, err := h.Service.MovePortions(ctx, now, id, from, domain.StorageLocation(r.PostFormValue("to")), r.PostFormValue("quantity"), r.PostFormValue("note"))
+	rec, err := h.Service.MovePortions(ctx, now, key, domain.StorageLocation(r.PostFormValue("to")), r.PostFormValue("quantity"), r.PostFormValue("note"))
 	switch {
 	case err != nil:
 		httpx.ServerError(w, r, h.Log, "save a move of Portions", err)
@@ -369,23 +371,17 @@ func (h Handlers) MovePortions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(rec.Problems) > 0 {
-		f := postedGroupForm(r, id, rec, "quantity")
-		if _, refused := rec.Problems["to"]; refused {
-			f.Errs["to"], f.To = web.T(ctx, msgChooseTarget), ""
-		}
-		switch problem, refused := rec.Problems["quantity"]; {
-		case problem == domain.MoreThanHeld:
-			f.Errs["quantity"] = web.Tf(ctx, msgPortionsMoreThanHeld, rec.Group.Count())
-		case refused:
-			f.Errs["quantity"] = web.T(ctx, web.ProblemMessage(problem, portionMoveProblemMessages))
+		f := postedLotForm(r, key.Portion, rec.Lot, "quantity")
+		f.Errs = moveErrs(ctx, rec.Problems, web.Tf(ctx, msgPortionsMoreThanHeld, rec.Lot.Count()), portionMoveProblemMessages)
+		if f.Errs["to"] != "" {
+			f.To = ""
 		}
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionMovePage(now, f), Fragment: portionMoveForm(f)}.Write(w, r, h.Log)
 		return
 	}
-	moved := len(rec.Movement.Portions)
 	web.Answer{
 		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
-		Notice: web.Tf(ctx, msgMovedPortions, rec.Group.Name, moved, web.T(ctx, toLocations[rec.Movement.To])),
+		Notice: web.Tf(ctx, msgMovedPortions, rec.Lot.Name, len(rec.Movement.Portions), web.T(ctx, toLocations[rec.Movement.To])),
 	}.Write(w, r, h.Log)
 }
 

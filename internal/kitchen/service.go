@@ -41,10 +41,10 @@ type Held struct {
 }
 
 // Contents is what the kitchen holds, for the Kitchen page: its Stock Items and its
-// groups of alike Portions, each by Storage Location and then by name.
+// Portion Lots, each by Storage Location and then by name.
 type Contents struct {
 	Held     []Held
-	Portions []domain.PortionGroup
+	Portions []domain.PortionLot
 }
 
 // Contents is what the signed-in User's Kitchen Ledger adds up to at now.
@@ -64,7 +64,7 @@ func (s *Service) Contents(ctx context.Context, now time.Time) (Contents, error)
 			return err
 		}
 		l := domain.NewLedger(movements)
-		c.Portions = domain.GroupPortions(portions, l.PortionsAt(now))
+		c.Portions = domain.PortionLots(portions, l.PortionsAt(now))
 		items := l.At(now)
 		for _, location := range domain.StorageLocations {
 			for _, ing := range ings {
@@ -203,15 +203,25 @@ func (s *Service) Count(ctx context.Context, now time.Time, id int64, location d
 }
 
 // AddPortions adds at now the Portions the User typed, as domain.ParsePortions reads
-// them: each Portion a row of its own and one Movement that lists them. Refused, it
-// writes nothing and says why, by field.
+// them: each Portion a row of its own and one Movement that lists them. Refused, as
+// also when the Portion Lot they join can't fit them, it writes nothing and says why,
+// by field.
 func (s *Service) AddPortions(ctx context.Context, now time.Time, typed domain.TypedPortions) (domain.NewPortions, map[string]domain.Problem, error) {
 	p, problems := domain.ParsePortions(typed)
 	if len(problems) > 0 {
 		return p, problems, nil
 	}
-	return p, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+			portions, err := ledger.LoadPortions(ctx, tx)
+			if err != nil {
+				return nil, err
+			}
+			lot := domain.LotLike(portions, l.PortionsAt(l.WriteAt(now)), domain.Portion{Name: p.Name, Nutrition: p.Nutrition}, p.Location)
+			if problem := lot.CheckFits(p.HowMany); problem != "" {
+				problems["how_many"] = problem
+				return nil, nil
+			}
 			ids, err := ledger.SavePortions(ctx, tx, p)
 			if err != nil {
 				return nil, err
@@ -219,99 +229,86 @@ func (s *Service) AddPortions(ctx context.Context, now time.Time, typed domain.T
 			return []domain.Movement{l.AddPortions(now, p.Location, ids, p.Note)}, nil
 		})
 	})
+	return p, problems, err
 }
 
-// loadGroup is the group alike the signed-in User's Portion id in location, as a Movement
-// written at now would find it in l, with their Portions; or nil if there is no such one.
-func loadGroup(ctx context.Context, q db.Querier, l domain.Ledger, now time.Time, id int64, location domain.StorageLocation) (*domain.PortionGroup, []domain.Portion, error) {
+// loadLot is the Portion Lot key names, as a Movement written at now would find it in l,
+// with the signed-in User's Portions; or nil if they have no such Portion.
+func loadLot(ctx context.Context, q db.Querier, l domain.Ledger, now time.Time, key domain.LotKey) (*domain.PortionLot, []domain.Portion, error) {
 	portions, err := ledger.LoadPortions(ctx, q)
 	if err != nil {
 		return nil, nil, err
 	}
-	group, ok := domain.GroupOf(portions, l.PortionsAt(l.WriteAt(now)), id, location)
+	lot, ok := domain.LotOf(portions, l.PortionsAt(l.WriteAt(now)), key)
 	if !ok {
 		return nil, nil, nil
 	}
-	return &group, portions, nil
+	return &lot, portions, nil
 }
 
-// PortionGroup is the group alike the signed-in User's Portion id in location at now, or
-// nil if they have no such Portion.
-func (s *Service) PortionGroup(ctx context.Context, now time.Time, id int64, location domain.StorageLocation) (group *domain.PortionGroup, err error) {
+// PortionLot is the Portion Lot key names at now, or nil if the signed-in User has no
+// such Portion.
+func (s *Service) PortionLot(ctx context.Context, now time.Time, key domain.LotKey) (lot *domain.PortionLot, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		movements, err := ledger.LoadMovements(ctx, tx)
 		if err != nil {
 			return err
 		}
-		group, _, err = loadGroup(ctx, tx, domain.NewLedger(movements), now, id, location)
+		lot, _, err = loadLot(ctx, tx, domain.NewLedger(movements), now, key)
 		return err
 	})
-	return group, err
+	return lot, err
 }
 
-// GroupMovements is a group of alike Portions with its Movements, newest first.
-type GroupMovements struct {
-	Group     domain.PortionGroup
+// LotMovements is a Portion Lot with its Movements, newest first.
+type LotMovements struct {
+	Lot       domain.PortionLot
 	Movements []domain.StockMovement
 }
 
-// GroupMovements is the group alike the signed-in User's Portion id in location with its
-// Movements, or nil if they have no such Portion.
-func (s *Service) GroupMovements(ctx context.Context, now time.Time, id int64, location domain.StorageLocation) (item *GroupMovements, err error) {
+// LotMovements is the Portion Lot key names with its Movements, or nil if the signed-in
+// User has no such Portion.
+func (s *Service) LotMovements(ctx context.Context, now time.Time, key domain.LotKey) (item *LotMovements, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		movements, err := ledger.LoadMovements(ctx, tx)
 		if err != nil {
 			return err
 		}
 		l := domain.NewLedger(movements)
-		group, portions, err := loadGroup(ctx, tx, l, now, id, location)
-		if err != nil || group == nil {
+		lot, portions, err := loadLot(ctx, tx, l, now, key)
+		if err != nil || lot == nil {
 			return err
 		}
-		touched := l.GroupMovements(portions, id, location)
+		touched := l.LotMovements(portions, key)
 		slices.Reverse(touched)
-		item = &GroupMovements{Group: *group, Movements: touched}
+		item = &LotMovements{Lot: *lot, Movements: touched}
 		return nil
 	})
 	return item, err
 }
 
-// RecordedPortions is what a Count or a move of a group read once the kitchen was held,
-// and what it wrote: the group, the Movement recorded, if any, and why each field the
+// RecordedPortions is what a Count or a move of a Portion Lot read once the kitchen was
+// held, and what it wrote: the Lot, the Movement recorded, if any, and why each field the
 // User typed was refused, by field, if any was, which records nothing.
 type RecordedPortions struct {
-	Group    domain.PortionGroup
+	Lot      domain.PortionLot
 	Movement domain.Movement
 	Problems map[string]domain.Problem
 }
 
-// CountPortions records at now the Count of the group alike the Portion id in location,
-// stating what the User typed is there, as domain.ParsePortionCount reads it, once the
-// kitchen is held. Counting up saves the Portions it adds. It is nil if the signed-in
-// User has no such Portion. A Count of nothing where nothing is held, as from a form
-// another write has overtaken, lists no Portion, so records nothing.
-func (s *Service) CountPortions(ctx context.Context, now time.Time, id int64, location domain.StorageLocation, stated, note string) (rec *RecordedPortions, err error) {
+// writeLot holds the kitchen, reads the Portion Lot key names, and has write fill in the
+// Movement to record of it, if any: one that lists no Portion records nothing. It is nil
+// if the signed-in User has no such Portion.
+func (s *Service) writeLot(ctx context.Context, now time.Time, key domain.LotKey, write func(pgx.Tx, domain.Ledger, []domain.Portion, *RecordedPortions) error) (rec *RecordedPortions, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
-			group, _, err := loadGroup(ctx, tx, l, now, id, location)
-			if err != nil || group == nil {
+			lot, portions, err := loadLot(ctx, tx, l, now, key)
+			if err != nil || lot == nil {
 				return nil, err
 			}
-			rec = &RecordedPortions{Group: *group}
-			q, problems := domain.ParsePortionCount(location, stated)
-			if rec.Problems = problems; len(problems) > 0 {
-				return nil, nil
-			}
-			var added []int64
-			if q > group.Held() {
-				if added, err = ledger.SavePortions(ctx, tx, group.MoreAlike(q)); err != nil {
-					return nil, err
-				}
-			}
-			// shortcut: no Portion has a Slot yet, pass each one's Slot once Slots exist.
-			rec.Movement = l.CountPortions(now, *group, q, added, nil, strings.TrimSpace(note))
-			if len(rec.Movement.Portions) == 0 {
-				return nil, nil
+			rec = &RecordedPortions{Lot: *lot}
+			if err := write(tx, l, portions, rec); err != nil || len(rec.Movement.Portions) == 0 {
+				return nil, err
 			}
 			return []domain.Movement{rec.Movement}, nil
 		})
@@ -319,31 +316,45 @@ func (s *Service) CountPortions(ctx context.Context, now time.Time, id int64, lo
 	return rec, err
 }
 
-// MovePortions records at now a move of some of the group alike the Portion id from one
-// Storage Location to another, of what the User typed, as domain.ParseMove reads it, once
-// the kitchen is held; one domain.CheckMove refuses is a problem of its quantity. It is
-// nil if the signed-in User has no such Portion.
-func (s *Service) MovePortions(ctx context.Context, now time.Time, id int64, from, to domain.StorageLocation, moved, note string) (rec *RecordedPortions, err error) {
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
-			group, _, err := loadGroup(ctx, tx, l, now, id, from)
-			if err != nil || group == nil {
-				return nil, err
+// CountPortions records at now the Count of the Portion Lot key names, stating what the
+// User typed is there, as domain.ParsePortionCount reads it, once the kitchen is held.
+// Counting up saves the Portions it adds. A Count of nothing where nothing is held, as
+// from a form another write has overtaken, lists no Portion, so records nothing.
+func (s *Service) CountPortions(ctx context.Context, now time.Time, key domain.LotKey, stated, note string) (*RecordedPortions, error) {
+	return s.writeLot(ctx, now, key, func(tx pgx.Tx, l domain.Ledger, _ []domain.Portion, rec *RecordedPortions) (err error) {
+		q, problems := domain.ParsePortionCount(key.Location, stated)
+		if rec.Problems = problems; len(problems) > 0 {
+			return nil
+		}
+		var added []int64
+		if more := rec.Lot.MoreAlike(q); more.HowMany > 0 {
+			if added, err = ledger.SavePortions(ctx, tx, more); err != nil {
+				return err
 			}
-			rec = &RecordedPortions{Group: *group}
-			q, problems := domain.ParseMove(domain.PortionUnit, from, to, moved)
-			if rec.Problems = problems; len(problems) > 0 {
-				return nil, nil
-			}
-			var problem domain.Problem
-			if rec.Movement, problem = l.MovePortions(now, *group, to, q, strings.TrimSpace(note)); problem != "" {
-				rec.Problems["quantity"] = problem
-				return nil, nil
-			}
-			return []domain.Movement{rec.Movement}, nil
-		})
+		}
+		// shortcut: no Portion has a Slot yet, pass each one's Slot once Slots exist.
+		rec.Movement = l.CountPortions(now, rec.Lot, q, added, nil, strings.TrimSpace(note))
+		return nil
 	})
-	return rec, err
+}
+
+// MovePortions records at now a move of some of the Portion Lot key names to another
+// Storage Location, of what the User typed, as domain.ParseMove reads it, once the
+// kitchen is held; one domain.Ledger.MovePortions refuses is a problem of its quantity.
+func (s *Service) MovePortions(ctx context.Context, now time.Time, key domain.LotKey, to domain.StorageLocation, moved, note string) (*RecordedPortions, error) {
+	return s.writeLot(ctx, now, key, func(_ pgx.Tx, l domain.Ledger, portions []domain.Portion, rec *RecordedPortions) error {
+		q, problems := domain.ParseMove(domain.PortionUnit, key.Location, to, moved)
+		if rec.Problems = problems; len(problems) > 0 {
+			return nil
+		}
+		like := domain.Portion{Name: rec.Lot.Name, Nutrition: rec.Lot.Nutrition}
+		target := domain.LotLike(portions, l.PortionsAt(l.WriteAt(now)), like, to)
+		var problem domain.Problem
+		if rec.Movement, problem = l.MovePortions(now, rec.Lot, target, q, strings.TrimSpace(note)); problem != "" {
+			rec.Problems["quantity"] = problem
+		}
+		return nil
+	})
 }
 
 // Move records at now a move of the Ingredient id from one Storage Location to another,

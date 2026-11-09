@@ -48,7 +48,7 @@ var (
 	msgMovementsTitle = web.Message{En: "Movements · Dandori", It: "Movimenti · Dandori"}
 	msgLocations      = web.Message{En: "Where it is kept", It: "Dove si tiene"}
 	msgNoMovements    = web.Message{En: "No Movements here yet.", It: "Ancora nessun Movimento qui."}
-	msgStockItem      = web.Message{En: "%s · %s", It: "%s · %s"}
+	msgHeldIn         = web.Message{En: "%s · %s", It: "%s · %s"}
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
 	msgHappened       = web.Message{En: "%s %s", It: "%s %s"}
 
@@ -67,12 +67,12 @@ var (
 	msgPerPortion = web.Message{En: "per Portion", It: "per Porzione"}
 	msgTimes      = web.Message{En: "× %d", It: "× %d"}
 
-	msgGroupHolds           = web.Message{En: "The group holds %d.", It: "Il gruppo ne contiene %d."}
+	msgLotHolds             = web.Message{En: "This Portion Lot holds %d.", It: "Questo Lotto di Porzioni ne contiene %d."}
 	msgMovedPortions        = web.Message{En: "Moved %s × %d %s.", It: "Spostato: %s × %d %s."}
 	msgMovePortionsQuantity = web.Message{En: "How many to move", It: "Quante spostare"}
 	msgPortionsMoreThanHeld = web.Message{
-		En: "The group holds %d. If there are more, count them first.",
-		It: "Il gruppo ne contiene %d. Se sono di più, prima contale.",
+		En: "This Portion Lot holds %d. If there are more, count them first.",
+		It: "Questo Lotto di Porzioni ne contiene %d. Se sono di più, prima contale.",
 	}
 
 	msgChooseWhere = web.Message{En: "Choose where it is kept.", It: "Scegli dove si tiene."}
@@ -99,25 +99,27 @@ var moveProblemMessages = map[domain.Problem]web.Message{
 
 // howManyProblemMessages say why how many Portions to add is refused.
 var howManyProblemMessages = map[domain.Problem]web.Message{
-	domain.Required: {En: "Say how many.", It: "Di' quante."},
-	domain.NotWhole: {En: "Must be a whole number of at least 1.", It: "Deve essere un numero intero, almeno 1."},
-	domain.TooLarge: {En: "Must be at most 99.", It: "Deve essere al massimo 99."},
+	domain.Required:     {En: "Say how many.", It: "Di' quante."},
+	domain.NotWhole:     {En: "Must be a whole number of at least 1.", It: "Deve essere un numero intero, almeno 1."},
+	domain.TooLarge:     {En: "Must be at most 99.", It: "Deve essere al massimo 99."},
+	domain.TooManyAlike: {En: "That would make more than 99 alike here.", It: "Così sarebbero più di 99 uguali qui."},
 }
 
-// portionCountProblemMessages say why a Count of a group is refused.
+// portionCountProblemMessages say why a Count of a Lot is refused.
 var portionCountProblemMessages = map[domain.Problem]web.Message{
 	domain.Required: {En: "Say how many.", It: "Di' quante."},
 	domain.NotWhole: {En: "Must be a whole number.", It: "Deve essere un numero intero."},
 	domain.TooLarge: {En: "Must be at most 99.", It: "Deve essere al massimo 99."},
 }
 
-// portionMoveProblemMessages say why how many of a group to move is refused. More than
+// portionMoveProblemMessages say why how many of a Lot to move is refused. More than
 // it holds needs what it holds: msgPortionsMoreThanHeld says that.
 var portionMoveProblemMessages = map[domain.Problem]web.Message{
 	domain.Required:     {En: "Say how many to move.", It: "Di' quante spostare."},
 	domain.NothingMoved: {En: "Say how many to move.", It: "Di' quante spostare."},
 	domain.NotWhole:     {En: "Must be a whole number.", It: "Deve essere un numero intero."},
 	domain.TooLarge:     {En: "Must be below 1000000.", It: "Deve essere sotto 1000000."},
+	domain.TooManyAlike: {En: "That would make more than 99 alike here.", It: "Così sarebbero più di 99 uguali qui."},
 }
 
 // locationHeadings head each Storage Location's Stock Items.

@@ -73,10 +73,10 @@ func ParseHowMany(typed string) (int, Problem) {
 	return n, ""
 }
 
-// PortionGroup is alike Portions the kitchen holds: the same name, ignoring case and
+// PortionLot is alike Portions the kitchen holds: the same name, ignoring case and
 // surrounding space, the same nutritional values and the same Storage Location. Name is
 // as its oldest Portion spells it.
-type PortionGroup struct {
+type PortionLot struct {
 	Name      string
 	Nutrition Nutrition
 	Location  StorageLocation
@@ -84,27 +84,36 @@ type PortionGroup struct {
 	IDs []int64
 }
 
-// PortionUnit is the Unit Portions are told in. No Ingredient has it: it only makes
-// ParseCount and ParseMove take whole numbers.
+// PortionUnit is the Unit Portions are told in: whole numbers, as ParseCount and
+// ParseMove read them, shown bare. No Ingredient has it.
 const PortionUnit Unit = "portion"
 
 // Count is how many Portions g holds.
-func (g PortionGroup) Count() int { return len(g.IDs) }
+func (g PortionLot) Count() int { return len(g.IDs) }
 
-// Held is how many Portions g holds, as a Quantity.
-func (g PortionGroup) Held() Quantity { return portionCount(len(g.IDs)) }
+// held is how many Portions g holds, as a Quantity.
+func (g PortionLot) held() Quantity { return portionCount(len(g.IDs)) }
+
+// CheckFits says why more Portions alike can't join g, if they can't: a Portion Lot holds
+// at most maxPortions.
+func (g PortionLot) CheckFits(more int) Problem {
+	if g.Count()+more > maxPortions {
+		return TooManyAlike
+	}
+	return ""
+}
 
 // portionCount is n Portions as a Quantity.
 func portionCount(n int) Quantity { return QuantityOf(float64(n)) }
 
 // MoreAlike are the Portions a Count of stated adds to g, above what it holds.
-func (g PortionGroup) MoreAlike(stated Quantity) NewPortions {
-	return NewPortions{Name: g.Name, HowMany: int((stated - g.Held()).Number()), Location: g.Location, Nutrition: g.Nutrition}
+func (g PortionLot) MoreAlike(stated Quantity) NewPortions {
+	return NewPortions{Name: g.Name, HowMany: int((stated - g.held()).Number()), Location: g.Location, Nutrition: g.Nutrition}
 }
 
 // takes is the n Portions of g a Count down takes: those without a Slot, oldest first,
 // then the latest Slot. slots has each one's Slot, nil until there are Slots.
-func (g PortionGroup) takes(n int, slots map[int64]time.Time) []int64 {
+func (g PortionLot) takes(n int, slots map[int64]time.Time) []int64 {
 	order := slices.Clone(g.IDs)
 	slices.SortStableFunc(order, func(a, b int64) int {
 		slotA, slotB := slots[a], slots[b]
@@ -119,7 +128,7 @@ func (g PortionGroup) takes(n int, slots map[int64]time.Time) []int64 {
 	return order[:n]
 }
 
-// ParsePortionCount reads a Count of a group as the User typed it: a whole number of at
+// ParsePortionCount reads a Count of a Lot as the User typed it: a whole number of at
 // most maxPortions, with why each field is refused, by field, if any is.
 func ParsePortionCount(location StorageLocation, stated string) (Quantity, map[string]Problem) {
 	q, problems := ParseCount(PortionUnit, location, stated)
@@ -129,25 +138,37 @@ func ParsePortionCount(location StorageLocation, stated string) (Quantity, map[s
 	return q, problems
 }
 
-// GroupOf is the group alike the Portion id in location, as where says the kitchen holds
-// them: empty, and named as that Portion is, if location holds none. ok is false if
-// portions, oldest first, has no such Portion.
-func GroupOf(portions []Portion, where map[int64]StorageLocation, id int64, location StorageLocation) (_ PortionGroup, ok bool) {
-	i := slices.IndexFunc(portions, func(p Portion) bool { return p.ID == id })
+// LotKey identifies a Portion Lot, which has no id of its own: one Portion alike it, and
+// its Storage Location.
+type LotKey struct {
+	Portion  int64
+	Location StorageLocation
+}
+
+// LotOf is the Portion Lot key names, as where says the kitchen holds it: empty, and
+// named as key's Portion is, if its Storage Location holds none. ok is false if portions,
+// oldest first, has no such Portion.
+func LotOf(portions []Portion, where map[int64]StorageLocation, key LotKey) (_ PortionLot, ok bool) {
+	i := slices.IndexFunc(portions, func(p Portion) bool { return p.ID == key.Portion })
 	if i < 0 {
-		return PortionGroup{}, false
+		return PortionLot{}, false
 	}
-	asked := portions[i]
-	group := PortionGroup{Name: asked.Name, Nutrition: asked.Nutrition, Location: location}
+	return LotLike(portions, where, portions[i], key.Location), true
+}
+
+// LotLike is the Portion Lot alike the Portion like in location, as where says the
+// kitchen holds it: empty, and named as like is, if location holds none.
+func LotLike(portions []Portion, where map[int64]StorageLocation, like Portion, location StorageLocation) PortionLot {
+	lot := PortionLot{Name: like.Name, Nutrition: like.Nutrition, Location: location}
 	for _, p := range portions {
-		if where[p.ID] == location && asked.alike(p) {
-			if group.Count() == 0 {
-				group.Name = p.Name
+		if where[p.ID] == location && like.alike(p) {
+			if lot.Count() == 0 {
+				lot.Name = p.Name
 			}
-			group.IDs = append(group.IDs, p.ID)
+			lot.IDs = append(lot.IDs, p.ID)
 		}
 	}
-	return group, true
+	return lot
 }
 
 // alike says whether two Portions have the same name, ignoring case and surrounding
@@ -159,16 +180,16 @@ func (p Portion) alike(other Portion) bool {
 // portionName is the key two alike Portions' names share.
 func portionName(name string) string { return strings.ToLower(strings.TrimSpace(name)) }
 
-// GroupPortions is portions, oldest first, grouped where where says the kitchen holds
+// PortionLots is portions, oldest first, grouped where where says the kitchen holds
 // them, by Storage Location and then by name. One where leaves out isn't held, so is in
-// no group.
-func GroupPortions(portions []Portion, where map[int64]StorageLocation) []PortionGroup {
+// no Lot.
+func PortionLots(portions []Portion, where map[int64]StorageLocation) []PortionLot {
 	type alike struct {
 		name      string
 		nutrition Nutrition
 		location  StorageLocation
 	}
-	var groups []PortionGroup
+	var lots []PortionLot
 	found := map[alike]int{}
 	for _, p := range portions {
 		location, held := where[p.ID]
@@ -178,17 +199,17 @@ func GroupPortions(portions []Portion, where map[int64]StorageLocation) []Portio
 		key := alike{portionName(p.Name), p.Nutrition, location}
 		i, seen := found[key]
 		if !seen {
-			i = len(groups)
+			i = len(lots)
 			found[key] = i
-			groups = append(groups, PortionGroup{Name: p.Name, Nutrition: p.Nutrition, Location: location})
+			lots = append(lots, PortionLot{Name: p.Name, Nutrition: p.Nutrition, Location: location})
 		}
-		groups[i].IDs = append(groups[i].IDs, p.ID)
+		lots[i].IDs = append(lots[i].IDs, p.ID)
 	}
-	slices.SortStableFunc(groups, func(a, b PortionGroup) int {
+	slices.SortStableFunc(lots, func(a, b PortionLot) int {
 		return cmp.Or(
 			cmp.Compare(slices.Index(StorageLocations, a.Location), slices.Index(StorageLocations, b.Location)),
 			cmp.Compare(portionName(a.Name), portionName(b.Name)),
 		)
 	})
-	return groups
+	return lots
 }
