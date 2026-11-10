@@ -446,7 +446,13 @@ legend.section-heading + * { clear: both; }
 
 .disclosure[open] > summary svg { transform: rotate(180deg); }
 
-/* fold: a line that opens in place, its chevron pointing right while closed */
+/* fold: a line that opens in place, its chevron pointing right while closed: drawn at
+   half an icon's size, one pixel per bitmap pixel, so it stays crisp */
+
+.fold { --fold-chevron: 0.625rem; }
+
+.fold > summary > .icon,
+.fold-line > .icon { width: var(--fold-chevron); height: var(--fold-chevron); }
 
 .fold > summary,
 .fold-line {
@@ -464,7 +470,7 @@ legend.section-heading + * { clear: both; }
 
 .fold[open] > summary svg { transform: none; }
 
-.fold-body { margin: var(--space-2) 0 0 calc(1.25rem + var(--space-2)); }
+.fold-body { margin: var(--space-2) 0 0 calc(var(--fold-chevron) + var(--space-2)); }
 
 /* rows: hairline-separated, opening in place to edit */
 
