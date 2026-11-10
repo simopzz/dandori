@@ -20,6 +20,29 @@ var shared = []string{"agent", "app", "apptest", "clock", "db", "domain", "httpx
 // a call without arguments, such as r.URL.Query(), is not one.
 var sqlCalls = []string{"Exec", "Query", "QueryRow", "SendBatch", "CopyFrom"}
 
+// tier is one of ADR-0006's tiers, as the prefix naming a feature's file.
+type tier string
+
+const (
+	tierWeb     tier = "web_"
+	tierService tier = "service"
+	tierStore   tier = "store"
+)
+
+// fileTier is the tier a file's name puts it in: web_*, service.go or service_*,
+// store.go or store_*. ok is false for any other name.
+func fileTier(name string) (t tier, ok bool) {
+	if strings.HasPrefix(name, string(tierWeb)) {
+		return tierWeb, true
+	}
+	for _, t := range []tier{tierService, tierStore} {
+		if name == string(t)+".go" || strings.HasPrefix(name, string(t)+"_") {
+			return t, true
+		}
+	}
+	return "", false
+}
+
 // Each file of a feature holds one of ADR-0006's tiers, named by its prefix: web_ files
 // are the only ones importing internal/web or internal/httpx, and store files the only
 // ones calling the database.
@@ -46,15 +69,9 @@ func TestFeatureFilesKeepToTheirTier(t *testing.T) {
 
 // checkTier reports where the file at path breaks its tier's rules.
 func checkTier(t *testing.T, path string) {
-	name := filepath.Base(path)
-	tier := ""
-	for _, prefix := range []string{"web_", "service", "store"} {
-		if strings.HasPrefix(name, prefix) {
-			tier = prefix
-		}
-	}
-	if tier == "" {
-		t.Errorf("%s: a feature's file is named by its tier: web_, service or store (ADR-0006)", path)
+	tier, ok := fileTier(filepath.Base(path))
+	if !ok {
+		t.Errorf("%s: a feature's file is named by its tier: web_*, service.go, service_*, store.go or store_* (ADR-0006)", path)
 		return
 	}
 	fset := token.NewFileSet()
@@ -62,14 +79,14 @@ func checkTier(t *testing.T, path string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tier != "web_" {
+	if tier != tierWeb {
 		for _, imp := range f.Imports {
 			if p, _ := strconv.Unquote(imp.Path.Value); strings.HasSuffix(p, "/internal/web") || strings.HasSuffix(p, "/internal/httpx") {
 				t.Errorf("%s: imports %s, which only a web_ file does (ADR-0006)", fset.Position(imp.Pos()), p)
 			}
 		}
 	}
-	if tier != "store" {
+	if tier != tierStore {
 		ast.Inspect(f, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok || len(call.Args) == 0 {
