@@ -2,6 +2,7 @@
 package anthropic
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -83,8 +84,10 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 			CacheWrite: msg.Usage.CacheCreationInputTokens,
 		},
 	}
-	if resp.StopReason == agent.StopRefusal {
-		resp.Refusal = fmt.Sprintf("%s: %s", msg.StopDetails.Category, msg.StopDetails.Explanation)
+	if d := msg.StopDetails; d.Category != "" && d.Explanation != "" {
+		resp.Refusal = fmt.Sprintf("%s: %s", d.Category, d.Explanation)
+	} else {
+		resp.Refusal = cmp.Or(string(d.Category), d.Explanation)
 	}
 	for _, b := range msg.Content {
 		block := agent.Block{Type: agent.BlockOther, Raw: json.RawMessage(b.RawJSON())}

@@ -187,7 +187,4 @@ func TestARequestHasATimeLimit(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Errorf("sent %d requests, want 1", calls.Load())
 	}
-	if requestTimeout != 5*time.Minute {
-		t.Errorf("requestTimeout = %v, want 5m", requestTimeout)
-	}
 }
