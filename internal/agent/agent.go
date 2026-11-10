@@ -21,9 +21,19 @@ type Request struct {
 	System   string
 	Messages []Message
 	Tools    []ToolSpec
-	// Effort is how hard the model thinks, as the API names it (low, medium, high...).
-	Effort string
+	Effort   Effort
 }
+
+// Effort is how hard the model thinks, as the API names it.
+type Effort string
+
+const (
+	EffortLow    Effort = "low"
+	EffortMedium Effort = "medium"
+	EffortHigh   Effort = "high"
+	EffortXHigh  Effort = "xhigh"
+	EffortMax    Effort = "max"
+)
 
 // Response is the model's turn.
 type Response struct {

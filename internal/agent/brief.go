@@ -14,7 +14,7 @@ type Brief struct {
 	Prompt string
 	Tools  []Tool
 	// Effort is how hard the model thinks for this kind of Run, always set explicitly.
-	Effort string
+	Effort Effort
 }
 
 // Tool is something the agent can do. Run's result goes back to the model; an error goes

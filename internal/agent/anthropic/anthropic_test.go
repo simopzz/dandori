@@ -56,7 +56,7 @@ var parse = agent.Request{
 	System:   "You read recipes.",
 	Messages: []agent.Message{{Role: agent.RoleUser, Content: []agent.Block{{Type: agent.BlockText, Text: "Pasta with tomato"}}}},
 	Tools:    []agent.ToolSpec{{Name: "submit_recipe", Description: "Submit it.", InputSchema: json.RawMessage(`{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}`)}},
-	Effort:   "medium",
+	Effort:   agent.EffortMedium,
 }
 
 func TestCacheBreakpointsAndAByteStableSystemPrompt(t *testing.T) {
@@ -98,7 +98,7 @@ func TestCacheBreakpointsAndAByteStableSystemPrompt(t *testing.T) {
 }
 
 func TestFallbackAndEffort(t *testing.T) {
-	for _, effort := range []string{"medium", "high"} {
+	for _, effort := range []agent.Effort{agent.EffortMedium, agent.EffortHigh} {
 		llm, got := api(t, 200, toolCall)
 		req := parse
 		req.Effort = effort
@@ -112,7 +112,7 @@ func TestFallbackAndEffort(t *testing.T) {
 		if beta := s.header.Get("anthropic-beta"); !strings.Contains(beta, "server-side-fallback-2026-07-01") {
 			t.Errorf("anthropic-beta = %q, want the fallback's beta", beta)
 		}
-		if cfg, _ := s.body["output_config"].(map[string]any); cfg["effort"] != effort {
+		if cfg, _ := s.body["output_config"].(map[string]any); cfg["effort"] != string(effort) {
 			t.Errorf("effort = %v, want %s", cfg["effort"], effort)
 		}
 	}
