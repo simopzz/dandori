@@ -280,20 +280,9 @@ templ countBody(f CountForm) {
 // when htmx sends it, so the field keeps its focus; without htmx it opens the Count
 // page searched.
 templ countSearch(q string) {
-	<form
-		id="count-search"
-		role="search"
-		method="get"
-		action="/kitchen/count"
-		hx-get="/kitchen/count/list"
-		hx-trigger="submit, input delay:300ms"
-		hx-target="#count-list"
-		hx-swap="innerHTML"
-	>
-		@web.SearchField(web.T(ctx, msgSearch)) {
-			<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off" autofocus/>
-		}
-	</form>
+	@web.ListSearch("count-search", "/kitchen/count", "/kitchen/count/list", "count-list", web.T(ctx, msgSearch)) {
+		<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off" autofocus/>
+	}
 }
 
 // foundList is the Ingredients a search for q found to count, each opening its form;

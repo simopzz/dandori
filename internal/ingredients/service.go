@@ -294,7 +294,7 @@ func (s *Service) Listing(ctx context.Context, query string) (found []domain.Ing
 // search is the ones of ings a search for query finds by spelling, the most alike first.
 func search(query string, ings []domain.Ingredient) []domain.Ingredient {
 	var found []domain.Ingredient
-	for _, i := range domain.SearchIngredients(query, names(ings)) {
+	for _, i := range domain.SearchNames(query, names(ings)) {
 		found = append(found, ings[i])
 	}
 	return found

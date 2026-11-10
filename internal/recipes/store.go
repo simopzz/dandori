@@ -34,23 +34,57 @@ func RecipesUsing(ctx context.Context, q db.Querier, id int64) (first string, ot
 	return first, others, err
 }
 
+// slotKindsOf is kinds as the database stores them.
+func slotKindsOf(kinds []domain.SlotKind) []string {
+	out := make([]string, len(kinds))
+	for i, k := range kinds {
+		out[i] = string(k)
+	}
+	return out
+}
+
 // saveRecipe adds rec for the signed-in User under its normalised name, unless they have
 // a Recipe of that name, and is its id; added says whether it did.
 func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised string) (id int64, added bool, err error) {
-	kinds := make([]string, len(rec.Kinds))
-	for i, k := range rec.Kinds {
-		kinds[i] = string(k)
-	}
 	err = q.QueryRow(ctx, `
 		INSERT INTO recipe (name, normalised_name, portions, active_minutes, total_minutes, slot_kinds, appliances, steps)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id, normalised_name) DO NOTHING
 		RETURNING id`,
-		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, kinds, rec.Appliances, rec.Steps).Scan(&id)
+		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
 	return id, err == nil, err
+}
+
+// updateRecipe sets the signed-in User's Recipe id to rec under its normalised name, or
+// is ErrNoRecipe.
+func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe, normalised string) error {
+	tag, err := q.Exec(ctx, `
+		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
+			slot_kinds = $7, appliances = $8, steps = $9
+		WHERE id = $1`,
+		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps)
+	if err == nil && tag.RowsAffected() == 0 {
+		return ErrNoRecipe
+	}
+	return err
+}
+
+// deleteRecipeIngredients takes every Ingredient off the Recipe id.
+func deleteRecipeIngredients(ctx context.Context, q db.Querier, id int64) error {
+	_, err := q.Exec(ctx, `DELETE FROM recipe_ingredient WHERE recipe_id = $1`, id)
+	return err
+}
+
+// deleteRecipe deletes the signed-in User's Recipe id and is its name, or ErrNoRecipe.
+func deleteRecipe(ctx context.Context, q db.Querier, id int64) (name string, err error) {
+	err = q.QueryRow(ctx, `DELETE FROM recipe WHERE id = $1 RETURNING name`, id).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNoRecipe
+	}
+	return name, err
 }
 
 // saveRecipeIngredients lists rec's Ingredients, every one saved, on the Recipe id.
@@ -65,9 +99,13 @@ func saveRecipeIngredients(ctx context.Context, q db.Querier, id int64, rec doma
 	return nil
 }
 
-// loadTaken is the id and name of the signed-in User's Recipe under the key normalised.
-func loadTaken(ctx context.Context, q db.Querier, normalised string) (id int64, name string, err error) {
-	err = q.QueryRow(ctx, `SELECT id, name FROM recipe WHERE normalised_name = $1`, normalised).Scan(&id, &name)
+// loadTaken is the id and name of the signed-in User's Recipe under the key normalised,
+// other than the one except, or 0 if there is none.
+func loadTaken(ctx context.Context, q db.Querier, normalised string, except int64) (id int64, name string, err error) {
+	err = q.QueryRow(ctx, `SELECT id, name FROM recipe WHERE normalised_name = $1 AND id <> $2`, normalised, except).Scan(&id, &name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", nil
+	}
 	return id, name, err
 }
 

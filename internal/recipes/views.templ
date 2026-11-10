@@ -12,31 +12,57 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// library is the Recipe Library page: the way to write a Recipe, and the User's Recipes.
-templ library(now time.Time, recipes []domain.Recipe) {
+// library is the Recipe Library page: the way to write a Recipe, and the User's Recipes a
+// search for q found, with the search once there is something to search.
+templ library(now time.Time, recipes []domain.Recipe, q string) {
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
 		@web.Section(0, web.T(ctx, msgRecipes)) {
-			if len(recipes) == 0 {
-				@web.Empty() {
-					{ web.T(ctx, msgNoRecipes) }
-				}
+			if q != "" || len(recipes) > 0 {
+				@searchForm(q)
+			}
+			<div id={ listID }>
+				@recipeList(recipes, q)
+			</div>
+		}
+		@web.AddButton([]web.AddChoice{{Title: web.T(ctx, msgWrite), Href: "/recipes/new"}})
+	}
+}
+
+// listID is the id of the list a search swaps.
+const listID = "recipe-list"
+
+// searchForm searches the User's Recipes as they type, swapping the list alone when htmx
+// sends it, so the field keeps its focus; without htmx it opens the page searched.
+templ searchForm(q string) {
+	@web.ListSearch("recipe-search", "/recipes", "/recipes/list", listID, web.T(ctx, msgSearch)) {
+		<input type="search" name="q" value={ q } placeholder={ web.T(ctx, msgSearch) } autocomplete="off"/>
+	}
+}
+
+// recipeList is the User's Recipes a search for q found, or why there are none.
+templ recipeList(recipes []domain.Recipe, q string) {
+	if len(recipes) == 0 {
+		@web.Empty() {
+			if q == "" {
+				{ web.T(ctx, msgNoRecipes) }
 			} else {
-				@web.Rows() {
-					for _, rec := range recipes {
-						@web.Row() {
-							<a class="row-title" href={ templ.SafeURL(recipeURL(rec.ID)) }>{ rec.Name }</a>
-							<span class="row-meta">
-								<span>{ kindsOf(ctx, rec.Kinds) }</span>
-								<span>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</span>
-								<span>{ web.Tf(ctx, msgKcalPer, web.Number(ctx, rec.NutritionPerPortion().Kcal.Value)) }</span>
-							</span>
-						}
-					}
+				{ web.Tf(ctx, msgNoMatch, q) }
+			}
+		}
+	} else {
+		@web.Rows() {
+			for _, rec := range recipes {
+				@web.Row() {
+					<a class="row-title" href={ templ.SafeURL(recipeURL(rec.ID)) }>{ rec.Name }</a>
+					<span class="row-meta">
+						<span>{ kindsOf(ctx, rec.Kinds) }</span>
+						<span>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</span>
+						<span>{ web.Tf(ctx, msgKcalPer, web.Number(ctx, rec.NutritionPerPortion().Kcal.Value)) }</span>
+					</span>
 				}
 			}
 		}
-		@web.AddButton([]web.AddChoice{{Title: web.T(ctx, msgWrite), Href: "/recipes/new"}})
 	}
 }
 
@@ -52,7 +78,13 @@ func kindsOf(ctx context.Context, kinds []domain.SlotKind) string {
 // recipePage is one Recipe, all of it, its header leaving room for a rating later.
 templ recipePage(now time.Time, rec domain.Recipe) {
 	@web.Layout(web.Tf(ctx, msgRecipeTitle, rec.Name), web.RecipesTab) {
-		@web.PageHeader("レシピ", rec.Name, now)
+		@web.PageHeader("レシピ", rec.Name, now) {
+			<p class="lede">
+				@web.TextLink(templ.Attributes{"href": recipeURL(rec.ID) + "/edit"}) {
+					{ web.T(ctx, msgEdit) }
+				}
+			</p>
+		}
 		<dl>
 			<dt>{ web.T(ctx, msgMakes) }</dt>
 			<dd>
@@ -129,14 +161,18 @@ templ floored(name web.Message, a domain.Amount, floor bool) {
 
 // formPage is the Recipe form as a page.
 templ formPage(now time.Time, f RecipeForm) {
-	@web.Layout(web.T(ctx, msgWriteTitle), web.RecipesTab) {
-		@web.PageHeader("レシピ", web.T(ctx, msgWrite), now)
+	@web.Layout(web.T(ctx, f.Title), web.RecipesTab) {
+		@web.PageHeader("レシピ", web.T(ctx, f.Heading), now)
 		@recipeForm(f)
 	}
 }
 
 // knownIngredients is the id of the list of names a row's name offers as the User types.
 const knownIngredients = "known-ingredients"
+
+// deleteFormID is the id of the form deleting the Recipe being edited, beside the Recipe
+// form since forms don't nest, so Enter still saves.
+const deleteFormID = "recipe-delete"
 
 // recipeForm is the one form every Recipe is written with. Its add buttons ask htmx for
 // one more row, and without htmx post the form back with one.
@@ -206,13 +242,30 @@ templ recipeForm(f RecipeForm) {
 				<textarea name="appliances" rows="3">{ f.Appliances }</textarea>
 			}
 		</div>
-		@web.Actions() {
-			@web.Button(templ.Attributes{"type": "submit"}) {
-				{ web.T(ctx, f.Submit) }
+		if f.ID != 0 {
+			@web.ActionsApart() {
+				@saveButton(f)
+				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": deleteFormID}) {
+					{ web.T(ctx, msgDelete) }
+				}
+			}
+		} else {
+			@web.Actions() {
+				@saveButton(f)
 			}
 		}
 	</form>
+	if f.ID != 0 {
+		<form id={ deleteFormID } method="post" action={ templ.SafeURL(recipeURL(f.ID) + "/delete") }></form>
+	}
 	<script src="/static/recipe-form.js"></script>
+}
+
+// saveButton saves f.
+templ saveButton(f RecipeForm) {
+	@web.Button(templ.Attributes{"type": "submit"}) {
+		{ web.T(ctx, f.Submit) }
+	}
 }
 
 // addButton adds to the list named list the row at src, which is told the fields of

@@ -103,8 +103,8 @@ func without(names []string, name string) []string {
 func TestSearchingRanksTheExactNameFirst(t *testing.T) {
 	for l, names := range kitchenNames {
 		for _, name := range names {
-			if found := domain.SearchIngredients(name, names); len(found) == 0 || names[found[0]] != name {
-				t.Errorf("%s: SearchIngredients(%q) doesn't rank it first: %v", l, name, found)
+			if found := domain.SearchNames(name, names); len(found) == 0 || names[found[0]] != name {
+				t.Errorf("%s: SearchNames(%q) doesn't rank it first: %v", l, name, found)
 			}
 		}
 	}
@@ -210,7 +210,7 @@ func TestSlipsOfKitchenNames(t *testing.T) {
 				if got, ok := domain.ClosestIngredient(l, typo, names); ok && got == name {
 					suggested[b]++
 				}
-				found := domain.SearchIngredients(typo, names)
+				found := domain.SearchNames(typo, names)
 				if at := slices.IndexFunc(found, func(i int) bool { return names[i] == name }); at >= 0 && at < 3 {
 					searched++
 				}

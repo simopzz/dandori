@@ -75,12 +75,12 @@ func oneSlipApart(typed, known string) bool {
 	return len(a) >= 2 && len(a) == len(b) && a[0] == b[1] && a[1] == b[0] && slices.Equal(a[2:], b[2:])
 }
 
-// SearchIngredients is which of names a search for query finds, as indices into names,
+// SearchNames is which of names a search for query finds, as indices into names,
 // most alike first and alike ones in the order given: those that contain query, and those
 // whose spelling is alike, whole or in a run of their words, so a typo still finds the
-// Ingredient. Of names alike in a run of their words, the one nearest query as a whole
+// name. Of names alike in a run of their words, the one nearest query as a whole
 // comes first, so milk leads coconut milk. A blank query finds every name.
-func SearchIngredients(query string, names []string) []int {
+func SearchNames(query string, names []string) []int {
 	query = fold(query)
 	var found []int
 	run, whole := map[int]float64{}, map[int]float64{}

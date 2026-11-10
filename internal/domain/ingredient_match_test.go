@@ -121,11 +121,11 @@ func TestSearchingIngredientsByName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var got []string
-			for _, i := range domain.SearchIngredients(tt.query, names) {
+			for _, i := range domain.SearchNames(tt.query, names) {
 				got = append(got, names[i])
 			}
 			if !slices.Equal(got, tt.want) {
-				t.Errorf("SearchIngredients(%q) = %q, want %q", tt.query, got, tt.want)
+				t.Errorf("SearchNames(%q) = %q, want %q", tt.query, got, tt.want)
 			}
 		})
 	}
