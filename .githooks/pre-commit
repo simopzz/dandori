@@ -1,0 +1,3 @@
+#!/bin/sh
+# The fast checks, before every commit: mise run check runs everything CI runs.
+exec mise run guardrails

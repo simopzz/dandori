@@ -42,6 +42,21 @@ run = [
   "go test -count=1 ./...",
 ]
 
+[tasks.guardrails]
+description = "Run the checks that need no database, in seconds: gofmt, templ output up to date, go vet, golangci-lint and the guardrail tests"
+depends = ["generate"]
+run = [
+  'unformatted=$(gofmt -l .); if [ -n "$unformatted" ]; then echo "gofmt needed:"; echo "$unformatted"; exit 1; fi',
+  'git diff --quiet -- "*_templ.go" || { echo "templ output changed: add the *_templ.go files"; git diff --stat -- "*_templ.go"; exit 1; }',
+  "go vet ./...",
+  "golangci-lint run ./...",
+  "go test -count=1 ./internal/web ./internal/clock ./internal/kitchen ./cmd/dandori",
+]
+
+[tasks.hooks]
+description = "Turn on the repo's git hooks: the pre-commit hook runs mise run guardrails"
+run = "git config core.hooksPath .githooks"
+
 [tasks.devdb]
 description = "Start the local Postgres + pgvector dev server, which keeps its data between runs (docker needs sudo)"
 # pg_isready over TCP: while the image initialises its first database, its
