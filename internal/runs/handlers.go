@@ -44,7 +44,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	kind := h.Kinds[run.Kind]
 	var res result
-	if kind.Result != nil && run.Status == "succeeded" {
+	if kind.Result != nil && run.Status == Succeeded {
 		res.Text = web.T(ctx, kind.ResultName)
 		if res.Href, err = kind.Result(ctx, id); err != nil {
 			httpx.ServerError(w, r, h.Log, "find what the Run left", err)

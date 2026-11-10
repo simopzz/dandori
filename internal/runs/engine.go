@@ -33,6 +33,17 @@ type Config struct {
 	MaxTurns int
 }
 
+// Status is where a Run is: going until it succeeds, fails or is cancelled.
+type Status string
+
+// The statuses a Run has, as the database checks them.
+const (
+	Going     Status = "going"
+	Succeeded Status = "succeeded"
+	Failed    Status = "failed"
+	Cancelled Status = "cancelled"
+)
+
 // Engine runs the Runs going in this process.
 type Engine struct {
 	pool  *pgxpool.Pool
@@ -97,9 +108,9 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 	tr.Emit(agent.TraceEvent{Kind: agent.Started, Model: e.cfg.Model})
 	err := e.carryOut(ctx, tr, b)
 
-	status := "succeeded"
+	status := Succeeded
 	if err != nil {
-		status = "failed"
+		status = Failed
 		failure, ok := errors.AsType[*agent.Failure](err)
 		switch {
 		case e.ctx.Err() != nil:
@@ -109,7 +120,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 		}
 		tr.Emit(agent.TraceEvent{Kind: agent.Failed, Reason: failure.Reason, Text: failure.Detail})
 	}
-	tr.Emit(agent.TraceEvent{Kind: agent.Ended, Status: status})
+	tr.Emit(agent.TraceEvent{Kind: agent.Ended, Status: string(status)})
 
 	storeCtx, cancel := tr.storeContext()
 	defer cancel()

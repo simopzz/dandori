@@ -13,7 +13,7 @@ import (
 type Run struct {
 	ID        int64
 	Kind      string
-	Status    string // going, succeeded, failed or cancelled
+	Status    Status
 	StartedAt time.Time
 	Trace     []StoredTraceEvent
 }
@@ -32,7 +32,7 @@ templ runPage(now time.Time, r Run, kind string, res result) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RecipesTab) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">
-				@web.Tag(r.Status == "failed", "") {
+				@web.Tag(r.Status == Failed, "") {
 					{ web.T(ctx, statusNames[r.Status]) }
 				}
 				{ " " + web.Tf(ctx, msgStarted, r.StartedAt.In(now.Location()).Format("15:04:05")) }
@@ -98,7 +98,7 @@ func line(ctx context.Context, ev agent.TraceEvent) string {
 		}
 		return reason
 	case agent.Ended:
-		return web.Tf(ctx, msgEnded, web.T(ctx, statusNames[ev.Status]))
+		return web.Tf(ctx, msgEnded, web.T(ctx, statusNames[Status(ev.Status)]))
 	}
 	return string(ev.Kind)
 }

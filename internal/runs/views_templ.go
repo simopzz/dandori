@@ -21,7 +21,7 @@ import (
 type Run struct {
 	ID        int64
 	Kind      string
-	Status    string // going, succeeded, failed or cancelled
+	Status    Status
 	StartedAt time.Time
 	Trace     []StoredTraceEvent
 }
@@ -108,7 +108,7 @@ func runPage(now time.Time, r Run, kind string, res result) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = web.Tag(r.Status == "failed", "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.Tag(r.Status == Failed, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -361,7 +361,7 @@ func line(ctx context.Context, ev agent.TraceEvent) string {
 		}
 		return reason
 	case agent.Ended:
-		return web.Tf(ctx, msgEnded, web.T(ctx, statusNames[ev.Status]))
+		return web.Tf(ctx, msgEnded, web.T(ctx, statusNames[Status(ev.Status)]))
 	}
 	return string(ev.Kind)
 }

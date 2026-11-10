@@ -22,7 +22,7 @@ func insertRun(ctx context.Context, pool *pgxpool.Pool, kind, asked string, at t
 }
 
 // setStatus stores how the Run id, still going, ended.
-func setStatus(ctx context.Context, pool *pgxpool.Pool, id int64, status string, at time.Time) error {
+func setStatus(ctx context.Context, pool *pgxpool.Pool, id int64, status Status, at time.Time) error {
 	return db.AsUser(ctx, pool, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `UPDATE run SET status = $2, ended_at = $3 WHERE id = $1 AND status = 'going'`, id, status, at)
 		return err

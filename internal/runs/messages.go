@@ -26,11 +26,11 @@ var (
 )
 
 // statusNames are each status of a Run.
-var statusNames = map[string]web.Message{
-	"going":     {En: "Going", It: "In corso"},
-	"succeeded": {En: "Succeeded", It: "Riuscita"},
-	"failed":    {En: "Failed", It: "Fallita"},
-	"cancelled": {En: "Cancelled", It: "Annullata"},
+var statusNames = map[Status]web.Message{
+	Going:     {En: "Going", It: "In corso"},
+	Succeeded: {En: "Succeeded", It: "Riuscita"},
+	Failed:    {En: "Failed", It: "Fallita"},
+	Cancelled: {En: "Cancelled", It: "Annullata"},
 }
 
 // reasonNames are why a Run fails; %s is what was said more, verbatim.
