@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -653,13 +654,19 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 	addsRiceInTheBrowser(t, b)
 	expect := playwright.NewPlaywrightAssertions()
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
-	top := func() float64 {
+	// top is the top of the Count sheet's body, and what the sheet was then, for a
+	// failure to tell why it moved.
+	top := func() (float64, string) {
 		t.Helper()
 		box, err := sheet.Locator(".sheet-body > :first-child").BoundingBox()
 		if err != nil || box == nil {
 			t.Fatalf("find the top of the Count sheet's body: %v", err)
 		}
-		return box.Y
+		was, err := sheet.Evaluate(`(s) => s.getBoundingClientRect().height + "px high, scrolled " + s.scrollTop + ": " + s.innerText.replace(/\s+/g, " ")`, nil)
+		if err != nil {
+			t.Fatalf("read the Count sheet: %v", err)
+		}
+		return box.Y, fmt.Sprint(was)
 	}
 	counts := func(stated string) {
 		t.Helper()
@@ -705,14 +712,15 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 	if err := expect.Locator(sheet.GetByRole("searchbox")).ToBeFocused(); err != nil {
 		t.Fatalf("the Count sheet doesn't open on its search: %v", err)
 	}
-	before := top()
+	before, sheetBefore := top()
 	counts("700")
 	b.IsConfirmed(t, "Counted rice: 700 g in the pantry.")
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Errorf("the Count sheet closed after a Count: %v", err)
 	}
-	if after := top(); after != before {
-		t.Errorf("the Count sheet's body moved from %v to %v on a Count", before, after)
+	if after, sheetAfter := top(); after != before {
+		t.Errorf("the Count sheet's body moved from %v to %v on a Count; the sheet was\n%s\nand is\n%s",
+			before, after, sheetBefore, sheetAfter)
 	}
 	first := b.Notices().First()
 	onTop, err := first.Evaluate(`(n) => { const r = n.getBoundingClientRect(); return n.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) }`, nil)

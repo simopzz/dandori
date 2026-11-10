@@ -367,10 +367,8 @@ func TestBrowserARejectedRecipeFocusesItsInvalidField(t *testing.T) {
 	}
 	b.Click(t, "Save Recipe")
 	b.Sees(t, "Can't be more than the total minutes.")
-	active := b.Locator(`[name="active"]`)
-	focused, err := active.Evaluate("el => el === document.activeElement", nil)
-	if err != nil || focused != true {
-		t.Errorf("the invalid field isn't focused: %v %v", focused, err)
+	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="active"]`)).ToBeFocused(); err != nil {
+		t.Errorf("the invalid field isn't focused: %v", err)
 	}
 }
 
@@ -392,9 +390,8 @@ func TestBrowserARecipeWithNoIngredientFocusesTheFirstRow(t *testing.T) {
 	}
 	b.Click(t, "Save Recipe")
 	b.Sees(t, "List at least one Ingredient.")
-	got, err := b.Locator(`[name="ing_name_0"]`).Evaluate("el => el === document.activeElement", nil)
-	if err != nil || got != true {
-		t.Errorf("the first row isn't focused: %v %v", got, err)
+	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="ing_name_0"]`)).ToBeFocused(); err != nil {
+		t.Errorf("the first row isn't focused: %v", err)
 	}
 }
 
