@@ -318,7 +318,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	}
 	b.Shot(t, "run-closed")
 
-	for _, line := range []string{"Pasted text", "Asking the model (turn 1)", "Calls submit_recipe"} {
+	for _, line := range []string{"Pasted recipe", "Asking the model (turn 1)", "Calls submit_recipe"} {
 		if err := b.GetByText(line, playwright.PageGetByTextOptions{Exact: playwright.Bool(true)}).Click(); err != nil {
 			t.Fatal(err)
 		}
