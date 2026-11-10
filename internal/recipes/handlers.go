@@ -1,10 +1,12 @@
 package recipes
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -27,7 +29,66 @@ func (h Handlers) Library(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "search the Recipes", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, library(h.Clock.Now(), recipes, q))
+	httpx.Render(w, r, h.Log, http.StatusOK, library(h.Clock.Now(), PasteForm{}, recipes, q))
+}
+
+// Paste starts a parse Run reading the pasted text into a Recipe Draft, and goes to the
+// Run. A blank paste is refused on its field.
+func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	text := strings.TrimSpace(r.PostForm.Get("text"))
+	if text == "" {
+		recipes, err := h.Service.Search(ctx, "")
+		if err != nil {
+			httpx.ServerError(w, r, h.Log, "search the Recipes", err)
+			return
+		}
+		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: library(h.Clock.Now(), paste, recipes, "")}.Write(w, r, h.Log)
+		return
+	}
+	id, err := h.Service.StartParse(ctx, web.LanguageOf(ctx), text)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "start a parse Run", err)
+		return
+	}
+	web.Answer{RedirectTo: "/runs/" + strconv.FormatInt(id, 10)}.Write(w, r, h.Log)
+}
+
+// ShowDraft is the Recipe Draft's own page.
+func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	rec, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
+	if errors.Is(err, ErrNoDraft) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, draftPage(h.Clock.Now(), rec))
+}
+
+// DraftPage is the page of the Recipe Draft the signed-in User's parse Run runID left, or
+// "" if it left none: a Run's page links to it.
+func (h Handlers) DraftPage(ctx context.Context, runID int64) (string, error) {
+	id, err := h.Service.DraftOf(ctx, runID)
+	if errors.Is(err, ErrNoDraft) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return draftURL(id), nil
 }
 
 // ShowList is the list of Recipes alone, searched for its query q, which the search swaps
@@ -244,3 +305,6 @@ func unrefused(f RecipeForm) RecipeForm {
 
 // recipeURL is the page of the Recipe id.
 func recipeURL(id int64) string { return "/recipes/" + strconv.FormatInt(id, 10) }
+
+// draftURL is the page of the Recipe Draft id.
+func draftURL(id int64) string { return "/recipe-drafts/" + strconv.FormatInt(id, 10) }

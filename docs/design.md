@@ -204,6 +204,7 @@ elements themselves.
 | `Hint()` | A quiet paragraph explaining what follows. |
 | `Empty()` | What a list says when it has nothing in it. |
 | `Disclosure(summary)` | A group of a page's content a click away (the day's later Slots on Today): a quiet summary line with a chevron, closed until opened. |
+| `Fold(summary, holds)` | A line that opens in place to show what it holds (a Trace Event's data): a chevron at its start points right while closed and down while open, and it starts closed. Without `holds` it is the line alone, aligned with its neighbours. |
 | `Rows()` | A list of `Row`s or `EditRow`s. |
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
 | `Seal()` | The pixel sun before an urgent `Row`'s `row-title`. Decorative: the row's text (an accent `Tag`) says why it is urgent. |

@@ -477,3 +477,16 @@ func (s *Scenario) PostsRecipeForm(r Recipe) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("writes the Recipe %q: %d %s", r.Name, s.page.StatusCode, s.page.Path))
 }
+
+// PastesRecipe pastes text on the Recipe Library page, lands on its Run's page, and
+// reloads it once the Run has ended.
+func (s *Scenario) PastesRecipe(text string) {
+	s.t.Helper()
+	s.Open("/recipes")
+	form := Form(s.t, s.page.Body, "paste-form")
+	form.Values.Set("text", text)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("pastes a recipe: %d %s", s.page.StatusCode, s.page.Path))
+	s.Settle()
+	s.Open(s.page.Path)
+}

@@ -24,6 +24,16 @@ var (
 	msgDelete       = web.Message{En: "Delete", It: "Elimina"}
 	msgDeleted      = web.Message{En: "Deleted %s.", It: "Eliminata: %s."}
 
+	msgPaste         = web.Message{En: "Paste a recipe", It: "Incolla una ricetta"}
+	msgPasteHint     = web.Message{En: "in any language", It: "in qualsiasi lingua"}
+	msgRead          = web.Message{En: "Read it", It: "Leggila"}
+	msgPasteRequired = web.Message{En: "Paste a recipe to read.", It: "Incolla una ricetta da leggere."}
+	ParseKindName    = web.Message{En: "Reading a Recipe", It: "Lettura di una Ricetta"}
+	PastedName       = web.Message{En: "Pasted recipe", It: "Ricetta incollata"}
+	DraftName        = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
+	msgDraftTitle    = web.Message{En: "Recipe Draft · Dandori", It: "Bozza di Ricetta · Dandori"}
+	msgStaple        = web.Message{En: "Staple", It: "Base"}
+
 	msgName       = web.Message{En: "Name", It: "Nome"}
 	msgPortions   = web.Message{En: "Portions", It: "Porzioni"}
 	msgActive     = web.Message{En: "Active minutes", It: "Minuti attivi"}

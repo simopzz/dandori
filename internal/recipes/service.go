@@ -1,5 +1,6 @@
-// Package recipes is the Recipe Library: the Recipes a User writes by hand and the one
-// form every Recipe is written with.
+// Package recipes is the Recipe Library: the Recipes a User writes by hand or pastes,
+// the Recipe Drafts parse Runs read pasted text into, and the one form every Recipe is
+// written with.
 package recipes
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/runs"
 )
 
 // NameTakenError is a Recipe refused because the User has one of that name already, the
@@ -33,11 +35,12 @@ var ErrNoRecipe = errors.New("the User has no such Recipe")
 type Service struct {
 	pool        *pgxpool.Pool
 	ingredients *ingredients.Service
+	runs        *runs.Engine
 }
 
-// New creates the Service.
-func New(pool *pgxpool.Pool, ings *ingredients.Service) *Service {
-	return &Service{pool: pool, ingredients: ings}
+// New creates the Service, its parse Runs going through engine.
+func New(pool *pgxpool.Pool, ings *ingredients.Service, engine *runs.Engine) *Service {
+	return &Service{pool: pool, ingredients: ings, runs: engine}
 }
 
 // Add adds rec, which has no Problems, for the signed-in User, whose Language is l, and

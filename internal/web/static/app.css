@@ -446,6 +446,32 @@ legend.section-heading + * { clear: both; }
 
 .disclosure[open] > summary svg { transform: rotate(180deg); }
 
+/* fold: a line that opens in place, its chevron pointing right while closed: drawn at
+   half an icon's size, one pixel per bitmap pixel, so it stays crisp */
+
+.fold { --fold-chevron: 0.625rem; }
+
+.fold > summary > .icon,
+.fold-line > .icon { width: var(--fold-chevron); height: var(--fold-chevron); }
+
+.fold > summary,
+.fold-line {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fold > summary { cursor: pointer; }
+
+.fold > summary::-webkit-details-marker { display: none; }
+
+.fold > summary svg { transform: rotate(-90deg); transition: transform 0.15s; }
+
+.fold[open] > summary svg { transform: none; }
+
+.fold-body { margin: var(--space-2) 0 0 calc(var(--fold-chevron) + var(--space-2)); }
+
 /* rows: hairline-separated, opening in place to edit */
 
 .rows { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
@@ -984,12 +1010,11 @@ html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; objec
 .trace { list-style: none; padding: 0; margin: var(--space-4) 0; font-size: 0.9rem; }
 
 .trace-event {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  gap: 0 var(--space-3);
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-rule);
 }
+
+.trace-event time { margin-right: var(--space-2); }
 
 .trace-event time { color: var(--color-text-soft); font-variant-numeric: tabular-nums; }
 
@@ -1006,7 +1031,6 @@ html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; objec
 .prose li + li { margin-top: var(--space-1); }
 
 .trace-detail {
-  grid-column: 1 / -1;
   margin: var(--space-1) 0 0;
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
@@ -1015,7 +1039,6 @@ html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; objec
   overflow-wrap: anywhere;
 }
 
-.trace-error .trace-kind,
-.trace-retry .trace-kind { color: var(--color-accent); }
-
-.trace-wait .trace-kind { color: var(--color-text-soft); }
+.trace-failed .trace-kind,
+.trace-retrying .trace-kind,
+.trace-refused .trace-kind { color: var(--color-accent); }

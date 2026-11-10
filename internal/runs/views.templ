@@ -1,0 +1,132 @@
+package runs
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"strings"
+	"time"
+
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// Run is one of the User's Runs with its Trace.
+type Run struct {
+	ID        int64
+	Kind      string
+	Status    Status
+	// Asked is what the Run was asked, such as the pasted recipe.
+	Asked     string
+	StartedAt time.Time
+	Trace     []StoredTraceEvent
+}
+
+// StoredTraceEvent is a Trace Event as the Run kept it, with when it happened.
+type StoredTraceEvent struct {
+	At time.Time
+	agent.TraceEvent
+}
+
+// result is the link to what a Run left the User.
+type result struct{ Text, Href string }
+
+// runPage is a Run and its Trace, with what the User gave it, folded under askedName,
+// and a link to what it left, if anything.
+templ runPage(now time.Time, r Run, kind, askedName string, res result) {
+	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RecipesTab) {
+		@web.PageHeader("実行", kind, now) {
+			<p class="lede">
+				@web.Tag(r.Status == Failed, "") {
+					{ web.T(ctx, statusNames[r.Status]) }
+				}
+				{ " " + web.Tf(ctx, msgStarted, r.StartedAt.In(now.Location()).Format("15:04:05")) }
+			</p>
+			if res.Href != "" {
+				<p class="lede">
+					@web.TextLink(templ.Attributes{"href": res.Href}) {
+						{ res.Text }
+					}
+				</p>
+			}
+		}
+		if r.Asked != "" && askedName != "" {
+			<div class="section">
+				@web.Fold(label(askedName), true) {
+					<pre class="trace-detail">{ r.Asked }</pre>
+				}
+			</div>
+		}
+		@web.Section(0, web.T(ctx, msgTrace)) {
+			<ol class="trace">
+				for _, ev := range r.Trace {
+					@traceEvent(ev, now.Location())
+				}
+			</ol>
+		}
+	}
+}
+
+// traceEvent is one Trace Event, a line of when and its fixed line in the User's
+// Language, folding what the model was sent or what it or a tool said, verbatim.
+templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
+	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
+		@web.Fold(traceLine(ev, zone), ev.Text != "" && ev.Kind != agent.Failed) {
+			if ev.Kind == agent.Said {
+				@web.Markdown(ev.Text)
+			} else {
+				<pre class="trace-detail">{ indented(ev.TraceEvent) }</pre>
+			}
+		}
+	</li>
+}
+
+templ traceLine(ev StoredTraceEvent, zone *time.Location) {
+	<time datetime={ ev.At.Format(time.RFC3339) }>{ ev.At.In(zone).Format("15:04:05") }</time>
+	<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
+}
+
+templ label(text string) {
+	<span class="trace-kind">{ text }</span>
+}
+
+// indented is ev's text, a tool's input indented to read.
+func indented(ev agent.TraceEvent) string {
+	var b bytes.Buffer
+	if ev.Kind != agent.Called || json.Indent(&b, []byte(ev.Text), "", "  ") != nil {
+		return ev.Text
+	}
+	return b.String()
+}
+
+// line is ev's fixed line in the Language of ctx.
+func line(ctx context.Context, ev agent.TraceEvent) string {
+	switch ev.Kind {
+	case agent.Started:
+		return web.Tf(ctx, msgStartedWith, ev.Model)
+	case agent.Asked:
+		return web.Tf(ctx, msgAsked, ev.Turn)
+	case agent.Said:
+		return web.T(ctx, msgSaid)
+	case agent.Called:
+		return web.Tf(ctx, msgCalled, ev.Tool)
+	case agent.Answered:
+		return web.Tf(ctx, msgAnswered, ev.Tool)
+	case agent.Refused:
+		return web.Tf(ctx, msgRefused, ev.Tool)
+	case agent.Retrying:
+		return web.Tf(ctx, msgRetrying, ev.Attempt, ev.Retries, ev.WaitMillis)
+	case agent.Tokens:
+		u := ev.Usage
+		return web.Tf(ctx, msgTokens, u.Input, u.Output, u.Thinking, u.CacheRead, u.CacheWrite)
+	case agent.Failed:
+		reason := web.T(ctx, reasonNames[ev.Reason])
+		if strings.Contains(reason, "%s") {
+			return web.Tf(ctx, reasonNames[ev.Reason], ev.Text)
+		}
+		return reason
+	case agent.Ended:
+		return web.Tf(ctx, msgEnded, web.T(ctx, statusNames[Status(ev.Status)]))
+	}
+	return string(ev.Kind)
+}
