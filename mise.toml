@@ -3,6 +3,10 @@ go = "1.27.3"
 "go:github.com/a-h/templ/cmd/templ" = "0.3.1070"
 golangci-lint = "2.15.0"
 
+# mise install turns on the repo's git hooks: the pre-commit hook runs mise run guardrails.
+[hooks]
+postinstall = "git config core.hooksPath .githooks"
+
 [env]
 # Local secrets such as DANDORI_DATABASE_URL; see .env.example.
 _.file = ".env"
@@ -40,6 +44,17 @@ run = [
   "go vet ./...",
   "golangci-lint run ./...",
   "go test -count=1 ./...",
+]
+
+[tasks.guardrails]
+description = "Run the checks that need no database, in seconds: gofmt, templ output up to date, go vet, golangci-lint and the guardrail tests"
+depends = ["generate"]
+run = [
+  'unformatted=$(gofmt -l .); if [ -n "$unformatted" ]; then echo "gofmt needed:"; echo "$unformatted"; exit 1; fi',
+  'git diff --quiet -- "*_templ.go" || { echo "templ output changed: add the *_templ.go files"; git diff --stat -- "*_templ.go"; exit 1; }',
+  "go vet ./...",
+  "golangci-lint run ./...",
+  "go test -count=1 ./internal/web ./internal/clock ./internal/kitchen ./cmd/dandori",
 ]
 
 [tasks.devdb]

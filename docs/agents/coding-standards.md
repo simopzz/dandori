@@ -75,6 +75,14 @@ Rules code review checks against. Each says what it protects.
   (Cooking Mode's Wake Lock and timers). *Protects: one way to talk to the
   server, and less hand-rolled code to maintain.*
 
+## Types
+
+- **A closed set of values is its own type with named constants**, as
+  `domain.SlotKind`, `domain.StorageLocation` and `domain.Unit` are: a
+  status, a kind, a reason. Code compares and maps the constants, never the
+  string literals. *Protects: a typo fails to compile, and finding every
+  use of one value is one search.*
+
 ## Comments
 
 - **Go comments fill each line** up to the width `TestCommentsWrap` enforces,

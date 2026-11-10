@@ -108,7 +108,8 @@ Notices' (see [Notices](#notices)). The sun and Fuji appear in the sky; the sun
 alone is the **seal** (`Seal`) on an urgent row.
 
 Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
-and `aria-hidden`.
+and `aria-hidden`. One that must be smaller is drawn 10px square: any other
+size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 
 ## Layout
 

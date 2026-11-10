@@ -6,7 +6,7 @@ Implement each issue on its own feature branch off `v2`, named `<issue>-<slug>` 
 
 Before writing code, list the domain decisions the issue leaves open (behaviour it implies but doesn't state) and confirm them with the user.
 
-Before every commit, run `mise run check`: everything CI runs. Commit before running `code-review`, which reads `HEAD`.
+Before every commit, run `mise run check`: everything CI runs. The pre-commit hook, which `mise install` turns on, runs its fast part, `mise run guardrails`. Commit before running `code-review`, which reads `HEAD`.
 
 ## Agent skills
 
