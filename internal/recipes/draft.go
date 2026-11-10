@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
@@ -39,20 +38,17 @@ func (s *Service) saveDraft(ctx context.Context, runID int64, p parsedRecipe) er
 	})
 }
 
-// DraftOf is the page of the Recipe Draft the signed-in User's parse Run runID left, or
-// "" if it left none.
-func (s *Service) DraftOf(ctx context.Context, runID int64) (string, error) {
+// DraftOf is the id of the Recipe Draft the signed-in User's parse Run runID left. It is
+// ErrNoDraft if the Run left none.
+func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 	var id int64
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT id FROM recipe_draft WHERE run_id = $1`, runID).Scan(&id)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
+		return 0, ErrNoDraft
 	}
-	if err != nil {
-		return "", err
-	}
-	return draftURL(id), nil
+	return id, err
 }
 
 // FindDraft is the signed-in User's Recipe Draft id, for them speaking l, each
@@ -83,6 +79,3 @@ func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (d
 	rec, _ := p.recipe(l, known)
 	return rec, nil
 }
-
-// draftURL is the page of the Recipe Draft id.
-func draftURL(id int64) string { return "/recipe-drafts/" + strconv.FormatInt(id, 10) }
