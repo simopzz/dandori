@@ -84,6 +84,8 @@ func messages(t *testing.T) []foundMessage {
 		if err != nil {
 			return err
 		}
+		inWeb := file.Name.Name == "web"
+		message := func(typ ast.Expr) bool { return isMessage(typ, inWeb) }
 		ast.Inspect(file, func(n ast.Node) bool {
 			lit, ok := n.(*ast.CompositeLit)
 			if !ok {
@@ -91,14 +93,14 @@ func messages(t *testing.T) []foundMessage {
 			}
 			switch typ := lit.Type.(type) {
 			case *ast.ArrayType:
-				if isMessage(typ.Elt) {
+				if message(typ.Elt) {
 					for _, e := range lit.Elts {
 						found = append(found, readMessage(fset, e))
 					}
 					return false
 				}
 			case *ast.MapType:
-				if isMessage(typ.Value) {
+				if message(typ.Value) {
 					for _, e := range lit.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
 							found = append(found, readMessage(fset, kv.Value))
@@ -107,7 +109,7 @@ func messages(t *testing.T) []foundMessage {
 					return false
 				}
 			default:
-				if isMessage(typ) {
+				if message(typ) {
 					found = append(found, readMessage(fset, lit))
 					return false
 				}
@@ -122,11 +124,12 @@ func messages(t *testing.T) []foundMessage {
 	return found
 }
 
-// isMessage reports whether typ names Message, from web or in it.
-func isMessage(typ ast.Expr) bool {
+// isMessage reports whether typ names Message, from web, or in it when inWeb: another
+// package's Message, such as the agent's, is not one.
+func isMessage(typ ast.Expr, inWeb bool) bool {
 	switch typ := typ.(type) {
 	case *ast.Ident:
-		return typ.Name == "Message"
+		return inWeb && typ.Name == "Message"
 	case *ast.SelectorExpr:
 		pkg, ok := typ.X.(*ast.Ident)
 		return ok && pkg.Name == "web" && typ.Sel.Name == "Message"

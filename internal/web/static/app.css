@@ -1015,7 +1015,6 @@ html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; objec
   overflow-wrap: anywhere;
 }
 
-.trace-error .trace-kind,
-.trace-retry .trace-kind { color: var(--color-accent); }
-
-.trace-wait .trace-kind { color: var(--color-text-soft); }
+.trace-failed .trace-kind,
+.trace-retrying .trace-kind,
+.trace-refused .trace-kind { color: var(--color-accent); }

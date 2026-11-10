@@ -12,11 +12,13 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// library is the Recipe Library page: the way to write a Recipe, and the User's Recipes a
-// search for q found, with the search once there is something to search.
-templ library(now time.Time, recipes []domain.Recipe, q string) {
+// library is the Recipe Library page: the paste box, as typed in paste, the way to write
+// a Recipe, and the User's Recipes a search for q found, with the search once there is
+// something to search.
+templ library(now time.Time, paste PasteForm, recipes []domain.Recipe, q string) {
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
+		@pasteForm(paste)
 		@web.Section(0, web.T(ctx, msgRecipes)) {
 			if q != "" || len(recipes) > 0 {
 				@searchForm(q)
@@ -85,26 +87,7 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 				}
 			</p>
 		}
-		<dl>
-			<dt>{ web.T(ctx, msgMakes) }</dt>
-			<dd>
-				if rec.Portions == 1 {
-					{ web.T(ctx, msgMakesOne) }
-				} else {
-					{ web.Tf(ctx, msgMakesValue, rec.Portions) }
-				}
-			</dd>
-			<dt>{ web.T(ctx, msgActiveShort) }</dt>
-			<dd>{ web.Tf(ctx, msgMinutes, rec.ActiveMinutes) }</dd>
-			<dt>{ web.T(ctx, msgTotalShort) }</dt>
-			<dd>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</dd>
-			<dt>{ web.T(ctx, msgSlots) }</dt>
-			<dd>{ kindsOf(ctx, rec.Kinds) }</dd>
-			if len(rec.Appliances) > 0 {
-				<dt>{ web.T(ctx, msgNeeds) }</dt>
-				<dd>{ strings.Join(rec.Appliances, ", ") }</dd>
-			}
-		</dl>
+		@recipeFacts(rec)
 		@web.Section(0, web.T(ctx, msgPerPortion)) {
 			@perPortion(rec.NutritionPerPortion())
 		}
@@ -118,15 +101,7 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 				}
 			}
 		}
-		if len(rec.Steps) > 0 {
-			@web.Section(2, web.T(ctx, msgSteps)) {
-				<ol>
-					for _, step := range rec.Steps {
-						<li>{ step }</li>
-					}
-				</ol>
-			}
-		}
+		@recipeSteps(rec.Steps)
 	}
 }
 
@@ -334,6 +309,111 @@ templ rowDetails(i int, row IngredientRow) {
 			@ingredients.NewIngredientFields(func(field string) string { return rowField(field, i) }, row.typed())
 		} else {
 			<span class="field-hint">{ web.Tf(ctx, msgMeasuredIn, web.T(ctx, ingredients.UnitNames[domain.Unit(row.Unit)])) }</span>
+		}
+	}
+}
+
+// PasteForm is the paste box as typed, Err why it was refused.
+type PasteForm struct{ Text, Err string }
+
+// pasteForm reads a pasted recipe into a Recipe Draft through a parse Run.
+templ pasteForm(f PasteForm) {
+	<form id="paste-form" method="post" action="/recipes/paste" class="section">
+		@web.Field(web.T(ctx, msgPaste), web.T(ctx, msgPasteHint), f.Err) {
+			<textarea
+				name="text"
+				rows="6"
+				if f.Err != "" {
+					aria-invalid="true"
+					autofocus
+				}
+			>{ f.Text }</textarea>
+		}
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				{ web.T(ctx, msgRead) }
+			}
+		}
+	</form>
+}
+
+// draftPage is a Recipe Draft as the parse Run left it: a known Ingredient in its own
+// unit, a new one with the values proposed for it.
+templ draftPage(now time.Time, rec domain.Recipe) {
+	@web.Layout(web.T(ctx, msgDraftTitle), web.RecipesTab) {
+		@web.PageHeader("下書き", rec.Name, now) {
+			<p class="lede">{ web.T(ctx, msgDraft) }</p>
+		}
+		@recipeFacts(rec)
+		@web.Section(1, web.T(ctx, msgIngredients)) {
+			@web.Rows() {
+				for _, ri := range rec.Ingredients {
+					@web.Row() {
+						<span class="row-title">{ ri.Ingredient.Name }</span>
+						<span class="row-figure">{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
+						if ri.Ingredient.ID == 0 {
+							@proposed(ri.Ingredient)
+						}
+					}
+				}
+			}
+		}
+		@recipeSteps(rec.Steps)
+	}
+}
+
+// proposed is what the parse Run proposes for a new Ingredient.
+templ proposed(ing domain.Ingredient) {
+	@web.Tag(false, "") {
+		{ web.T(ctx, msgNew) }
+	}
+	<p class="row-meta">
+		<span>{ web.Tf(ctx, msgKcal, web.Number(ctx, ing.Nutrition.Kcal.Value)) }</span>
+		@floored(msgProtein, ing.Nutrition.Protein, false)
+		@floored(msgCarbs, ing.Nutrition.Carbs, false)
+		@floored(msgFat, ing.Nutrition.Fat, false)
+		@floored(msgFibre, ing.Nutrition.Fibre, false)
+		@floored(msgSugar, ing.Nutrition.Sugar, false)
+		<span>{ web.T(ctx, ingredients.StorageLocationNames[ing.Usual]) }</span>
+		if ing.Staple {
+			<span>{ web.T(ctx, msgStaple) }</span>
+		}
+	</p>
+}
+
+// recipeFacts is how many Portions rec makes, its minutes, kinds of Slot and appliances.
+templ recipeFacts(rec domain.Recipe) {
+	<dl>
+		<dt>{ web.T(ctx, msgMakes) }</dt>
+		<dd>
+			if rec.Portions == 1 {
+				{ web.T(ctx, msgMakesOne) }
+			} else {
+				{ web.Tf(ctx, msgMakesValue, rec.Portions) }
+			}
+		</dd>
+		<dt>{ web.T(ctx, msgActiveShort) }</dt>
+		<dd>{ web.Tf(ctx, msgMinutes, rec.ActiveMinutes) }</dd>
+		<dt>{ web.T(ctx, msgTotalShort) }</dt>
+		<dd>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</dd>
+		<dt>{ web.T(ctx, msgSlots) }</dt>
+		<dd>{ kindsOf(ctx, rec.Kinds) }</dd>
+		if len(rec.Appliances) > 0 {
+			<dt>{ web.T(ctx, msgNeeds) }</dt>
+			<dd>{ strings.Join(rec.Appliances, ", ") }</dd>
+		}
+	</dl>
+}
+
+// recipeSteps are a Recipe's steps, if it has any.
+templ recipeSteps(steps []string) {
+	if len(steps) > 0 {
+		@web.Section(2, web.T(ctx, msgSteps)) {
+			<ol>
+				for _, step := range steps {
+					<li>{ step }</li>
+				}
+			</ol>
 		}
 	}
 }

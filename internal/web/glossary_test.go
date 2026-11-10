@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -154,8 +155,14 @@ func glossaryWords(glossary string) (terms []*regexp.Regexp, avoided map[string]
 	word := func(w string) *regexp.Regexp {
 		return regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(w) + `s?\b`)
 	}
+	names := []string{}
 	for _, m := range glossaryTerm.FindAllStringSubmatch(glossary, -1) {
-		terms = append(terms, word(m[1]))
+		names = append(names, m[1])
+	}
+	// Longest first, so a term holding another (Trace Event holds Trace) is taken whole.
+	slices.SortStableFunc(names, func(a, b string) int { return len(b) - len(a) })
+	for _, name := range names {
+		terms = append(terms, word(name))
 	}
 	avoided = map[string]*regexp.Regexp{}
 	for _, m := range glossaryAvoid.FindAllStringSubmatch(glossary, -1) {

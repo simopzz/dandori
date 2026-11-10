@@ -30,10 +30,12 @@ import (
 	"github.com/peterldowns/pgtestdb"
 	"github.com/peterldowns/pgtestdb/migrators/goosemigrator"
 
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/telemetry"
 )
 
@@ -48,6 +50,10 @@ type Harness struct {
 	Clock *clock.Manual
 	// Auth is the fake Supabase Auth the app signs Users in through.
 	Auth *FakeAuth
+	// Model is the scripted model every Run asks: each request takes its next answer.
+	Model *fakellm.LLM
+
+	app *app.App
 
 	databaseURL string
 	log         *logBuffer
@@ -130,10 +136,13 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	logger := telemetry.Logger(logTo, nil)
 	manual := clock.NewManual(time.Date(2026, time.November, 2, 0, 0, 0, 0, zone(t)))
 	fake := startFakeAuth(t, manual)
+	model := fakellm.New()
 	cfg := app.Config{
 		DatabaseURL: instance.URL(),
 		Clock:       manual,
 		Auth:        auth.Config{SupabaseURL: fake.URL, PublishableKey: fakeAPIKey},
+		// A retry waits next to nothing.
+		Runs: runs.Config{LLM: model, Backoff: time.Millisecond},
 	}
 	if s.config != nil {
 		s.config(&cfg)
@@ -164,8 +173,11 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Harness{URL: srv.URL, Client: client, Clock: manual, Auth: fake, databaseURL: instance.URL(), log: log}
+	return &Harness{URL: srv.URL, Client: client, Clock: manual, Auth: fake, Model: model, app: a, databaseURL: instance.URL(), log: log}
 }
+
+// Settle waits for every Run going to end.
+func (h *Harness) Settle() { h.app.Settle() }
 
 // Logged is everything the app has logged so far.
 func (h *Harness) Logged() string { return h.log.String() }

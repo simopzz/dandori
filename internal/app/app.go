@@ -3,6 +3,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,7 @@ import (
 	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/today"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -39,6 +41,8 @@ type Config struct {
 	Clock clock.Clock
 	// Auth is the Supabase Auth Users sign in through.
 	Auth auth.Config
+	// Runs is how agent Runs use the model; the defaults fill what it leaves unset.
+	Runs runs.Config
 	// Spans makes the spans of every request, query, beat and call to Supabase
 	// Auth; without it, none are made.
 	Spans trace.TracerProvider
@@ -57,6 +61,19 @@ type App struct {
 	kitchen     *kitchen.Service
 	ledger      *ledger.Service
 	today       *today.Service
+	runs        *runs.Engine
+}
+
+// DefaultModel is the model every Run uses unless Config.Runs names another.
+const DefaultModel = "claude-opus-5-5"
+
+// withDefaults is c with what it leaves unset filled in.
+func withDefaults(c runs.Config) runs.Config {
+	c.Model = cmp.Or(c.Model, DefaultModel)
+	c.Retries = cmp.Or(c.Retries, 3)
+	c.Backoff = cmp.Or(c.Backoff, 2*time.Second)
+	c.MaxTurns = cmp.Or(c.MaxTurns, 50)
+	return c
 }
 
 // New creates the app once its database is reachable and migrated. It
@@ -75,7 +92,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 		return nil, err
 	}
 	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
-	a.recipes = recipes.New(pool, a.ingredients)
+	a.runs = runs.New(pool, cfg.Clock, withDefaults(cfg.Runs), log)
+	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.today = today.New(a.profile, a.ledger)
 	if err := a.ping(ctx); err != nil {
@@ -91,8 +109,14 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	return a, nil
 }
 
-// Close releases the database connections.
-func (a *App) Close() { a.pool.Close() }
+// Close ends every Run going, then releases the database connections.
+func (a *App) Close() {
+	a.runs.Stop()
+	a.pool.Close()
+}
+
+// Settle waits for every Run going to end, for a test reading what they left.
+func (a *App) Settle() { a.runs.Wait() }
 
 // Schedule starts the scheduler, which beats on the app's clock every ledger.BeatEvery
 // and brings every User's kitchen up to now, until ctx ends. Each beat is a span.
@@ -117,6 +141,9 @@ func (a *App) Handler() http.Handler {
 	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
+	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[string]runs.Kind{
+		recipes.ParseKind: {Name: recipes.ParseKindName, Result: a.recipes.DraftOf},
+	}}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
@@ -138,6 +165,9 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("GET /recipes", signedIn(recs.Library))
 	mux.Handle("POST /recipes", signedIn(recs.Add))
+	mux.Handle("POST /recipes/paste", signedIn(recs.Paste))
+	mux.Handle("GET /recipe-drafts/{id}", signedIn(recs.ShowDraft))
+	mux.Handle("GET /runs/{id}", signedIn(run.Show))
 	mux.Handle("GET /recipes/new", signedIn(recs.ShowNew))
 	mux.Handle("GET /recipes/list", signedIn(recs.ShowList))
 	mux.Handle("GET /recipes/ingredient-row", signedIn(recs.ShowRow))
