@@ -75,6 +75,15 @@ Rules code review checks against. Each says what it protects.
   (Cooking Mode's Wake Lock and timers). *Protects: one way to talk to the
   server, and less hand-rolled code to maintain.*
 
+## Files
+
+- **A feature's file holds one tier, named by its prefix**: `web_`,
+  `service` or `store`, as ADR-0006 states. `internal/web/tiers_test.go`
+  enforces the prefixes, that only a `web_` file imports `internal/web` or
+  `internal/httpx`, and that only a `store` file calls the database.
+  *Protects: SQL or a page link landing in the wrong tier shows in the file
+  name and fails CI.*
+
 ## Types
 
 - **A closed set of values is its own type with named constants**, as
