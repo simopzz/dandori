@@ -30,6 +30,8 @@ type Response struct {
 	StopReason StopReason
 	Content    []Block
 	Usage      Usage
+	// Refusal is why the model refused, when StopReason is StopRefusal.
+	Refusal string
 }
 
 // Usage is the tokens a model turn used. Thinking is counted in Output; CacheRead and

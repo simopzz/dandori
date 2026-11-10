@@ -2,8 +2,8 @@
 # renews the TLS certificate. CI copies this file and the Caddyfile to
 # /srv/dandori and writes the .env next to them with DANDORI_IMAGE,
 # DANDORI_DOMAIN, DANDORI_DATABASE_URL, the Supabase project's URL and
-# publishable key, and Grafana Cloud's OTLP endpoint and token on every
-# deploy.
+# publishable key, Grafana Cloud's OTLP endpoint and token, the Claude API
+# key and the model (empty for the app's default) on every deploy.
 services:
   app:
     image: ${DANDORI_IMAGE:?}
@@ -14,6 +14,8 @@ services:
       DANDORI_SUPABASE_PUBLISHABLE_KEY: ${DANDORI_SUPABASE_PUBLISHABLE_KEY:?}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?}
       OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?}
+      DANDORI_MODEL: ${DANDORI_MODEL:-}
       # Tells production's spans and logs from those of `mise run dev`, tagged dev.
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=prod
 

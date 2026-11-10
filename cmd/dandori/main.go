@@ -8,8 +8,10 @@
 // and DANDORI_SUPABASE_PUBLISHABLE_KEY (required to serve), DANDORI_ADDR (default
 // 127.0.0.1:8080), DANDORI_TIMEZONE, the zone a day starts and ends in (default
 // Europe/Rome), OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, where spans
-// and logs go and the token they are sent with (unset, they go nowhere), and
-// DANDORI_DEMO_LLM, which set to true answers every Run with recipes.DemoLLM,
+// and logs go and the token they are sent with (unset, they go nowhere),
+// ANTHROPIC_API_KEY, which Runs ask Claude with (unset, every Run fails for having no
+// model), DANDORI_MODEL, the Claude model (default claude-opus-5-5), and
+// DANDORI_DEMO_LLM, which set to true answers every Run with recipes.DemoLLM instead,
 // asking no real model and costing nothing.
 package main
 
@@ -24,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/simopzz/dandori/internal/agent/anthropic"
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
@@ -63,8 +66,11 @@ func run(log *slog.Logger, args []string) error {
 				PublishableKey: os.Getenv("DANDORI_SUPABASE_PUBLISHABLE_KEY"),
 			},
 		}
-		if os.Getenv("DANDORI_DEMO_LLM") == "true" {
+		switch {
+		case os.Getenv("DANDORI_DEMO_LLM") == "true":
 			cfg.Runs = runs.Config{LLM: recipes.DemoLLM{}, Model: "a demo model"}
+		case os.Getenv("ANTHROPIC_API_KEY") != "":
+			cfg.Runs = runs.Config{LLM: anthropic.New(), Model: os.Getenv("DANDORI_MODEL")}
 		}
 		for name, value := range map[string]string{
 			"DANDORI_DATABASE_URL":             cfg.DatabaseURL,

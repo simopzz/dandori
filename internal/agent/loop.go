@@ -73,7 +73,7 @@ func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 		case StopMaxTokens:
 			return outOfTokens(resp.Content)
 		case StopRefusal:
-			return &Failure{Reason: ModelRefused}
+			return &Failure{Reason: ModelRefused, Detail: resp.Refusal}
 		default:
 			return &Failure{Reason: UnexpectedStop, Detail: string(resp.StopReason)}
 		}
