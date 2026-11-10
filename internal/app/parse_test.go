@@ -327,12 +327,12 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	b.ShotPage(t, "run-open")
 }
 
-// scriptedKitchen signs a new User in, speaking the Language named language, on an app
-// whose Runs ask the scripted model mise run dev uses.
-func scriptedKitchen(t *testing.T, language string) *apptest.Scenario {
+// demoKitchen signs a new User in, speaking the Language named language, on an app
+// whose Runs ask the demo model mise run dev uses.
+func demoKitchen(t *testing.T, language string) *apptest.Scenario {
 	t.Helper()
 	s := apptest.NewScenario(t, apptest.WithConfig(func(c *app.Config) {
-		c.Runs = runs.Config{LLM: recipes.ScriptedModel{}, Model: "a scripted model"}
+		c.Runs = runs.Config{LLM: recipes.DemoLLM{}, Model: "a demo model"}
 	}))
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
@@ -340,15 +340,15 @@ func scriptedKitchen(t *testing.T, language string) *apptest.Scenario {
 	return s
 }
 
-// The scripted model makes a Recipe Draft of any paste without a real model: named after
+// The demo model makes a Recipe Draft of any paste without a real model: named after
 // its first line, and taking an Ingredient the User knows in the unit they know it in.
-func TestTheScriptedModelReadsAnyPasteIntoARecipeDraft(t *testing.T) {
-	s := scriptedKitchen(t, "English")
+func TestTheDemoLLMReadsAnyPasteIntoARecipeDraft(t *testing.T) {
+	s := demoKitchen(t, "English")
 	s.Open("/ingredients")
 	s.AddsIngredient(apptest.Ingredient{Name: "Olive oil", Unit: "g", Usual: "pantry", Kcal: "900", Protein: "0", Carbs: "0", Fat: "100"})
 
 	s.PastesRecipe("  Nonna's ragù\nSlow-cooked for hours.")
-	s.Sees("Started with a scripted model")
+	s.Sees("Started with a demo model")
 	s.Sees("Calls submit_recipe")
 	s.Follows("Recipe Draft")
 	s.Sees("Nonna's ragù")
@@ -356,9 +356,9 @@ func TestTheScriptedModelReadsAnyPasteIntoARecipeDraft(t *testing.T) {
 	s.Sees("chickpeas 240 g New 120 kcal protein 7 g carbs 16 g fat 2.5 g fibre – unknown")
 }
 
-// The scripted model writes in the Language the system prompt names.
-func TestTheScriptedModelWritesInTheUsersLanguage(t *testing.T) {
-	s := scriptedKitchen(t, "Italiano")
+// The demo model writes in the Language the system prompt names.
+func TestTheDemoLLMWritesInTheUsersLanguage(t *testing.T) {
+	s := demoKitchen(t, "Italiano")
 	s.PastesRecipe("Ragù della nonna")
 	s.Follows("Bozza di Ricetta")
 	s.Sees("Ragù della nonna")

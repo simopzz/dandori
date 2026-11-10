@@ -9,17 +9,17 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// ScriptedModel answers parse Runs without asking a real model, so the pages can be
+// DemoLLM answers parse Runs without asking a real model, so the pages can be
 // tried under mise run dev at no cost. It submits one Recipe named after the paste's
 // first line, in the Language the system prompt names, each of its Ingredients the User
 // knows in the unit they know it in, then ends its turn; a refusal ends it saying why.
-type ScriptedModel struct{}
+type DemoLLM struct{}
 
-// scriptedUsage is what each of its turns claims to use, so the Trace shows tokens.
-var scriptedUsage = agent.Usage{Input: 1200, Output: 300, CacheRead: 1000}
+// demoUsage is what each of its turns claims to use, so the Trace shows tokens.
+var demoUsage = agent.Usage{Input: 1200, Output: 300, CacheRead: 1000}
 
 // Send implements agent.LLM.
-func (ScriptedModel) Send(_ context.Context, req agent.Request) (agent.Response, error) {
+func (DemoLLM) Send(_ context.Context, req agent.Request) (agent.Response, error) {
 	last := req.Messages[len(req.Messages)-1].Content
 	if len(req.Messages) > 1 {
 		said := "Read it into a Recipe Draft, without asking a model."
@@ -29,7 +29,7 @@ func (ScriptedModel) Send(_ context.Context, req agent.Request) (agent.Response,
 		return agent.Response{
 			StopReason: agent.StopEndTurn,
 			Content:    []agent.Block{{Type: agent.BlockText, Text: said}},
-			Usage:      scriptedUsage,
+			Usage:      demoUsage,
 		}, nil
 	}
 
@@ -38,7 +38,7 @@ func (ScriptedModel) Send(_ context.Context, req agent.Request) (agent.Response,
 		l = domain.Italian
 	}
 	prompt := last[0].Text
-	p := scriptedRecipes[l]
+	p := demoRecipes[l]
 	p.Ingredients = append([]parsedIngredient(nil), p.Ingredients...)
 	if name := pastedName(prompt); name != "" {
 		p.Name = name
@@ -57,9 +57,9 @@ func (ScriptedModel) Send(_ context.Context, req agent.Request) (agent.Response,
 		StopReason: agent.StopToolUse,
 		Content: []agent.Block{
 			{Type: agent.BlockText, Text: "Reading " + p.Name + "."},
-			{Type: agent.BlockToolUse, ToolUseID: "scripted", ToolName: "submit_recipe", Input: input},
+			{Type: agent.BlockToolUse, ToolUseID: "demo", ToolName: "submit_recipe", Input: input},
 		},
-		Usage: scriptedUsage,
+		Usage: demoUsage,
 	}, nil
 }
 
@@ -95,8 +95,8 @@ func knownUnits(l domain.Language, prompt string) map[string]domain.Unit {
 
 func value(v float64) *float64 { return &v }
 
-// scriptedRecipes are what ScriptedModel submits in each Language, before it names one.
-var scriptedRecipes = map[domain.Language]parsedRecipe{
+// demoRecipes are what DemoLLM submits in each Language, before it names one.
+var demoRecipes = map[domain.Language]parsedRecipe{
 	domain.English: {
 		Name: "Pasta and chickpeas", Portions: 2, ActiveMinutes: 10, TotalMinutes: 25,
 		SlotKinds: []domain.SlotKind{domain.Lunch, domain.Dinner}, Appliances: []string{"hob"},
