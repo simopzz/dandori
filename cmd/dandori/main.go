@@ -7,8 +7,10 @@
 // Configuration comes from the environment: DANDORI_DATABASE_URL, DANDORI_SUPABASE_URL
 // and DANDORI_SUPABASE_PUBLISHABLE_KEY (required to serve), DANDORI_ADDR (default
 // 127.0.0.1:8080), DANDORI_TIMEZONE, the zone a day starts and ends in (default
-// Europe/Rome), and OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, where
-// spans and logs go and the token they are sent with (unset, they go nowhere).
+// Europe/Rome), OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, where spans
+// and logs go and the token they are sent with (unset, they go nowhere), and
+// DANDORI_SCRIPTED_MODEL, which set to true answers every Run with recipes.ScriptedModel,
+// asking no real model and costing nothing.
 package main
 
 import (
@@ -25,6 +27,8 @@ import (
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
+	"github.com/simopzz/dandori/internal/recipes"
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/telemetry"
 )
 
@@ -58,6 +62,9 @@ func run(log *slog.Logger, args []string) error {
 				SupabaseURL:    os.Getenv("DANDORI_SUPABASE_URL"),
 				PublishableKey: os.Getenv("DANDORI_SUPABASE_PUBLISHABLE_KEY"),
 			},
+		}
+		if os.Getenv("DANDORI_SCRIPTED_MODEL") == "true" {
+			cfg.Runs = runs.Config{LLM: recipes.ScriptedModel{}, Model: "a scripted model"}
 		}
 		for name, value := range map[string]string{
 			"DANDORI_DATABASE_URL":             cfg.DatabaseURL,

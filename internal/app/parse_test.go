@@ -10,7 +10,9 @@ import (
 
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
+	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
 
@@ -300,13 +302,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 		t.Fatal(err)
 	}
 	b.Click(t, "Read it")
-	if err := b.WaitForURL("**/runs/*"); err != nil {
-		t.Fatal(err)
-	}
-	h.Settle()
-	if _, err := b.Reload(); err != nil {
-		t.Fatal(err)
-	}
+	b.FollowsRun(t)
 	expect := playwright.NewPlaywrightAssertions()
 	paste := b.Locator("pre", playwright.PageLocatorOptions{HasText: "Lasagne for 4"}).First()
 	prompt := b.GetByText("Known Ingredients:")
@@ -328,8 +324,43 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 			t.Errorf("a Run's page doesn't show what is folded once it is opened: %v", err)
 		}
 	}
-	if _, err := b.Evaluate("window.scrollTo(0, 0)"); err != nil {
-		t.Fatal(err)
-	}
-	b.Shot(t, "run-open")
+	b.ShotPage(t, "run-open")
+}
+
+// scriptedKitchen signs a new User in, speaking the Language named language, on an app
+// whose Runs ask the scripted model mise run dev uses.
+func scriptedKitchen(t *testing.T, language string) *apptest.Scenario {
+	t.Helper()
+	s := apptest.NewScenario(t, apptest.WithConfig(func(c *app.Config) {
+		c.Runs = runs.Config{LLM: recipes.ScriptedModel{}, Model: "a scripted model"}
+	}))
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage(language)
+	return s
+}
+
+// The scripted model makes a Recipe Draft of any paste without a real model: named after
+// its first line, and taking an Ingredient the User knows in the unit they know it in.
+func TestTheScriptedModelReadsAnyPasteIntoARecipeDraft(t *testing.T) {
+	s := scriptedKitchen(t, "English")
+	s.Open("/ingredients")
+	s.AddsIngredient(apptest.Ingredient{Name: "Olive oil", Unit: "g", Usual: "pantry", Kcal: "900", Protein: "0", Carbs: "0", Fat: "100"})
+
+	s.PastesRecipe("  Nonna's ragù\nSlow-cooked for hours.")
+	s.Sees("Started with a scripted model")
+	s.Sees("Calls submit_recipe")
+	s.Follows("Recipe Draft")
+	s.Sees("Nonna's ragù")
+	s.Sees("Olive oil 10 g")
+	s.Sees("chickpeas 240 g New 120 kcal protein 7 g carbs 16 g fat 2.5 g fibre – unknown")
+}
+
+// The scripted model writes in the Language the system prompt names.
+func TestTheScriptedModelWritesInTheUsersLanguage(t *testing.T) {
+	s := scriptedKitchen(t, "Italiano")
+	s.PastesRecipe("Ragù della nonna")
+	s.Follows("Bozza di Ricetta")
+	s.Sees("Ragù della nonna")
+	s.Sees("pasta secca 160 g Nuovo")
 }
