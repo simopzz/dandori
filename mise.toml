@@ -74,7 +74,8 @@ description = "Run the app locally against the dev server and the real Supabase 
 # reach production. Supabase's URL and key come from .env under either name,
 # DANDORI_ as in .env.example or bare as provision.sh writes them. Spans and logs go to
 # Grafana Cloud if .env sets its endpoint, tagged dev to tell them from production's.
-env = { OTEL_RESOURCE_ATTRIBUTES = "deployment.environment.name=dev", DANDORI_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5434/postgres?sslmode=disable", DANDORI_SUPABASE_URL = "{{ env.DANDORI_SUPABASE_URL | default(value=env | get(key='SUPABASE_URL', default='')) }}", DANDORI_SUPABASE_PUBLISHABLE_KEY = "{{ env.DANDORI_SUPABASE_PUBLISHABLE_KEY | default(value=env | get(key='SUPABASE_PUBLISHABLE_KEY', default='')) }}" }
+# Runs ask the demo model, which costs nothing.
+env = { DANDORI_DEMO_LLM = "true", OTEL_RESOURCE_ATTRIBUTES = "deployment.environment.name=dev", DANDORI_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5434/postgres?sslmode=disable", DANDORI_SUPABASE_URL = "{{ env.DANDORI_SUPABASE_URL | default(value=env | get(key='SUPABASE_URL', default='')) }}", DANDORI_SUPABASE_PUBLISHABLE_KEY = "{{ env.DANDORI_SUPABASE_PUBLISHABLE_KEY | default(value=env | get(key='SUPABASE_PUBLISHABLE_KEY', default='')) }}" }
 # devdb first, alone: as dependencies the two would run in parallel, and
 # generate's output would land on sudo's password prompt.
 run = [{ task = "devdb" }, { task = "generate" }, "go run ./cmd/dandori"]

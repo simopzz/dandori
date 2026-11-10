@@ -18,8 +18,9 @@ import (
 // test against a separately started server would.
 type Browser struct {
 	playwright.Page
-	url  string
-	auth *FakeAuth
+	url    string
+	auth   *FakeAuth
+	settle func()
 }
 
 // Browser opens a browser page on the app. Without Playwright's Chromium
@@ -57,7 +58,7 @@ func (h *Harness) browser(t testing.TB, options playwright.BrowserNewPageOptions
 		t.Fatalf("open a page: %v", err)
 	}
 	failOnPageErrors(t, page)
-	return &Browser{Page: page, url: h.URL, auth: h.Auth}
+	return &Browser{Page: page, url: h.URL, auth: h.Auth, settle: h.Settle}
 }
 
 // failOnPageErrors fails the test, as it ends, for each error page's scripts threw and
@@ -217,17 +218,41 @@ func (b *Browser) IsAt(t testing.TB, path string) {
 	}
 }
 
-// Shot saves the page as name.png in the folder DANDORI_SHOTS names, and does nothing
-// when it names none. Take it after an assertion, which has waited for the swap.
+// Shot saves what the window shows as name.png in the folder DANDORI_SHOTS names, doing
+// nothing when it names none. Take it after an assertion, which waits for the swap.
 func (b *Browser) Shot(t testing.TB, name string) {
+	t.Helper()
+	b.shot(t, name, false)
+}
+
+// ShotPage is Shot of the whole page, below the window too.
+func (b *Browser) ShotPage(t testing.TB, name string) {
+	t.Helper()
+	b.shot(t, name, true)
+}
+
+func (b *Browser) shot(t testing.TB, name string, whole bool) {
 	t.Helper()
 	dir := os.Getenv("DANDORI_SHOTS")
 	if dir == "" {
 		return
 	}
 	path := filepath.Join(dir, name+".png")
-	if _, err := b.Screenshot(playwright.PageScreenshotOptions{Path: &path}); err != nil {
+	if _, err := b.Screenshot(playwright.PageScreenshotOptions{Path: &path, FullPage: &whole}); err != nil {
 		t.Fatalf("save %s: %v", path, err)
+	}
+}
+
+// FollowsRun waits for the page to be a Run's, as starting one lands on, then for every
+// Run going to end, and reloads the page to show how it ended.
+func (b *Browser) FollowsRun(t testing.TB) {
+	t.Helper()
+	if err := b.WaitForURL(b.url + "/runs/*"); err != nil {
+		t.Fatalf("the page is not a Run's: %v", err)
+	}
+	b.settle()
+	if _, err := b.Reload(); err != nil {
+		t.Fatalf("reload the Run's page: %v", err)
 	}
 }
 
