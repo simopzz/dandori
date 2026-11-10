@@ -10,12 +10,11 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// Kind is what a Run's page tells of its kind of Run.
+// Kind is what a Run's page tells of its kind of Run: its name, and the page of what a
+// Run of it left the signed-in User, named ResultName, or "" for nothing.
 type Kind struct {
-	Name web.Message
-	// Result is the link to what the Run id left the signed-in User, text and where it
-	// goes, or "" for nothing; nil when no Run of the kind leaves anything.
-	Result func(ctx context.Context, runID int64) (text, href string, err error)
+	Name, ResultName web.Message
+	Result           func(ctx context.Context, runID int64) (string, error)
 }
 
 // Handlers serve a Run's page.
@@ -46,7 +45,8 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	kind := h.Kinds[run.Kind]
 	var res result
 	if kind.Result != nil && run.Status == "succeeded" {
-		if res.Text, res.Href, err = kind.Result(ctx, id); err != nil {
+		res.Text = web.T(ctx, kind.ResultName)
+		if res.Href, err = kind.Result(ctx, id); err != nil {
 			httpx.ServerError(w, r, h.Log, "find what the Run left", err)
 			return
 		}

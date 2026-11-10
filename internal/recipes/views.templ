@@ -342,7 +342,7 @@ templ pasteForm(f PasteForm) {
 templ draftPage(now time.Time, rec domain.Recipe) {
 	@web.Layout(web.T(ctx, msgDraftTitle), web.RecipesTab) {
 		@web.PageHeader("下書き", rec.Name, now) {
-			<p class="lede">{ web.T(ctx, msgDraft) }</p>
+			<p class="lede">{ web.T(ctx, DraftName) }</p>
 		}
 		@recipeFacts(rec)
 		@web.Section(1, web.T(ctx, msgIngredients)) {

@@ -29,7 +29,7 @@ var (
 	msgRead          = web.Message{En: "Read it", It: "Leggila"}
 	msgPasteRequired = web.Message{En: "Paste a recipe to read.", It: "Incolla una ricetta da leggere."}
 	ParseKindName    = web.Message{En: "Reading a Recipe", It: "Lettura di una Ricetta"}
-	msgDraft         = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
+	DraftName        = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
 	msgDraftTitle    = web.Message{En: "Recipe Draft · Dandori", It: "Bozza di Ricetta · Dandori"}
 	msgStaple        = web.Message{En: "Staple", It: "Base"}
 

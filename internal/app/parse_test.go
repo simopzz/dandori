@@ -1,14 +1,15 @@
 package app_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
-	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
+	"github.com/simopzz/dandori/internal/runs"
 )
 
 // pastedLasagne is a recipe as a User pastes it.
@@ -181,7 +182,7 @@ func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testi
 	s.PastesRecipe(pastedLasagne)
 	run := s.Page().Path
 	s.Sees("Reading a Recipe Succeeded")
-	s.Sees("Started with " + app.DefaultModel)
+	s.Sees("Started with " + runs.DefaultModel)
 	s.Sees("Asking the model (turn 1)")
 	s.Sees("Calls submit_recipe")
 	s.Sees("The model says Parsed the lasagne.")
@@ -194,7 +195,7 @@ func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testi
 	s.ChangesLanguage("Italiano")
 	s.Open(run)
 	s.Sees("Lettura di una Ricetta Riuscita")
-	s.Sees("Iniziata con " + app.DefaultModel)
+	s.Sees("Iniziata con " + runs.DefaultModel)
 	s.Sees("Chiedo al modello (turno 1)")
 	s.Sees("Chiama submit_recipe")
 	s.Sees("Il modello dice Parsed the lasagne.")
@@ -250,4 +251,28 @@ func TestTwoUsersNeverSeeEachOthersRunsOrRecipeDrafts(t *testing.T) {
 			t.Errorf("another User opening %s got %d, want 404", path, res.StatusCode)
 		}
 	}
+}
+
+// A Recipe Draft shows only once its parse Run has ended, since the model may still
+// change it.
+func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
+	s := kitchenWith(t, rice)
+	release := make(chan struct{})
+	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Done.").After(release))
+	form := apptest.Form(t, s.Get(t, "/recipes").Body, "paste-form")
+	form.Values.Set("text", pastedLasagne)
+	s.PostForm(t, form.Action, form.Values)
+	var id int64
+	for id == 0 { // the draft is saved before the model's last turn, which waits on release
+		s.Scan(t, &id, `SELECT coalesce(max(id), 0) FROM recipe_draft`)
+	}
+
+	draft := fmt.Sprintf("/recipe-drafts/%d", id)
+	if res := s.Get(t, draft); res.StatusCode != http.StatusNotFound {
+		t.Errorf("the Recipe Draft of a Run going opened with %d, want 404", res.StatusCode)
+	}
+	close(release)
+	s.Settle()
+	s.Open(draft)
+	s.Sees("beef mince 500 g")
 }

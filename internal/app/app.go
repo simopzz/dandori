@@ -3,7 +3,6 @@
 package app
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -41,7 +40,7 @@ type Config struct {
 	Clock clock.Clock
 	// Auth is the Supabase Auth Users sign in through.
 	Auth auth.Config
-	// Runs is how agent Runs use the model; the defaults fill what it leaves unset.
+	// Runs is how agent Runs use the model; runs.New fills in what it leaves unset.
 	Runs runs.Config
 	// Spans makes the spans of every request, query, beat and call to Supabase
 	// Auth; without it, none are made.
@@ -64,18 +63,6 @@ type App struct {
 	runs        *runs.Engine
 }
 
-// DefaultModel is the model every Run uses unless Config.Runs names another.
-const DefaultModel = "claude-opus-5-5"
-
-// withDefaults is c with what it leaves unset filled in.
-func withDefaults(c runs.Config) runs.Config {
-	c.Model = cmp.Or(c.Model, DefaultModel)
-	c.Retries = cmp.Or(c.Retries, 3)
-	c.Backoff = cmp.Or(c.Backoff, 2*time.Second)
-	c.MaxTurns = cmp.Or(c.MaxTurns, 50)
-	return c
-}
-
 // New creates the app once its database is reachable and migrated. It
 // fails rather than serve on a database it can't use: Docker Compose
 // restarts it, and a deploy that never comes up healthy fails.
@@ -92,7 +79,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 		return nil, err
 	}
 	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
-	a.runs = runs.New(pool, cfg.Clock, withDefaults(cfg.Runs), log)
+	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.today = today.New(a.profile, a.ledger)
@@ -142,7 +129,7 @@ func (a *App) Handler() http.Handler {
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
 	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[string]runs.Kind{
-		recipes.ParseKind: {Name: recipes.ParseKindName, Result: a.recipes.DraftOf},
+		recipes.ParseKind: {Name: recipes.ParseKindName, ResultName: recipes.DraftName, Result: a.recipes.DraftOf},
 	}}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }

@@ -4,6 +4,7 @@
 package runs
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -45,8 +46,15 @@ type Engine struct {
 	wg     sync.WaitGroup
 }
 
-// New creates an Engine with no Runs going.
+// DefaultModel is the model every Run uses unless Config names another.
+const DefaultModel = "claude-opus-5-5"
+
+// New creates an Engine with no Runs going, filling in what cfg leaves unset.
 func New(pool *pgxpool.Pool, c clock.Clock, cfg Config, log *slog.Logger) *Engine {
+	cfg.Model = cmp.Or(cfg.Model, DefaultModel)
+	cfg.Retries = cmp.Or(cfg.Retries, 3)
+	cfg.Backoff = cmp.Or(cfg.Backoff, 2*time.Second)
+	cfg.MaxTurns = cmp.Or(cfg.MaxTurns, 50)
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Engine{pool: pool, clock: c, cfg: cfg, log: log, ctx: ctx, cancel: cancel}
 }

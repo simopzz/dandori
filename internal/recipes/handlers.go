@@ -46,7 +46,7 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 			httpx.ServerError(w, r, h.Log, "search the Recipes", err)
 			return
 		}
-		paste := PasteForm{Err: web.T(ctx, msgPasteRequired)}
+		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: library(h.Clock.Now(), paste, recipes, "")}.Write(w, r, h.Log)
 		return
 	}

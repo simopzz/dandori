@@ -10,7 +10,6 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // ErrNoDraft is a Recipe Draft the signed-in User hasn't got.
@@ -40,28 +39,32 @@ func (s *Service) saveDraft(ctx context.Context, runID int64, p parsedRecipe) er
 	})
 }
 
-// DraftOf is the link to the Recipe Draft the signed-in User's parse Run runID left, or
+// DraftOf is the page of the Recipe Draft the signed-in User's parse Run runID left, or
 // "" if it left none.
-func (s *Service) DraftOf(ctx context.Context, runID int64) (text, href string, err error) {
+func (s *Service) DraftOf(ctx context.Context, runID int64) (string, error) {
 	var id int64
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT id FROM recipe_draft WHERE run_id = $1`, runID).Scan(&id)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", nil
+		return "", nil
 	}
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	return web.T(ctx, msgDraft), draftURL(id), nil
+	return draftURL(id), nil
 }
 
 // FindDraft is the signed-in User's Recipe Draft id, for them speaking l, each
-// Ingredient resolved by name to theirs, or ErrNoDraft.
+// Ingredient resolved by name to theirs. It is ErrNoDraft while its Run is going, and
+// when there is no such Recipe Draft.
 func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (domain.Recipe, error) {
 	var doc []byte
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT document FROM recipe_draft WHERE id = $1`, id).Scan(&doc)
+		// Not while its Run goes, as the model may still change it.
+		return tx.QueryRow(ctx, `
+			SELECT d.document FROM recipe_draft d JOIN run r ON r.id = d.run_id
+			WHERE d.id = $1 AND r.status <> 'going'`, id).Scan(&doc)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Recipe{}, ErrNoDraft
