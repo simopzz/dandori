@@ -3,6 +3,10 @@ go = "1.27.3"
 "go:github.com/a-h/templ/cmd/templ" = "0.3.1070"
 golangci-lint = "2.15.0"
 
+# mise install turns on the repo's git hooks: the pre-commit hook runs mise run guardrails.
+[hooks]
+postinstall = "git config core.hooksPath .githooks"
+
 [env]
 # Local secrets such as DANDORI_DATABASE_URL; see .env.example.
 _.file = ".env"
@@ -52,10 +56,6 @@ run = [
   "golangci-lint run ./...",
   "go test -count=1 ./internal/web ./internal/clock ./internal/kitchen ./cmd/dandori",
 ]
-
-[tasks.hooks]
-description = "Turn on the repo's git hooks: the pre-commit hook runs mise run guardrails"
-run = "git config core.hooksPath .githooks"
 
 [tasks.devdb]
 description = "Start the local Postgres + pgvector dev server, which keeps its data between runs (docker needs sudo)"
