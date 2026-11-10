@@ -91,6 +91,28 @@ templ Disclosure(summary string) {
 	</details>
 }
 
+// Fold is a line, summary, that opens in place to show what it holds, the children: its
+// chevron points right while closed and down while open, and it starts closed. Without
+// holds it is the line alone, the chevron's room kept, so a list of Folds stays aligned.
+templ Fold(summary templ.Component, holds bool) {
+	if holds {
+		<details class="fold">
+			<summary>
+				@Icon("chevron-down")
+				@summary
+			</summary>
+			<div class="fold-body">
+				{ children... }
+			</div>
+		</details>
+	} else {
+		<div class="fold fold-line">
+			<span class="icon"></span>
+			@summary
+		</div>
+	}
+}
+
 // Rows is a list of Rows or EditRows.
 templ Rows() {
 	<ul class="rows">

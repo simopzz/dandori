@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mxschmitt/playwright-go"
+
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
@@ -275,4 +277,57 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	s.Settle()
 	s.Open(draft)
 	s.Sees("beef mince 500 g")
+}
+
+// A Trace reads as a list of timestamped lines: what the model and its tools said is
+// folded under each, closed until the User opens it. The first ask folds the paste, and
+// the whole prompt within it.
+func TestBrowserATracesDataIsFoldedUntilOpened(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	r := submittedLasagne()
+	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
+	h.Model.Script(fakellm.CallTool("submit_recipe", r), fakellm.Reply("Parsed the lasagne."))
+
+	b.Open(t, "/recipes")
+	if err := b.GetByLabel("Paste a recipe").Fill(pastedLasagne); err != nil {
+		t.Fatal(err)
+	}
+	b.Click(t, "Read it")
+	if err := b.WaitForURL("**/runs/*"); err != nil {
+		t.Fatal(err)
+	}
+	h.Settle()
+	if _, err := b.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	paste := b.GetByText("500g beef mince").First()
+	prompt := b.GetByText("Known Ingredients:")
+	if err := expect.Locator(paste).ToBeHidden(); err != nil {
+		t.Errorf("the paste shows before its line is opened: %v", err)
+	}
+	b.Shot(t, "trace-closed")
+
+	if err := b.GetByText("Asking the model (turn 1)").Click(); err != nil {
+		t.Fatal(err)
+	}
+	if err := expect.Locator(paste).ToBeVisible(); err != nil {
+		t.Errorf("the paste doesn't show once its line is opened: %v", err)
+	}
+	if err := expect.Locator(prompt).ToBeHidden(); err != nil {
+		t.Errorf("the whole prompt shows before it is opened: %v", err)
+	}
+	if err := b.GetByText("The whole prompt").Click(); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.GetByText("Calls submit_recipe").Click(); err != nil {
+		t.Fatal(err)
+	}
+	if err := expect.Locator(prompt).ToBeVisible(); err != nil {
+		t.Errorf("the whole prompt doesn't show once opened: %v", err)
+	}
+	b.Shot(t, "trace-open")
 }

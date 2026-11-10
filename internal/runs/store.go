@@ -45,8 +45,8 @@ func insertTraceEvent(ctx context.Context, pool *pgxpool.Pool, runID int64, seq 
 func loadRun(ctx context.Context, pool *pgxpool.Pool, id int64) (run Run, found bool, err error) {
 	err = db.AsUser(ctx, pool, func(tx pgx.Tx) error {
 		run.ID = id
-		err := tx.QueryRow(ctx, `SELECT kind, status, started_at FROM run WHERE id = $1`, id).
-			Scan(&run.Kind, &run.Status, &run.StartedAt)
+		err := tx.QueryRow(ctx, `SELECT kind, status, asked, started_at FROM run WHERE id = $1`, id).
+			Scan(&run.Kind, &run.Status, &run.Asked, &run.StartedAt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}

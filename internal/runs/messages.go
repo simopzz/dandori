@@ -11,6 +11,8 @@ var (
 	msgStarted  = web.Message{En: "Started at %s", It: "Iniziata alle %s"}
 	msgTrace    = web.Message{En: "Trace", It: "Traccia"}
 
+	msgWholePrompt = web.Message{En: "The whole prompt", It: "Il prompt completo"}
+
 	msgStartedWith = web.Message{En: "Started with %s", It: "Iniziata con %s"}
 	msgAsked       = web.Message{En: "Asking the model (turn %d)", It: "Chiedo al modello (turno %d)"}
 	msgSaid        = web.Message{En: "The model says", It: "Il modello dice"}

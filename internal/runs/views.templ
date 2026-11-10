@@ -1,7 +1,9 @@
 package runs
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -14,6 +16,8 @@ type Run struct {
 	ID        int64
 	Kind      string
 	Status    Status
+	// Asked is what the Run was asked, such as the pasted recipe.
+	Asked     string
 	StartedAt time.Time
 	Trace     []StoredTraceEvent
 }
@@ -48,27 +52,50 @@ templ runPage(now time.Time, r Run, kind string, res result) {
 		@web.Section(0, web.T(ctx, msgTrace)) {
 			<ol class="trace">
 				for _, ev := range r.Trace {
-					@traceEvent(ev, now.Location())
+					@traceEvent(ev, now.Location(), r.Asked)
 				}
 			</ol>
 		}
 	}
 }
 
-// traceEvent is one Trace Event: its fixed line in the User's Language, then what the
-// model or a tool said, verbatim.
-templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
+// traceEvent is one Trace Event, a line of when and its fixed line in the User's
+// Language, folding what the model or a tool said, verbatim. The first ask folds what the
+// Run was asked, asked, and the whole prompt within it.
+templ traceEvent(ev StoredTraceEvent, zone *time.Location, asked string) {
 	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
-		<time datetime={ ev.At.Format(time.RFC3339) }>{ ev.At.In(zone).Format("15:04:05") }</time>
-		<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
-		if ev.Kind == agent.Said {
-			<div class="trace-summary">
-				@web.Markdown(ev.Text)
-			</div>
-		} else if ev.Text != "" && ev.Kind != agent.Failed {
-			<pre class="trace-detail">{ ev.Text }</pre>
+		@web.Fold(traceLine(ev, zone), ev.Text != "" && ev.Kind != agent.Failed) {
+			switch {
+				case ev.Kind == agent.Said:
+					@web.Markdown(ev.Text)
+				case ev.Kind == agent.Asked && asked != "" && asked != ev.Text:
+					<pre class="trace-detail">{ asked }</pre>
+					@web.Fold(prompt(), true) {
+						<pre class="trace-detail">{ ev.Text }</pre>
+					}
+				default:
+					<pre class="trace-detail">{ indented(ev.TraceEvent) }</pre>
+			}
 		}
 	</li>
+}
+
+templ traceLine(ev StoredTraceEvent, zone *time.Location) {
+	<time datetime={ ev.At.Format(time.RFC3339) }>{ ev.At.In(zone).Format("15:04:05") }</time>
+	<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
+}
+
+templ prompt() {
+	<span>{ web.T(ctx, msgWholePrompt) }</span>
+}
+
+// indented is ev's text, a tool's input indented to read.
+func indented(ev agent.TraceEvent) string {
+	var b bytes.Buffer
+	if ev.Kind != agent.Called || json.Indent(&b, []byte(ev.Text), "", "  ") != nil {
+		return ev.Text
+	}
+	return b.String()
 }
 
 // line is ev's fixed line in the Language of ctx.
