@@ -9,6 +9,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/runs"
 )
 
 // CountRecipes is how many Recipes the signed-in User has, for the Profile's Food Terms.
@@ -161,4 +162,33 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 		return nil
 	})
 	return recipes, err
+}
+
+// storeDraft stores doc as the Recipe Draft of the Run runID, replacing any earlier one.
+func storeDraft(ctx context.Context, q db.Querier, runID int64, doc []byte) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO recipe_draft (run_id, document) VALUES ($1, $2)
+		ON CONFLICT (run_id) DO UPDATE SET document = excluded.document`, runID, doc)
+	return err
+}
+
+// loadDraftID is the id of the Recipe Draft the Run runID left, or ErrNoDraft.
+func loadDraftID(ctx context.Context, q db.Querier, runID int64) (id int64, err error) {
+	err = q.QueryRow(ctx, `SELECT id FROM recipe_draft WHERE run_id = $1`, runID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNoDraft
+	}
+	return id, err
+}
+
+// loadDraft is the document of the Recipe Draft id, or ErrNoDraft while its Run goes, as
+// the model may still change it.
+func loadDraft(ctx context.Context, q db.Querier, id int64) (doc []byte, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT d.document FROM recipe_draft d JOIN run r ON r.id = d.run_id
+		WHERE d.id = $1 AND r.status <> $2`, id, runs.Going).Scan(&doc)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNoDraft
+	}
+	return doc, err
 }

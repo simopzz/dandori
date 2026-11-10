@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/simopzz/dandori/internal/agent"
@@ -88,7 +89,11 @@ func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (
 	if !ok {
 		return 0, errors.New("runs.Start: no signed-in User")
 	}
-	id, err := insertRun(ctx, e.pool, kind, asked, e.clock.Now())
+	var id int64
+	err := db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
+		id, err = insertRun(ctx, tx, kind, asked, e.clock.Now())
+		return err
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -124,7 +129,10 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 
 	storeCtx, cancel := tr.storeContext()
 	defer cancel()
-	if err := setStatus(storeCtx, e.pool, tr.runID, status, e.clock.Now()); err != nil {
+	err = db.AsUser(storeCtx, e.pool, func(tx pgx.Tx) error {
+		return setStatus(storeCtx, tx, tr.runID, status, e.clock.Now())
+	})
+	if err != nil {
 		e.log.Error("store the Run's status", "run", tr.runID, "err", err)
 	}
 }
@@ -156,7 +164,11 @@ func IDFrom(ctx context.Context) int64 {
 
 // Find is the signed-in User's Run id with its Trace, found false when they have none.
 func (e *Engine) Find(ctx context.Context, id int64) (run Run, found bool, err error) {
-	return loadRun(ctx, e.pool, id)
+	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
+		run, found, err = loadRun(ctx, tx, id)
+		return err
+	})
+	return run, found, err
 }
 
 // trace is a Run's Trace: each Trace Event it is given is stored with the Run, in order,
@@ -177,7 +189,10 @@ func (t *trace) Emit(ev agent.TraceEvent) {
 	t.seq++
 	ctx, cancel := t.storeContext()
 	defer cancel()
-	if err := insertTraceEvent(ctx, t.e.pool, t.runID, t.seq, t.e.clock.Now(), ev); err != nil {
+	err := db.AsUser(ctx, t.e.pool, func(tx pgx.Tx) error {
+		return insertTraceEvent(ctx, tx, t.runID, t.seq, t.e.clock.Now(), ev)
+	})
+	if err != nil {
 		t.e.log.Error("store a Trace Event", "run", t.runID, "seq", t.seq, "err", err)
 	}
 }

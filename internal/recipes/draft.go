@@ -30,24 +30,17 @@ func (s *Service) saveDraft(ctx context.Context, runID int64, p parsedRecipe) er
 	if err != nil {
 		return err
 	}
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
-			INSERT INTO recipe_draft (run_id, document) VALUES ($1, $2)
-			ON CONFLICT (run_id) DO UPDATE SET document = excluded.document`, runID, doc)
-		return err
-	})
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return storeDraft(ctx, tx, runID, doc) })
 }
 
 // DraftOf is the id of the Recipe Draft the signed-in User's parse Run runID left. It is
 // ErrNoDraft if the Run left none.
 func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 	var id int64
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT id FROM recipe_draft WHERE run_id = $1`, runID).Scan(&id)
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		id, err = loadDraftID(ctx, tx, runID)
+		return err
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNoDraft
-	}
 	return id, err
 }
 
@@ -56,15 +49,10 @@ func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 // when there is no such Recipe Draft.
 func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (domain.Recipe, error) {
 	var doc []byte
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		// Not while its Run goes, as the model may still change it.
-		return tx.QueryRow(ctx, `
-			SELECT d.document FROM recipe_draft d JOIN run r ON r.id = d.run_id
-			WHERE d.id = $1 AND r.status <> 'going'`, id).Scan(&doc)
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		doc, err = loadDraft(ctx, tx, id)
+		return err
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Recipe{}, ErrNoDraft
-	}
 	if err != nil {
 		return domain.Recipe{}, err
 	}
