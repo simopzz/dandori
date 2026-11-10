@@ -31,8 +31,9 @@ type StoredTraceEvent struct {
 // result is the link to what a Run left the User.
 type result struct{ Text, Href string }
 
-// runPage is a Run and its Trace, with a link to what it left, if anything.
-templ runPage(now time.Time, r Run, kind string, res result) {
+// runPage is a Run and its Trace, with what the User gave it, folded under askedName,
+// and a link to what it left, if anything.
+templ runPage(now time.Time, r Run, kind, askedName string, res result) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RecipesTab) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">
@@ -49,10 +50,17 @@ templ runPage(now time.Time, r Run, kind string, res result) {
 				</p>
 			}
 		}
+		if r.Asked != "" && askedName != "" {
+			<div class="section">
+				@web.Fold(label(askedName), true) {
+					<pre class="trace-detail">{ r.Asked }</pre>
+				}
+			</div>
+		}
 		@web.Section(0, web.T(ctx, msgTrace)) {
 			<ol class="trace">
 				for _, ev := range r.Trace {
-					@traceEvent(ev, now.Location(), r.Asked)
+					@traceEvent(ev, now.Location())
 				}
 			</ol>
 		}
@@ -60,21 +68,14 @@ templ runPage(now time.Time, r Run, kind string, res result) {
 }
 
 // traceEvent is one Trace Event, a line of when and its fixed line in the User's
-// Language, folding what the model or a tool said, verbatim. The first ask folds what the
-// Run was asked, asked, and the whole prompt within it.
-templ traceEvent(ev StoredTraceEvent, zone *time.Location, asked string) {
+// Language, folding what the model was sent or what it or a tool said, verbatim.
+templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
 	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
 		@web.Fold(traceLine(ev, zone), ev.Text != "" && ev.Kind != agent.Failed) {
-			switch {
-				case ev.Kind == agent.Said:
-					@web.Markdown(ev.Text)
-				case ev.Kind == agent.Asked && asked != "" && asked != ev.Text:
-					<pre class="trace-detail">{ asked }</pre>
-					@web.Fold(prompt(), true) {
-						<pre class="trace-detail">{ ev.Text }</pre>
-					}
-				default:
-					<pre class="trace-detail">{ indented(ev.TraceEvent) }</pre>
+			if ev.Kind == agent.Said {
+				@web.Markdown(ev.Text)
+			} else {
+				<pre class="trace-detail">{ indented(ev.TraceEvent) }</pre>
 			}
 		}
 	</li>
@@ -85,8 +86,8 @@ templ traceLine(ev StoredTraceEvent, zone *time.Location) {
 	<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
 }
 
-templ prompt() {
-	<span>{ web.T(ctx, msgWholePrompt) }</span>
+templ label(text string) {
+	<span class="trace-kind">{ text }</span>
 }
 
 // indented is ev's text, a tool's input indented to read.

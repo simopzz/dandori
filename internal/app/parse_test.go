@@ -279,14 +279,18 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	s.Sees("beef mince 500 g")
 }
 
-// A Trace reads as a list of timestamped lines: what the model and its tools said is
-// folded under each, closed until the User opens it. The first ask folds the paste, and
-// the whole prompt within it.
-func TestBrowserATracesDataIsFoldedUntilOpened(t *testing.T) {
+// A Run's page folds what the User gave it, the paste, at its top, and its Trace reads as
+// a list of timestamped lines: what the model was sent and what it and its tools said is
+// folded under each, closed until the User opens it.
+func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
 	b.SignUp(t, "ada@example.com")
+	// Chevrons turn at once, so a shot shows where they end.
+	if err := b.EmulateMedia(playwright.PageEmulateMediaOptions{ReducedMotion: playwright.ReducedMotionReduce}); err != nil {
+		t.Fatal(err)
+	}
 	r := submittedLasagne()
 	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
 	h.Model.Script(fakellm.CallTool("submit_recipe", r), fakellm.Reply("Parsed the lasagne."))
@@ -304,30 +308,28 @@ func TestBrowserATracesDataIsFoldedUntilOpened(t *testing.T) {
 		t.Fatal(err)
 	}
 	expect := playwright.NewPlaywrightAssertions()
-	paste := b.GetByText("500g beef mince").First()
+	paste := b.Locator("pre", playwright.PageLocatorOptions{HasText: "Lasagne for 4"}).First()
 	prompt := b.GetByText("Known Ingredients:")
-	if err := expect.Locator(paste).ToBeHidden(); err != nil {
-		t.Errorf("the paste shows before its line is opened: %v", err)
+	input := b.GetByText("\"active_minutes\": 30")
+	for _, hidden := range []playwright.Locator{paste, prompt, input} {
+		if err := expect.Locator(hidden).ToBeHidden(); err != nil {
+			t.Errorf("a Run's page shows what is folded before it is opened: %v", err)
+		}
 	}
-	b.Shot(t, "trace-closed")
+	b.Shot(t, "run-closed")
 
-	if err := b.GetByText("Asking the model (turn 1)").Click(); err != nil {
+	for _, line := range []string{"Pasted text", "Asking the model (turn 1)", "Calls submit_recipe"} {
+		if err := b.GetByText(line, playwright.PageGetByTextOptions{Exact: playwright.Bool(true)}).Click(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, shown := range []playwright.Locator{paste, prompt, input} {
+		if err := expect.Locator(shown).ToBeVisible(); err != nil {
+			t.Errorf("a Run's page doesn't show what is folded once it is opened: %v", err)
+		}
+	}
+	if _, err := b.Evaluate("window.scrollTo(0, 0)"); err != nil {
 		t.Fatal(err)
 	}
-	if err := expect.Locator(paste).ToBeVisible(); err != nil {
-		t.Errorf("the paste doesn't show once its line is opened: %v", err)
-	}
-	if err := expect.Locator(prompt).ToBeHidden(); err != nil {
-		t.Errorf("the whole prompt shows before it is opened: %v", err)
-	}
-	if err := b.GetByText("The whole prompt").Click(); err != nil {
-		t.Fatal(err)
-	}
-	if err := b.GetByText("Calls submit_recipe").Click(); err != nil {
-		t.Fatal(err)
-	}
-	if err := expect.Locator(prompt).ToBeVisible(); err != nil {
-		t.Errorf("the whole prompt doesn't show once opened: %v", err)
-	}
-	b.Shot(t, "trace-open")
+	b.Shot(t, "run-open")
 }
