@@ -15,6 +15,9 @@ type Brief struct {
 	Tools  []Tool
 	// Effort is how hard the model thinks for this kind of Run, always set explicitly.
 	Effort Effort
+	// Ended, if set, is asked once the model ends its turn, with the last text it said:
+	// an error fails the Run, such as a *Failure for NoResult when it left nothing.
+	Ended func(ctx context.Context, said string) error
 }
 
 // Tool is something the agent can do. Run's result goes back to the model; an error goes

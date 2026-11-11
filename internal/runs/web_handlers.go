@@ -17,9 +17,11 @@ import (
 
 // Kind is what a Run's page tells of its kind of Run: its name, the name of what the User
 // gives a Run of it, and the page of what it left them, named ResultName, or "" for none.
+// Again, if set, is where a failed Run's "Try again" posts what it was asked, as text.
 type Kind struct {
 	Name, AskedName, ResultName web.Message
 	Result                      func(ctx context.Context, runID int64) (string, error)
+	Again                       string
 }
 
 // Handlers serve the Runs page, a Run's page and its live Trace, and cancel a Run.
@@ -61,7 +63,11 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("HX-Location", res.Href)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, web.T(ctx, kind.Name), web.T(ctx, kind.AskedName), res))
+	again := ""
+	if run.Status == Failed {
+		again = kind.Again
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, web.T(ctx, kind.Name), web.T(ctx, kind.AskedName), res, again))
 }
 
 // List is the signed-in User's Runs, newest first.

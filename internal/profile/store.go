@@ -63,6 +63,11 @@ func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	return err
 }
 
+// countParsing is how many parse Runs the signed-in User has going.
+func countParsing(ctx context.Context, q db.Querier) (int, error) {
+	return recipes.CountParsing(ctx, q)
+}
+
 // loadFoodTerms is the signed-in User's Food Terms: Ingredients, Portions, Recipes and
 // Recipe Drafts.
 func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) {

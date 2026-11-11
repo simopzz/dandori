@@ -38,6 +38,7 @@ func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 		Effort:   b.Effort,
 	}
 
+	var said string // the model's last message
 	for turn := 1; ; turn++ {
 		if turn > l.MaxTurns {
 			return &Failure{Reason: TurnLimit, Detail: strconv.Itoa(l.MaxTurns)}
@@ -58,11 +59,15 @@ func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 		for _, bl := range resp.Content {
 			if bl.Type == BlockText && bl.Text != "" {
 				tr.Emit(TraceEvent{Kind: Said, Text: bl.Text})
+				said = bl.Text
 			}
 		}
 
 		switch resp.StopReason {
 		case StopEndTurn, StopSequence:
+			if b.Ended != nil {
+				return b.Ended(ctx, said)
+			}
 			return nil
 		case StopToolUse:
 			results, err := runTools(ctx, tools, resp.Content, tr)

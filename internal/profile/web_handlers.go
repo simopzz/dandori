@@ -102,6 +102,10 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgLanguageStays})
 		return false
 	}
+	if errors.Is(err, ErrParsing) {
+		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgParsing})
+		return false
+	}
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "set the User's Language", err)
 		return false

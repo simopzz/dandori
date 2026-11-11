@@ -498,6 +498,13 @@ func (s *Scenario) StartsParse(text string) {
 	s.record(fmt.Sprintf("pastes a recipe: %d %s", s.page.StatusCode, s.page.Path))
 }
 
+// Restarts stops Dandori and starts it again on the same database, as after a crash.
+func (s *Scenario) Restarts() {
+	s.t.Helper()
+	s.Restart(s.t)
+	s.record("restarts Dandori")
+}
+
 // CancelsRun cancels a Run with form, the cancel form its page showed, and lands where
 // that goes.
 func (s *Scenario) CancelsRun(form FormData) {

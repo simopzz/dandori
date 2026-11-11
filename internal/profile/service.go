@@ -17,6 +17,10 @@ import (
 // ErrLanguageStays is a change of Language once the User has written a Food Term.
 var ErrLanguageStays = errors.New("the User has written Food Terms in the Language, so it stays")
 
+// ErrParsing is a change of Language while a parse Run is going, whose Recipe Draft would
+// arrive in the Language left.
+var ErrParsing = errors.New("a parse Run is going in the Language, so it stays")
+
 // Service is the signed-in User's Profile.
 type Service struct {
 	pool *pgxpool.Pool
@@ -45,7 +49,8 @@ func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error)
 }
 
 // SetLanguage chooses the signed-in User's Language, or changes it while they have
-// written no Food Term; after that it is ErrLanguageStays.
+// written no Food Term; after that it is ErrLanguageStays, and while a parse Run is going
+// it is ErrParsing.
 func (s *Service) SetLanguage(ctx context.Context, l domain.Language) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		current, chosen, err := loadLanguage(ctx, tx)
@@ -59,6 +64,13 @@ func (s *Service) SetLanguage(ctx context.Context, l domain.Language) error {
 			}
 			if !domain.LanguageCanChange(terms) {
 				return ErrLanguageStays
+			}
+			parsing, err := countParsing(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if parsing > 0 {
+				return ErrParsing
 			}
 		}
 		return saveLanguage(ctx, tx, l)

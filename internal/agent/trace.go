@@ -62,6 +62,8 @@ const (
 	OutOfTokensInThought Reason = "out_of_tokens_thinking"
 	UnexpectedStop       Reason = "unexpected_stop"
 	ModelFailed          Reason = "model_failed"
+	// NoResult: the model ended its turn without leaving what the Run is for.
+	NoResult Reason = "no_result"
 	// Crashed, NoModel and Interrupted are the Run engine's own.
 	Crashed     Reason = "crashed"
 	NoModel     Reason = "no_model"

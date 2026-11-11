@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -54,6 +55,8 @@ type Harness struct {
 	Model *fakellm.LLM
 
 	app *app.App
+	// restart starts the app again on its database, as Restart does.
+	restart func(t testing.TB)
 
 	databaseURL string
 	log         *logBuffer
@@ -147,25 +150,38 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if s.config != nil {
 		s.config(&cfg)
 	}
-	a, err := app.New(context.Background(), cfg, logger)
-	if err != nil {
-		t.Fatal(err)
+	h := &Harness{Clock: manual, Auth: fake, Model: model, databaseURL: instance.URL(), log: log}
+	var handler atomic.Pointer[http.Handler]
+	stop := func() {}
+	boot := func(t testing.TB) {
+		t.Helper()
+		a, err := app.New(context.Background(), cfg, logger)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hd := a.Handler()
+		handler.Store(&hd)
+		scheduled, stopBeats := context.WithCancel(context.Background())
+		a.Schedule(scheduled)
+		h.app, stop = a, func() { stopBeats(); a.Close() }
+	}
+	boot(t)
+	h.restart = func(t testing.TB) {
+		stop()
+		boot(t)
 	}
 	// Not a ServeMux: the pattern it matched would name every request's span "GET /".
-	handler, setClock := a.Handler(), clockSwitch(manual)
+	setClock := clockSwitch(manual)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && r.URL.Path == "/_test/clock" {
 			setClock(w, r)
 			return
 		}
-		handler.ServeHTTP(w, r)
+		(*handler.Load()).ServeHTTP(w, r)
 	}))
-	scheduled, stop := context.WithCancel(context.Background())
-	a.Schedule(scheduled)
 	t.Cleanup(func() {
-		stop()
 		srv.Close()
-		a.Close()
+		stop()
 	})
 	fake.SiteURL = srv.URL
 	client := srv.Client()
@@ -173,7 +189,15 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Harness{URL: srv.URL, Client: client, Clock: manual, Auth: fake, Model: model, app: a, databaseURL: instance.URL(), log: log}
+	h.URL, h.Client = srv.URL, client
+	return h
+}
+
+// Restart stops the app and starts it again on the same database, at the same address,
+// as a deploy or a crash and restart does: its Users stay signed in.
+func (h *Harness) Restart(t testing.TB) {
+	t.Helper()
+	h.restart(t)
 }
 
 // Settle waits for every Run going to end.

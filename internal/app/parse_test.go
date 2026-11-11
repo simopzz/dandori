@@ -90,6 +90,106 @@ func TestARefusedPasteFailsItsRunSayingWhy(t *testing.T) {
 	s.Sees("bio: Not this one.")
 }
 
+// A model that ends its turn without submitting a Recipe fails the Run, its last message
+// as the reason, and no Recipe Draft is offered.
+func TestAPasteThatIsNotARecipeFailsItsRunWithTheModelsReason(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Model.Script(fakellm.Reply("This is a shopping list, not a recipe."))
+
+	s.PastesRecipe("Milk, eggs, bread.")
+	s.Sees("Reading a Recipe Failed")
+	s.Sees("The model ended without a Recipe Draft.")
+	s.Sees("This is a shopping list, not a recipe.")
+	s.Sees("Ended: Failed")
+	if strings.Contains(s.Page().Body, `href="/recipe-drafts/`) {
+		t.Errorf("a failed Run's page links a Recipe Draft")
+	}
+}
+
+// "Try again" on a failed parse Run starts a new one with the same text, without pasting
+// it again; a Run that succeeded doesn't offer it.
+func TestTryAgainOnAFailedParseRunStartsANewOneWithTheSameText(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Model.Script(
+		fakellm.Reply("I lost my place."),
+		fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Parsed the lasagne."),
+	)
+	s.PastesRecipe(pastedLasagne)
+	failed := s.Page().Path
+	s.Sees("Reading a Recipe Failed")
+
+	s.Submits("try-again")
+	if s.Page().Path == failed {
+		t.Fatalf("trying again stayed on the failed Run %s", failed)
+	}
+	s.Settle()
+	s.Open(s.Page().Path)
+	s.Sees("Reading a Recipe Succeeded")
+	s.Sees("Pasted recipe " + strings.Join(strings.Fields(pastedLasagne), " "))
+	if strings.Contains(s.Page().Body, `id="try-again"`) {
+		t.Errorf("a Run that succeeded offers to try again")
+	}
+	reqs := s.Model.Requests()
+	if len(reqs) < 2 {
+		t.Fatalf("the model was asked %d times, want a second Run's request", len(reqs))
+	}
+	if asked := reqs[1].Messages[0].Content[0].Text; !strings.Contains(asked, pastedLasagne) {
+		t.Errorf("trying again asked the model:\n%s\nwant the same text:\n%s", asked, pastedLasagne)
+	}
+}
+
+// A paste over 20,000 characters, counted after trimming, is refused on its field with
+// the limit stated, keeping the text, and starts no Run; one of exactly 20,000 is read.
+func TestAPasteOver20000CharactersIsRefusedOnItsField(t *testing.T) {
+	s := kitchenWith(t, rice)
+	long := strings.Repeat("è", 20001)
+	s.StartsParse(long)
+	s.IsRefused()
+	s.Sees("Paste at most 20,000 characters; this is 20,001.")
+	if !strings.Contains(s.Page().Body, long) {
+		t.Errorf("the refused paste is not kept in its field")
+	}
+	if n := len(s.Model.Requests()); n != 0 {
+		t.Errorf("a refused paste asked the model %d times", n)
+	}
+	s.Open("/runs")
+	s.Sees("No Runs yet.")
+
+	s.Model.Script(fakellm.Reply("Not a recipe."))
+	s.StartsParse("  " + strings.Repeat("è", 20000) + "\n")
+	if !strings.HasPrefix(s.Page().Path, "/runs/") {
+		t.Errorf("a paste of 20,000 characters lands on %s, want its Run", s.Page().Path)
+	}
+}
+
+// A model failure worth retrying is retried, the retry shown in the Trace, and the Run
+// still succeeds.
+func TestAModelFailureWorthRetryingShowsInTheTraceAndTheRunSucceeds(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Model.Script(
+		fakellm.Overloaded(),
+		fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Parsed the lasagne."),
+	)
+	s.PastesRecipe(pastedLasagne)
+	s.Sees("Reading a Recipe Succeeded")
+	s.Sees("Retry 1 of 3 in 1 ms overloaded (529)")
+	s.Sees("Ended: Succeeded")
+}
+
+// A model that keeps calling tools fails its Run once it reaches the turn limit.
+func TestARunPastTheTurnLimitFailsSayingSo(t *testing.T) {
+	s := kitchenWith(t, rice)
+	for range 50 {
+		s.Model.Script(fakellm.CallTool("submit_recipe", map[string]any{}))
+	}
+	s.PastesRecipe(pastedLasagne)
+	s.Sees("Reading a Recipe Failed")
+	s.Sees("The model did not finish within 50 turns.")
+	if n := len(s.Model.Requests()); n != 50 {
+		t.Errorf("the model was asked %d times, want 50", n)
+	}
+}
+
 // What submit_recipe can't take goes back to the model, said so it can fix it: here the
 // known rice in millilitres, and a new Ingredient without its values. The model fixes
 // both, and the Recipe Draft is what it submitted second.
@@ -246,12 +346,13 @@ func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testi
 	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Parsed *the* lasagne."))
 	s.PastesRecipe(pastedLasagne)
 	run := s.Page().Path
-	s.Sees("Reading a Recipe Succeeded")
+	s.Sees("Reading a Recipe Failed")
 	s.Sees("Started with " + runs.DefaultModel)
 	s.Sees("Asking the model (turn 1)")
 	s.Sees("Calls submit_recipe")
 	s.Sees("The model says Parsed the lasagne.")
-	s.Sees("Ended: Succeeded")
+	s.Sees("The model ended without a Recipe Draft.")
+	s.Sees("Ended: Failed")
 	if !strings.Contains(s.Page().Body, "Parsed <em>the</em> lasagne.") {
 		t.Errorf("the model's Markdown is not shown as it wrote it:\n%s", s.Page().Body)
 	}
@@ -259,12 +360,13 @@ func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testi
 	s.Open("/profile")
 	s.ChangesLanguage("Italiano")
 	s.Open(run)
-	s.Sees("Lettura di una Ricetta Riuscita")
+	s.Sees("Lettura di una Ricetta Fallita")
 	s.Sees("Iniziata con " + runs.DefaultModel)
 	s.Sees("Chiedo al modello (turno 1)")
 	s.Sees("Chiama submit_recipe")
 	s.Sees("Il modello dice Parsed the lasagne.")
-	s.Sees("Finita: Riuscita")
+	s.Sees("Il modello ha finito senza una Bozza di Ricetta.")
+	s.Sees("Finita: Fallita")
 }
 
 // Several parse Runs can go at once, each making its own Recipe Draft: both are asking

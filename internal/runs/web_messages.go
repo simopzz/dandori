@@ -15,6 +15,7 @@ var (
 	msgRuns      = web.Message{En: "Runs", It: "Run"}
 	msgNoRuns    = web.Message{En: "No Runs yet.", It: "Ancora nessuna Run."}
 	msgCancel    = web.Message{En: "Cancel", It: "Annulla"}
+	msgTryAgain  = web.Message{En: "Try again", It: "Riprova"}
 	// msgSeeFurther opens a Run's page again, further along, without JavaScript.
 	msgSeeFurther = web.Message{En: "See how it's going", It: "Guarda a che punto è"}
 
@@ -48,7 +49,10 @@ var reasonNames = map[agent.Reason]web.Message{
 	agent.OutOfTokensInThought: {En: "The model ran out of tokens while thinking.", It: "Il modello ha finito i token mentre ragionava."},
 	agent.UnexpectedStop:       {En: "The model stopped for a reason Dandori doesn't know: %s", It: "Il modello si è fermato per un motivo che Dandori non conosce: %s"},
 	agent.ModelFailed:          {En: "Asking the model failed: %s", It: "La richiesta al modello è fallita: %s"},
-	agent.Crashed:              {En: "Dandori crashed while running it: %s", It: "Dandori si è bloccato: %s"},
-	agent.NoModel:              {En: "No model is set up.", It: "Nessun modello è configurato."},
-	agent.Interrupted:          {En: "Dandori stopped while it was going.", It: "Dandori si è fermato mentre era in corso."},
+	// shortcut: names the parse Run's result, the only kind's; take it from the Kind once
+	// another kind of Run can end without its result.
+	agent.NoResult:    {En: "The model ended without a Recipe Draft.", It: "Il modello ha finito senza una Bozza di Ricetta."},
+	agent.Crashed:     {En: "Dandori crashed while running it: %s", It: "Dandori si è bloccato: %s"},
+	agent.NoModel:     {En: "No model is set up.", It: "Nessun modello è configurato."},
+	agent.Interrupted: {En: "Dandori stopped while it was going.", It: "Dandori si è fermato mentre era in corso."},
 }

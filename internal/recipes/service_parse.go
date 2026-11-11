@@ -216,6 +216,13 @@ func (s *Service) parseBrief(l domain.Language, text string, known []domain.Ingr
 		System: fmt.Sprintf(parseSystem, languageNames[l]),
 		Prompt: prompt.String(),
 		Effort: parseEffort,
+		Ended: func(ctx context.Context, said string) error {
+			_, err := s.DraftOf(ctx, runs.IDFrom(ctx))
+			if errors.Is(err, ErrNoDraft) {
+				return &agent.Failure{Reason: agent.NoResult, Detail: said}
+			}
+			return err
+		},
 		Tools: []agent.Tool{{
 			Name:        "submit_recipe",
 			Description: "Submit the parsed Recipe as a Recipe Draft for the user to check. Replaces any earlier submission.",
