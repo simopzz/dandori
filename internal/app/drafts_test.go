@@ -133,9 +133,11 @@ func TestAKnownIngredientKeepsItsValuesAndUnitOnARecipeDraft(t *testing.T) {
 	s.Sees("rice pantry per 100 g: 350 kcal protein 7 g")
 }
 
-// Discarding a Recipe Draft removes it, adding nothing.
+// Discarding a Recipe Draft removes it and adds nothing, and its Run stops linking
+// to it.
 func TestDiscardingARecipeDraftRemovesIt(t *testing.T) {
 	s := draftedLasagne(t)
+	run := s.Page().Path
 	s.Follows("Recipe Draft")
 	draft := s.Page().Path
 
@@ -149,6 +151,10 @@ func TestDiscardingARecipeDraftRemovesIt(t *testing.T) {
 	}
 	s.Open("/ingredients")
 	s.DoesNotSee("beef mince")
+	s.Open(run)
+	if strings.Contains(s.Page().Body, draft) {
+		t.Errorf("the Run still links to its discarded Recipe Draft")
+	}
 }
 
 // Every Recipe Draft awaiting a check is listed on the Recipe Library, newest first and
