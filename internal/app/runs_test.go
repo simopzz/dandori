@@ -138,7 +138,7 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 
 	s.Open("/")
 	s.Follows("Runs")
-	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue 3 Nov 10:30 Two eggs, boiled. Failed Reading a Recipe Tue 3 Nov 09:15")
+	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue, Nov 3 10:30 am Two eggs, boiled. Failed Reading a Recipe Tue, Nov 3 9:15 am")
 	s.Follows("Lasagne for 4")
 	if s.Page().Path != going {
 		t.Errorf("the newest Run opens %s, want %s", s.Page().Path, going)

@@ -213,7 +213,8 @@ elements themselves.
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
 | `SearchField(label)` | The search box over a list, the input the child: a square box with the magnifying glass inside, so it doesn't read as one of the rows. `label` is for a screen reader; the input's placeholder says it on screen. |
 | `ListSearch(id, action, listURL, listID, label)` | A `SearchField` in a form that swaps the list as the User types and opens `action` searched without htmx, the input the child. |
-| `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window). |
+| `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window), typed in either 24- or 12-hour form and shown in the Language's (`web.TimeOfDay`); never a native `type="time"`, which follows the browser's locale. |
+| `DateField(label, name, value, err)` | A `Field` for a day, shown in the Language's order (`domain.FormatDate`); never a native `type="date"`. |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |

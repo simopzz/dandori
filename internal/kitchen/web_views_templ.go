@@ -1190,16 +1190,16 @@ func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bo
 // that is now's.
 func happenedText(ctx context.Context, now, at time.Time) string {
 	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgHappened, web.ShortDateInYear(ctx, at), at.Format("15:04"))
+		return web.Tf(ctx, msgHappened, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
 	}
-	return web.Tf(ctx, msgHappened, web.ShortDate(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgHappened, web.ShortDate(ctx, at), web.Time(ctx, at))
 }
 
 // countedText says when a Stock Item was last counted, told in now's zone, with its date
 // unless it was today.
 func countedText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
-		return web.Tf(ctx, msgCountedAt, at.Format("15:04"))
+		return web.Tf(ctx, msgCountedAt, web.Time(ctx, at))
 	}
 	return web.Tf(ctx, msgCountedOn, happenedText(ctx, now, at))
 }
@@ -3505,9 +3505,9 @@ func Status(now, at time.Time, ok bool) templ.Component {
 
 func statusText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
-		return web.Tf(ctx, msgUpToDateAt, at.Format("15:04"))
+		return web.Tf(ctx, msgUpToDateAt, web.Time(ctx, at))
 	}
-	return web.Tf(ctx, msgUpToDateOn, web.Date(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgUpToDateOn, web.Date(ctx, at), web.Time(ctx, at))
 }
 
 var _ = templruntime.GeneratedTemplate

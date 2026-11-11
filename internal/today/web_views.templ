@@ -20,7 +20,7 @@ templ page(now time.Time, d Day) {
 					for _, s := range d.Slots.Later {
 						@web.Row() {
 							<span class="row-title">{ web.T(ctx, web.SlotKindNames[s.Kind]) }</span>
-							<span class="row-figure">{ d.Times[s.Kind].String() }</span>
+							<span class="row-figure">{ web.TimeOfDay(ctx, d.Times[s.Kind]) }</span>
 						}
 					}
 				}
@@ -38,7 +38,7 @@ templ page(now time.Time, d Day) {
 // day's last is past.
 func firstText(ctx context.Context, now time.Time, d Day) string {
 	first := d.Slots.First
-	kind, at := web.T(ctx, web.SlotKindNames[first.Kind]), d.Times[first.Kind].String()
+	kind, at := web.T(ctx, web.SlotKindNames[first.Kind]), web.TimeOfDay(ctx, d.Times[first.Kind])
 	switch {
 	case d.Slots.Now:
 		return web.Tf(ctx, msgNowAt, kind, at)

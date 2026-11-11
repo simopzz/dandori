@@ -115,9 +115,9 @@ func page(now time.Time, d Day) templ.Component {
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var7 string
-								templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(d.Times[s.Kind].String())
+								templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(web.TimeOfDay(ctx, d.Times[s.Kind]))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 23, Col: 58}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 23, Col: 69}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 								if templ_7745c5c3_Err != nil {
@@ -213,7 +213,7 @@ func page(now time.Time, d Day) templ.Component {
 // day's last is past.
 func firstText(ctx context.Context, now time.Time, d Day) string {
 	first := d.Slots.First
-	kind, at := web.T(ctx, web.SlotKindNames[first.Kind]), d.Times[first.Kind].String()
+	kind, at := web.T(ctx, web.SlotKindNames[first.Kind]), web.TimeOfDay(ctx, d.Times[first.Kind])
 	switch {
 	case d.Slots.Now:
 		return web.Tf(ctx, msgNowAt, kind, at)

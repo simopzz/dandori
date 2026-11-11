@@ -40,14 +40,14 @@ func TestTheSchedulerBringsEveryUsersKitchenUpToNow(t *testing.T) {
 	s.At("Mon 14:05")
 	s.At("Mon 14:07")
 	s.Open("/")
-	s.Sees("Kitchen up to date as of 14:05")
+	s.Sees("Kitchen up to date as of 2:05 pm")
 	s.SwitchesTo("ada@example.com")
-	s.Sees("Kitchen up to date as of 14:05")
+	s.Sees("Kitchen up to date as of 2:05 pm")
 
 	// Past two beats at once, as a machine waking up: the step runs once, for the latest.
 	s.At("Mon 14:17")
 	s.Open("/")
-	s.Sees("Kitchen up to date as of 14:15")
+	s.Sees("Kitchen up to date as of 2:15 pm")
 }
 
 // A beat that fails for one User still brings the others up to now, and the failure is
@@ -76,9 +76,9 @@ func TestABeatFailingForOneUserStillBringsTheOthersUpToNow(t *testing.T) {
 	s.At("Tue 14:05")
 
 	s.Open("/")
-	s.Sees("Kitchen up to date as of 14:05")
+	s.Sees("Kitchen up to date as of 2:05 pm")
 	s.SwitchesTo("ada@example.com")
-	s.Sees("Kitchen up to date as of Monday 2 November, 14:05")
+	s.Sees("Kitchen up to date as of Monday, November 2, 2:05 pm")
 	if logged := s.Logged(); !strings.Contains(logged, "kitchen beat") || !strings.Contains(logged, "Ada's kitchen refuses the beat") {
 		t.Errorf("the log doesn't record Ada's failed beat:\n%s", logged)
 	}
@@ -103,5 +103,5 @@ func TestTheStepRunAgainForTheSameMomentChangesNothing(t *testing.T) {
 		CREATE TRIGGER refuse_a_change BEFORE UPDATE ON kitchen FOR EACH ROW
 			EXECUTE FUNCTION refuse_a_change();`)
 	s.Open("/")
-	s.Sees("Kitchen up to date as of 14:05")
+	s.Sees("Kitchen up to date as of 2:05 pm")
 }

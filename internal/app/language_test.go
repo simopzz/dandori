@@ -67,7 +67,7 @@ func TestEachUserHasTheirOwnLanguage(t *testing.T) {
 	s.SignsIn("bea@example.com")
 	s.IsAt("/language")
 	s.ChoosesLanguage("English")
-	s.Sees("Monday 2 November")
+	s.Sees("Monday, November 2")
 }
 
 // Pages before signing in are in English, with a switch to Italian that the following
@@ -142,7 +142,7 @@ func TestTheLanguageIsChosenOnce(t *testing.T) {
 		t.Errorf("choosing again landed on %s, want /", page.Path)
 	}
 	s.Open("/")
-	s.Sees("Monday 2 November")
+	s.Sees("Monday, November 2")
 }
 
 // Once the User has added an Ingredient, their Language stays: the Profile refuses a
@@ -162,7 +162,7 @@ func TestTheLanguageStaysOnceTheUserHasAnIngredient(t *testing.T) {
 	s.IsRefused()
 	s.Sees("Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.")
 	s.Open("/")
-	s.Sees("Monday 2 November")
+	s.Sees("Monday, November 2")
 }
 
 // The Language can't change while a parse Run is going, so its Recipe Draft can't arrive

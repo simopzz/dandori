@@ -35,9 +35,9 @@ func TestMarkingAStapleCountsItsStockToNothing(t *testing.T) {
 	s.Follows("Movements")
 	s.IsAt("/kitchen/movements")
 	s.Sees("rice · Pantry")
-	s.Sees("Marked a Staple 700 g → 0 g Mon 2 Nov 11:00 Moved to the freezer")
+	s.Sees("Marked a Staple 700 g → 0 g Mon, Nov 2 11:00 am Moved to the freezer")
 	s.Follows("Freezer")
-	s.Sees("Marked a Staple 200 g → 0 g Mon 2 Nov 11:00 Moved from the pantry")
+	s.Sees("Marked a Staple 200 g → 0 g Mon, Nov 2 11:00 am Moved from the pantry")
 }
 
 // asStaple is ing marked a Staple.
@@ -104,7 +104,7 @@ func TestUnmarkingAStapleStartsItFromNothing(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("Pantry rice 300 g")
 	s.Follows("rice")
-	s.Sees("Counted 0 g → 300 g Mon 2 Nov 11:00 Marked a Staple 700 g → 0 g Mon 2 Nov 10:00 Counted 0 g → 700 g")
+	s.Sees("Counted 0 g → 300 g Mon, Nov 2 11:00 am Marked a Staple 700 g → 0 g Mon, Nov 2 10:00 am Counted 0 g → 700 g")
 }
 
 // Posted from the side sheet by htmx, marking a Staple answers with the sheet's body,

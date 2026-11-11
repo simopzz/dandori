@@ -16,28 +16,28 @@ func TestTodayShowsTheSlotNowOrNext(t *testing.T) {
 
 	s.At("Mon 07:00")
 	s.Open("/")
-	s.Sees("Monday 2 November")
-	s.Sees("Next: breakfast at 08:00")
+	s.Sees("Monday, November 2")
+	s.Sees("Next: breakfast at 8:00 am")
 	s.Sees("No Cycle yet.")
 
 	s.At("Mon 08:00")
 	s.Open("/")
-	s.Sees("Now: breakfast at 08:00")
-	s.Sees("Later today lunch 13:00 snack 17:00 dinner 20:00")
+	s.Sees("Now: breakfast at 8:00 am")
+	s.Sees("Later today lunch 1:00 pm snack 5:00 pm dinner 8:00 pm")
 
 	s.At("Mon 13:30")
 	s.Open("/")
-	s.Sees("Now: lunch at 13:00")
-	s.Sees("Later today snack 17:00 dinner 20:00")
+	s.Sees("Now: lunch at 1:00 pm")
+	s.Sees("Later today snack 5:00 pm dinner 8:00 pm")
 
 	s.At("Mon 21:00")
 	s.Open("/")
-	s.Sees("Now: dinner at 20:00")
+	s.Sees("Now: dinner at 8:00 pm")
 	s.DoesNotSee("Later today")
 
 	s.At("Mon 21:01")
 	s.Open("/")
-	s.Sees("Next: breakfast tomorrow at 08:00")
+	s.Sees("Next: breakfast tomorrow at 8:00 am")
 }
 
 // Opened through a whole day, Today moves from each Slot to the next: each is now for an
@@ -50,24 +50,24 @@ func TestTodayThroughADay(t *testing.T) {
 	s.ChoosesLanguage("English")
 
 	for _, step := range []struct{ at, sees string }{
-		{"Mon 09:00", "Now: breakfast at 08:00"},
-		{"Mon 09:01", "Next: lunch at 13:00"},
-		{"Mon 11:00", "Next: lunch at 13:00"},
-		{"Mon 13:00", "Now: lunch at 13:00"},
-		{"Mon 14:01", "Next: snack at 17:00"},
-		{"Mon 17:30", "Now: snack at 17:00"},
-		{"Mon 18:30", "Next: dinner at 20:00"},
-		{"Mon 20:00", "Now: dinner at 20:00"},
-		{"Mon 23:59", "Next: breakfast tomorrow at 08:00"},
-		{"Tue 00:00", "Next: breakfast at 08:00"},
-		{"Tue 06:00", "Next: breakfast at 08:00"},
+		{"Mon 09:00", "Now: breakfast at 8:00 am"},
+		{"Mon 09:01", "Next: lunch at 1:00 pm"},
+		{"Mon 11:00", "Next: lunch at 1:00 pm"},
+		{"Mon 13:00", "Now: lunch at 1:00 pm"},
+		{"Mon 14:01", "Next: snack at 5:00 pm"},
+		{"Mon 17:30", "Now: snack at 5:00 pm"},
+		{"Mon 18:30", "Next: dinner at 8:00 pm"},
+		{"Mon 20:00", "Now: dinner at 8:00 pm"},
+		{"Mon 23:59", "Next: breakfast tomorrow at 8:00 am"},
+		{"Tue 00:00", "Next: breakfast at 8:00 am"},
+		{"Tue 06:00", "Next: breakfast at 8:00 am"},
 	} {
 		s.At(step.at)
 		s.Open("/")
 		s.Sees(step.sees)
 	}
-	s.Sees("Tuesday 3 November")
-	s.Sees("Later today lunch 13:00 snack 17:00 dinner 20:00")
+	s.Sees("Tuesday, November 3")
+	s.Sees("Later today lunch 1:00 pm snack 5:00 pm dinner 8:00 pm")
 }
 
 // Today follows the Profile's times of day, not the defaults.
@@ -80,15 +80,15 @@ func TestTodayFollowsTheProfilesTimesOfDay(t *testing.T) {
 
 	s.At("Mon 08:00")
 	s.Open("/")
-	s.Sees("Now: breakfast at 07:30")
+	s.Sees("Now: breakfast at 7:30 am")
 
 	s.At("Mon 13:30")
 	s.Open("/")
-	s.Sees("Now: lunch at 12:30")
+	s.Sees("Now: lunch at 12:30 pm")
 
 	s.At("Mon 21:00")
 	s.Open("/")
-	s.Sees("Next: breakfast tomorrow at 07:30")
+	s.Sees("Next: breakfast tomorrow at 7:30 am")
 }
 
 // Today speaks the User's Language, Slot kinds included.

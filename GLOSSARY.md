@@ -27,7 +27,7 @@ A set of changes to a Cycle's Plan, produced by the agent, that takes effect onl
 _Avoid_: Recalculation, auto-update
 
 **Replaced**:
-A pending Plan Proposal rejected by something that happened rather than by the user: an Exception, a Delivery report, a Cart Fill substitution or a moved Delivery. It names what replaced it ("replaced by the Exception on Fri 6 Nov, dinner"), which is never a Planning Note.
+A pending Plan Proposal rejected by something that happened rather than by the user: an Exception, a Delivery report, a Cart Fill substitution or a moved Delivery. It names what replaced it ("replaced by the Exception on Fri, Nov 6, dinner"), which is never a Planning Note.
 _Avoid_: Superseded, auto-rejected
 
 **Planning Note**:
