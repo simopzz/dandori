@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -17,11 +16,6 @@ const (
 
 // SlotKinds lists every SlotKind in the order of a day.
 var SlotKinds = []SlotKind{Breakfast, Lunch, Snack, Dinner}
-
-// TimeOfDay is a time of day on the User's wall clock, in minutes after midnight.
-type TimeOfDay int
-
-func (t TimeOfDay) String() string { return fmt.Sprintf("%02d:%02d", t/60, t%60) }
 
 // SlotTimes is the Profile's time of day of each SlotKind, the same every day.
 type SlotTimes map[SlotKind]TimeOfDay

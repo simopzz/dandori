@@ -13,6 +13,11 @@ const (
 	NotADate Problem = "not a date"
 )
 
+// TimeOfDay is a time of day on the User's wall clock, in minutes after midnight.
+type TimeOfDay int
+
+func (t TimeOfDay) String() string { return fmt.Sprintf("%02d:%02d", t/60, t%60) }
+
 // FormatTime is t's time of day as a Language writes it: "13:00" in Italian, "1:00 pm"
 // in English. seconds adds them: "13:00:05", "1:00:05 pm".
 func FormatTime(l Language, t time.Time, seconds bool) string {
