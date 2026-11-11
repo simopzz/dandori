@@ -244,15 +244,17 @@ func (b *Browser) shot(t testing.TB, name string, whole bool) {
 }
 
 // FollowsRun waits for the page to be a Run's, as starting one lands on, then for every
-// Run going to end, and reloads the page to show how it ended.
+// Run going to end, and opens the Run's page again to show how it ended: the live page
+// may have gone on to what the Run left.
 func (b *Browser) FollowsRun(t testing.TB) {
 	t.Helper()
 	if err := b.WaitForURL(b.url + "/runs/*"); err != nil {
 		t.Fatalf("the page is not a Run's: %v", err)
 	}
+	run := b.URL()
 	b.settle()
-	if _, err := b.Reload(); err != nil {
-		t.Fatalf("reload the Run's page: %v", err)
+	if _, err := b.Goto(run); err != nil {
+		t.Fatalf("open the Run's page again: %v", err)
 	}
 }
 
