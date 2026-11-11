@@ -125,7 +125,7 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
   Tabs are Plan, Recipes, Kitchen, Catalog and Profile; Runs is secondary. A page passes its
   `Tab` to `Layout`, which marks it `aria-current="page"`.
 - **Every page opens with a `PageHeader`**: a letter-spaced eyebrow with the
-  page's Japanese name and today's date (`在庫 · Sunday 25 October`) and a large
+  page's Japanese name and today's date (`在庫 · Sunday, October 25`) and a large
   pixel title, which is the page's only `h1`.
 - **Content is grouped into numbered `Section`s** (`01 Stock Items`): a pixel
   heading over the banner's underline, a short vermilion stroke under the

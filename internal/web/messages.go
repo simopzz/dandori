@@ -25,6 +25,8 @@ var problems = map[domain.Problem]Message{
 	domain.NotANumber: {En: "Type a number.", It: "Scrivi un numero."},
 	domain.Negative:   {En: "Can't be below 0.", It: "Non può essere sotto 0."},
 	domain.TooPrecise: {En: "One decimal place at most.", It: "Al massimo un decimale."},
+	domain.NotATime:   {En: "Type a time, like 1:00 pm or 13:00.", It: "Scrivi un'ora, come 13:00."},
+	domain.NotADate:   {En: "Type a date, like 11/02/2026.", It: "Scrivi una data, come 02/11/2026."},
 }
 
 // ProblemMessage says why a typed value is refused for problem: as own says, a field's
