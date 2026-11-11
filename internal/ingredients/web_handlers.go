@@ -152,7 +152,7 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if fixed, ok := errors.AsType[*UnitFixedError](err); ok {
-		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitFixed, web.T(ctx, recordedIn[fixed.Unit]))
+		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitFixed, web.T(ctx, RecordedIn[fixed.Unit]))
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}

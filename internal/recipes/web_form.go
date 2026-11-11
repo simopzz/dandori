@@ -25,6 +25,9 @@ type IngredientRow struct {
 	// Focus says the row takes focus as it arrives.
 	Focus bool
 	Errs  map[string]string
+	// Suggested is the known Ingredient a new one's name is close to. UnitChanged says
+	// why the quantity was cleared: the row became a known Ingredient in another unit.
+	Suggested, UnitChanged string
 }
 
 // RecipeForm is the Recipe form as shown: what was typed, why it was refused by field,
@@ -71,6 +74,9 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 		if ri.Ingredient.ID == 0 { // a Recipe Draft's new Ingredient, its proposed values shown to confirm
 			row.New, row.Usual, row.Staple = true, string(ri.Ingredient.Usual), ri.Ingredient.Staple
 			row.Values = ingredients.ValuesOf(ri.Ingredient.Nutrition)
+			row.Suggested, _ = domain.ClosestIngredient(web.LanguageOf(ctx), ri.Ingredient.Name, namesOf(known))
+		} else if ri.Quantity == 0 { // a Recipe Draft's row known since in another unit
+			row.Quantity, row.UnitChanged = "", unitChanged(ctx, ri.Ingredient.Unit)
 		}
 		f.Ingredients = append(f.Ingredients, row)
 	}
@@ -113,25 +119,55 @@ func byName(l domain.Language, known []domain.Ingredient) map[string]domain.Ingr
 	return m
 }
 
+// namesOf is known's names.
+func namesOf(known []domain.Ingredient) []string {
+	names := make([]string, len(known))
+	for i, ing := range known {
+		names[i] = ing.Name
+	}
+	return names
+}
+
+// unitChanged says to give a quantity again in unit, which Dandori won't convert to.
+func unitChanged(ctx context.Context, unit domain.Unit) string {
+	return web.Tf(ctx, msgUnitChanged, web.T(ctx, ingredients.RecordedIn[unit]))
+}
+
 // rowField is the form field of field on the row at index i.
 func rowField(field string, i int) string { return fmt.Sprintf("ing_%s_%d", field, i) }
 
 // readRow reads the row at index i of form, matching its name to known, as an Ingredient
 // (one without an ID being new) and the row as shown. settled says the User has seen
-// the row for what it is now: a new one's fields, or a known one as known.
+// the row for what it is now: a new one's fields, or a known one as known. A row picked
+// takes the name of the known Ingredient suggested for it. A row shown in a unit that
+// becomes a known Ingredient in another has its quantity cleared, never converted.
 func readRow(ctx context.Context, form url.Values, i int, known map[string]domain.Ingredient) (ing domain.Ingredient, row IngredientRow, settled bool) {
+	l := web.LanguageOf(ctx)
 	in := func(field string) string { return strings.TrimSpace(form.Get(rowField(field, i))) }
 	row = IngredientRow{Name: in("name"), Quantity: in("quantity"), Errs: map[string]string{}}
+	names := make([]string, 0, len(known))
+	for _, k := range known {
+		names = append(names, k.Name)
+	}
+	if form.Get("pick") == strconv.Itoa(i) {
+		if closest, ok := domain.ClosestIngredient(l, row.Name, names); ok {
+			row.Name = closest
+		}
+	}
 	seen := in("new")
-	ing, isKnown := known[domain.NormaliseIngredientName(web.LanguageOf(ctx), row.Name)]
+	ing, isKnown := known[domain.NormaliseIngredientName(l, row.Name)]
 	if isKnown {
 		row.Name, row.Unit = ing.Name, string(ing.Unit)
+		if shown := in("unit"); seen == "true" && shown != "" && shown != row.Unit {
+			row.Quantity, row.UnitChanged = "", unitChanged(ctx, ing.Unit)
+		}
 		return ing, row, seen != "true"
 	}
 	if row.Name == "" {
 		return ing, row, true
 	}
 	row.New, row.Confirming = true, seen != "true"
+	row.Suggested, _ = domain.ClosestIngredient(l, row.Name, names)
 	row.Unit, row.Usual, row.Staple = in("unit"), in("usual"), in("staple") != ""
 	row.Values = map[string]string{}
 	for _, field := range []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"} {
@@ -191,7 +227,7 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 			unit = domain.Pieces // not chosen yet, so any quantity the unit may allow
 		}
 		quantity, qp := domain.ParseQuantity(unit, row.Quantity)
-		if qp != "" {
+		if qp != "" && row.UnitChanged == "" {
 			row.Errs["quantity"] = web.T(ctx, web.ProblemMessage(qp, quantityMessages))
 		}
 		rec.Ingredients = append(rec.Ingredients, domain.RecipeIngredient{Ingredient: ing, Quantity: quantity})
@@ -210,7 +246,7 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 			}
 			rows[i].Errs[field] = rowProblem(ctx, field, problem)
 		}
-		ok = ok && len(rows[i].Errs) == 0
+		ok = ok && len(rows[i].Errs) == 0 && rows[i].UnitChanged == ""
 	}
 	f.Ingredients = rows
 	f = newForm(f)

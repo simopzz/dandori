@@ -86,7 +86,7 @@ var problemMessages = map[domain.Problem]web.Message{
 	domain.TooLarge: {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 }
 
-// UnitNames name each Unit as a choice, recordedIn as quantities are recorded in it, and
+// UnitNames name each Unit as a choice, RecordedIn as quantities are recorded in it, and
 // perUnit is what nutritional values are per.
 var (
 	UnitNames = map[domain.Unit]web.Message{
@@ -94,7 +94,7 @@ var (
 		domain.Millilitres: {En: "ml", It: "ml"},
 		domain.Pieces:      {En: "piece", It: "pezzo"},
 	}
-	recordedIn = map[domain.Unit]web.Message{
+	RecordedIn = map[domain.Unit]web.Message{
 		domain.Grams:       {En: "g", It: "g"},
 		domain.Millilitres: {En: "ml", It: "ml"},
 		domain.Pieces:      {En: "pieces", It: "pezzi"},

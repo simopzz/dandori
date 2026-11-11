@@ -59,8 +59,14 @@ var (
 		En: "Clear a row's name and quantity to remove it.",
 		It: "Svuota nome e quantità di una riga per toglierla.",
 	}
-	msgMeasuredIn = web.Message{En: "Measured in %s", It: "Si misura in %s"}
-	msgNew        = web.Message{En: "New", It: "Nuovo"}
+	msgMeasuredIn  = web.Message{En: "Measured in %s", It: "Si misura in %s"}
+	msgNew         = web.Message{En: "New", It: "Nuovo"}
+	msgDidYouMean  = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
+	msgPick        = web.Message{En: "Use %s", It: "Usa %s"}
+	msgUnitChanged = web.Message{
+		En: "Give it in %s: Dandori doesn't convert.",
+		It: "Indicala in %s: Dandori non converte.",
+	}
 	msgConfirmNew = web.Message{
 		En: "Some Ingredients are new: check their values below, then save.",
 		It: "Alcuni Ingredienti sono nuovi: controlla i loro valori qui sotto, poi salva.",
