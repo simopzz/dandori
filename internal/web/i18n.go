@@ -89,21 +89,49 @@ var (
 	}
 )
 
-// Date is day's weekday and date in the Language of ctx: "Monday 2 November", "lunedì
+// Date is day's weekday and date in the Language of ctx: "Monday, November 2", "lunedì
 // 2 novembre".
 func Date(ctx context.Context, day time.Time) string {
-	return fmt.Sprintf("%s %d %s", T(ctx, weekdayNames[day.Weekday()]), day.Day(), T(ctx, monthNames[day.Month()-1]))
+	return dayAndMonth(ctx, day, weekdayNames[day.Weekday()], monthNames[day.Month()-1], identity)
 }
 
-// ShortDate is Date for a line with little room: "Mon 2 Nov", "Lun 2 Nov".
+// ShortDate is Date for a line with little room: "Mon, Nov 2", "Lun 2 Nov".
 func ShortDate(ctx context.Context, day time.Time) string {
-	return fmt.Sprintf("%s %d %s", shortName(T(ctx, weekdayNames[day.Weekday()])), day.Day(), shortName(T(ctx, monthNames[day.Month()-1])))
+	return dayAndMonth(ctx, day, weekdayNames[day.Weekday()], monthNames[day.Month()-1], shortName)
 }
 
-// ShortDateInYear is ShortDate with day's year: "Mon 2 Nov 2026", "Lun 2 Nov 2026".
+// ShortDateInYear is ShortDate with day's year: "Mon, Nov 2, 2026", "Lun 2 Nov 2026".
 func ShortDateInYear(ctx context.Context, day time.Time) string {
-	return fmt.Sprintf("%s %d", ShortDate(ctx, day), day.Year())
+	if LanguageOf(ctx) == domain.Italian {
+		return fmt.Sprintf("%s %d", ShortDate(ctx, day), day.Year())
+	}
+	return fmt.Sprintf("%s, %d", ShortDate(ctx, day), day.Year())
 }
+
+// dayAndMonth writes a weekday, day and month in the order of the Language of ctx.
+func dayAndMonth(ctx context.Context, day time.Time, weekday, month Message, name func(string) string) string {
+	w, m := name(T(ctx, weekday)), name(T(ctx, month))
+	if LanguageOf(ctx) == domain.Italian {
+		return fmt.Sprintf("%s %d %s", w, day.Day(), m)
+	}
+	return fmt.Sprintf("%s, %s %d", w, m, day.Day())
+}
+
+func identity(s string) string { return s }
+
+// Time is the time of day of at in the Language of ctx: "13:00" in Italian, "1:00 pm"
+// in English.
+func Time(ctx context.Context, at time.Time) string {
+	return domain.FormatTime(LanguageOf(ctx), at, false)
+}
+
+// TimeWithSeconds is Time with the seconds: "13:00:05", "1:00:05 pm".
+func TimeWithSeconds(ctx context.Context, at time.Time) string {
+	return domain.FormatTime(LanguageOf(ctx), at, true)
+}
+
+// TimeOfDay is t in the Language of ctx.
+func TimeOfDay(ctx context.Context, t domain.TimeOfDay) string { return t.In(LanguageOf(ctx)) }
 
 // shortName is a weekday's or a month's name cut to its first three letters, capitalised,
 // which is how both Languages shorten every one of them.

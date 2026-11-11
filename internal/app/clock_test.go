@@ -17,9 +17,9 @@ func TestPagesShowTheClocksDay(t *testing.T) {
 	s.At("Tue 10:00")
 	s.Open("/")
 	s.IsAt("/")
-	s.Sees("Tuesday 3 November")
+	s.Sees("Tuesday, November 3")
 
 	s.NextDay()
 	s.Open("/")
-	s.Sees("Wednesday 4 November")
+	s.Sees("Wednesday, November 4")
 }

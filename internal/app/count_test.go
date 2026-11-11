@@ -123,14 +123,14 @@ func TestEveryCountHappensWhenItIsSaved(t *testing.T) {
 	s.Counts("egg", "", "6", "")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Mon 2 Nov 14:05")
-	s.Sees("egg 6 pieces counted at 09:30")
+	s.Sees("rice 700 g counted on Mon, Nov 2 2:05 pm")
+	s.Sees("egg 6 pieces counted at 9:30 am")
 
 	s.At("Tue 10:45")
 	s.Counts("rice", "", "700", "the same as it was")
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted at 10:45")
-	s.Sees("egg 6 pieces counted at 09:30")
+	s.Sees("rice 700 g counted at 10:45 am")
+	s.Sees("egg 6 pieces counted at 9:30 am")
 }
 
 // A Stock Item last counted in another year says so.
@@ -141,7 +141,7 @@ func TestAStockItemCountedLastYearShowsTheYear(t *testing.T) {
 	s.At("2027-01-04 10:00")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Mon 2 Nov 2026 14:05")
+	s.Sees("rice 700 g counted on Mon, Nov 2, 2026 2:05 pm")
 }
 
 // A Count below 0 or finer than its unit is refused on the field, keeping what was typed
@@ -797,9 +797,9 @@ func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("rice 30 g")
 	s.Follows("rice")
-	s.Sees("Counted 100 g → 30 g Mon 2 Nov 10:00 " +
-		"Counted 100 g → 100 g Mon 2 Nov 10:00 " +
-		"Counted 0 g → 100 g Mon 2 Nov 10:00")
+	s.Sees("Counted 100 g → 30 g Mon, Nov 2 10:00 am " +
+		"Counted 100 g → 100 g Mon, Nov 2 10:00 am " +
+		"Counted 0 g → 100 g Mon, Nov 2 10:00 am")
 }
 
 // recordedAtTheLatest checks the last want Movements share the ledger's latest time,

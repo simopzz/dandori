@@ -102,7 +102,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 				@web.Tag(r.Status == Failed, "") {
 					{ web.T(ctx, statusNames[r.Status]) }
 				}
-				{ " " + web.Tf(ctx, msgStarted, r.StartedAt.In(now.Location()).Format("15:04:05")) }
+				{ " " + web.Tf(ctx, msgStarted, web.TimeWithSeconds(ctx, r.StartedAt.In(now.Location()))) }
 				if again != "" {
 					{ " · " }
 					@web.TextButton(templ.Attributes{"type": "submit", "form": "try-again"}) {
@@ -185,7 +185,7 @@ templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
 }
 
 templ traceLine(ev StoredTraceEvent, zone *time.Location) {
-	<time datetime={ ev.At.Format(time.RFC3339) }>{ ev.At.In(zone).Format("15:04:05") }</time>
+	<time datetime={ ev.At.Format(time.RFC3339) }>{ web.TimeWithSeconds(ctx, ev.At.In(zone)) }</time>
 	<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
 }
 
@@ -197,9 +197,9 @@ templ label(text string) {
 // now's, and the time.
 func startedOn(ctx context.Context, now, at time.Time) string {
 	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), at.Format("15:04"))
+		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
 	}
-	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), web.Time(ctx, at))
 }
 
 // indented is ev's text, a tool's input indented to read.

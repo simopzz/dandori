@@ -16,7 +16,7 @@ A scenario is a Go test told as Given/When/Then over the clock, through `apptest
 s := apptest.NewScenario(t)
 s.At("Tue 10:00")    // Given: the clock moves forward to the next Tuesday, 10:00
 s.Open("/")          // When: the User opens a page
-s.Sees("Tuesday 3 November") // Then: its main content shows this
+s.Sees("Tuesday, November 3") // Then: its main content shows this
 s.NextDay()          // the same time tomorrow
 ```
 

@@ -1,12 +1,16 @@
 package app_test
 
 import (
+	"bytes"
+	"context"
 	"testing"
 	"time"
 
 	"github.com/mxschmitt/playwright-go"
 
 	"github.com/simopzz/dandori/internal/apptest"
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/web"
 )
 
 // TestPagesShowTheClocksDay through a real browser: the clock is set
@@ -20,11 +24,11 @@ func TestBrowserPagesShowTheClocksDay(t *testing.T) {
 
 	b.SetClock(t, tuesday)
 	b.Open(t, "/")
-	b.Sees(t, "Tuesday 3 November")
+	b.Sees(t, "Tuesday, November 3")
 
 	b.SetClock(t, tuesday.AddDate(0, 0, 1))
 	b.Open(t, "/")
-	b.Sees(t, "Wednesday 4 November")
+	b.Sees(t, "Wednesday, November 4")
 }
 
 // Signing in and out through a real browser, with htmx boosting the forms.
@@ -91,7 +95,7 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 	b.SetClock(t, time.Date(2026, time.November, 2, 13, 30, 0, 0, h.Clock.Now().Location()))
 
 	b.Open(t, "/")
-	b.Sees(t, "Now: lunch at 13:00")
+	b.Sees(t, "Now: lunch at 1:00 pm")
 	later := b.GetByText("dinner", playwright.PageGetByTextOptions{Exact: playwright.Bool(true)})
 	if visible, err := later.IsVisible(); err != nil || visible {
 		t.Errorf("the day's later Slots show before a click (visible %v, err %v)", visible, err)
@@ -337,5 +341,31 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 	if err := expect.Locator(search).ToBeFocused(); err != nil {
 		t.Errorf("the search loses its focus as the User types: %v", err)
+	}
+}
+
+// A time field shows the User's Language, not the browser's: an English-locale browser
+// (Playwright's default) on an Italian page reads "13:00", where a native time input
+// would show "01:00 PM". There is no Slot-times form yet (#139), so the field is
+// rendered on a fixture page.
+func TestBrowserTimeFieldFollowsTheLanguageNotTheBrowser(t *testing.T) {
+	b := apptest.Start(t).Browser(t)
+	ctx := web.WithLanguage(context.Background(), domain.Italian)
+	var page bytes.Buffer
+	if err := web.TimeField("Pranzo", "lunch", web.TimeOfDay(ctx, 13*60), "").Render(ctx, &page); err != nil {
+		t.Fatalf("render the field: %v", err)
+	}
+	if err := b.SetContent(page.String()); err != nil {
+		t.Fatalf("open the fixture page: %v", err)
+	}
+	field := b.GetByLabel("Pranzo")
+	if got, err := field.InputValue(); err != nil || got != "13:00" {
+		t.Errorf("the field shows %q (err %v), want 13:00", got, err)
+	}
+	if got, err := field.GetAttribute("type"); err != nil || got != "text" {
+		t.Errorf("the field is a %q input (err %v), want text: a native time input follows the browser's locale", got, err)
+	}
+	if got, err := field.GetAttribute("inputmode"); err != nil || got != "numeric" {
+		t.Errorf("inputmode = %q (err %v), want numeric", got, err)
 	}
 }

@@ -219,10 +219,26 @@ templ ListSearch(id, action, listURL, listID, label string) {
 	</form>
 }
 
-// TimeField is a Field for a time of day, HH:MM, holding value.
+// TimeField is a Field for a time of day, which the User types in either form, holding
+// value as the Language writes it (TimeOfDay). Not a native time input: that follows
+// the browser's locale, not the User's Language.
 templ TimeField(label, name, value, err string) {
 	@Field(label, "", err) {
-		<input type="time" required name={ name } value={ value }
+		<input type="text" inputmode="numeric" autocomplete="off" required name={ name } value={ value }
+			placeholder={ TimeOfDay(ctx, 13*60) }
+			if err != "" {
+				aria-invalid="true"
+			}
+		/>
+	}
+}
+
+// DateField is a Field for a day, holding value as the Language writes it
+// (domain.FormatDate), for the same reason as TimeField.
+templ DateField(label, name, value, err string) {
+	@Field(label, "", err) {
+		<input type="text" inputmode="numeric" autocomplete="off" required name={ name } value={ value }
+			placeholder={ domain.FormatDate(LanguageOf(ctx), time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)) }
 			if err != "" {
 				aria-invalid="true"
 			}

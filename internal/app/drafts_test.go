@@ -171,7 +171,7 @@ func TestRecipeDraftsToCheckAreListedFirstOnTheRecipeLibrary(t *testing.T) {
 	s.PastesRecipe("Curry for 4")
 
 	s.Open("/recipes")
-	s.Sees("Recipe Drafts to check Curry read Wed 4 Nov Lasagne read Mon 2 Nov Recipes Search Rice bowl")
+	s.Sees("Recipe Drafts to check Curry read Wed, Nov 4 Lasagne read Mon, Nov 2 Recipes Search Rice bowl")
 	s.Follows("Lasagne")
 	s.Sees("Recipe Draft Name Portions")
 	s.Submits("recipe-form")

@@ -362,9 +362,9 @@ func runPage(now time.Time, r Run, kind, askedName string, res result, again str
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var18 string
-				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" " + web.Tf(ctx, msgStarted, r.StartedAt.In(now.Location()).Format("15:04:05")))
+				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" " + web.Tf(ctx, msgStarted, web.TimeWithSeconds(ctx, r.StartedAt.In(now.Location()))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 105, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 105, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -851,9 +851,9 @@ func traceLine(ev StoredTraceEvent, zone *time.Location) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var43 string
-		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(ev.At.In(zone).Format("15:04:05"))
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(web.TimeWithSeconds(ctx, ev.At.In(zone)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 188, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 188, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -926,9 +926,9 @@ func label(text string) templ.Component {
 // now's, and the time.
 func startedOn(ctx context.Context, now, at time.Time) string {
 	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), at.Format("15:04"))
+		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
 	}
-	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), at.Format("15:04"))
+	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), web.Time(ctx, at))
 }
 
 // indented is ev's text, a tool's input indented to read.

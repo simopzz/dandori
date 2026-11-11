@@ -401,7 +401,7 @@ func TestALotsMovementsTellWhyItHoldsWhatItDoes(t *testing.T) {
 
 	s.Open("/kitchen/portions/movements?" + s.LinkQuery(countLasagne))
 	s.Sees("lasagne · Freezer")
-	s.Sees("Moved to the fridge 2 → 1 Mon 2 Nov 12:00 to thaw Counted 3 → 2 Mon 2 Nov 11:00 ate one Added 0 → 3 Mon 2 Nov 10:00")
+	s.Sees("Moved to the fridge 2 → 1 Mon, Nov 2 12:00 pm to thaw Counted 3 → 2 Mon, Nov 2 11:00 am ate one Added 0 → 3 Mon, Nov 2 10:00 am")
 	if got := strings.Count(apptest.Text(s.Page().Body), "Counted"); got != 1 {
 		t.Errorf("the Count shows as %d Movements, want one", got)
 	}
