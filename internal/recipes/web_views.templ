@@ -175,6 +175,9 @@ const removeFormID = "recipe-remove"
 // one more row, and without htmx post the form back with one.
 templ recipeForm(f RecipeForm) {
 	<form id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
+		// Enter presses a form's first submit button: this one saves, not
+		// the add or pick buttons above the save button shown.
+		<button type="submit" hidden tabindex="-1"></button>
 		if f.Confirm {
 			@web.Alert() {
 				{ web.T(ctx, msgConfirmNew) }

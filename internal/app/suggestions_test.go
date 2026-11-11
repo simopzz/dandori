@@ -177,22 +177,7 @@ func TestBrowserPicksASuggestionInPlace(t *testing.T) {
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
 	b.SignUp(t, "ada@example.com")
-	b.Open(t, "/ingredients")
-	form := b.Locator("#ingredient-add")
-	for field, v := range map[string]string{"name": "lasagna sheets", "kcal": "360", "protein": "13", "carbs": "72", "fat": "1.5"} {
-		if err := form.Locator(`[name="` + field + `"]`).Fill(v); err != nil {
-			t.Fatalf("fill %s: %v", field, err)
-		}
-	}
-	for field, v := range map[string]string{"unit": "piece", "usual": "pantry"} {
-		if _, err := form.Locator(`[name="` + field + `"]`).SelectOption(playwright.SelectOptionValues{Values: &[]string{v}}); err != nil {
-			t.Fatalf("choose %s: %v", field, err)
-		}
-	}
-	if err := form.Locator(`[type="submit"]`).Click(); err != nil {
-		t.Fatalf("add: %v", err)
-	}
-	b.Sees(t, "lasagna sheets")
+	browserHasLasagnaSheets(t, b)
 
 	b.Open(t, "/recipes/new")
 	name := b.Locator(`[name="ing_name_0"]`)
@@ -214,4 +199,72 @@ func TestBrowserPicksASuggestionInPlace(t *testing.T) {
 		t.Error(err)
 	}
 	b.Shot(t, "suggestion-picked")
+}
+
+// browserHasLasagnaSheets adds lasagna sheets, measured in pieces, in the browser.
+func browserHasLasagnaSheets(t *testing.T, b *apptest.Browser) {
+	t.Helper()
+	b.Open(t, "/ingredients")
+	form := b.Locator("#ingredient-add")
+	for field, v := range map[string]string{"name": "lasagna sheets", "kcal": "360", "protein": "13", "carbs": "72", "fat": "1.5"} {
+		if err := form.Locator(`[name="` + field + `"]`).Fill(v); err != nil {
+			t.Fatalf("fill %s: %v", field, err)
+		}
+	}
+	for field, v := range map[string]string{"unit": "piece", "usual": "pantry"} {
+		if _, err := form.Locator(`[name="` + field + `"]`).SelectOption(playwright.SelectOptionValues{Values: &[]string{v}}); err != nil {
+			t.Fatalf("choose %s: %v", field, err)
+		}
+	}
+	if err := form.Locator(`[type="submit"]`).Click(); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	b.Sees(t, "lasagna sheets")
+}
+
+// In a browser, Enter in the Recipe form saves it, even with a suggestion and the add
+// buttons above the save button.
+func TestBrowserEnterSavesTheRecipe(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	browserHasLasagnaSheets(t, b)
+
+	b.Open(t, "/recipes/new")
+	for field, v := range map[string]string{"portions": "2", "active": "10", "total": "20", "ing_name_0": "lasagna sheets", "ing_quantity_0": "4"} {
+		if err := b.Locator(`[name="` + field + `"]`).Fill(v); err != nil {
+			t.Fatalf("fill %s: %v", field, err)
+		}
+	}
+	if err := b.Locator(`[name="slots"][value="lunch"]`).Check(); err != nil {
+		t.Fatalf("choose lunch: %v", err)
+	}
+	b.Click(t, "Add an Ingredient")
+	row := b.Locator(`[name="ing_name_1"]`)
+	if err := row.Fill("lasagne sheet"); err != nil {
+		t.Fatalf("name the row: %v", err)
+	}
+	if err := row.Blur(); err != nil {
+		t.Fatalf("leave the name: %v", err)
+	}
+	b.Sees(t, "Use lasagna sheets")
+	for field, v := range map[string]string{"ing_quantity_1": "2", "ing_kcal_1": "350", "ing_protein_1": "12", "ing_carbs_1": "70", "ing_fat_1": "1"} {
+		if err := b.Locator(`[name="` + field + `"]`).Fill(v); err != nil {
+			t.Fatalf("fill %s: %v", field, err)
+		}
+	}
+	for field, v := range map[string]string{"ing_unit_1": "piece", "ing_usual_1": "pantry"} {
+		if _, err := b.Locator(`[name="` + field + `"]`).SelectOption(playwright.SelectOptionValues{Values: &[]string{v}}); err != nil {
+			t.Fatalf("choose %s: %v", field, err)
+		}
+	}
+	name := b.Locator(`[name="name"]`)
+	if err := name.Fill("Bake"); err != nil {
+		t.Fatalf("name the Recipe: %v", err)
+	}
+	if err := name.Press("Enter"); err != nil {
+		t.Fatalf("press Enter: %v", err)
+	}
+	b.IsConfirmed(t, "Added Bake to the Recipe Library.")
 }
