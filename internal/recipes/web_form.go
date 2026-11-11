@@ -3,6 +3,7 @@ package recipes
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"slices"
 	"strconv"
@@ -145,10 +146,7 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 	l := web.LanguageOf(ctx)
 	in := func(field string) string { return strings.TrimSpace(form.Get(rowField(field, i))) }
 	row = IngredientRow{Name: in("name"), Quantity: in("quantity"), Errs: map[string]string{}}
-	names := make([]string, 0, len(known))
-	for _, k := range known {
-		names = append(names, k.Name)
-	}
+	names := namesOf(slices.Collect(maps.Values(known)))
 	if form.Get("pick") == strconv.Itoa(i) {
 		if closest, ok := domain.ClosestIngredient(l, row.Name, names); ok {
 			row.Name = closest
