@@ -174,18 +174,18 @@ var submitRecipeSchema = json.RawMessage(`{
         "type": "object",
         "properties": {
           "name": {"type": "string"},
-          "quantity": {"type": "number", "exclusiveMinimum": 0},
+          "quantity": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1000000, "description": "A whole number in g or ml; at most one decimal place in piece."},
           "unit": {"type": "string", "enum": ["g", "ml", "piece"]},
           "new": {
             "type": "object",
             "description": "Only for an Ingredient that is not known. Values per 100 g, per 100 ml or per piece.",
             "properties": {
-              "kcal": {"type": "number"},
-              "protein_g": {"type": "number"},
-              "carbs_g": {"type": "number"},
-              "fat_g": {"type": "number"},
-              "fibre_g": {"type": ["number", "null"]},
-              "sugar_g": {"type": ["number", "null"]},
+              "kcal": {"type": "number", "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
+              "protein_g": {"type": "number", "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
+              "carbs_g": {"type": "number", "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
+              "fat_g": {"type": "number", "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
+              "fibre_g": {"type": ["number", "null"], "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
+              "sugar_g": {"type": ["number", "null"], "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
               "usual": {"type": "string", "enum": ["pantry", "fridge", "freezer"]},
               "staple": {"type": "boolean"}
             },

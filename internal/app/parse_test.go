@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -185,6 +186,50 @@ func TestTheParseSystemPromptVariesOnlyByLanguage(t *testing.T) {
 			if !strings.Contains(prompt, w) {
 				t.Errorf("parse Run %d's prompt does not hold %q:\n%s", i+1, w, prompt)
 			}
+		}
+	}
+}
+
+// submit_recipe's schema tells the model the rules its checks hold a Recipe to, so a
+// typical one is taken the first time rather than refused: a quantity whole but for a
+// piece's, and nutritional values to one decimal place, none negative or too large.
+func TestSubmitRecipesSchemaStatesTheRulesItChecks(t *testing.T) {
+	s := kitchenWith(t)
+	s.Model.Script(fakellm.Reply("Not a recipe."))
+	s.PastesRecipe(pastedLasagne)
+
+	type field struct {
+		Description      string   `json:"description"`
+		Minimum          *float64 `json:"minimum"`
+		ExclusiveMaximum *float64 `json:"exclusiveMaximum"`
+	}
+	var schema struct {
+		Properties struct {
+			Ingredients struct {
+				Items struct {
+					Properties struct {
+						Quantity field `json:"quantity"`
+						New      struct {
+							Properties map[string]field `json:"properties"`
+						} `json:"new"`
+					} `json:"properties"`
+				} `json:"items"`
+			} `json:"ingredients"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(s.Model.Requests()[0].Tools[0].InputSchema, &schema); err != nil {
+		t.Fatal(err)
+	}
+	ingredient := schema.Properties.Ingredients.Items.Properties
+	if q := ingredient.Quantity; q.Description != "A whole number in g or ml; at most one decimal place in piece." ||
+		q.ExclusiveMaximum == nil || *q.ExclusiveMaximum != 1000000 {
+		t.Errorf("quantity is described as %+v", q)
+	}
+	for _, name := range []string{"kcal", "protein_g", "carbs_g", "fat_g", "fibre_g", "sugar_g"} {
+		f := ingredient.New.Properties[name]
+		if f.Description != "At most one decimal place." || f.Minimum == nil || *f.Minimum != 0 ||
+			f.ExclusiveMaximum == nil || *f.ExclusiveMaximum != 10000 {
+			t.Errorf("new.%s is described as %+v", name, f)
 		}
 	}
 }
