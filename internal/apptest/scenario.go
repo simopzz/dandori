@@ -482,11 +482,26 @@ func (s *Scenario) PostsRecipeForm(r Recipe) {
 // reloads it once the Run has ended.
 func (s *Scenario) PastesRecipe(text string) {
 	s.t.Helper()
+	s.StartsParse(text)
+	s.Settle()
+	s.Open(s.page.Path)
+}
+
+// StartsParse pastes text on the Recipe Library page and lands on its Run's page, the
+// Run going.
+func (s *Scenario) StartsParse(text string) {
+	s.t.Helper()
 	s.Open("/recipes")
 	form := Form(s.t, s.page.Body, "paste-form")
 	form.Values.Set("text", text)
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("pastes a recipe: %d %s", s.page.StatusCode, s.page.Path))
-	s.Settle()
-	s.Open(s.page.Path)
+}
+
+// CancelsRun cancels a Run with form, the cancel form its page showed, and lands where
+// that goes.
+func (s *Scenario) CancelsRun(form FormData) {
+	s.t.Helper()
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("cancels the Run: %d %s", s.page.StatusCode, s.page.Path))
 }

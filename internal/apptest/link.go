@@ -11,20 +11,27 @@ import (
 // leads, as a user would follow it: without JavaScript, so one in a noscript too.
 func Link(t testing.TB, page, text string) string {
 	t.Helper()
+	return Links(t, page, text)[0]
+}
+
+// Links returns where each link on page whose text contains text leads, in the page's
+// order, as Link finds them; it fails the test when there is none.
+func Links(t testing.TB, page, text string) []string {
+	t.Helper()
 	doc, err := html.ParseWithOptions(strings.NewReader(page), html.ParseOptionEnableScripting(false))
 	if err != nil {
 		t.Fatalf("parse page: %v", err)
 	}
+	var hrefs []string
 	for n := range doc.Descendants() {
-		if n.Type != html.ElementNode || n.Data != "a" {
-			continue
-		}
-		if strings.Contains(shownText(n), text) {
-			return attr(n, "href")
+		if n.Type == html.ElementNode && n.Data == "a" && strings.Contains(shownText(n), text) {
+			hrefs = append(hrefs, attr(n, "href"))
 		}
 	}
-	t.Fatalf("page has no link showing %q", text)
-	return ""
+	if len(hrefs) == 0 {
+		t.Fatalf("page has no link showing %q", text)
+	}
+	return hrefs
 }
 
 // CurrentLink is the text of the link on page marked aria-current="true", the one shown

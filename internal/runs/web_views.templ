@@ -63,7 +63,7 @@ templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
 								{ web.T(ctx, statusNames[r.Status]) }
 							}
 							<span class="row-meta">
-								{ web.ShortDate(ctx, r.StartedAt.In(now.Location())) + ", " + r.StartedAt.In(now.Location()).Format("15:04") }
+								{ startedOn(ctx, now, r.StartedAt.In(now.Location())) }
 							</span>
 						}
 					}
@@ -162,6 +162,15 @@ templ traceLine(ev StoredTraceEvent, zone *time.Location) {
 
 templ label(text string) {
 	<span class="trace-kind">{ text }</span>
+}
+
+// startedOn is when a Run started at, as of now: the day, with its year unless it is
+// now's, and the time.
+func startedOn(ctx context.Context, now, at time.Time) string {
+	if at.Year() != now.Year() {
+		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), at.Format("15:04"))
+	}
+	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), at.Format("15:04"))
 }
 
 // indented is ev's text, a tool's input indented to read.

@@ -8,36 +8,31 @@ import (
 
 	"github.com/mxschmitt/playwright-go"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// startsParse pastes text on the Recipe Library page and leaves its Run going, unlike
-// PastesRecipe: the path of the Run's page.
-func startsParse(t *testing.T, s *apptest.Scenario, text string) string {
-	t.Helper()
-	form := apptest.Form(t, s.Get(t, "/recipes").Body, "paste-form")
-	form.Values.Set("text", text)
-	return s.PostForm(t, form.Action, form.Values).Path
-}
-
-// untilShown opens path until it shows want, as the Run going on it gets there.
-func untilShown(t *testing.T, s *apptest.Scenario, path, want string) {
-	t.Helper()
-	for !strings.Contains(apptest.Text(s.Get(t, path).Body), want) { //nolint:revive // the test's deadline bounds it
-	}
-	s.Open(path)
+// asksAgain is the model asked a second time, closing asked, then answered by next: by
+// then the Run's Trace holds what submit_recipe answered.
+func asksAgain(asked chan struct{}, next fakellm.Step) fakellm.Step {
+	return fakellm.Then(func(agent.Request) fakellm.Step {
+		close(asked)
+		return next
+	})
 }
 
 // Without JavaScript, a Run's page shows its Trace so far and a link to see it further
 // along; once the Run has succeeded, the link to the Recipe Draft it left.
 func TestARunsPageWithoutJavaScriptShowsItsTraceSoFarAndALink(t *testing.T) {
 	s := kitchenWith(t, rice)
-	release := make(chan struct{})
-	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Parsed the lasagne.").After(release))
-	run := startsParse(t, s, pastedLasagne)
+	asked, release := make(chan struct{}), make(chan struct{})
+	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), asksAgain(asked, fakellm.Reply("Parsed the lasagne.").After(release)))
+	s.StartsParse(pastedLasagne)
+	run := s.Page().Path
 
-	untilShown(t, s, run, "submit_recipe answers")
+	<-asked
+	s.Open(run)
 	s.Sees("Reading a Recipe Going")
 	s.Sees("Calls submit_recipe")
 	s.Follows("See how it's going")
@@ -59,17 +54,20 @@ func TestARunsPageWithoutJavaScriptShowsItsTraceSoFarAndALink(t *testing.T) {
 // lands on its page as before.
 func TestCancellingARunEndsItCancelledWithNoRecipeDraft(t *testing.T) {
 	s := kitchenWith(t, rice)
-	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Hang())
-	run := startsParse(t, s, pastedLasagne)
-	untilShown(t, s, run, "submit_recipe answers")
+	asked := make(chan struct{})
+	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), asksAgain(asked, fakellm.Hang()))
+	s.StartsParse(pastedLasagne)
+	run := s.Page().Path
+	<-asked
+	s.Open(run)
 
 	cancel := apptest.Form(t, s.Page().Body, "cancel-run")
 	for range 2 {
-		res := s.PostForm(t, cancel.Action, cancel.Values)
-		s.Settle()
-		if res.StatusCode != http.StatusOK || res.Path != run {
+		s.CancelsRun(cancel)
+		if res := s.Page(); res.StatusCode != http.StatusOK || res.Path != run {
 			t.Fatalf("cancelling the Run = %d at %s, want its page %s", res.StatusCode, res.Path, run)
 		}
+		s.Settle()
 		s.Open(run)
 		s.Sees("Reading a Recipe Cancelled")
 		s.Sees("Ended: Cancelled")
@@ -102,17 +100,22 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 	s.PastesRecipe("Two eggs, boiled.")
 	ended := s.Page().Path
 	s.At("Tue 10:30")
-	going := startsParse(t, s, pastedLasagne)
+	s.StartsParse(pastedLasagne)
+	going := s.Page().Path
 
 	s.Open("/")
 	s.Follows("Runs")
-	s.Sees("Reading a Recipe Going Tue 3 Nov, 10:30 Reading a Recipe Succeeded Tue 3 Nov, 09:15")
+	s.Sees("Reading a Recipe Going Tue 3 Nov 10:30 Reading a Recipe Succeeded Tue 3 Nov 09:15")
 	s.Follows("Reading a Recipe")
 	if s.Page().Path != going {
 		t.Errorf("the newest Run opens %s, want %s", s.Page().Path, going)
 	}
 	s.Sees("Started with")
 
+	s.Open("/runs")
+	if links := apptest.Links(t, s.Page().Body, "Reading a Recipe"); len(links) != 2 || links[1] != ended {
+		t.Fatalf("the Runs page links %v, want the ended Run %s second", links, ended)
+	}
 	s.Open(ended)
 	s.Sees("Succeeded")
 	s.Sees("The model says Not a recipe.")

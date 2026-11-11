@@ -219,9 +219,9 @@ func runsPage(now time.Time, list []Run, kinds map[string]web.Message) templ.Com
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var12 string
-								templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(web.ShortDate(ctx, r.StartedAt.In(now.Location())) + ", " + r.StartedAt.In(now.Location()).Format("15:04"))
+								templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(startedOn(ctx, now, r.StartedAt.In(now.Location())))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 66, Col: 116}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 66, Col: 61}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 								if templ_7745c5c3_Err != nil {
@@ -823,6 +823,15 @@ func label(text string) templ.Component {
 		}
 		return nil
 	})
+}
+
+// startedOn is when a Run started at, as of now: the day, with its year unless it is
+// now's, and the time.
+func startedOn(ctx context.Context, now, at time.Time) string {
+	if at.Year() != now.Year() {
+		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), at.Format("15:04"))
+	}
+	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), at.Format("15:04"))
 }
 
 // indented is ev's text, a tool's input indented to read.

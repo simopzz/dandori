@@ -39,7 +39,7 @@ Rules code review checks against. Each says what it protects.
 
 ## htmx
 
-- **htmx 4, not htmx 2.** The vendored `htmx.min.js` is 4.0.0: inheritance
+- **htmx 4, not htmx 2.** The vendored `htmx.min.js` is 4.0.1: inheritance
   is explicit (`hx-target:inherited`), `hx-disable` disables elements during
   a request (htmx 2's `hx-disabled-elt`), events are colon-named
   (`htmx:after:swap`), and every status but 204/304 swaps. The
