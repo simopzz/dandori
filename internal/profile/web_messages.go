@@ -21,6 +21,10 @@ var (
 		En: "Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.",
 		It: "La tua cucina ha già Ingredienti, Ricette, Bozze di Ricetta o Porzioni in questa lingua, quindi resta questa.",
 	}
+	msgParsing = web.Message{
+		En: "A recipe is being read in this Language, so it stays until that ends.",
+		It: "Una ricetta è in lettura in questa lingua, quindi resta questa finché non finisce.",
+	}
 	msgProfile      = web.Message{En: "Profile", It: "Profilo"}
 	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
 	msgSave         = web.Message{En: "Save", It: "Salva"}

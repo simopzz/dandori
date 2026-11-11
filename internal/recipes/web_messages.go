@@ -28,6 +28,7 @@ var (
 	msgPasteHint     = web.Message{En: "in any language", It: "in qualsiasi lingua"}
 	msgRead          = web.Message{En: "Read it", It: "Leggila"}
 	msgPasteRequired = web.Message{En: "Paste a recipe to read.", It: "Incolla una ricetta da leggere."}
+	msgPasteTooLong  = web.Message{En: "Paste at most %s characters; this is %s.", It: "Incolla al massimo %s caratteri; questa ne ha %s."}
 	ParseKindName    = web.Message{En: "Reading a Recipe", It: "Lettura di una Ricetta"}
 	PastedName       = web.Message{En: "Pasted recipe", It: "Ricetta incollata"}
 	DraftName        = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}

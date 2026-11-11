@@ -90,11 +90,12 @@ func headline(line string) string {
 }
 
 // runPage is a Run and its Trace, with what the User gave it, folded under askedName,
-// and a link to what it left, if anything. While the Run goes, the page offers to cancel
+// and a link to what it left, if anything, or a form posting what it was asked to again.
+// While the Run goes, the page offers to cancel
 // it and appends its Trace Events as they stream in; once it ends, it fetches itself
 // again into the body, which goes on to what the Run left. Without JavaScript, a link
 // opens it again further along.
-templ runPage(now time.Time, r Run, kind, askedName string, res result) {
+templ runPage(now time.Time, r Run, kind, askedName string, res result, again string) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RunsTab) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">
@@ -102,6 +103,12 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result) {
 					{ web.T(ctx, statusNames[r.Status]) }
 				}
 				{ " " + web.Tf(ctx, msgStarted, r.StartedAt.In(now.Location()).Format("15:04:05")) }
+				if again != "" {
+					{ " · " }
+					@web.TextButton(templ.Attributes{"type": "submit", "form": "try-again"}) {
+						{ web.T(ctx, msgTryAgain) }
+					}
+				}
 			</p>
 			if res.Href != "" {
 				<p class="lede">
@@ -109,6 +116,12 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result) {
 						{ res.Text }
 					}
 				</p>
+			}
+			if again != "" {
+				// Its button sits in the line above: a form can't go inside a <p>.
+				<form id="try-again" method="post" action={ templ.SafeURL(again) }>
+					<input type="hidden" name="text" value={ r.Asked }/>
+				</form>
 			}
 			if r.Status == Going {
 				<noscript>

@@ -6,6 +6,7 @@ package runs
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -78,6 +79,22 @@ func (e *Engine) Stop() {
 	e.cancel()
 	e.mu.Unlock()
 	e.wg.Wait()
+}
+
+// FailLeftGoing fails every Run, of every User, still stored as going, as a crash leaves
+// one: Dandori runs as one process, so at its start no Run is. Each Run's Trace ends as a
+// graceful stop's does.
+func (e *Engine) FailLeftGoing(ctx context.Context) error {
+	failed, err := json.Marshal(agent.TraceEvent{Reason: agent.Interrupted})
+	if err != nil {
+		return err
+	}
+	ended, err := json.Marshal(agent.TraceEvent{Status: string(Failed)})
+	if err != nil {
+		return err
+	}
+	// As the admin role, past row-level security: this is every User's.
+	return failGoing(ctx, e.pool, e.clock.Now(), failed, ended)
 }
 
 // Wait waits for every Run going to end, for a test that reads what it left.

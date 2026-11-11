@@ -213,6 +213,14 @@ func CountDrafts(ctx context.Context, q db.Querier) (int, error) {
 	return n, err
 }
 
+// CountParsing is how many parse Runs the signed-in User has going, which hold their
+// Language. Like CountRecipes, row-level security leaves their rows.
+func CountParsing(ctx context.Context, q db.Querier) (int, error) {
+	var n int
+	err := q.QueryRow(ctx, `SELECT count(*) FROM run WHERE kind = $1 AND status = $2`, ParseKind, runs.Going).Scan(&n)
+	return n, err
+}
+
 // loadDrafts are the Recipe Drafts whose Runs have succeeded, newest first.
 func loadDrafts(ctx context.Context, q db.Querier) ([]Draft, error) {
 	rows, err := q.Query(ctx, `

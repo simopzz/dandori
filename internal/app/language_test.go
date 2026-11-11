@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"net/http"
 	"slices"
 	"testing"
@@ -162,6 +163,26 @@ func TestTheLanguageStaysOnceTheUserHasAnIngredient(t *testing.T) {
 	s.Sees("Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.")
 	s.Open("/")
 	s.Sees("Monday 2 November")
+}
+
+// The Language can't change while a parse Run is going, so its Recipe Draft can't arrive
+// in the one just left; once the Run ends with no Food Term written, it can again.
+func TestTheLanguageCantChangeWhileAParseRunIsGoing(t *testing.T) {
+	s := kitchenWith(t)
+	release := make(chan struct{})
+	s.Model.Script(fakellm.Reply("Not a recipe.").After(release))
+	s.StartsParse("Two eggs, boiled.")
+
+	s.Open("/profile")
+	s.ChangesLanguage("Italiano")
+	s.IsRefused()
+	s.Sees("A recipe is being read in this Language, so it stays until that ends.")
+
+	close(release)
+	s.Settle()
+	s.Open("/profile")
+	s.ChangesLanguage("Italiano")
+	s.IsConfirmed("Profilo salvato.")
 }
 
 // The Language switch opens a page of this site again, whatever slashes its path begins

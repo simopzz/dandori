@@ -89,6 +89,40 @@ func TestCancellingARunEndsItCancelledWithNoRecipeDraft(t *testing.T) {
 	}
 }
 
+// A Run a crash left going, for every User, is failed once Dandori starts: its page says
+// Dandori stopped while it was going, offers no Cancel, and its stream ends at once.
+func TestARunACrashLeftGoingIsFailedOnceDandoriStarts(t *testing.T) {
+	s := kitchenWith(t)
+	s.Invite("bob@example.com")
+	s.SwitchesTo("bob@example.com")
+	s.ChoosesLanguage("English")
+	s.Exec(t, `
+		WITH r AS (
+			INSERT INTO run (user_id, kind, asked, started_at)
+			SELECT id, 'parse', 'Lasagne for 4', '2026-11-02 00:00+01' FROM "user" RETURNING id, user_id)
+		INSERT INTO trace_event (run_id, seq, user_id, at, kind, data)
+		SELECT id, 1, user_id, '2026-11-02 00:00+01', 'started', '{"model": "claude-opus-5-5"}' FROM r`)
+
+	s.Restarts()
+	for _, email := range []string{"bob@example.com", "ada@example.com"} {
+		s.SwitchesTo(email)
+		s.Open("/runs")
+		s.Sees("Lasagne for 4 Failed")
+		s.Follows("Lasagne for 4")
+		run := s.Page().Path
+		s.Sees("Reading a Recipe Failed")
+		s.Sees("Started with claude-opus-5-5")
+		s.Sees("Dandori stopped while it was going.")
+		s.Sees("Ended: Failed")
+		if strings.Contains(s.Page().Body, `id="cancel-run"`) {
+			t.Errorf("%s's Run a crash left is offered for cancelling", email)
+		}
+		if stream := s.Get(t, run+"/events").Body; !strings.Contains(stream, "event: end\ndata: failed") {
+			t.Errorf("%s's Run's stream doesn't end:\n%s", email, stream)
+		}
+	}
+}
+
 // The Runs page, which the navigation reaches, lists the User's Runs newest first, each
 // named by the first line of what it was given, with its status, kind and when it
 // started, and opening its Trace while it goes and after it ends.
@@ -104,7 +138,7 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 
 	s.Open("/")
 	s.Follows("Runs")
-	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue 3 Nov 10:30 Two eggs, boiled. Succeeded Reading a Recipe Tue 3 Nov 09:15")
+	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue 3 Nov 10:30 Two eggs, boiled. Failed Reading a Recipe Tue 3 Nov 09:15")
 	s.Follows("Lasagne for 4")
 	if s.Page().Path != going {
 		t.Errorf("the newest Run opens %s, want %s", s.Page().Path, going)
@@ -116,7 +150,7 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 	if s.Page().Path != ended {
 		t.Errorf("the ended Run opens %s, want %s", s.Page().Path, ended)
 	}
-	s.Sees("Succeeded")
+	s.Sees("Failed")
 	s.Sees("The model says Not a recipe.")
 }
 
@@ -129,8 +163,8 @@ func TestTheRunsPageNamesARunByItsFirstLineCutWhenLong(t *testing.T) {
 	s.PastesRecipe("\n\n  Ragù\nSlow-cooked for hours.")
 
 	s.Open("/runs")
-	s.Sees("Ragù Succeeded")
-	s.Sees("Pasta e fagioli Pasta e fagioli Pasta e fagioli Pasta e fagi… Succeeded")
+	s.Sees("Ragù Failed")
+	s.Sees("Pasta e fagioli Pasta e fagioli Pasta e fagioli Pasta e fagi… Failed")
 }
 
 // A Browser follows a parse Run's Trace live, as it goes, and once the Run succeeds goes

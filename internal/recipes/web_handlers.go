@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -43,8 +47,11 @@ func (h Handlers) library(w http.ResponseWriter, r *http.Request, status int, pa
 	web.Answer{Status: status, Page: library(h.Clock.Now(), paste, drafts, recipes, q)}.Write(w, r, h.Log)
 }
 
+// pasteLimit is how many characters a paste may have, trimmed.
+const pasteLimit = 20000
+
 // Paste starts a parse Run reading the pasted text into a Recipe Draft, and goes to the
-// Run. A blank paste is refused on its field.
+// Run. A blank paste, or one over pasteLimit characters, is refused on its field.
 func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
@@ -54,6 +61,12 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	text := strings.TrimSpace(r.PostForm.Get("text"))
 	if text == "" {
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
+		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
+		return
+	}
+	if n := utf8.RuneCountInString(text); n > pasteLimit {
+		p := message.NewPrinter(language.Make(string(web.LanguageOf(ctx))))
+		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.Tf(ctx, msgPasteTooLong, p.Sprint(pasteLimit), p.Sprint(n))}
 		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
 		return
 	}

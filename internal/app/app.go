@@ -93,6 +93,10 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 		pool.Close()
 		return nil, err
 	}
+	if err := a.runs.FailLeftGoing(migrateCtx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("fail the Runs left going: %w", err)
+	}
 	return a, nil
 }
 
@@ -131,7 +135,7 @@ func (a *App) Handler() http.Handler {
 	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[string]runs.Kind{
 		recipes.ParseKind: {
 			Name: recipes.ParseKindName, AskedName: recipes.PastedName,
-			ResultName: recipes.DraftName, Result: recs.DraftPage,
+			ResultName: recipes.DraftName, Result: recs.DraftPage, Again: "/recipes/paste",
 		},
 	}}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
