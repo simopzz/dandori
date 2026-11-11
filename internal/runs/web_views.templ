@@ -103,6 +103,12 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 					{ web.T(ctx, statusNames[r.Status]) }
 				}
 				{ " " + web.Tf(ctx, msgStarted, r.StartedAt.In(now.Location()).Format("15:04:05")) }
+				if again != "" {
+					{ " · " }
+					@web.TextButton(templ.Attributes{"type": "submit", "form": "try-again"}) {
+						{ web.T(ctx, msgTryAgain) }
+					}
+				}
 			</p>
 			if res.Href != "" {
 				<p class="lede">
@@ -112,11 +118,9 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 				</p>
 			}
 			if again != "" {
+				// Its button sits in the line above: a form can't go inside a <p>.
 				<form id="try-again" method="post" action={ templ.SafeURL(again) }>
 					<input type="hidden" name="text" value={ r.Asked }/>
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgTryAgain) }
-					}
 				</form>
 			}
 			if r.Status == Going {
