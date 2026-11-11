@@ -143,6 +143,30 @@ func TestARefusalSaysWhy(t *testing.T) {
 	}
 }
 
+func TestAfterAFallbackOnlyTheDecliningModelsTextIsKept(t *testing.T) {
+	llm, _ := api(t, 200, `{"id":"msg_1","type":"message","role":"assistant","model":"m","stop_reason":"tool_use",
+		"content":[{"type":"thinking","thinking":"","signature":"sig0"},
+			{"type":"text","text":"Reading it."},
+			{"type":"tool_use","id":"tu_0","name":"submit_recipe","input":{"name":"Pas"}},
+			{"type":"fallback","from":{"model":"claude-opus-5-5"},"to":{"model":"claude-opus-5"},"trigger":{"type":"refusal","category":"bio"}},
+			{"type":"thinking","thinking":"","signature":"sig1"},
+			{"type":"tool_use","id":"tu_1","name":"submit_recipe","input":{"name":"Pasta"}}],
+		"usage":{"input_tokens":1,"output_tokens":1}}`)
+	resp, err := llm.Send(context.Background(), parse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, b := range resp.Content {
+		var typed struct{ Type string }
+		_ = json.Unmarshal(b.Raw, &typed)
+		got = append(got, typed.Type+b.ToolUseID)
+	}
+	if want := "text fallback thinking tool_usetu_1"; strings.Join(got, " ") != want {
+		t.Errorf("content = %q, want %q", strings.Join(got, " "), want)
+	}
+}
+
 func TestFailuresAreClassifiedAndNotRetriedByTheSDK(t *testing.T) {
 	for _, tc := range []struct {
 		status    int

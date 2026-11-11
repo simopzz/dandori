@@ -89,7 +89,19 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 	} else {
 		resp.Refusal = cmp.Or(string(d.Category), d.Explanation)
 	}
-	for _, b := range msg.Content {
+	// A model that declined mid-answer handed over at a fallback block: of what it
+	// wrote before, only text goes back, so its thinking isn't replayed (the API
+	// rejects it) and its tool calls aren't run.
+	last := -1
+	for i, b := range msg.Content {
+		if b.Type == "fallback" {
+			last = i
+		}
+	}
+	for i, b := range msg.Content {
+		if i < last && b.Type != "text" {
+			continue
+		}
 		block := agent.Block{Type: agent.BlockOther, Raw: json.RawMessage(b.RawJSON())}
 		switch v := b.AsAny().(type) {
 		case sdk.BetaTextBlock:
