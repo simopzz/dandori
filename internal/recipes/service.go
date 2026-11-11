@@ -48,22 +48,28 @@ func New(pool *pgxpool.Pool, ings *ingredients.Service, engine *runs.Engine) *Se
 // *NameTakenError. A new Ingredient the User has added since the form was read comes back
 // as the *ingredients.NameTakenError it is.
 func (s *Service) Add(ctx context.Context, l domain.Language, rec domain.Recipe) (id int64, err error) {
-	normalised := domain.NormaliseRecipeName(rec.Name)
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		var added bool
-		if id, added, err = saveRecipe(ctx, tx, rec, normalised); err != nil {
-			return err
-		}
-		if !added {
-			taken, existing, err := loadTaken(ctx, tx, normalised, 0)
-			if err != nil {
-				return err
-			}
-			return &NameTakenError{ID: taken, Existing: existing}
-		}
-		return saveIngredients(ctx, tx, l, id, rec)
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		id, err = addIn(ctx, tx, l, rec)
+		return err
 	})
 	return id, err
+}
+
+// addIn is Add in the caller's transaction.
+func addIn(ctx context.Context, tx pgx.Tx, l domain.Language, rec domain.Recipe) (int64, error) {
+	normalised := domain.NormaliseRecipeName(rec.Name)
+	id, added, err := saveRecipe(ctx, tx, rec, normalised)
+	if err != nil {
+		return 0, err
+	}
+	if !added {
+		taken, existing, err := loadTaken(ctx, tx, normalised, 0)
+		if err != nil {
+			return 0, err
+		}
+		return 0, &NameTakenError{ID: taken, Existing: existing}
+	}
+	return id, saveIngredients(ctx, tx, l, id, rec)
 }
 
 // Edit sets the signed-in User's Recipe id, whose Language is l, to rec, which has no

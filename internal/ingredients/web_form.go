@@ -38,18 +38,22 @@ type EditForm struct {
 
 // editFormOf is the edit form of ing as it is, before anything is typed.
 func editFormOf(ing domain.Ingredient) EditForm {
-	f := EditForm{ID: ing.ID, AddForm: AddForm{
-		Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Staple: ing.Staple, Values: map[string]string{},
+	return EditForm{ID: ing.ID, AddForm: AddForm{
+		Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Staple: ing.Staple, Values: ValuesOf(ing.Nutrition),
 	}}
-	n := ing.Nutrition
+}
+
+// ValuesOf is n as its fields show it, by field, an unknown value blank.
+func ValuesOf(n domain.Nutrition) map[string]string {
+	values := map[string]string{}
 	for field, a := range map[string]domain.Amount{
 		"kcal": n.Kcal, "protein": n.Protein, "carbs": n.Carbs, "fat": n.Fat, "fibre": n.Fibre, "sugar": n.Sugar,
 	} {
 		if a.Known {
-			f.Values[field] = strconv.FormatFloat(a.Value, 'f', -1, 64)
+			values[field] = strconv.FormatFloat(a.Value, 'f', -1, 64)
 		}
 	}
-	return f
+	return values
 }
 
 // parseAddForm reads the add form posted in r as an Ingredient, and the form as typed

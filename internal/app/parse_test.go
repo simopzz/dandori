@@ -66,12 +66,16 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 	s.Sees("Parsed the lasagne.")
 
 	s.Follows("Recipe Draft")
-	s.Sees("Lasagne")
-	s.Sees("Makes 4 Portions Active 30 min Total 70 min Eaten at lunch, dinner Needs oven, hob")
-	s.Sees("rice 100 g")
-	s.Sees("beef mince 500 g New 250 kcal protein 26 g carbs 0 g fat 17 g fibre 0 g sugar 0 g fridge")
-	s.Sees("lasagne sheets 250 g New 350 kcal protein 12 g carbs 70 g fat 1.5 g fibre – unknown sugar – unknown pantry")
-	s.Sees("olive oil 10 ml New 820 kcal protein 0 g carbs 0 g fat 91 g fibre 0 g sugar 0 g pantry Staple")
+	s.Sees("Check a Recipe Draft")
+	draftHolds(t, s, map[string]string{
+		"name": "Lasagne", "portions": "4", "active": "30", "total": "70", "slots": "lunch", "appliances": "oven\nhob",
+		"ing_name_4": "rice", "ing_quantity_4": "100", "ing_kcal_4": "",
+		"ing_name_0": "beef mince", "ing_quantity_0": "500", "ing_unit_0": "g", "ing_usual_0": "fridge", "ing_staple_0": "",
+		"ing_kcal_0": "250", "ing_protein_0": "26", "ing_carbs_0": "0", "ing_fat_0": "17", "ing_fibre_0": "0", "ing_sugar_0": "0",
+		"ing_name_1": "lasagne sheets", "ing_fat_1": "1.5", "ing_fibre_1": "", "ing_sugar_1": "", "ing_usual_1": "pantry",
+		"ing_name_3": "olive oil", "ing_quantity_3": "10", "ing_unit_3": "ml", "ing_kcal_3": "820", "ing_staple_3": "on",
+	})
+	s.Sees("Measured in g")
 	s.Sees("Brown the mince. Layer with the sheets and tomatoes. Bake 40 minutes.")
 }
 
@@ -116,8 +120,7 @@ func TestSubmitRecipesProblemsGoBackToTheModelWhichFixesThem(t *testing.T) {
 	s.Sees("submit_recipe refuses")
 	s.Sees("submit_recipe answers")
 	s.Follows("Recipe Draft")
-	s.Sees("rice 100 g")
-	s.Sees("beef mince 500 g New 250 kcal")
+	draftHolds(t, s, map[string]string{"ing_name_4": "rice", "ing_quantity_4": "100", "ing_name_0": "beef mince", "ing_kcal_0": "250"})
 }
 
 // lastToolResult is the last tool result the model was sent.
@@ -160,8 +163,10 @@ func TestARecipeInAnotherLanguageBecomesARecipeDraftInTheUsersLanguage(t *testin
 	s.PastesRecipe(pastedLasagne)
 	s.Sees("Lettura di una Ricetta")
 	s.Follows("Bozza di Ricetta")
-	s.Sees("Dosi 4 Porzioni Attivi 30 min Totale 70 min Si mangia a cena Richiede forno")
-	s.Sees("carne macinata 500 g Nuovo 250 kcal proteine 26 g carboidrati 0 g grassi 17 g fibre – non noto zuccheri – non noto frigo")
+	draftHolds(t, s, map[string]string{
+		"name": "Lasagne", "portions": "4", "slots": "dinner", "appliances": "forno",
+		"ing_name_0": "carne macinata", "ing_quantity_0": "500", "ing_kcal_0": "250", "ing_fibre_0": "", "ing_usual_0": "fridge",
+	})
 	s.Sees("Rosola la carne.")
 }
 
@@ -291,7 +296,7 @@ func TestSeveralParseRunsGoAtOnceEachMakingItsOwnRecipeDraft(t *testing.T) {
 	for i, name := range []string{"Lasagne", "Moussaka"} {
 		s.Open(runs[i])
 		s.Follows("Recipe Draft")
-		s.Sees(name)
+		draftHolds(t, s, map[string]string{"name": name})
 	}
 }
 
@@ -334,7 +339,7 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	close(release)
 	s.Settle()
 	s.Open(draft)
-	s.Sees("beef mince 500 g")
+	draftHolds(t, s, map[string]string{"ing_name_0": "beef mince", "ing_quantity_0": "500"})
 }
 
 // A Run's page folds what the User gave it, the paste, at its top, and its Trace reads as
@@ -407,9 +412,11 @@ func TestTheDemoLLMReadsAnyPasteIntoARecipeDraft(t *testing.T) {
 	s.Sees("Started with a demo model")
 	s.Sees("Calls submit_recipe")
 	s.Follows("Recipe Draft")
-	s.Sees("Nonna's ragù")
-	s.Sees("Olive oil 10 g")
-	s.Sees("chickpeas 240 g New 120 kcal protein 7 g carbs 16 g fat 2.5 g fibre – unknown")
+	draftHolds(t, s, map[string]string{
+		"name": "Nonna's ragù", "ing_name_2": "Olive oil", "ing_quantity_2": "10", "ing_kcal_2": "",
+		"ing_name_1": "chickpeas", "ing_quantity_1": "240", "ing_kcal_1": "120", "ing_protein_1": "7", "ing_carbs_1": "16",
+		"ing_fat_1": "2.5", "ing_fibre_1": "",
+	})
 }
 
 // The demo model writes in the Language the system prompt names.
@@ -417,6 +424,5 @@ func TestTheDemoLLMWritesInTheUsersLanguage(t *testing.T) {
 	s := demoKitchen(t, "Italiano")
 	s.PastesRecipe("Ragù della nonna")
 	s.Follows("Bozza di Ricetta")
-	s.Sees("Ragù della nonna")
-	s.Sees("pasta secca 160 g Nuovo")
+	draftHolds(t, s, map[string]string{"name": "Ragù della nonna", "ing_name_0": "pasta secca", "ing_quantity_0": "160"})
 }

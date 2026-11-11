@@ -192,3 +192,38 @@ func loadDraft(ctx context.Context, q db.Querier, id int64) (doc []byte, err err
 	}
 	return doc, err
 }
+
+// CountDrafts is how many Recipe Drafts the signed-in User has, for the Profile's Food
+// Terms. Like CountRecipes, row-level security leaves their rows.
+func CountDrafts(ctx context.Context, q db.Querier) (int, error) {
+	var n int
+	err := q.QueryRow(ctx, `SELECT count(*) FROM recipe_draft`).Scan(&n)
+	return n, err
+}
+
+// loadDrafts are the Recipe Drafts whose Runs have ended, newest first.
+func loadDrafts(ctx context.Context, q db.Querier) ([]Draft, error) {
+	rows, err := q.Query(ctx, `
+		SELECT d.id, d.document->>'name', r.started_at FROM recipe_draft d JOIN run r ON r.id = d.run_id
+		WHERE r.status <> $1
+		ORDER BY r.started_at DESC, d.id DESC`, runs.Going)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (d Draft, err error) {
+		return d, row.Scan(&d.ID, &d.Name, &d.Parsed)
+	})
+}
+
+// deleteDraft deletes the Recipe Draft id and is its name, or ErrNoDraft while its Run
+// goes, as loadDraft has it.
+func deleteDraft(ctx context.Context, q db.Querier, id int64) (name string, err error) {
+	err = q.QueryRow(ctx, `
+		DELETE FROM recipe_draft d USING run r
+		WHERE d.id = $1 AND r.id = d.run_id AND r.status <> $2
+		RETURNING d.document->>'name'`, id, runs.Going).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNoDraft
+	}
+	return name, err
+}
