@@ -90,9 +90,9 @@ func TestCancellingARunEndsItCancelledWithNoRecipeDraft(t *testing.T) {
 	}
 }
 
-// The Runs page, which the navigation reaches, lists the User's Runs newest first with
-// their kind, status and when they started, each opening its Trace while it goes and
-// after it ends.
+// The Runs page, which the navigation reaches, lists the User's Runs newest first, each
+// named by the first line of what it was given, with its status, kind and when it
+// started, and opening its Trace while it goes and after it ends.
 func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Model.Script(fakellm.Reply("Not a recipe."), fakellm.Hang())
@@ -105,20 +105,33 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 
 	s.Open("/")
 	s.Follows("Runs")
-	s.Sees("Reading a Recipe Going Tue 3 Nov 10:30 Reading a Recipe Succeeded Tue 3 Nov 09:15")
-	s.Follows("Reading a Recipe")
+	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue 3 Nov 10:30 Two eggs, boiled. Succeeded Reading a Recipe Tue 3 Nov 09:15")
+	s.Follows("Lasagne for 4")
 	if s.Page().Path != going {
 		t.Errorf("the newest Run opens %s, want %s", s.Page().Path, going)
 	}
 	s.Sees("Started with")
 
 	s.Open("/runs")
-	if links := apptest.Links(t, s.Page().Body, "Reading a Recipe"); len(links) != 2 || links[1] != ended {
-		t.Fatalf("the Runs page links %v, want the ended Run %s second", links, ended)
+	s.Follows("Two eggs, boiled.")
+	if s.Page().Path != ended {
+		t.Errorf("the ended Run opens %s, want %s", s.Page().Path, ended)
 	}
-	s.Open(ended)
 	s.Sees("Succeeded")
 	s.Sees("The model says Not a recipe.")
+}
+
+// The Runs page names a Run by the first line of what it was given that isn't blank, cut
+// with an ellipsis when it is long.
+func TestTheRunsPageNamesARunByItsFirstLineCutWhenLong(t *testing.T) {
+	s := kitchenWith(t)
+	s.Model.Script(fakellm.Reply("Not a recipe."), fakellm.Reply("Not a recipe."))
+	s.PastesRecipe(strings.Repeat("Pasta e fagioli ", 6))
+	s.PastesRecipe("\n\n  Ragù\nSlow-cooked for hours.")
+
+	s.Open("/runs")
+	s.Sees("Ragù Succeeded")
+	s.Sees("Pasta e fagioli Pasta e fagioli Pasta e fagioli Pasta e fagi… Succeeded")
 }
 
 // A Browser follows a parse Run's Trace live, as it goes, and once the Run succeeds goes

@@ -2,6 +2,7 @@ package runs
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,8 @@ type Run struct {
 	ID     int64
 	Kind   string
 	Status Status
-	// Asked is what the Run was asked, such as the pasted recipe.
+	// Asked is what the Run was asked, such as the pasted recipe: on the Runs page, its
+	// first line only.
 	Asked     string
 	StartedAt time.Time
 	Trace     []StoredTraceEvent
@@ -49,7 +51,7 @@ func (r Run) lastSeq() int {
 templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, web.T(ctx, msgRuns)), web.RunsTab) {
 		@web.PageHeader("実行", web.T(ctx, msgRuns), now)
-		@web.Section(0, web.T(ctx, msgRuns)) {
+		<div class="section">
 			if len(list) == 0 {
 				@web.Empty() {
 					{ web.T(ctx, msgNoRuns) }
@@ -58,19 +60,33 @@ templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
 				@web.Rows() {
 					for _, r := range list {
 						@web.Row() {
-							<a class="row-title" href={ templ.SafeURL(runURL(r.ID)) }>{ web.T(ctx, kinds[r.Kind]) }</a>
+							<a class="row-title" href={ templ.SafeURL(runURL(r.ID)) }>{ cmp.Or(headline(r.Asked), web.T(ctx, kinds[r.Kind])) }</a>
 							@web.Tag(r.Status == Failed, "") {
 								{ web.T(ctx, statusNames[r.Status]) }
 							}
 							<span class="row-meta">
-								{ startedOn(ctx, now, r.StartedAt.In(now.Location())) }
+								<span>{ web.T(ctx, kinds[r.Kind]) }</span>
+								<span>{ startedOn(ctx, now, r.StartedAt.In(now.Location())) }</span>
 							</span>
 						}
 					}
 				}
 			}
-		}
+		</div>
 	}
+}
+
+// headlineRunes is how much of what a Run was asked names it on the Runs page.
+const headlineRunes = 60
+
+// headline names a Run on the Runs page by line, the first of what it was asked: cut to
+// headlineRunes, with an ellipsis where it was cut.
+func headline(line string) string {
+	line = strings.TrimSpace(line)
+	if r := []rune(line); len(r) > headlineRunes {
+		return strings.TrimSpace(string(r[:headlineRunes])) + "…"
+	}
+	return line
 }
 
 // runPage is a Run and its Trace, with what the User gave it, folded under askedName,

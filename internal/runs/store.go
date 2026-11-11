@@ -34,11 +34,14 @@ func insertTraceEvent(ctx context.Context, q db.Querier, runID int64, ev StoredT
 	return err
 }
 
-// listRuns is the signed-in User's Runs, newest first, without their Traces.
+// listRuns is the signed-in User's Runs, newest first, without their Traces, each with
+// the first line of what it was asked.
 func listRuns(ctx context.Context, q db.Querier) ([]Run, error) {
-	rows, _ := q.Query(ctx, `SELECT id, kind, status, started_at FROM run ORDER BY started_at DESC, id DESC`)
+	rows, _ := q.Query(ctx, `
+		SELECT id, kind, status, split_part(ltrim(asked, E' \t\r\n'), E'\n', 1), started_at FROM run
+		ORDER BY started_at DESC, id DESC`)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (r Run, err error) {
-		return r, row.Scan(&r.ID, &r.Kind, &r.Status, &r.StartedAt)
+		return r, row.Scan(&r.ID, &r.Kind, &r.Status, &r.Asked, &r.StartedAt)
 	})
 }
 
