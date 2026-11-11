@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,9 +14,9 @@ import (
 
 // Run is one of the User's Runs with its Trace.
 type Run struct {
-	ID        int64
-	Kind      string
-	Status    Status
+	ID     int64
+	Kind   string
+	Status Status
 	// Asked is what the Run was asked, such as the pasted recipe.
 	Asked     string
 	StartedAt time.Time
@@ -24,17 +25,61 @@ type Run struct {
 
 // StoredTraceEvent is a Trace Event as the Run kept it, with when it happened.
 type StoredTraceEvent struct {
-	At time.Time
+	// Seq is its place in the Trace, from 1.
+	Seq int
+	At  time.Time
 	agent.TraceEvent
 }
 
 // result is the link to what a Run left the User.
 type result struct{ Text, Href string }
 
+// runURL is the page of the Run id.
+func runURL(id int64) string { return fmt.Sprintf("/runs/%d", id) }
+
+// lastSeq is the place of the last Trace Event r's page shows, 0 for none.
+func (r Run) lastSeq() int {
+	if len(r.Trace) == 0 {
+		return 0
+	}
+	return r.Trace[len(r.Trace)-1].Seq
+}
+
+// runsPage lists the User's Runs, newest first, kinds naming each kind.
+templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
+	@web.Layout(web.Tf(ctx, msgRunTitle, web.T(ctx, msgRuns)), web.RunsTab) {
+		@web.PageHeader("実行", web.T(ctx, msgRuns), now)
+		@web.Section(0, web.T(ctx, msgRuns)) {
+			if len(list) == 0 {
+				@web.Empty() {
+					{ web.T(ctx, msgNoRuns) }
+				}
+			} else {
+				@web.Rows() {
+					for _, r := range list {
+						@web.Row() {
+							<a class="row-title" href={ templ.SafeURL(runURL(r.ID)) }>{ web.T(ctx, kinds[r.Kind]) }</a>
+							@web.Tag(r.Status == Failed, "") {
+								{ web.T(ctx, statusNames[r.Status]) }
+							}
+							<span class="row-meta">
+								{ web.ShortDate(ctx, r.StartedAt.In(now.Location())) + ", " + r.StartedAt.In(now.Location()).Format("15:04") }
+							</span>
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // runPage is a Run and its Trace, with what the User gave it, folded under askedName,
-// and a link to what it left, if anything.
+// and a link to what it left, if anything. While the Run goes, the page offers to cancel
+// it and appends its Trace Events as they stream in; once it ends, it fetches itself
+// again into the body, which goes on to what the Run left. Without JavaScript, a link
+// opens it again further along.
 templ runPage(now time.Time, r Run, kind, askedName string, res result) {
-	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RecipesTab) {
+	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RunsTab) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">
 				@web.Tag(r.Status == Failed, "") {
@@ -49,6 +94,20 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result) {
 					}
 				</p>
 			}
+			if r.Status == Going {
+				<noscript>
+					<p class="lede">
+						@web.TextLink(templ.Attributes{"href": runURL(r.ID)}) {
+							{ web.T(ctx, msgSeeFurther) }
+						}
+					</p>
+				</noscript>
+				<form id="cancel-run" method="post" action={ templ.SafeURL(runURL(r.ID) + "/cancel") }>
+					@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgCancel) }
+					}
+				</form>
+			}
 		}
 		if r.Asked != "" && askedName != "" {
 			<div class="section">
@@ -58,11 +117,26 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result) {
 			</div>
 		}
 		@web.Section(0, web.T(ctx, msgTrace)) {
-			<ol class="trace">
-				for _, ev := range r.Trace {
-					@traceEvent(ev, now.Location())
+			<div
+				if r.Status == Going {
+					hx-get={ runURL(r.ID) + "?ended" }
+					hx-trigger="end"
+					hx-target="body"
 				}
-			</ol>
+			>
+				<ol
+					class="trace"
+					if r.Status == Going {
+						hx-sse:connect={ fmt.Sprintf("%s/events?after=%d", runURL(r.ID), r.lastSeq()) }
+						hx-swap="beforeend"
+						hx-sse:close="end"
+					}
+				>
+					for _, ev := range r.Trace {
+						@traceEvent(ev, now.Location())
+					}
+				</ol>
+			</div>
 		}
 	}
 }

@@ -46,8 +46,8 @@ func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 }
 
 // FindDraft is the signed-in User's Recipe Draft id, for them speaking l, each
-// Ingredient resolved by name to theirs. It is ErrNoDraft while its Run is going, and
-// when there is no such Recipe Draft.
+// Ingredient resolved by name to theirs. It is ErrNoDraft unless its Run has succeeded,
+// and when there is no such Recipe Draft.
 func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (domain.Recipe, error) {
 	var doc []byte
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
@@ -76,7 +76,7 @@ type Draft struct {
 	StartedAt time.Time
 }
 
-// Drafts are the signed-in User's Recipe Drafts whose Runs have ended, newest first.
+// Drafts are the signed-in User's Recipe Drafts whose Runs have succeeded, newest first.
 func (s *Service) Drafts(ctx context.Context) ([]Draft, error) {
 	var drafts []Draft
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {

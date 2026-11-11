@@ -10,6 +10,11 @@ var (
 	msgRunTitle = web.Message{En: "%s · Dandori", It: "%s · Dandori"}
 	msgStarted  = web.Message{En: "Started at %s", It: "Iniziata alle %s"}
 	msgTrace    = web.Message{En: "Trace", It: "Traccia"}
+	msgRuns     = web.Message{En: "Runs", It: "Esecuzioni"}
+	msgNoRuns   = web.Message{En: "No Runs yet.", It: "Ancora nessuna esecuzione."}
+	msgCancel   = web.Message{En: "Cancel", It: "Annulla"}
+	// msgSeeFurther opens a Run's page again, further along, without JavaScript.
+	msgSeeFurther = web.Message{En: "See how it's going", It: "Guarda a che punto è"}
 
 	msgStartedWith = web.Message{En: "Started with %s", It: "Iniziata con %s"}
 	msgAsked       = web.Message{En: "Asking the model (turn %d)", It: "Chiedo al modello (turno %d)"}

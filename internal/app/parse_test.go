@@ -300,7 +300,8 @@ func TestSeveralParseRunsGoAtOnceEachMakingItsOwnRecipeDraft(t *testing.T) {
 	}
 }
 
-// A User sees neither another's Runs nor their Recipe Drafts.
+// A User sees neither another's Runs, their streams nor their Recipe Drafts, and can't
+// cancel their Runs.
 func TestTwoUsersNeverSeeEachOthersRunsOrRecipeDrafts(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Invite("bob@example.com")
@@ -311,10 +312,17 @@ func TestTwoUsersNeverSeeEachOthersRunsOrRecipeDrafts(t *testing.T) {
 
 	s.SwitchesTo("bob@example.com")
 	s.ChoosesLanguage("English")
-	for _, path := range []string{run, draft} {
+	for _, path := range []string{run, run + "/events", draft} {
 		if res := s.Get(t, path); res.StatusCode != http.StatusNotFound {
 			t.Errorf("another User opening %s got %d, want 404", path, res.StatusCode)
 		}
+	}
+	if res := s.PostForm(t, run+"/cancel", nil); res.StatusCode != http.StatusNotFound {
+		t.Errorf("another User cancelling %s got %d, want 404", run, res.StatusCode)
+	}
+	s.Open("/runs")
+	if shown := apptest.Text(s.Page().Body); strings.Contains(shown, "Reading a Recipe") {
+		t.Errorf("another User's Runs page lists the Run:\n%s", shown)
 	}
 }
 

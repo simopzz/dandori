@@ -8,10 +8,10 @@ import (
 )
 
 // Link returns where the first link on page whose text contains text
-// leads, as a user would follow it.
+// leads, as a user would follow it: without JavaScript, so one in a noscript too.
 func Link(t testing.TB, page, text string) string {
 	t.Helper()
-	doc, err := html.Parse(strings.NewReader(page))
+	doc, err := html.ParseWithOptions(strings.NewReader(page), html.ParseOptionEnableScripting(false))
 	if err != nil {
 		t.Fatalf("parse page: %v", err)
 	}

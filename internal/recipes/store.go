@@ -164,11 +164,19 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 	return recipes, err
 }
 
-// storeDraft stores doc as the Recipe Draft of the Run runID, replacing any earlier one.
+// errRunEnded is a Recipe Draft its Run stores once it is no longer going, say cancelled.
+var errRunEnded = errors.New("the Run has ended")
+
+// storeDraft stores doc as the Recipe Draft of the Run runID, replacing any earlier one,
+// while the Run is going: locking it, so a cancel lands before or after, never between.
 func storeDraft(ctx context.Context, q db.Querier, runID int64, doc []byte) error {
-	_, err := q.Exec(ctx, `
-		INSERT INTO recipe_draft (run_id, document) VALUES ($1, $2)
-		ON CONFLICT (run_id) DO UPDATE SET document = excluded.document`, runID, doc)
+	tag, err := q.Exec(ctx, `
+		INSERT INTO recipe_draft (run_id, document)
+		SELECT id, $2 FROM run WHERE id = $1 AND status = $3 FOR UPDATE
+		ON CONFLICT (run_id) DO UPDATE SET document = excluded.document`, runID, doc, runs.Going)
+	if err == nil && tag.RowsAffected() == 0 {
+		return errRunEnded
+	}
 	return err
 }
 
@@ -181,32 +189,36 @@ func loadDraftID(ctx context.Context, q db.Querier, runID int64) (id int64, err 
 	return id, err
 }
 
-// loadDraft is the document of the Recipe Draft id, or ErrNoDraft while its Run goes, as
-// the model may still change it.
+// loadDraft is the document of the Recipe Draft id, or ErrNoDraft unless its Run has
+// succeeded: while it goes the model may still change it, and a failed or cancelled
+// Run's is never checked.
 func loadDraft(ctx context.Context, q db.Querier, id int64) (doc []byte, err error) {
 	err = q.QueryRow(ctx, `
 		SELECT d.document FROM recipe_draft d JOIN run r ON r.id = d.run_id
-		WHERE d.id = $1 AND r.status <> $2`, id, runs.Going).Scan(&doc)
+		WHERE d.id = $1 AND r.status = $2`, id, runs.Succeeded).Scan(&doc)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoDraft
 	}
 	return doc, err
 }
 
-// CountDrafts is how many Recipe Drafts the signed-in User has, for the Profile's Food
-// Terms. Like CountRecipes, row-level security leaves their rows.
+// CountDrafts is how many Recipe Drafts the signed-in User has or may yet have, their
+// Runs going or succeeded, for the Profile's Food Terms. Like CountRecipes, row-level
+// security leaves their rows.
 func CountDrafts(ctx context.Context, q db.Querier) (int, error) {
 	var n int
-	err := q.QueryRow(ctx, `SELECT count(*) FROM recipe_draft`).Scan(&n)
+	err := q.QueryRow(ctx, `
+		SELECT count(*) FROM recipe_draft d JOIN run r ON r.id = d.run_id
+		WHERE r.status IN ($1, $2)`, runs.Going, runs.Succeeded).Scan(&n)
 	return n, err
 }
 
-// loadDrafts are the Recipe Drafts whose Runs have ended, newest first.
+// loadDrafts are the Recipe Drafts whose Runs have succeeded, newest first.
 func loadDrafts(ctx context.Context, q db.Querier) ([]Draft, error) {
 	rows, err := q.Query(ctx, `
 		SELECT d.id, d.document->>'name', r.started_at FROM recipe_draft d JOIN run r ON r.id = d.run_id
-		WHERE r.status <> $1
-		ORDER BY r.started_at DESC, d.id DESC`, runs.Going)
+		WHERE r.status = $1
+		ORDER BY r.started_at DESC, d.id DESC`, runs.Succeeded)
 	if err != nil {
 		return nil, err
 	}
@@ -215,13 +227,13 @@ func loadDrafts(ctx context.Context, q db.Querier) ([]Draft, error) {
 	})
 }
 
-// deleteDraft deletes the Recipe Draft id and is its name, or ErrNoDraft while its Run
-// goes, as loadDraft has it.
+// deleteDraft deletes the Recipe Draft id and is its name, or ErrNoDraft unless its Run
+// has succeeded, as loadDraft has it.
 func deleteDraft(ctx context.Context, q db.Querier, id int64) (name string, err error) {
 	err = q.QueryRow(ctx, `
 		DELETE FROM recipe_draft d USING run r
-		WHERE d.id = $1 AND r.id = d.run_id AND r.status <> $2
-		RETURNING d.document->>'name'`, id, runs.Going).Scan(&name)
+		WHERE d.id = $1 AND r.id = d.run_id AND r.status = $2
+		RETURNING d.document->>'name'`, id, runs.Succeeded).Scan(&name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNoDraft
 	}

@@ -11,6 +11,7 @@ var (
 	msgRecipes        = Message{En: "Recipes", It: "Ricette"}
 	msgKitchen        = Message{En: "Kitchen", It: "Cucina"}
 	msgProfile        = Message{En: "Profile", It: "Profilo"}
+	msgRuns           = Message{En: "Runs", It: "Esecuzioni"}
 	msgMainNav        = Message{En: "Main", It: "Principale"}
 	msgLanguageSwitch = Message{En: "Language", It: "Lingua"}
 	msgChange         = Message{En: "Change", It: "Modifica"}

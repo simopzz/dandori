@@ -12,6 +12,7 @@ const (
 	RecipesTab Tab = "/recipes"
 	KitchenTab Tab = "/kitchen"
 	ProfileTab Tab = "/profile"
+	RunsTab    Tab = "/runs"
 )
 
 // Layout is the page shell every page renders inside: the head, the masthead (the
@@ -34,6 +35,7 @@ templ Layout(title string, current Tab) {
 			<link rel="stylesheet" href="/static/app.css"/>
 			<meta name="htmx-config" content="defaultSettleDelay:0"/>
 			<script src="/static/htmx.min.js" defer></script>
+			<script src="/static/hx-sse.min.js" defer></script>
 			<script>
 				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
 			</script>
@@ -53,6 +55,7 @@ templ Layout(title string, current Tab) {
 						@tab(RecipesTab, current, "book-open", T(ctx, msgRecipes), false)
 						@tab(KitchenTab, current, "package", T(ctx, msgKitchen), false)
 						@tab(ProfileTab, current, "user", T(ctx, msgProfile), false)
+						@tab(RunsTab, current, "activity", T(ctx, msgRuns), true)
 					</div>
 				}
 			</nav>
