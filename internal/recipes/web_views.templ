@@ -1,7 +1,9 @@
 package recipes
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -173,6 +175,9 @@ const removeFormID = "recipe-remove"
 // one more row, and without htmx post the form back with one.
 templ recipeForm(f RecipeForm) {
 	<form id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
+		// Enter presses a form's first submit button: this one saves, not
+		// the add or pick buttons above the save button shown.
+		<button type="submit" hidden tabindex="-1"></button>
 		if f.Confirm {
 			@web.Alert() {
 				{ web.T(ctx, msgConfirmNew) }
@@ -277,6 +282,18 @@ func addButton(list, src, include string) templ.Attributes {
 	return attrs
 }
 
+// pickButton picks name, the known Ingredient suggested for the row at index i, swapping
+// the row in place; without htmx it posts the form back with the row picked. It names
+// what it picks, so the row gets the Ingredient the User saw.
+func pickButton(i int, name string) templ.Attributes {
+	vals, _ := json.Marshal(map[string]string{rowField("pick", i): name})
+	return templ.Attributes{
+		"type": "submit", "name": rowField("pick", i), "value": name, "formnovalidate": true,
+		"hx-get": "/recipes/ingredient-row", "hx-vals": string(vals),
+		"hx-include": "closest .ingredient-row", "hx-target": "closest .ingredient-row", "hx-swap": "outerHTML",
+	}
+}
+
 // numberField is a Field for a whole number.
 templ numberField(label web.Message, name, value, err string) {
 	@web.Field(web.T(ctx, label), "", err) {
@@ -308,8 +325,8 @@ templ ingredientRow(i int, row IngredientRow) {
 				{ ingredients.Invalid(row.Errs["name"])... }
 			/>
 		}
-		@web.Field(web.T(ctx, msgQuantity), "", row.Errs["quantity"]) {
-			<input name={ rowField("quantity", i) } value={ row.Quantity } inputmode="decimal" autocomplete="off" { ingredients.Invalid(row.Errs["quantity"])... }/>
+		@web.Field(web.T(ctx, msgQuantity), "", cmp.Or(row.UnitChanged, row.Errs["quantity"])) {
+			<input name={ rowField("quantity", i) } value={ row.Quantity } inputmode="decimal" autocomplete="off" { ingredients.Invalid(cmp.Or(row.UnitChanged, row.Errs["quantity"]))... }/>
 		}
 		<div class="ingredient-details">
 			@rowDetails(i, row)
@@ -325,6 +342,14 @@ templ rowDetails(i int, row IngredientRow) {
 		if row.New {
 			@web.Tag(true, "") {
 				{ web.T(ctx, msgNew) }
+			}
+			if row.Suggested != "" {
+				<p class="field-hint">
+					{ web.Tf(ctx, msgDidYouMean, row.Suggested) + " " }
+					@web.TextButton(pickButton(i, row.Suggested)) {
+						{ web.Tf(ctx, msgPick, row.Suggested) }
+					}
+				</p>
 			}
 			@ingredients.NewIngredientFields(func(field string) string { return rowField(field, i) }, row.typed())
 		} else {

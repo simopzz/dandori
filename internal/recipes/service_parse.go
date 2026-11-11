@@ -82,9 +82,12 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 		case isKnown && pi.Unit != ing.Unit:
 			problems[at+".unit"] = fmt.Sprintf("%s is a known Ingredient measured in %s; give its quantity in %s", ing.Name, ing.Unit, ing.Unit)
 			unresolved[i] = true
-		case !isKnown && pi.New == nil:
+			rec.Ingredients = append(rec.Ingredients, domain.RecipeIngredient{Ingredient: ing}) // no quantity: never converted
+			continue
+		case !isKnown && pi.New == nil: // no values proposed, as for a known Ingredient deleted since: new, its values unknown
 			problems[at+".new"] = fmt.Sprintf("%s is not a known Ingredient; propose its values in new", pi.Name)
 			unresolved[i] = true
+			ing = domain.Ingredient{Name: strings.TrimSpace(pi.Name), Unit: pi.Unit}
 		case !isKnown:
 			ing = domain.Ingredient{Name: strings.TrimSpace(pi.Name), Unit: pi.Unit, Usual: pi.New.Usual, Staple: pi.New.Staple}
 			ing.Nutrition = domain.Nutrition{
