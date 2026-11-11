@@ -45,6 +45,16 @@ func listRuns(ctx context.Context, q db.Querier) ([]Run, error) {
 	})
 }
 
+// loadStatus is the status of the signed-in User's Run id, found false when they have
+// no such Run.
+func loadStatus(ctx context.Context, q db.Querier, id int64) (status Status, found bool, err error) {
+	err = q.QueryRow(ctx, `SELECT status FROM run WHERE id = $1`, id).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	return status, err == nil, err
+}
+
 // loadRun is the signed-in User's Run id with its Trace.
 func loadRun(ctx context.Context, q db.Querier, id int64) (run Run, found bool, err error) {
 	run.ID = id

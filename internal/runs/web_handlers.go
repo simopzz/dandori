@@ -107,7 +107,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	run, found, err := h.Engine.Find(ctx, id)
+	_, found, err := h.Engine.Status(ctx, id)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the Run", err)
 		return
@@ -176,12 +176,13 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if run, _, err = h.Engine.Find(ctx, id); err != nil || run.Status == Going {
+	status, _, err := h.Engine.Status(ctx, id)
+	if err != nil || status == Going {
 		// It fell behind, or nothing here is running it: hang up without an end, and the
 		// browser reconnects.
 		return
 	}
-	writeSSE(w, "", "end", string(run.Status))
+	writeSSE(w, "", "end", string(status))
 	_ = flusher.Flush()
 }
 

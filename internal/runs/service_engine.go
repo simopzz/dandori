@@ -104,7 +104,7 @@ func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (
 		return 0, errors.New("Dandori is shutting down") //nolint:staticcheck // the product's name
 	}
 	runCtx, cancelRun := context.WithCancel(context.WithValue(db.WithUser(e.ctx, userID), idKey{}, id))
-	tr := &trace{e: e, userID: userID, runID: id, cancel: cancelRun, subs: map[chan StoredTraceEvent]struct{}{}}
+	tr := &trace{e: e, userID: userID, runID: id, cancel: cancelRun, subs: map[chan StoredTraceEvent]struct{}{}, done: make(chan struct{})}
 	e.live[id] = tr
 	e.wg.Add(1)
 	go e.execute(runCtx, tr, b)
@@ -154,12 +154,13 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 }
 
 // Cancel cancels the signed-in User's Run id if it is going, storing it cancelled before
-// it stops, so nothing it does from now on counts. found is false when they have no such
-// Run; one that has ended stays as it ended.
+// it stops, so nothing it does from now on counts, then waits a moment for it to stop, so
+// its Trace says it ended. found is false when they have no such Run; one that has ended
+// stays as it ended.
 func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	var cancelled bool
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		if _, found, err = loadRun(ctx, tx, id); err != nil || !found {
+		if _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
 			return err
 		}
 		cancelled, err = setStatus(ctx, tx, id, Cancelled, e.clock.Now())
@@ -170,8 +171,26 @@ func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	}
 	if tr := e.liveRun(id); tr != nil {
 		tr.cancel()
+		wait, stop := context.WithTimeout(ctx, cancelWait)
+		defer stop()
+		select {
+		case <-tr.done:
+		case <-wait.Done():
+		}
 	}
 	return true, nil
+}
+
+// cancelWait bounds how long Cancel waits for a cancelled Run to record its end.
+const cancelWait = 2 * time.Second
+
+// Status is the status of the signed-in User's Run id, found false when they have none.
+func (e *Engine) Status(ctx context.Context, id int64) (status Status, found bool, err error) {
+	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
+		status, found, err = loadStatus(ctx, tx, id)
+		return err
+	})
+	return status, found, err
 }
 
 // List is the signed-in User's Runs, newest first, without their Traces.
@@ -254,7 +273,7 @@ type trace struct {
 	mu   sync.Mutex
 	seq  int
 	subs map[chan StoredTraceEvent]struct{}
-	done bool
+	done chan struct{} // closed once the Run has ended
 }
 
 // Emit implements agent.Trace.
@@ -284,8 +303,10 @@ func (t *trace) Emit(ev agent.TraceEvent) {
 func (t *trace) subscribe() (<-chan StoredTraceEvent, func(), bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.done {
+	select {
+	case <-t.done:
 		return nil, nil, false
+	default:
 	}
 	ch := make(chan StoredTraceEvent, 64)
 	t.subs[ch] = struct{}{}
@@ -303,7 +324,7 @@ func (t *trace) subscribe() (<-chan StoredTraceEvent, func(), bool) {
 func (t *trace) finish() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.done = true
+	close(t.done)
 	for ch := range t.subs {
 		delete(t.subs, ch)
 		close(ch)

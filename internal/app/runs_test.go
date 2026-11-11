@@ -67,8 +67,7 @@ func TestCancellingARunEndsItCancelledWithNoRecipeDraft(t *testing.T) {
 		if res := s.Page(); res.StatusCode != http.StatusOK || res.Path != run {
 			t.Fatalf("cancelling the Run = %d at %s, want its page %s", res.StatusCode, res.Path, run)
 		}
-		s.Settle()
-		s.Open(run)
+		// The page cancelling lands on already tells the end: Cancel waits for the Run.
 		s.Sees("Reading a Recipe Cancelled")
 		s.Sees("Ended: Cancelled")
 		if body := s.Page().Body; strings.Contains(body, `href="/recipe-drafts/`) || strings.Contains(body, "Dandori stopped") {
