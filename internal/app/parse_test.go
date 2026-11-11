@@ -66,7 +66,7 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 	s.Sees("Parsed the lasagne.")
 
 	s.Follows("Recipe Draft")
-	s.Sees("Check a Recipe Draft")
+	s.Sees("Recipe Draft Name Portions")
 	draftHolds(t, s, map[string]string{
 		"name": "Lasagne", "portions": "4", "active": "30", "total": "70", "slots": "lunch", "appliances": "oven\nhob",
 		"ing_name_4": "rice", "ing_quantity_4": "100", "ing_kcal_4": "",

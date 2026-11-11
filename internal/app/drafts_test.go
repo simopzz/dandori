@@ -27,7 +27,7 @@ func TestAcceptingARecipeDraftAddsItAndItsNewIngredients(t *testing.T) {
 	run := s.Page().Path
 
 	s.Follows("Recipe Draft")
-	s.Sees("Check a Recipe Draft")
+	s.Sees("Recipe Draft Name Portions")
 	draftHolds(t, s, map[string]string{"name": "Lasagne", "ing_name_0": "beef mince", "ing_name_4": "rice"})
 	draft := s.Page().Path
 
@@ -106,7 +106,7 @@ func TestARefusedAcceptChangesNothing(t *testing.T) {
 	s.Open("/recipes")
 	s.DoesNotSee("Lasagne al forno")
 	s.Open(draft)
-	s.Sees("Check a Recipe Draft")
+	s.Sees("Recipe Draft Name Portions")
 }
 
 // A known Ingredient keeps its own values and unit on the Recipe Draft, whatever the
@@ -173,7 +173,7 @@ func TestRecipeDraftsToCheckAreListedFirstOnTheRecipeLibrary(t *testing.T) {
 	s.Open("/recipes")
 	s.Sees("Recipe Drafts to check Curry read Wed 4 Nov Lasagne read Mon 2 Nov Recipes Search Rice bowl")
 	s.Follows("Lasagne")
-	s.Sees("Check a Recipe Draft")
+	s.Sees("Recipe Draft Name Portions")
 	s.Submits("recipe-form")
 	s.Open("/recipes")
 	s.Follows("Curry")

@@ -92,7 +92,7 @@ func newForm(f RecipeForm) RecipeForm {
 		f.Action, f.Title, f.Heading = recipeURL(f.ID), msgEditTitle, msgEditHeading
 		f.RemoveAction, f.Remove = recipeURL(f.ID)+"/delete", msgDelete
 	case f.DraftID != 0:
-		f.Action, f.Title, f.Heading, f.Submit = draftURL(f.DraftID), msgDraftTitle, msgCheckDraft, msgAccept
+		f.Action, f.Title, f.Heading, f.Submit = draftURL(f.DraftID), msgDraftTitle, DraftName, msgAccept
 		f.RemoveAction, f.Remove = draftURL(f.DraftID)+"/discard", msgDiscard
 	}
 	if len(f.Ingredients) == 0 {
