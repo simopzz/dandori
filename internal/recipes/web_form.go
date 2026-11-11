@@ -140,17 +140,16 @@ func rowField(field string, i int) string { return fmt.Sprintf("ing_%s_%d", fiel
 // readRow reads the row at index i of form, matching its name to known, as an Ingredient
 // (one without an ID being new) and the row as shown. settled says the User has seen
 // the row for what it is now: a new one's fields, or a known one as known. A row picked
-// takes the name of the known Ingredient suggested for it. A row shown in a unit that
-// becomes a known Ingredient in another has its quantity cleared, never converted.
+// takes the name of the known Ingredient picked, if the User still has it. A row
+// shown in a unit that becomes a known Ingredient in another has its quantity
+// cleared, never converted.
 func readRow(ctx context.Context, form url.Values, i int, known map[string]domain.Ingredient) (ing domain.Ingredient, row IngredientRow, settled bool) {
 	l := web.LanguageOf(ctx)
 	in := func(field string) string { return strings.TrimSpace(form.Get(rowField(field, i))) }
 	row = IngredientRow{Name: in("name"), Quantity: in("quantity"), Errs: map[string]string{}}
 	names := namesOf(slices.Collect(maps.Values(known)))
-	if form.Get("pick") == strconv.Itoa(i) {
-		if closest, ok := domain.ClosestIngredient(l, row.Name, names); ok {
-			row.Name = closest
-		}
+	if _, ok := known[domain.NormaliseIngredientName(l, in("pick"))]; ok {
+		row.Name = in("pick")
 	}
 	seen := in("new")
 	ing, isKnown := known[domain.NormaliseIngredientName(l, row.Name)]
@@ -283,6 +282,16 @@ func nonBlank(lines []string) []string {
 		}
 	}
 	return out
+}
+
+// picking reports whether form picks a suggestion for one of its rows.
+func picking(form url.Values) bool {
+	for field := range form {
+		if strings.HasPrefix(field, "ing_pick_") {
+			return true
+		}
+	}
+	return false
 }
 
 // rowIndex is the row a fragment's query is about, from its name field's number.

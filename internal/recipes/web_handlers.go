@@ -199,7 +199,7 @@ func (h Handlers) ShowRow(w http.ResponseWriter, r *http.Request) {
 	}
 	_, row, _ := readRow(r.Context(), query, i, byName(web.LanguageOf(r.Context()), known))
 	row.Confirming, row.Errs = false, nil // nothing is refused before a save
-	if query.Has("pick") {                // the name changed, so the whole row
+	if picking(query) {                   // the name changed, so the whole row
 		httpx.Render(w, r, h.Log, http.StatusOK, ingredientRow(i, row))
 		return
 	}
@@ -297,7 +297,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), withStep(f)))
 		return
 	}
-	if r.PostForm.Has("pick") {
+	if picking(r.PostForm) {
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), unrefused(f)))
 		return
 	}

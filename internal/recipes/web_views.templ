@@ -3,7 +3,7 @@ package recipes
 import (
 	"cmp"
 	"context"
-	"fmt"
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -279,12 +279,14 @@ func addButton(list, src, include string) templ.Attributes {
 	return attrs
 }
 
-// pickButton picks the known Ingredient suggested for the row at index i, swapping the
-// row in place; without htmx it posts the form back with the row picked.
-func pickButton(i int) templ.Attributes {
+// pickButton picks name, the known Ingredient suggested for the row at index i, swapping
+// the row in place; without htmx it posts the form back with the row picked. It names
+// what it picks, so the row gets the Ingredient the User saw.
+func pickButton(i int, name string) templ.Attributes {
+	vals, _ := json.Marshal(map[string]string{rowField("pick", i): name})
 	return templ.Attributes{
-		"type": "submit", "name": "pick", "value": strconv.Itoa(i), "formnovalidate": true,
-		"hx-get": "/recipes/ingredient-row", "hx-vals": fmt.Sprintf(`{"pick":"%d"}`, i),
+		"type": "submit", "name": rowField("pick", i), "value": name, "formnovalidate": true,
+		"hx-get": "/recipes/ingredient-row", "hx-vals": string(vals),
 		"hx-include": "closest .ingredient-row", "hx-target": "closest .ingredient-row", "hx-swap": "outerHTML",
 	}
 }
@@ -341,7 +343,7 @@ templ rowDetails(i int, row IngredientRow) {
 			if row.Suggested != "" {
 				<p class="field-hint">
 					{ web.Tf(ctx, msgDidYouMean, row.Suggested) + " " }
-					@web.TextButton(pickButton(i)) {
+					@web.TextButton(pickButton(i, row.Suggested)) {
 						{ web.Tf(ctx, msgPick, row.Suggested) }
 					}
 				</p>
