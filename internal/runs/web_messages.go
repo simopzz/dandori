@@ -12,8 +12,8 @@ var (
 	// msgStartedOn is a Run's day and time on the Runs page.
 	msgStartedOn = web.Message{En: "%s %s", It: "%s %s"}
 	msgTrace     = web.Message{En: "Trace", It: "Traccia"}
-	msgRuns      = web.Message{En: "Runs", It: "Esecuzioni"}
-	msgNoRuns    = web.Message{En: "No Runs yet.", It: "Ancora nessuna esecuzione."}
+	msgRuns      = web.Message{En: "Runs", It: "Run"}
+	msgNoRuns    = web.Message{En: "No Runs yet.", It: "Ancora nessuna Run."}
 	msgCancel    = web.Message{En: "Cancel", It: "Annulla"}
 	// msgSeeFurther opens a Run's page again, further along, without JavaScript.
 	msgSeeFurther = web.Message{En: "See how it's going", It: "Guarda a che punto è"}
