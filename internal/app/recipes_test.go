@@ -506,7 +506,7 @@ func TestDeletingARecipeRemovesItAndFreesItsIngredients(t *testing.T) {
 	page := s.Page().Path
 
 	s.Follows("Edit")
-	s.Submits("recipe-delete")
+	s.Submits("recipe-remove")
 	s.IsConfirmed("Deleted Rice bowl.")
 	s.IsAt("/recipes")
 	s.Sees("No Recipes yet.")

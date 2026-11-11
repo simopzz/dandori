@@ -130,7 +130,7 @@ func TestAnAddedPortionFixesTheLanguage(t *testing.T) {
 	s.Open("/profile")
 	s.ChangesLanguage("Italiano")
 	s.IsRefused()
-	s.Sees("Your kitchen already holds Ingredients, Recipes or Portions in this Language, so it stays.")
+	s.Sees("Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.")
 }
 
 // Portions are told in the User's Language.

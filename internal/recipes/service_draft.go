@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -66,4 +67,44 @@ func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (d
 	}
 	rec, _ := p.recipe(l, known)
 	return rec, nil
+}
+
+// Draft is a Recipe Draft awaiting the User's check: its name, and when its Run started.
+type Draft struct {
+	ID        int64
+	Name      string
+	StartedAt time.Time
+}
+
+// Drafts are the signed-in User's Recipe Drafts whose Runs have ended, newest first.
+func (s *Service) Drafts(ctx context.Context) ([]Draft, error) {
+	var drafts []Draft
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		drafts, err = loadDrafts(ctx, tx)
+		return err
+	})
+	return drafts, err
+}
+
+// Accept adds rec, which has no Problems and is what the User made of their Recipe Draft
+// id, as Add does, and deletes the Recipe Draft, all or nothing. A Recipe Draft they
+// haven't got, or whose Run is going, is ErrNoDraft.
+func (s *Service) Accept(ctx context.Context, l domain.Language, id int64, rec domain.Recipe) (recipeID int64, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := deleteDraft(ctx, tx, id); err != nil {
+			return err
+		}
+		recipeID, err = addIn(ctx, tx, l, rec)
+		return err
+	})
+	return recipeID, err
+}
+
+// Discard deletes the signed-in User's Recipe Draft id and is its name, or ErrNoDraft.
+func (s *Service) Discard(ctx context.Context, id int64) (name string, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		name, err = deleteDraft(ctx, tx, id)
+		return err
+	})
+	return name, err
 }

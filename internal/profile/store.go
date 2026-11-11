@@ -63,7 +63,8 @@ func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	return err
 }
 
-// loadFoodTerms is the signed-in User's Food Terms: Ingredients, Portions and Recipes.
+// loadFoodTerms is the signed-in User's Food Terms: Ingredients, Portions, Recipes and
+// Recipe Drafts.
 func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) {
 	ings, err := ingredients.CountIngredients(ctx, q)
 	if err != nil {
@@ -74,5 +75,9 @@ func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) 
 		return domain.FoodTerms{}, err
 	}
 	recs, err := recipes.CountRecipes(ctx, q)
-	return domain.FoodTerms{Ingredients: ings, Portions: portions, Recipes: recs}, err
+	if err != nil {
+		return domain.FoodTerms{}, err
+	}
+	drafts, err := recipes.CountDrafts(ctx, q)
+	return domain.FoodTerms{Ingredients: ings, Portions: portions, Recipes: recs, Drafts: drafts}, err
 }

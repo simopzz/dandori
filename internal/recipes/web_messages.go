@@ -32,7 +32,11 @@ var (
 	PastedName       = web.Message{En: "Pasted recipe", It: "Ricetta incollata"}
 	DraftName        = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
 	msgDraftTitle    = web.Message{En: "Recipe Draft · Dandori", It: "Bozza di Ricetta · Dandori"}
-	msgStaple        = web.Message{En: "Staple", It: "Base"}
+	msgAccept        = web.Message{En: "Add to the Recipe Library", It: "Aggiungi al Ricettario"}
+	msgDiscard       = web.Message{En: "Discard", It: "Scarta"}
+	msgDiscarded     = web.Message{En: "Discarded the Recipe Draft %s.", It: "Bozza di Ricetta scartata: %s."}
+	msgDraftsToCheck = web.Message{En: "Recipe Drafts to check", It: "Bozze di Ricetta da controllare"}
+	msgParsedOn      = web.Message{En: "read %s", It: "letta %s"}
 
 	msgName       = web.Message{En: "Name", It: "Nome"}
 	msgPortions   = web.Message{En: "Portions", It: "Porzioni"}

@@ -13,12 +13,24 @@ import (
 )
 
 // library is the Recipe Library page: the paste box, as typed in paste, the way to write
-// a Recipe, and the User's Recipes a search for q found, with the search once there is
-// something to search.
-templ library(now time.Time, paste PasteForm, recipes []domain.Recipe, q string) {
+// a Recipe, the Recipe Drafts to check, and the User's Recipes a search for q found, with
+// the search once there is something to search.
+templ library(now time.Time, paste PasteForm, drafts []Draft, recipes []domain.Recipe, q string) {
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
 		@pasteForm(paste)
+		if len(drafts) > 0 {
+			@web.Section(0, web.T(ctx, msgDraftsToCheck)) {
+				@web.Rows() {
+					for _, d := range drafts {
+						@web.Row() {
+							<a class="row-title" href={ templ.SafeURL(draftURL(d.ID)) }>{ d.Name }</a>
+							<span class="row-meta">{ web.Tf(ctx, msgParsedOn, parsedDate(ctx, now, d.StartedAt.In(now.Location()))) }</span>
+						}
+					}
+				}
+			}
+		}
 		@web.Section(0, web.T(ctx, msgRecipes)) {
 			if q != "" || len(recipes) > 0 {
 				@searchForm(q)
@@ -66,6 +78,14 @@ templ recipeList(recipes []domain.Recipe, q string) {
 			}
 		}
 	}
+}
+
+// parsedDate is the day a Recipe Draft was parsed, with its year unless it is now's.
+func parsedDate(ctx context.Context, now, at time.Time) string {
+	if at.Year() != now.Year() {
+		return web.ShortDateInYear(ctx, at)
+	}
+	return web.ShortDate(ctx, at)
 }
 
 // kindsOf names kinds in the order of a day.
@@ -145,9 +165,9 @@ templ formPage(now time.Time, f RecipeForm) {
 // knownIngredients is the id of the list of names a row's name offers as the User types.
 const knownIngredients = "known-ingredients"
 
-// deleteFormID is the id of the form deleting the Recipe being edited, beside the Recipe
-// form since forms don't nest, so Enter still saves.
-const deleteFormID = "recipe-delete"
+// removeFormID is the id of the form deleting the Recipe being edited or discarding the
+// Recipe Draft, beside the Recipe form since forms don't nest, so Enter still saves.
+const removeFormID = "recipe-remove"
 
 // recipeForm is the one form every Recipe is written with. Its add buttons ask htmx for
 // one more row, and without htmx post the form back with one.
@@ -217,11 +237,11 @@ templ recipeForm(f RecipeForm) {
 				<textarea name="appliances" rows="3">{ f.Appliances }</textarea>
 			}
 		</div>
-		if f.ID != 0 {
+		if f.RemoveAction != "" {
 			@web.ActionsApart() {
 				@saveButton(f)
-				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": deleteFormID}) {
-					{ web.T(ctx, msgDelete) }
+				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": removeFormID}) {
+					{ web.T(ctx, f.Remove) }
 				}
 			}
 		} else {
@@ -230,8 +250,8 @@ templ recipeForm(f RecipeForm) {
 			}
 		}
 	</form>
-	if f.ID != 0 {
-		<form id={ deleteFormID } method="post" action={ templ.SafeURL(recipeURL(f.ID) + "/delete") }></form>
+	if f.RemoveAction != "" {
+		<form id={ removeFormID } method="post" action={ templ.SafeURL(f.RemoveAction) }></form>
 	}
 	<script src="/static/recipe-form.js"></script>
 }
@@ -335,50 +355,6 @@ templ pasteForm(f PasteForm) {
 			}
 		}
 	</form>
-}
-
-// draftPage is a Recipe Draft as the parse Run left it: a known Ingredient in its own
-// unit, a new one with the values proposed for it.
-templ draftPage(now time.Time, rec domain.Recipe) {
-	@web.Layout(web.T(ctx, msgDraftTitle), web.RecipesTab) {
-		@web.PageHeader("下書き", rec.Name, now) {
-			<p class="lede">{ web.T(ctx, DraftName) }</p>
-		}
-		@recipeFacts(rec)
-		@web.Section(1, web.T(ctx, msgIngredients)) {
-			@web.Rows() {
-				for _, ri := range rec.Ingredients {
-					@web.Row() {
-						<span class="row-title">{ ri.Ingredient.Name }</span>
-						<span class="row-figure">{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
-						if ri.Ingredient.ID == 0 {
-							@proposed(ri.Ingredient)
-						}
-					}
-				}
-			}
-		}
-		@recipeSteps(rec.Steps)
-	}
-}
-
-// proposed is what the parse Run proposes for a new Ingredient.
-templ proposed(ing domain.Ingredient) {
-	@web.Tag(false, "") {
-		{ web.T(ctx, msgNew) }
-	}
-	<p class="row-meta">
-		<span>{ web.Tf(ctx, msgKcal, web.Number(ctx, ing.Nutrition.Kcal.Value)) }</span>
-		@floored(msgProtein, ing.Nutrition.Protein, false)
-		@floored(msgCarbs, ing.Nutrition.Carbs, false)
-		@floored(msgFat, ing.Nutrition.Fat, false)
-		@floored(msgFibre, ing.Nutrition.Fibre, false)
-		@floored(msgSugar, ing.Nutrition.Sugar, false)
-		<span>{ web.T(ctx, ingredients.StorageLocationNames[ing.Usual]) }</span>
-		if ing.Staple {
-			<span>{ web.T(ctx, msgStaple) }</span>
-		}
-	</p>
 }
 
 // recipeFacts is how many Portions rec makes, its minutes, kinds of Slot and appliances.

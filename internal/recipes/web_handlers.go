@@ -23,13 +23,24 @@ type Handlers struct {
 
 // Library is the Recipe Library page, searched for its query q.
 func (h Handlers) Library(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query().Get("q")
-	recipes, err := h.Service.Search(r.Context(), q)
+	h.library(w, r, http.StatusOK, PasteForm{}, r.URL.Query().Get("q"))
+}
+
+// library answers with the Recipe Library page searched for q, its paste box as in
+// paste, with status.
+func (h Handlers) library(w http.ResponseWriter, r *http.Request, status int, paste PasteForm, q string) {
+	ctx := r.Context()
+	drafts, err := h.Service.Drafts(ctx)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "list the Recipe Drafts", err)
+		return
+	}
+	recipes, err := h.Service.Search(ctx, q)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "search the Recipes", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, library(h.Clock.Now(), PasteForm{}, recipes, q))
+	web.Answer{Status: status, Page: library(h.Clock.Now(), paste, drafts, recipes, q)}.Write(w, r, h.Log)
 }
 
 // Paste starts a parse Run reading the pasted text into a Recipe Draft, and goes to the
@@ -42,13 +53,8 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	}
 	text := strings.TrimSpace(r.PostForm.Get("text"))
 	if text == "" {
-		recipes, err := h.Service.Search(ctx, "")
-		if err != nil {
-			httpx.ServerError(w, r, h.Log, "search the Recipes", err)
-			return
-		}
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
-		web.Answer{Status: http.StatusUnprocessableEntity, Page: library(h.Clock.Now(), paste, recipes, "")}.Write(w, r, h.Log)
+		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
 		return
 	}
 	id, err := h.Service.StartParse(ctx, web.LanguageOf(ctx), text)
@@ -59,7 +65,7 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	web.Answer{RedirectTo: "/runs/" + strconv.FormatInt(id, 10)}.Write(w, r, h.Log)
 }
 
-// ShowDraft is the Recipe Draft's own page.
+// ShowDraft is the Recipe form to check a Recipe Draft with, holding what was parsed.
 func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -75,7 +81,39 @@ func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, draftPage(h.Clock.Now(), rec))
+	known, err := h.Service.KnownIngredients(ctx)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), draftForm(ctx, id, rec, known)))
+}
+
+// Accept adds the Recipe posted, as checked from the Recipe Draft in the path, to the
+// Recipe Library, and deletes the Recipe Draft.
+func (h Handlers) Accept(w http.ResponseWriter, r *http.Request) {
+	if id, ok := httpx.PathID(w, r); ok {
+		h.save(w, r, 0, id)
+	}
+}
+
+// Discard deletes the Recipe Draft in the path.
+func (h Handlers) Discard(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	name, err := h.Service.Discard(ctx, id)
+	if errors.Is(err, ErrNoDraft) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "discard a Recipe Draft", err)
+		return
+	}
+	web.Answer{Notice: web.Tf(ctx, msgDiscarded, name), RedirectTo: "/recipes"}.Write(w, r, h.Log)
 }
 
 // DraftPage is the page of the Recipe Draft the signed-in User's parse Run runID left, or
@@ -189,12 +227,12 @@ func (h Handlers) ShowEdit(w http.ResponseWriter, r *http.Request) {
 }
 
 // Add saves the Recipe posted as a new one.
-func (h Handlers) Add(w http.ResponseWriter, r *http.Request) { h.save(w, r, 0) }
+func (h Handlers) Add(w http.ResponseWriter, r *http.Request) { h.save(w, r, 0, 0) }
 
 // Edit saves the Recipe posted over the Recipe in the path.
 func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	if id, ok := httpx.PathID(w, r); ok {
-		h.save(w, r, id)
+		h.save(w, r, id, 0)
 	}
 }
 
@@ -218,10 +256,10 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // save saves the Recipe posted, with its new Ingredients, over the Recipe id, or as a new
-// one if id is 0. A form that adds a row, for a browser without htmx, comes back with one
-// more and saves nothing. One the form refuses comes back as typed with why, a row of an
-// unknown name opened to confirm.
-func (h Handlers) save(w http.ResponseWriter, r *http.Request, id int64) {
+// one if id is 0, accepting the Recipe Draft draftID unless that is 0. A form that adds a
+// row, for a browser without htmx, comes back with one more and saves nothing. One the
+// form refuses comes back as typed with why, a row of an unknown name opened to confirm.
+func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64) {
 	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -232,7 +270,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id int64) {
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 		return
 	}
-	rec, f, ok := readForm(ctx, r.PostForm, id, known)
+	rec, f, ok := readForm(ctx, r.PostForm, id, draftID, known)
 	switch r.PostForm.Get("add") {
 	case "ingredients":
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), withRow(f)))
@@ -248,14 +286,17 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id int64) {
 		refused(f)
 		return
 	}
-	notice := msgSaved
-	if id == 0 {
-		notice = msgAdded
+	notice := msgAdded
+	switch {
+	case draftID != 0:
+		id, err = h.Service.Accept(ctx, web.LanguageOf(ctx), draftID, rec)
+	case id == 0:
 		id, err = h.Service.Add(ctx, web.LanguageOf(ctx), rec)
-	} else {
+	default:
+		notice = msgSaved
 		err = h.Service.Edit(ctx, web.LanguageOf(ctx), id, rec)
 	}
-	if errors.Is(err, ErrNoRecipe) {
+	if errors.Is(err, ErrNoRecipe) || errors.Is(err, ErrNoDraft) {
 		http.NotFound(w, r)
 		return
 	}
@@ -269,7 +310,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id int64) {
 			httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 			return
 		}
-		_, f, _ = readForm(ctx, r.PostForm, f.ID, known)
+		_, f, _ = readForm(ctx, r.PostForm, id, draftID, known)
 		refused(f)
 		return
 	}

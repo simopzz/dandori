@@ -157,6 +157,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /recipes", signedIn(recs.Add))
 	mux.Handle("POST /recipes/paste", signedIn(recs.Paste))
 	mux.Handle("GET /recipe-drafts/{id}", signedIn(recs.ShowDraft))
+	mux.Handle("POST /recipe-drafts/{id}", signedIn(recs.Accept))
+	mux.Handle("POST /recipe-drafts/{id}/discard", signedIn(recs.Discard))
 	mux.Handle("GET /runs/{id}", signedIn(run.Show))
 	mux.Handle("GET /recipes/new", signedIn(recs.ShowNew))
 	mux.Handle("GET /recipes/list", signedIn(recs.ShowList))

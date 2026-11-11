@@ -30,10 +30,15 @@ type IngredientRow struct {
 // RecipeForm is the Recipe form as shown: what was typed, why it was refused by field,
 // and the Ingredients the User has, to pick from.
 type RecipeForm struct {
-	// ID is the Recipe being edited, or 0 for a new one.
-	ID                                        int64
-	Action                                    string
-	Title, Heading, Submit                    web.Message
+	// ID is the Recipe being edited, or 0 for a new one. DraftID is the Recipe Draft the
+	// new one is checked from, or 0.
+	ID, DraftID            int64
+	Action                 string
+	Title, Heading, Submit web.Message
+	// RemoveAction deletes the Recipe or discards the Recipe Draft, with the button
+	// Remove, or is "" for a new Recipe.
+	RemoveAction                              string
+	Remove                                    web.Message
 	Name, Portions, Active, Total, Appliances string
 	Slots                                     []string
 	Steps                                     []string
@@ -60,18 +65,35 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 		Slots: slotKindsOf(rec.Kinds), Known: known, Errs: map[string]string{},
 	}
 	for _, ri := range rec.Ingredients {
-		f.Ingredients = append(f.Ingredients, IngredientRow{
+		row := IngredientRow{
 			Name: ri.Ingredient.Name, Quantity: web.Number(ctx, ri.Quantity.Number()), Unit: string(ri.Ingredient.Unit),
-		})
+		}
+		if ri.Ingredient.ID == 0 { // a Recipe Draft's new Ingredient, its proposed values shown to confirm
+			row.New, row.Usual, row.Staple = true, string(ri.Ingredient.Usual), ri.Ingredient.Staple
+			row.Values = ingredients.ValuesOf(ri.Ingredient.Nutrition)
+		}
+		f.Ingredients = append(f.Ingredients, row)
 	}
+	return newForm(f)
+}
+
+// draftForm is the form to check the Recipe Draft id with, holding rec as it was parsed.
+func draftForm(ctx context.Context, id int64, rec domain.Recipe, known []domain.Ingredient) RecipeForm {
+	f := formOf(ctx, rec, known)
+	f.DraftID = id
 	return newForm(f)
 }
 
 // newForm is f as the form to post, with a row and a step to type in.
 func newForm(f RecipeForm) RecipeForm {
 	f.Action, f.Title, f.Heading, f.Submit = "/recipes", msgWriteTitle, msgWrite, msgSave
-	if f.ID != 0 {
+	switch {
+	case f.ID != 0:
 		f.Action, f.Title, f.Heading = recipeURL(f.ID), msgEditTitle, msgEditHeading
+		f.RemoveAction, f.Remove = recipeURL(f.ID)+"/delete", msgDelete
+	case f.DraftID != 0:
+		f.Action, f.Title, f.Heading, f.Submit = draftURL(f.DraftID), msgDraftTitle, DraftName, msgAccept
+		f.RemoveAction, f.Remove = draftURL(f.DraftID)+"/discard", msgDiscard
 	}
 	if len(f.Ingredients) == 0 {
 		f.Ingredients = []IngredientRow{{}}
@@ -126,14 +148,15 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 	return ing, row, !row.Confirming
 }
 
-// readForm reads a posted form for the Recipe id, 0 for a new one, matching its rows to
-// known. It is the Recipe, the form to show back, and whether the Recipe can be saved: it
-// is valid and the User has seen every new Ingredient's fields.
-func readForm(ctx context.Context, form url.Values, id int64, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
+// readForm reads a posted form for the Recipe id, 0 for a new one, checked from the
+// Recipe Draft draftID unless that is 0, matching its rows to known. It is the Recipe,
+// the form to show back, and whether the Recipe can be saved: it is valid and the User
+// has seen every new Ingredient's fields.
+func readForm(ctx context.Context, form url.Values, id, draftID int64, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
 	l := web.LanguageOf(ctx)
 	get := func(field string) string { return strings.TrimSpace(form.Get(field)) }
 	f := newForm(RecipeForm{
-		ID: id, Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"), Appliances: form.Get("appliances"),
+		ID: id, DraftID: draftID, Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"), Appliances: form.Get("appliances"),
 		Steps: nonBlank(form["steps"]), Slots: form["slots"], Known: known, Errs: map[string]string{},
 	})
 	rec := domain.Recipe{Name: f.Name, Appliances: nonBlank(strings.Split(f.Appliances, "\n")), Steps: nonBlank(form["steps"])}
