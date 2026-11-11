@@ -124,6 +124,9 @@ func line(ctx context.Context, ev agent.TraceEvent) string {
 		if strings.Contains(reason, "%s") {
 			return web.Tf(ctx, reasonNames[ev.Reason], ev.Text)
 		}
+		if ev.Text != "" { // a detail that is not always there, such as why the model refused
+			return reason + " " + ev.Text
+		}
 		return reason
 	case agent.Ended:
 		return web.Tf(ctx, msgEnded, web.T(ctx, statusNames[Status(ev.Status)]))

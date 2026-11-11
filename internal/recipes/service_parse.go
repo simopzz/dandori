@@ -20,7 +20,7 @@ import (
 const ParseKind = "parse"
 
 // parseEffort is how hard the model thinks reading a recipe.
-const parseEffort = "medium"
+const parseEffort = agent.EffortMedium
 
 // parsedRecipe is a Recipe as the model submits it, and as its Recipe Draft is stored:
 // its Ingredients by name, with values proposed for those that aren't known.

@@ -133,12 +133,15 @@ jobs:
           DANDORI_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
           OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional: unset, the app uses its default model.
+          DANDORI_MODEL: ${{ vars.DANDORI_MODEL }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scp deploy/compose.yaml deploy/Caddyfile "$HOST:/srv/dandori/"
-          printf "DANDORI_IMAGE='%s'\nDANDORI_DOMAIN='%s'\nDANDORI_DATABASE_URL='%s'\nDANDORI_SUPABASE_URL='%s'\nDANDORI_SUPABASE_PUBLISHABLE_KEY='%s'\nOTEL_EXPORTER_OTLP_ENDPOINT='%s'\nOTEL_EXPORTER_OTLP_HEADERS='%s'\n" \
+          printf "DANDORI_IMAGE='%s'\nDANDORI_DOMAIN='%s'\nDANDORI_DATABASE_URL='%s'\nDANDORI_SUPABASE_URL='%s'\nDANDORI_SUPABASE_PUBLISHABLE_KEY='%s'\nOTEL_EXPORTER_OTLP_ENDPOINT='%s'\nOTEL_EXPORTER_OTLP_HEADERS='%s'\nANTHROPIC_API_KEY='%s'\nDANDORI_MODEL='%s'\n" \
             "$IMAGE" "$DANDORI_DOMAIN" "$DANDORI_DATABASE_URL" "$DANDORI_SUPABASE_URL" "$DANDORI_SUPABASE_PUBLISHABLE_KEY" \
-            "$OTEL_EXPORTER_OTLP_ENDPOINT" "$OTEL_EXPORTER_OTLP_HEADERS" \
+            "$OTEL_EXPORTER_OTLP_ENDPOINT" "$OTEL_EXPORTER_OTLP_HEADERS" "$ANTHROPIC_API_KEY" "$DANDORI_MODEL" \
             | ssh "$HOST" 'umask 077 && cat > /srv/dandori/.env'
           printf '%s' "$GHCR_TOKEN" | ssh "$HOST" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
           ssh "$HOST" 'cd /srv/dandori && docker compose pull && docker compose up -d --wait --wait-timeout 120 --remove-orphans'

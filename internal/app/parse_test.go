@@ -74,6 +74,17 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 	s.Sees("Brown the mince. Layer with the sheets and tomatoes. Bake 40 minutes.")
 }
 
+// A refusal that stands after the fallback fails the Run, saying why the model refused.
+func TestARefusedPasteFailsItsRunSayingWhy(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Model.Script(fakellm.Respond(agent.Response{StopReason: agent.StopRefusal, Refusal: "bio: Not this one."}))
+
+	s.PastesRecipe(pastedLasagne)
+	s.Sees("Failed")
+	s.Sees("The model declined to go on.")
+	s.Sees("bio: Not this one.")
+}
+
 // What submit_recipe can't take goes back to the model, said so it can fix it: here the
 // known rice in millilitres, and a new Ingredient without its values. The model fixes
 // both, and the Recipe Draft is what it submitted second.
