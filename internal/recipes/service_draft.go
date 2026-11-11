@@ -71,9 +71,9 @@ func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (d
 
 // Draft is a Recipe Draft awaiting the User's check: its name, and when its Run started.
 type Draft struct {
-	ID     int64
-	Name   string
-	Parsed time.Time
+	ID        int64
+	Name      string
+	StartedAt time.Time
 }
 
 // Drafts are the signed-in User's Recipe Drafts whose Runs have ended, newest first.

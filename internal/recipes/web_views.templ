@@ -25,7 +25,7 @@ templ library(now time.Time, paste PasteForm, drafts []Draft, recipes []domain.R
 					for _, d := range drafts {
 						@web.Row() {
 							<a class="row-title" href={ templ.SafeURL(draftURL(d.ID)) }>{ d.Name }</a>
-							<span class="row-meta">{ web.Tf(ctx, msgParsedOn, parsedDate(ctx, now, d.Parsed.In(now.Location()))) }</span>
+							<span class="row-meta">{ web.Tf(ctx, msgParsedOn, parsedDate(ctx, now, d.StartedAt.In(now.Location()))) }</span>
 						}
 					}
 				}

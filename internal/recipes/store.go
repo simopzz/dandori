@@ -211,7 +211,7 @@ func loadDrafts(ctx context.Context, q db.Querier) ([]Draft, error) {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (d Draft, err error) {
-		return d, row.Scan(&d.ID, &d.Name, &d.Parsed)
+		return d, row.Scan(&d.ID, &d.Name, &d.StartedAt)
 	})
 }
 
