@@ -22,12 +22,14 @@ import (
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/telemetry"
 	"github.com/simopzz/dandori/internal/today"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -123,9 +125,10 @@ func (a *App) Schedule(ctx context.Context) {
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
 // were switched to. A page shows the floating Notice the plain post before its redirect
-// left. Every signed-in page first brings the User's kitchen up to now. Every
-// request but the health check is a span with no parent: one a traceparent header names,
-// sent from the internet, is ignored.
+// left. Every signed-in page first brings the User's kitchen up to now. Every request but
+// the health check and the assets is a span with no parent: one a traceparent header
+// names, sent from the internet, is ignored. The span says who asked, in what Language,
+// and why a request was refused, never with their email (docs/agents/grafana.md).
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
@@ -205,10 +208,41 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /ingredients", signedIn(ings.Add))
 	mux.Handle("POST /ingredients/{id}", signedIn(ings.Edit))
 	mux.Handle("POST /ingredients/{id}/delete", signedIn(ings.Delete))
-	return otelhttp.NewHandler(web.Languages(web.Notices(named(mux))), "request",
+	return otelhttp.NewHandler(described(web.Languages(web.Notices(named(mux)))), "request",
 		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
-		otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" }))
+		otelhttp.WithFilter(traced))
+}
+
+// traced reports whether r is a span: not the health check, which asks every ten seconds,
+// nor the assets every page loads.
+func traced(r *http.Request) bool {
+	switch p := r.URL.Path; {
+	case p == "/healthz", p == "/sw.js", p == "/manifest.webmanifest", strings.HasPrefix(p, "/static/"):
+		return false
+	}
+	return true
+}
+
+// described records on the request's span what the browser asked for, and whether htmx
+// sent it, boosted, and answers with the span's trace id in X-Trace-Id, for a report to
+// quote. Until auth.SignedIn finds the User, the span says no one is signed in.
+func described(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		span := trace.SpanFromContext(r.Context())
+		if sc := span.SpanContext(); sc.IsValid() {
+			w.Header().Set("X-Trace-Id", sc.TraceID().String())
+		}
+		span.SetAttributes(
+			telemetry.HTMX.Bool(httpx.IsHTMX(r)),
+			telemetry.HTMXBoosted.Bool(r.Header.Get("HX-Boosted") == "true"),
+			telemetry.SignedIn.Bool(false),
+		)
+		if accepted := r.Header.Values("Accept-Language"); len(accepted) > 0 {
+			span.SetAttributes(telemetry.AcceptHeader.StringSlice(accepted))
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // named names the request's span after the route mux matched. otelhttp would, but it sees

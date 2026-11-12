@@ -22,6 +22,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
+
+	"github.com/simopzz/dandori/internal/db"
 )
 
 // Telemetry is where the app's spans and logs go.
@@ -39,9 +41,7 @@ func Setup(ctx context.Context) (*Telemetry, error) {
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" {
 		return &Telemetry{Spans: noop.NewTracerProvider()}, nil
 	}
-	// The environment's OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES, last, win.
-	res, err := resource.New(ctx, resource.WithTelemetrySDK(),
-		resource.WithAttributes(attribute.String("service.name", "dandori")), resource.WithFromEnv())
+	res, err := Resource(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +58,29 @@ func Setup(ctx context.Context) (*Telemetry, error) {
 	return &Telemetry{Spans: tp, Logs: lp, shutdown: []func(context.Context) error{tp.Shutdown, lp.Shutdown}}, nil
 }
 
+// The attributes Dandori puts on a request's span, listed in docs/agents/grafana.md.
+const (
+	UserID       attribute.Key = "dandori.user.id"
+	SignedIn     attribute.Key = "dandori.signed_in"
+	Language     attribute.Key = "dandori.language"
+	HTMX         attribute.Key = "dandori.htmx"
+	HTMXBoosted  attribute.Key = "dandori.htmx.boosted"
+	Refusal      attribute.Key = "dandori.refusal"
+	AcceptHeader attribute.Key = "http.request.header.accept-language"
+)
+
+// Version is the commit the binary was built from, which the image's build sets with
+// -ldflags "-X github.com/simopzz/dandori/internal/telemetry.Version=<sha>".
+var Version = "dev"
+
+// Resource describes the server every span and log comes from: dandori, at Version. The
+// environment's OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES, last, win.
+func Resource(ctx context.Context) (*resource.Resource, error) {
+	return resource.New(ctx, resource.WithTelemetrySDK(),
+		resource.WithAttributes(attribute.String("service.name", "dandori"), attribute.String("service.version", Version)),
+		resource.WithFromEnv())
+}
+
 // Shutdown sends what is still buffered and stops exporting.
 func (t *Telemetry) Shutdown(ctx context.Context) error {
 	var errs []error
@@ -68,28 +91,51 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 }
 
 // Logger logs as text to w and, with logs, over OTLP too. A line logged with a span's
-// context carries the span's ids, trace_id and span_id, so it links to the span.
+// context carries the span's ids, trace_id and span_id, on w, so it links to the span;
+// the OTLP record carries them as its own. A line logged in a signed-in User's request
+// carries their id, dandori.user.id, on both.
 func Logger(w io.Writer, logs log.LoggerProvider) *slog.Logger {
-	var h slog.Handler = withIDs{slog.NewTextHandler(w, nil)}
+	var h slog.Handler = adding{slog.NewTextHandler(w, nil), spanIDs}
 	if logs != nil {
 		h = slog.NewMultiHandler(h, otelslog.NewHandler("github.com/simopzz/dandori", otelslog.WithLoggerProvider(logs)))
 	}
-	return slog.New(h)
+	return slog.New(adding{h, userID})
 }
 
-// withIDs adds the ids of the context's span to each record.
-type withIDs struct{ slog.Handler }
-
-func (h withIDs) Handle(ctx context.Context, r slog.Record) error {
+// spanIDs are the ids of ctx's span, if it has one.
+func spanIDs(ctx context.Context) []slog.Attr {
 	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+		return []slog.Attr{slog.String("trace_id", sc.TraceID().String()), slog.String("span_id", sc.SpanID().String())}
+	}
+	return nil
+}
+
+// userID is the id of the signed-in User ctx carries, if any.
+func userID(ctx context.Context) []slog.Attr {
+	if id, ok := db.UserID(ctx); ok {
+		return []slog.Attr{slog.String(string(UserID), id)}
+	}
+	return nil
+}
+
+// adding adds the attributes attrs reads from its context to each record.
+type adding struct {
+	slog.Handler
+	attrs func(context.Context) []slog.Attr
+}
+
+func (h adding) Handle(ctx context.Context, r slog.Record) error {
+	if attrs := h.attrs(ctx); len(attrs) > 0 {
 		r = r.Clone()
-		r.AddAttrs(slog.String("trace_id", sc.TraceID().String()), slog.String("span_id", sc.SpanID().String()))
+		r.AddAttrs(attrs...)
 	}
 	return h.Handler.Handle(ctx, r)
 }
 
-func (h withIDs) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return withIDs{h.Handler.WithAttrs(attrs)}
+func (h adding) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return adding{h.Handler.WithAttrs(attrs), h.attrs}
 }
 
-func (h withIDs) WithGroup(name string) slog.Handler { return withIDs{h.Handler.WithGroup(name)} }
+func (h adding) WithGroup(name string) slog.Handler {
+	return adding{h.Handler.WithGroup(name), h.attrs}
+}

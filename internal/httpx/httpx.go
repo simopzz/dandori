@@ -3,10 +3,16 @@ package httpx
 
 import (
 	"log/slog"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/a-h/templ"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 // PathID reads the {id} path value, answering 404 if it is not a number.
@@ -38,8 +44,27 @@ func Secure(r *http.Request) bool {
 	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
-// ServerError logs err as what failed, in r's span, and answers 500 without its details.
+// ServerError logs err as what failed, in r's span, and answers 500 without its details
+// but with the span's trace id, for a report to quote.
 func ServerError(w http.ResponseWriter, r *http.Request, log *slog.Logger, what string, err error) {
 	log.ErrorContext(r.Context(), what, "err", err)
-	http.Error(w, "Something went wrong; see the server log.", http.StatusInternalServerError)
+	msg := "Something went wrong; see the server log."
+	if sc := trace.SpanContextFromContext(r.Context()); sc.IsValid() {
+		msg += "\nTrace " + sc.TraceID().String()
+	}
+	http.Error(w, msg, http.StatusInternalServerError)
+}
+
+// Refusal is why the app refuses a request, in English for whoever reads its span. Each
+// feature names its own.
+type Refusal string
+
+// Refused records on r's span why the app refuses it: reason, followed by the fields of
+// errs, a form's, if it has any. Never what the User typed.
+func Refused(r *http.Request, reason Refusal, errs map[string]string) {
+	s := string(reason)
+	if len(errs) > 0 {
+		s += ": " + strings.Join(slices.Sorted(maps.Keys(errs)), ", ")
+	}
+	trace.SpanFromContext(r.Context()).SetAttributes(telemetry.Refusal.String(s))
 }
