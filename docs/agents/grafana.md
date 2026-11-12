@@ -15,6 +15,7 @@ The tools name their arguments differently:
 - Tempo: `datasourceUid`; `search_tempo_traces` and `query_tempo_metrics` take `query`, `start`, `end` (RFC3339 with an offset); `get_tempo_trace` takes `trace_id`, and `start` with `end` (both or neither) to make it cheaper.
 - Loki: `datasourceUid`, `logql`, `startRfc3339`, `endRfc3339` (which also take `now-6h`).
 - With no time range every one of them, the label and attribute lookups too, covers only the last hour.
+- Tempo's search lags a minute or two behind: a request made just now is found by its trace id with `get_tempo_trace` before any TraceQL finds it.
 
 ## What's there
 
