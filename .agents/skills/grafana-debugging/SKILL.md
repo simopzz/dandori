@@ -93,4 +93,4 @@ A gap longer than five minutes between them means the server was down or restart
 
 ## Asking the Assistant
 
-Every call through the `grafana` server counts toward the stack's Grafana Assistant usage, and `ask_assistant` and investigations (`create_investigation`) spend its tokens. Use them when the owner asks, after the queries above have run out.
+`ask_assistant` and investigations (`create_investigation`) spend the stack's Assistant tokens. Use them when the owner asks, after the queries above have run out.
