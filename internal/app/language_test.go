@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"github.com/mxschmitt/playwright-go"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"net/http"
 	"slices"
@@ -202,5 +203,25 @@ func TestTheLanguageSwitchStaysOnThisSite(t *testing.T) {
 	}
 	if !slices.ContainsFunc(res.Cookies(), func(c *http.Cookie) bool { return c.Name == "dandori_language" && c.Value == "it" }) {
 		t.Errorf("the Language switch set no Italian Language cookie: %v", res.Cookies())
+	}
+}
+
+// A boosted change of Language leaves the page's lang the new Language's, which a screen
+// reader reads it by, and the page stays closed to a browser's own translation.
+func TestBrowserKeepsThePageLangInStepWithTheLanguage(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/profile")
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(b.Locator("html")).ToHaveAttribute("lang", "en"); err != nil {
+		t.Fatalf("the page isn't English to begin with: %v", err)
+	}
+
+	b.ChooseLanguage(t, "Italiano", "Save")
+	b.Sees(t, "Profilo")
+	if err := expect.Locator(b.Locator("html")).ToHaveAttribute("lang", "it"); err != nil {
+		t.Errorf("the page stays English after the swap: %v", err)
+	}
+	if err := expect.Locator(b.Locator("html")).ToHaveAttribute("translate", "no"); err != nil {
+		t.Errorf("the page is open to a browser's translation: %v", err)
 	}
 }

@@ -23,10 +23,11 @@ const (
 // slower than 300 ms shows the busy bar along the top, and its pressed button busy.
 templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
-	<html lang={ string(LanguageOf(ctx)) }>
+	<html lang={ string(LanguageOf(ctx)) } translate="no">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<meta name="google" content="notranslate"/>
 			<meta name="theme-color" content={ themeColour }/>
 			<title>{ title }</title>
 			<link rel="manifest" href="/manifest.webmanifest"/>
@@ -40,9 +41,17 @@ templ Layout(title string, current Tab) {
 				if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
 			</script>
 			@showNotices()
+			<script>
+				// A boosted swap replaces the body, not <html>, whose lang would stay the
+				// last page's: wrong for a screen reader.
+				document.addEventListener("htmx:after:swap", () => {
+					const lang = document.querySelector("[data-lang]")?.dataset.lang;
+					if (lang) document.documentElement.lang = lang;
+				});
+			</script>
 		</head>
 		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
-			<div class="busy-bar" aria-hidden="true"></div>
+			<div class="busy-bar" aria-hidden="true" data-lang={ string(LanguageOf(ctx)) }></div>
 			@busyButton()
 			<header class="masthead">
 				@sky("masthead-sky", []string{"cream", "peach", "salmon"})
