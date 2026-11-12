@@ -1,6 +1,6 @@
 ---
 name: grafana-debugging
-description: Use when investigating what Dandori's server did, in prod or a `mise run dev` run: a User's report ("saw X at about 14:00"), a slow page, an error or a quoted trace id, a refused form, a page in the wrong language, a beat.
+description: Use when investigating what Dandori's server did, in prod or a `mise run dev` run: a User's report ("saw X at about 14:00"), a slow page, an error or a quoted trace id, a refused form, a page in the wrong language, a slow or costly Run, a beat.
 ---
 
 # Debugging through Grafana
@@ -82,6 +82,29 @@ A 422's reason is in `dandori.refusal`. Which refusals, how often:
 ```
 { resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && span.dandori.refusal != nil } | rate() by (span.dandori.refusal)
 ```
+
+### A Run was slow or costly
+
+Start from the Run's id, the number in its page's path `/runs/<id>`. Its span, with every call to the model under it:
+
+```
+{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && span.dandori.run.id = <id> }
+```
+
+Open it with `get_tempo_trace`. Each `chat <model>` span is one call: its duration is the call's latency, and several error spans before one that worked are retries (a 429 or 529, the cause in the status). Time not spent in calls went to the tools' queries, under the Run's span too. The cost is in each call's tokens:
+
+```
+{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && span.dandori.run.id = <id> && name =~ "chat .*" } | select(span.gen_ai.response.model, span.gen_ai.response.finish_reasons, span.gen_ai.usage.input_tokens, span.gen_ai.usage.cache_read.input_tokens, span.gen_ai.usage.cache_creation.input_tokens, span.gen_ai.usage.output_tokens, span.gen_ai.usage.reasoning.output_tokens)
+```
+
+Many calls means many turns of tools; input that grows each turn without cache reads means the prompt cache missed; most of the output in reasoning means the model thought long. Which Runs were slowest, and the calls that were (`query_tempo_metrics`, `range`):
+
+```
+{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && name =~ "run .*" } | quantile_over_time(duration, .95) by (span.dandori.run.kind)
+{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && name =~ "chat .*" && duration > 60s }
+```
+
+Older than 14 days, the Run's Trace in the database still has each call's tokens and its retries.
 
 ### The beat
 

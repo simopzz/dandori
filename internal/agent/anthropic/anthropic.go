@@ -15,6 +15,8 @@ import (
 
 	sdk "github.com/anthropics/anthropic-sdk-go/v2"
 	"github.com/anthropics/anthropic-sdk-go/v2/option"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/agent"
 )
@@ -40,8 +42,11 @@ func New(opts ...option.RequestOption) *LLM {
 }
 
 // Send implements agent.LLM. It goes through the Beta Messages endpoint for the
-// server-side refusal fallback.
+// server-side refusal fallback. The span of the call, the caller's, gains the provider
+// and the model that answered.
 func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, error) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(semconv.GenAIProviderNameAnthropic)
 	params := sdk.BetaMessageNewParams{
 		Model:     req.Model,
 		MaxTokens: maxTokens,
@@ -74,6 +79,8 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 	if err != nil {
 		return agent.Response{}, classify(ctx, err)
 	}
+	// A fallback hands the answer to another model than the one asked.
+	span.SetAttributes(semconv.GenAIResponseModel(msg.Model))
 	resp := agent.Response{
 		StopReason: agent.StopReason(msg.StopReason),
 		Usage: agent.Usage{

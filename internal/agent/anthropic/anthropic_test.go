@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +14,9 @@ import (
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/v2/option"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/simopzz/dandori/internal/agent"
 )
@@ -127,6 +131,27 @@ func TestUsageIncludesTheCache(t *testing.T) {
 	want := agent.Usage{Input: 1200, Output: 300, Thinking: 250, CacheRead: 4000, CacheWrite: 900}
 	if resp.Usage != want {
 		t.Errorf("usage = %+v, want %+v", resp.Usage, want)
+	}
+}
+
+// The span of the call, which the caller makes, says the provider and the model that
+// answered: after a fallback, not the one asked.
+func TestTheCallsSpanSaysWhoAnswered(t *testing.T) {
+	llm, _ := api(t, 200, toolCall)
+	spans := tracetest.NewInMemoryExporter()
+	ctx, span := sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans)).Tracer("test").Start(context.Background(), "chat")
+	if _, err := llm.Send(ctx, parse); err != nil {
+		t.Fatal(err)
+	}
+	span.End()
+
+	got := map[attribute.Key]string{}
+	for _, a := range spans.GetSpans()[0].Attributes {
+		got[a.Key] = a.Value.String()
+	}
+	want := map[attribute.Key]string{"gen_ai.provider.name": "anthropic", "gen_ai.response.model": "m"}
+	if !maps.Equal(got, want) {
+		t.Errorf("the call's span attributes = %v, want only %v", got, want)
 	}
 }
 

@@ -16,10 +16,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/codes"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 // Config is how Runs use the model.
@@ -48,10 +51,11 @@ const (
 
 // Engine runs the Runs going in this process.
 type Engine struct {
-	pool  *pgxpool.Pool
-	clock clock.Clock
-	cfg   Config
-	log   *slog.Logger
+	pool   *pgxpool.Pool
+	clock  clock.Clock
+	cfg    Config
+	tracer oteltrace.Tracer
+	log    *slog.Logger
 
 	mu     sync.Mutex
 	ctx    context.Context // parent of every Run's context
@@ -63,14 +67,16 @@ type Engine struct {
 // DefaultModel is the model every Run uses unless Config names another.
 const DefaultModel = "claude-opus-5-5"
 
-// New creates an Engine with no Runs going, filling in what cfg leaves unset.
-func New(pool *pgxpool.Pool, c clock.Clock, cfg Config, log *slog.Logger) *Engine {
+// New creates an Engine with no Runs going, filling in what cfg leaves unset. Each Run,
+// and each of its calls to the model, is a span made by tp.
+func New(pool *pgxpool.Pool, c clock.Clock, cfg Config, tp oteltrace.TracerProvider, log *slog.Logger) *Engine {
 	cfg.Model = cmp.Or(cfg.Model, DefaultModel)
 	cfg.Retries = cmp.Or(cfg.Retries, 3)
 	cfg.Backoff = cmp.Or(cfg.Backoff, 2*time.Second)
 	cfg.MaxTurns = cmp.Or(cfg.MaxTurns, 50)
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Engine{pool: pool, clock: c, cfg: cfg, log: log, ctx: ctx, cancel: cancel, live: map[int64]*trace{}}
+	tracer := tp.Tracer("github.com/simopzz/dandori/internal/runs")
+	return &Engine{pool: pool, clock: c, cfg: cfg, tracer: tracer, log: log, ctx: ctx, cancel: cancel, live: map[int64]*trace{}}
 }
 
 // Stop cancels every Run and waits for them to record how they ended.
@@ -101,7 +107,8 @@ func (e *Engine) FailLeftGoing(ctx context.Context) error {
 func (e *Engine) Wait() { e.wg.Wait() }
 
 // Start records a new Run of kind for the signed-in User, asked asked, and carries out b
-// in the background as that User. The tools of b find the Run's id with IDFrom.
+// in the background as that User. The tools of b find the Run's id with IDFrom. The Run
+// is a span under ctx's, though it outlives it.
 func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (int64, error) {
 	userID, ok := db.UserID(ctx)
 	if !ok {
@@ -120,7 +127,10 @@ func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (
 	if e.ctx.Err() != nil {
 		return 0, errors.New("Dandori is shutting down") //nolint:staticcheck // the product's name
 	}
-	runCtx, cancelRun := context.WithCancel(context.WithValue(db.WithUser(e.ctx, userID), idKey{}, id))
+	_, span := e.tracer.Start(ctx, "run "+kind, oteltrace.WithAttributes(
+		telemetry.RunID.Int64(id), telemetry.RunKind.String(kind), telemetry.UserID.String(userID)))
+	runCtx := oteltrace.ContextWithSpan(context.WithValue(db.WithUser(e.ctx, userID), idKey{}, id), span)
+	runCtx, cancelRun := context.WithCancel(runCtx)
 	tr := &trace{e: e, userID: userID, runID: id, cancel: cancelRun, subs: map[chan StoredTraceEvent]struct{}{}, done: make(chan struct{})}
 	e.live[id] = tr
 	e.wg.Add(1)
@@ -135,12 +145,14 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 	err := e.carryOut(ctx, tr, b)
 
 	status := Succeeded
+	var failure *agent.Failure // why it failed
 	switch {
 	case ctx.Err() != nil && e.ctx.Err() == nil: // the User cancelled it
 		status = Cancelled
 	case err != nil:
 		status = Failed
-		failure, ok := errors.AsType[*agent.Failure](err)
+		var ok bool
+		failure, ok = errors.AsType[*agent.Failure](err)
 		switch {
 		case e.ctx.Err() != nil:
 			failure = &agent.Failure{Reason: agent.Interrupted}
@@ -163,6 +175,12 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 		status = Cancelled
 	}
 	tr.Emit(agent.TraceEvent{Kind: agent.Ended, Status: string(status)})
+	span := oteltrace.SpanFromContext(ctx)
+	span.SetAttributes(telemetry.RunStatus.String(string(status)))
+	if status == Failed {
+		span.SetStatus(codes.Error, string(failure.Reason))
+	}
+	span.End()
 
 	e.mu.Lock()
 	delete(e.live, tr.runID)
@@ -257,7 +275,7 @@ func (e *Engine) carryOut(ctx context.Context, tr agent.Trace, b agent.Brief) (e
 	if e.cfg.LLM == nil {
 		return &agent.Failure{Reason: agent.NoModel}
 	}
-	loop := agent.Loop{LLM: e.cfg.LLM, Model: e.cfg.Model, Retries: e.cfg.Retries, Backoff: e.cfg.Backoff, MaxTurns: e.cfg.MaxTurns}
+	loop := agent.Loop{LLM: spanned{e.cfg.LLM, e.tracer}, Model: e.cfg.Model, Retries: e.cfg.Retries, Backoff: e.cfg.Backoff, MaxTurns: e.cfg.MaxTurns}
 	return loop.Run(ctx, b, tr)
 }
 
