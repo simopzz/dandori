@@ -21,6 +21,15 @@ import (
 // movementSaved is the event that tells the Kitchen page to list its stock again.
 const movementSaved = "movement-saved"
 
+// Why a write to the kitchen is refused; the fields refused follow.
+const (
+	refusedCount        httpx.Refusal = "Count refused"
+	refusedPortions     httpx.Refusal = "Portions refused"
+	refusedPortionCount httpx.Refusal = "Count of Portions refused"
+	refusedPortionMove  httpx.Refusal = "Move of Portions refused"
+	refusedMove         httpx.Refusal = "Move refused"
+)
+
 // Handlers bring the signed-in User's kitchen up to now before every page, so a page is
 // never wrong because the scheduler was late, and serve the Kitchen page.
 type Handlers struct {
@@ -165,7 +174,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(f.Errs) > 0 {
 		f.Believed = rec.Held
-		httpx.Refused(r, "Count refused", f.Errs)
+		httpx.Refused(r, refusedCount, f.Errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: countPage(now, f), Fragment: countBody(f)}.Write(w, r, h.Log)
 		return
 	}
@@ -208,7 +217,7 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(problems) > 0 {
 		f := refusedPortionsForm(ctx, typed, problems)
-		httpx.Refused(r, "Portions refused", f.Errs)
+		httpx.Refused(r, refusedPortions, f.Errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f)}.Write(w, r, h.Log)
 		return
 	}
@@ -320,7 +329,7 @@ func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
 	if problem, refused := rec.Problems["stated"]; refused {
 		f := postedLotForm(r, key.Portion, rec.Lot, "stated")
 		f.Errs["stated"] = web.T(ctx, web.ProblemMessage(problem, portionCountProblemMessages))
-		httpx.Refused(r, "Count of Portions refused", f.Errs)
+		httpx.Refused(r, refusedPortionCount, f.Errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionCountPage(now, f), Fragment: portionCountForm(f)}.Write(w, r, h.Log)
 		return
 	}
@@ -379,7 +388,7 @@ func (h Handlers) MovePortions(w http.ResponseWriter, r *http.Request) {
 		if f.Errs["to"] != "" {
 			f.To = ""
 		}
-		httpx.Refused(r, "move of Portions refused", f.Errs)
+		httpx.Refused(r, refusedPortionMove, f.Errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionMovePage(now, f), Fragment: portionMoveForm(f)}.Write(w, r, h.Log)
 		return
 	}
@@ -457,7 +466,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 	ing := rec.Ingredient
 	if len(rec.Problems) > 0 {
 		f := postedMoveForm(r, ing, from, rec.Held, rec.Problems)
-		httpx.Refused(r, "move refused", f.Errs)
+		httpx.Refused(r, refusedMove, f.Errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: movePage(now, f), Fragment: moveForm(f)}.Write(w, r, h.Log)
 		return
 	}

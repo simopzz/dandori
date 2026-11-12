@@ -58,6 +58,17 @@ func Setup(ctx context.Context) (*Telemetry, error) {
 	return &Telemetry{Spans: tp, Logs: lp, shutdown: []func(context.Context) error{tp.Shutdown, lp.Shutdown}}, nil
 }
 
+// The attributes Dandori puts on a request's span, listed in docs/agents/grafana.md.
+const (
+	UserID       attribute.Key = "dandori.user.id"
+	SignedIn     attribute.Key = "dandori.signed_in"
+	Language     attribute.Key = "dandori.language"
+	HTMX         attribute.Key = "dandori.htmx"
+	HTMXBoosted  attribute.Key = "dandori.htmx.boosted"
+	Refusal      attribute.Key = "dandori.refusal"
+	AcceptHeader attribute.Key = "http.request.header.accept-language"
+)
+
 // Version is the commit the binary was built from, which the image's build sets with
 // -ldflags "-X github.com/simopzz/dandori/internal/telemetry.Version=<sha>".
 var Version = "dev"
@@ -88,9 +99,10 @@ func Logger(w io.Writer, logs log.LoggerProvider) *slog.Logger {
 	if logs != nil {
 		h = slog.NewMultiHandler(h, otelslog.NewHandler("github.com/simopzz/dandori", otelslog.WithLoggerProvider(logs)))
 	}
-	return slog.New(adding{h, user})
+	return slog.New(adding{h, userID})
 }
 
+// spanIDs are the ids of ctx's span, if it has one.
 func spanIDs(ctx context.Context) []slog.Attr {
 	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
 		return []slog.Attr{slog.String("trace_id", sc.TraceID().String()), slog.String("span_id", sc.SpanID().String())}
@@ -98,9 +110,10 @@ func spanIDs(ctx context.Context) []slog.Attr {
 	return nil
 }
 
-func user(ctx context.Context) []slog.Attr {
+// userID is the id of the signed-in User ctx carries, if any.
+func userID(ctx context.Context) []slog.Attr {
 	if id, ok := db.UserID(ctx); ok {
-		return []slog.Attr{slog.String("dandori.user.id", id)}
+		return []slog.Attr{slog.String(string(UserID), id)}
 	}
 	return nil
 }

@@ -10,8 +10,9 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 // PathID reads the {id} path value, answering 404 if it is not a number.
@@ -54,12 +55,16 @@ func ServerError(w http.ResponseWriter, r *http.Request, log *slog.Logger, what 
 	http.Error(w, msg, http.StatusInternalServerError)
 }
 
-// Refused records on r's span why the app refuses it, in English for whoever reads the
-// span: reason, followed by the fields of errs, a form's, if it has any. Never what the
-// User typed.
-func Refused(r *http.Request, reason string, errs map[string]string) {
+// Refusal is why the app refuses a request, in English for whoever reads its span. Each
+// feature names its own.
+type Refusal string
+
+// Refused records on r's span why the app refuses it: reason, followed by the fields of
+// errs, a form's, if it has any. Never what the User typed.
+func Refused(r *http.Request, reason Refusal, errs map[string]string) {
+	s := string(reason)
 	if len(errs) > 0 {
-		reason += ": " + strings.Join(slices.Sorted(maps.Keys(errs)), ", ")
+		s += ": " + strings.Join(slices.Sorted(maps.Keys(errs)), ", ")
 	}
-	trace.SpanFromContext(r.Context()).SetAttributes(attribute.String("dandori.refusal", reason))
+	trace.SpanFromContext(r.Context()).SetAttributes(telemetry.Refusal.String(s))
 }

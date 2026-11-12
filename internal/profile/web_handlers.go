@@ -22,6 +22,13 @@ type Handlers struct {
 	Email func(context.Context) (string, error)
 }
 
+// Why a Language is refused.
+const (
+	refusedNoLanguage    httpx.Refusal = "no Language chosen"
+	refusedLanguageStays httpx.Refusal = "Language stays: the User has written Food Terms in it"
+	refusedParsing       httpx.Refusal = "Language stays: a parse Run is going"
+)
+
 // LanguageChosen serves next in the signed-in User's Language, once they have chosen one;
 // until then every page asks for it first.
 func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
@@ -55,7 +62,7 @@ func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
 	}
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
-		httpx.Refused(r, "no Language chosen", nil)
+		httpx.Refused(r, refusedNoLanguage, nil)
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne}))
 		return
 	}
@@ -72,7 +79,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
-		httpx.Refused(r, "no Language chosen", nil)
+		httpx.Refused(r, refusedNoLanguage, nil)
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne})
 		return
 	}
@@ -101,12 +108,12 @@ func (h Handlers) goneToTodayIfChosen(w http.ResponseWriter, r *http.Request) bo
 func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) bool {
 	err := h.Service.SetLanguage(r.Context(), l)
 	if errors.Is(err, ErrLanguageStays) {
-		httpx.Refused(r, "Language stays: the User has written Food Terms in it", nil)
+		httpx.Refused(r, refusedLanguageStays, nil)
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgLanguageStays})
 		return false
 	}
 	if errors.Is(err, ErrParsing) {
-		httpx.Refused(r, "Language stays: a parse Run is going", nil)
+		httpx.Refused(r, refusedParsing, nil)
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgParsing})
 		return false
 	}

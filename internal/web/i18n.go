@@ -11,11 +11,11 @@ import (
 	"unicode"
 
 	"github.com/a-h/templ"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 // Message is a string a page shows, in every Language. Pages show no text of their own:
@@ -47,7 +47,7 @@ type languageKey struct{}
 // WithLanguage returns ctx carrying the Language its pages speak, which the request's
 // span records.
 func WithLanguage(ctx context.Context, l domain.Language) context.Context {
-	trace.SpanFromContext(ctx).SetAttributes(attribute.String("dandori.language", string(l)))
+	trace.SpanFromContext(ctx).SetAttributes(telemetry.Language.String(string(l)))
 	return context.WithValue(ctx, languageKey{}, l)
 }
 

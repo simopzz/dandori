@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,16 @@ import (
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
+)
+
+// Why a write to the Recipes is refused.
+const (
+	refusedNothingPasted   httpx.Refusal = "nothing pasted"
+	refusedPasteTooLong    httpx.Refusal = "pasted text too long"
+	refusedRecipe          httpx.Refusal = "Recipe refused" // the fields refused follow
+	refusedToConfirm       httpx.Refusal = "Recipe's new Ingredient to confirm"
+	refusedNameTaken       httpx.Refusal = "Recipe name taken"
+	refusedIngredientTaken httpx.Refusal = "Recipe's new Ingredient name taken meanwhile"
 )
 
 // Handlers serve the Recipe Library and the Recipe form.
@@ -61,14 +72,14 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	text := strings.TrimSpace(r.PostForm.Get("text"))
 	if text == "" {
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
-		httpx.Refused(r, "nothing pasted", nil)
+		httpx.Refused(r, refusedNothingPasted, nil)
 		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
 		return
 	}
 	if n := utf8.RuneCountInString(text); n > pasteLimit {
 		p := message.NewPrinter(language.Make(string(web.LanguageOf(ctx))))
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.Tf(ctx, msgPasteTooLong, p.Sprint(pasteLimit), p.Sprint(n))}
-		httpx.Refused(r, "pasted text too long", nil)
+		httpx.Refused(r, refusedPasteTooLong, nil)
 		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
 		return
 	}
@@ -303,12 +314,27 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), unrefused(f)))
 		return
 	}
-	refused := func(reason string, f RecipeForm) {
-		httpx.Refused(r, reason, f.Errs)
+	refused := func(reason httpx.Refusal, f RecipeForm) {
+		var errs map[string]string
+		if reason == refusedRecipe {
+			errs = maps.Clone(f.Errs)
+			for _, row := range f.Ingredients {
+				for field := range row.Errs {
+					if errs == nil {
+						errs = map[string]string{}
+					}
+					errs["ingredient "+field] = ""
+				}
+			}
+			if len(errs) == 0 { // nothing wrong: a new Ingredient's row asks to be confirmed
+				reason = refusedToConfirm
+			}
+		}
+		httpx.Refused(r, reason, errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: formPage(h.Clock.Now(), f)}.Write(w, r, h.Log)
 	}
 	if !ok {
-		refused("Recipe refused", f)
+		refused(refusedRecipe, f)
 		return
 	}
 	notice := msgAdded
@@ -327,7 +353,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 	}
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"], f.TakenID, f.TakenName = web.T(ctx, msgNameTaken), taken.ID, taken.Existing
-		refused("Recipe name taken", f)
+		refused(refusedNameTaken, f)
 		return
 	}
 	if _, ok := errors.AsType[*ingredients.NameTakenError](err); ok {
@@ -336,7 +362,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 			return
 		}
 		_, f, _ = readForm(ctx, r.PostForm, id, draftID, known)
-		refused("a new Ingredient's name was taken meanwhile", f)
+		refused(refusedIngredientTaken, f)
 		return
 	}
 	if err != nil {

@@ -29,6 +29,7 @@ import (
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
+	"github.com/simopzz/dandori/internal/telemetry"
 	"github.com/simopzz/dandori/internal/today"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -233,11 +234,13 @@ func described(next http.Handler) http.Handler {
 			w.Header().Set("X-Trace-Id", sc.TraceID().String())
 		}
 		span.SetAttributes(
-			attribute.StringSlice("http.request.header.accept-language", r.Header.Values("Accept-Language")),
-			attribute.Bool("dandori.htmx", httpx.IsHTMX(r)),
-			attribute.Bool("dandori.htmx.boosted", r.Header.Get("HX-Boosted") == "true"),
-			attribute.Bool("dandori.signed_in", false),
+			telemetry.HTMX.Bool(httpx.IsHTMX(r)),
+			telemetry.HTMXBoosted.Bool(r.Header.Get("HX-Boosted") == "true"),
+			telemetry.SignedIn.Bool(false),
 		)
+		if accepted := r.Header.Values("Accept-Language"); len(accepted) > 0 {
+			span.SetAttributes(telemetry.AcceptHeader.StringSlice(accepted))
+		}
 		next.ServeHTTP(w, r)
 	})
 }

@@ -25,6 +25,13 @@ import (
 // of Grafana Cloud, described by the resource production's are.
 func startWithSpans(t *testing.T) (*apptest.Harness, *tracetest.InMemoryExporter) {
 	t.Helper()
+	opt, spans := withSpans(t)
+	return apptest.Start(t, opt), spans
+}
+
+// withSpans sends the app's spans to the in-memory exporter it returns.
+func withSpans(t *testing.T) (apptest.Option, *tracetest.InMemoryExporter) {
+	t.Helper()
 	spans := tracetest.NewInMemoryExporter()
 	res, err := telemetry.Resource(t.Context())
 	if err != nil {
@@ -32,8 +39,7 @@ func startWithSpans(t *testing.T) (*apptest.Harness, *tracetest.InMemoryExporter
 	}
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans), sdktrace.WithResource(res))
 	t.Cleanup(func() { _ = tp.Shutdown(t.Context()) })
-	h := apptest.Start(t, apptest.WithConfig(func(c *app.Config) { c.Spans = tp }))
-	return h, spans
+	return apptest.WithConfig(func(c *app.Config) { c.Spans = tp }), spans
 }
 
 // A request is a span named for its route, with a span for each database query it runs
@@ -120,7 +126,7 @@ func TestARequestSpanSaysWhoAndInWhatLanguage(t *testing.T) {
 }
 
 // A request from no one signed in says so, with no User, in the Language the pages were
-// switched to, and not through htmx.
+// switched to, and not through htmx; one with no Accept-Language records none.
 func TestASignedOutRequestSpanHasNoUser(t *testing.T) {
 	h, spans := startWithSpans(t)
 	h.Get(t, "/sign-in?lang=it")
@@ -129,8 +135,10 @@ func TestASignedOutRequestSpanHasNoUser(t *testing.T) {
 	h.Get(t, "/sign-in")
 
 	request := requestSpan(t, spans)
-	if v, ok := attr(request, "dandori.user.id"); ok {
-		t.Errorf("dandori.user.id = %q, want none", v.String())
+	for _, key := range []attribute.Key{"dandori.user.id", "http.request.header.accept-language"} {
+		if v, ok := attr(request, key); ok {
+			t.Errorf("%s = %q, want none", key, v.String())
+		}
 	}
 	want := map[attribute.Key]attribute.Value{
 		"dandori.signed_in":    attribute.BoolValue(false),
@@ -180,9 +188,46 @@ func TestARefusalSaysWhyAndIsNoError(t *testing.T) {
 		"name": {""}, "unit": {"g"}, "kcal": {"70"}, "protein": {"6"}, "carbs": {"0.5"}, "fat": {"5"}, "usual": {"fridge"},
 	}), "Ingredient refused: name")
 
-	confirm := apptest.Form(t, h.Get(t, used[strings.Index(used, "/auth"):]).Body, "confirm")
+	link, ok := strings.CutPrefix(used, h.URL)
+	if !ok {
+		t.Fatalf("the emailed link %s does not lead to the app at %s", used, h.URL)
+	}
+	confirm := apptest.Form(t, h.Get(t, link).Body, "confirm")
 	spans.Reset()
 	refused("a used sign-in link", h.HTMXPostForm(t, confirm.Action, confirm.Values), "sign-in link expired or used")
+}
+
+// A Recipe refused names the fields of its Ingredient rows it refused; one whose new
+// Ingredient is only asked to be confirmed says so, with no field refused.
+func TestARefusedRecipeSaysWhy(t *testing.T) {
+	opt, spans := withSpans(t)
+	s := apptest.NewScenario(t, opt)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+	s.AddsIngredient(rice)
+	noQuantity := riceBowl()
+	noQuantity.Ingredients[0].Quantity = "0"
+	newTofu := riceBowl()
+	newTofu.Ingredients = append(newTofu.Ingredients, apptest.RecipeRow{Ingredient: apptest.Ingredient{Name: "tofu"}, Quantity: "300"})
+
+	for _, c := range []struct {
+		name   string
+		recipe apptest.Recipe
+		want   string
+	}{
+		{"a quantity of 0", noQuantity, "Recipe refused: ingredient quantity"},
+		{"a new Ingredient", newTofu, "Recipe's new Ingredient to confirm"},
+	} {
+		s.Open("/recipes/new")
+		spans.Reset()
+		s.PostsRecipeForm(c.recipe)
+		s.IsRefused()
+		if got, _ := attr(requestSpan(t, spans), "dandori.refusal"); got.AsString() != c.want {
+			t.Errorf("%s: dandori.refusal = %q, want %q", c.name, got.AsString(), c.want)
+		}
+	}
 }
 
 // A request that fails on the server is an error, and its page gives the trace id to
