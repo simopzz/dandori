@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -29,7 +32,7 @@ type Handlers struct {
 }
 
 // SignedIn serves next only to a signed-in User, on a context carrying
-// them; anyone else goes to sign-in.
+// them, whose id the request's span records; anyone else goes to sign-in.
 func (h Handlers) SignedIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokens, ok := cookieTokens(r)
@@ -50,6 +53,8 @@ func (h Handlers) SignedIn(next http.Handler) http.Handler {
 		if renewed != nil {
 			keepSession(w, r, *renewed)
 		}
+		trace.SpanFromContext(r.Context()).SetAttributes(
+			attribute.String("dandori.user.id", userID), attribute.Bool("dandori.signed_in", true))
 		next.ServeHTTP(w, r.WithContext(db.WithUser(r.Context(), userID)))
 	})
 }
@@ -61,6 +66,7 @@ func (h Handlers) ShowSignIn(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) SendLink(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	if !strings.Contains(email, "@") {
+		httpx.Refused(r, "not an email", nil)
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{Email: email, EmailErr: msgNotAnEmail}))
 		return
 	}
@@ -95,6 +101,7 @@ func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 		tokens, err = h.Service.Redeem(r.Context(), tokenHash, kind)
 	}
 	if errors.Is(err, ErrBadLink) {
+		httpx.Refused(r, "sign-in link expired or used", nil)
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, signInPage(h.Clock.Now(), SignInForm{BadLink: true}))
 		return
 	}

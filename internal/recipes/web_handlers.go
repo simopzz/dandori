@@ -61,12 +61,14 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	text := strings.TrimSpace(r.PostForm.Get("text"))
 	if text == "" {
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
+		httpx.Refused(r, "nothing pasted", nil)
 		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
 		return
 	}
 	if n := utf8.RuneCountInString(text); n > pasteLimit {
 		p := message.NewPrinter(language.Make(string(web.LanguageOf(ctx))))
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.Tf(ctx, msgPasteTooLong, p.Sprint(pasteLimit), p.Sprint(n))}
+		httpx.Refused(r, "pasted text too long", nil)
 		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
 		return
 	}
@@ -301,11 +303,12 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), unrefused(f)))
 		return
 	}
-	refused := func(f RecipeForm) {
+	refused := func(reason string, f RecipeForm) {
+		httpx.Refused(r, reason, f.Errs)
 		web.Answer{Status: http.StatusUnprocessableEntity, Page: formPage(h.Clock.Now(), f)}.Write(w, r, h.Log)
 	}
 	if !ok {
-		refused(f)
+		refused("Recipe refused", f)
 		return
 	}
 	notice := msgAdded
@@ -324,7 +327,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 	}
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"], f.TakenID, f.TakenName = web.T(ctx, msgNameTaken), taken.ID, taken.Existing
-		refused(f)
+		refused("Recipe name taken", f)
 		return
 	}
 	if _, ok := errors.AsType[*ingredients.NameTakenError](err); ok {
@@ -333,7 +336,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 			return
 		}
 		_, f, _ = readForm(ctx, r.PostForm, id, draftID, known)
-		refused(f)
+		refused("a new Ingredient's name was taken meanwhile", f)
 		return
 	}
 	if err != nil {

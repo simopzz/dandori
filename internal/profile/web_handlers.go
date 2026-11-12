@@ -55,6 +55,7 @@ func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
 	}
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
+		httpx.Refused(r, "no Language chosen", nil)
 		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, choicePage(h.Clock.Now(), LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne}))
 		return
 	}
@@ -71,6 +72,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
+		httpx.Refused(r, "no Language chosen", nil)
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne})
 		return
 	}
@@ -99,10 +101,12 @@ func (h Handlers) goneToTodayIfChosen(w http.ResponseWriter, r *http.Request) bo
 func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) bool {
 	err := h.Service.SetLanguage(r.Context(), l)
 	if errors.Is(err, ErrLanguageStays) {
+		httpx.Refused(r, "Language stays: the User has written Food Terms in it", nil)
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgLanguageStays})
 		return false
 	}
 	if errors.Is(err, ErrParsing) {
+		httpx.Refused(r, "Language stays: a parse Run is going", nil)
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgParsing})
 		return false
 	}

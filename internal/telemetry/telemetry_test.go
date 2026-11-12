@@ -9,14 +9,16 @@ import (
 	"sync"
 	"testing"
 
+	"go.opentelemetry.io/otel/attribute"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/telemetry"
 )
 
 // A line logged inside a span carries the span's ids, both on stderr and in the record
-// sent over OTLP, so Grafana links it to the span.
+// sent over OTLP, so Grafana links it to the span, and the signed-in User's id.
 func TestALogLineInASpanCarriesItsIDs(t *testing.T) {
 	records := &recordExporter{}
 	logs := sdklog.NewLoggerProvider(sdklog.WithProcessor(sdklog.NewSimpleProcessor(records)))
@@ -25,6 +27,7 @@ func TestALogLineInASpanCarriesItsIDs(t *testing.T) {
 	ctx, span := sdktrace.NewTracerProvider().Tracer("test").Start(t.Context(), "request")
 	defer span.End()
 	traceID, spanID := span.SpanContext().TraceID(), span.SpanContext().SpanID()
+	ctx = db.WithUser(ctx, "d87efe93-85fc-43af-bcef-d5d3c95ace2b")
 
 	log.ErrorContext(ctx, "render", "err", "boom")
 
@@ -38,6 +41,16 @@ func TestALogLineInASpanCarriesItsIDs(t *testing.T) {
 	}
 	if got[0].TraceID() != traceID || got[0].SpanID() != spanID {
 		t.Errorf("record carries ids %s/%s, want the span's %s/%s", got[0].TraceID(), got[0].SpanID(), traceID, spanID)
+	}
+	var user string
+	got[0].WalkAttributes(func(kv attribute.KeyValue) bool {
+		if kv.Key == "dandori.user.id" {
+			user = kv.Value.AsString()
+		}
+		return true
+	})
+	if user != "d87efe93-85fc-43af-bcef-d5d3c95ace2b" || !strings.Contains(line, "dandori.user.id=d87efe93-85fc-43af-bcef-d5d3c95ace2b") {
+		t.Errorf("record carries dandori.user.id %q, stderr %q; want the User's id on both", user, line)
 	}
 }
 

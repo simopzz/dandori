@@ -95,6 +95,7 @@ func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	ing, f := parseAddForm(r)
 	if len(f.Errs) > 0 {
+		httpx.Refused(r, "Ingredient refused", f.Errs)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
 		return
 	}
@@ -102,11 +103,13 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	id, err := h.Service.Add(r.Context(), web.LanguageOf(r.Context()), ing, confirmed)
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"] = web.Tf(r.Context(), msgNameTaken, taken.Existing)
+		httpx.Refused(r, "Ingredient name taken", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
 		return
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		f.Suggested = suggested.Closest
+		httpx.Refused(r, "Ingredient name close to another's", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
 		return
 	}
@@ -137,27 +140,32 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	ing, f := parseAddForm(r)
 	view := sheetView{Edit: EditForm{ID: id, AddForm: f}, Q: r.PostFormValue("q")}
 	if len(f.Errs) > 0 {
+		httpx.Refused(r, "Ingredient refused", f.Errs)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
 	counted, err := h.Service.Edit(ctx, web.LanguageOf(ctx), h.Clock.Now(), id, ing, r.PostFormValue("confirm") == f.Name)
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		view.Edit.Errs["name"] = web.Tf(ctx, msgNameTaken, taken.Existing)
+		httpx.Refused(r, "Ingredient name taken", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		view.Edit.Suggested = suggested.Closest
+		httpx.Refused(r, "Ingredient name close to another's", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
 	if fixed, ok := errors.AsType[*UnitFixedError](err); ok {
 		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitFixed, web.T(ctx, RecordedIn[fixed.Unit]))
+		httpx.Refused(r, "Ingredient's unit fixed by its Movements", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
 	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
 		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitInRecipe, recipesNamed(ctx, inRecipe))
+		httpx.Refused(r, "Ingredient's unit fixed by a Recipe", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
@@ -204,11 +212,13 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	name, err := h.Service.Delete(ctx, id)
 	if errors.Is(err, ErrHasMovements) {
 		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.T(ctx, msgHasMovements)}, Q: q}
+		httpx.Refused(r, "Ingredient has Movements", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
 	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
 		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.Tf(ctx, msgDeleteInRecipe, recipesNamed(ctx, inRecipe))}, Q: q}
+		httpx.Refused(r, "Ingredient in a Recipe", nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}

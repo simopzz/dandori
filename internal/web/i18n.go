@@ -11,6 +11,8 @@ import (
 	"unicode"
 
 	"github.com/a-h/templ"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -42,8 +44,10 @@ func Tf(ctx context.Context, m Message, args ...any) string {
 
 type languageKey struct{}
 
-// WithLanguage returns ctx carrying the Language its pages speak.
+// WithLanguage returns ctx carrying the Language its pages speak, which the request's
+// span records.
 func WithLanguage(ctx context.Context, l domain.Language) context.Context {
+	trace.SpanFromContext(ctx).SetAttributes(attribute.String("dandori.language", string(l)))
 	return context.WithValue(ctx, languageKey{}, l)
 }
 
@@ -174,12 +178,13 @@ func Languages(next http.Handler) http.Handler {
 			http.Redirect(w, r, "/"+strings.TrimLeft(u.RequestURI(), "/"), http.StatusSeeOther)
 			return
 		}
+		l := domain.English
 		if c, err := r.Cookie(languageCookie); err == nil {
-			if l, ok := domain.ParseLanguage(c.Value); ok {
-				r = r.WithContext(WithLanguage(r.Context(), l))
+			if switched, ok := domain.ParseLanguage(c.Value); ok {
+				l = switched
 			}
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(WithLanguage(r.Context(), l)))
 	})
 }
 
