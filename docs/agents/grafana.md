@@ -1,6 +1,21 @@
 # Grafana
 
-The server's spans and logs go over OTLP to a Grafana Cloud stack in the EU (`internal/telemetry`). The `grafana` MCP server in `.mcp.json` is Grafana's hosted one: it acts as the user, signed in through `/mcp` with OAuth, under their permissions. The consent page asks for read, query and write access separately; dashboards need write.
+The server's spans and logs go over OTLP to a Grafana Cloud stack in the EU (`internal/telemetry`). The `grafana` MCP server in `.mcp.json` is Grafana's hosted one: it acts as the user, signed in through `/mcp` with OAuth, under their permissions. The consent page asks for read, query and write access separately; dashboards need write. Investigating something goes through the `grafana-debugging` skill, which holds the queries; this file holds the facts they stand on.
+
+## Where it is
+
+| | |
+|---|---|
+| Spans | Tempo, datasource UID `grafanacloud-traces`. |
+| Logs | Loki, datasource UID `grafanacloud-logs`. Its only labels are `service_name` and `deployment_environment_name`. Everything else on a line is structured metadata, its dots turned to underscores (`trace_id`, `dandori_user_id`, `detected_level`), filtered after the selector: `{service_name="dandori", deployment_environment_name="prod"} \| trace_id="<id>"`. |
+| Retention | 14 days for spans and logs, the free plan's, with no archive. A Run's own Trace stays in the database (`trace_event`). |
+
+The tools name their arguments differently:
+
+- Tempo: `datasourceUid`; `search_tempo_traces` and `query_tempo_metrics` take `query`, `start`, `end` (RFC3339 with an offset); `get_tempo_trace` takes `trace_id`, and `start` with `end` (both or neither) to make it cheaper.
+- Loki: `datasourceUid`, `logql`, `startRfc3339`, `endRfc3339` (which also take `now-6h`).
+- With no time range every one of them, the label and attribute lookups too, covers only the last hour.
+- Tempo's search lags a minute or two behind: a request made just now is found by its trace id with `get_tempo_trace` before any TraceQL finds it.
 
 ## What's there
 
@@ -12,7 +27,7 @@ The server's spans and logs go over OTLP to a Grafana Cloud stack in the EU (`in
 | Query spans | client spans under the request or beat, named for the SQL's operation (`SELECT`, `BEGIN`, …), with the SQL but never its arguments. |
 | Supabase spans | client spans under the request that called Supabase Auth, named for the call: `supabase fetch JWKS` (a fresh server's, or a key it hasn't seen, at most once a minute), `supabase renew session`, `supabase send magic link`, `supabase verify link`, `supabase sign out`. The URL and status code as attributes, never a token, the API key or an email. A 4xx Supabase refused is an error span. |
 | Beat spans | `kitchen beat`, every five minutes on the clock, with its queries under it. |
-| Logs | Loki, carrying `trace_id` and `span_id` when logged in a span, and `dandori.user.id` when logged in a signed-in User's request. Few for now: `serving` at startup, and errors. Find the labels with `list_loki_label_names` rather than guessing them. |
+| Logs | `serving` at startup, and errors (the error in `exception_message`), carrying `trace_id` and `span_id` when logged in a span, and `dandori_user_id` when logged in a signed-in User's request. |
 
 ### Request span attributes
 
@@ -27,33 +42,11 @@ Dandori's own attributes are under `dandori.`; in TraceQL, `span.dandori.user.id
 | `dandori.htmx`, `dandori.htmx.boosted` | Whether htmx sent the request (`HX-Request`), and from a boosted link or form (`HX-Boosted`). |
 | `dandori.refusal` | On a 422 (or a 401 or 403, which nothing answers yet), why, in English: a short reason such as `sign-in link expired or used` or `Language stays: a parse Run is going`, followed by the fields a form refused, as in `Ingredient refused: name, unit`. Never what the User typed. |
 
-```
-{ resource.service.name = "dandori" && span.dandori.user.id = "<id>" }
-{ resource.service.name = "dandori" && span.dandori.refusal != nil } | rate() by (span.dandori.refusal)
-```
-
 ### Privacy
 
 A User is identified by their internal id only: never their email, a token, the API key or what they typed into a form, in a span, a log line or the `X-Trace-Id` header. The client IP `otelhttp` records stays while Dandori is a small private beta. Anything added to the telemetry keeps to this.
 
 Grafana calls a span's tree a trace; in this repo's code and docs it is spans, since a Run's Trace is a domain term (`GLOSSARY.md`).
-
-## Querying
-
-TraceQL, through the Tempo data source's tools:
-
-```
-{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && kind = server }
-{ resource.service.name = "dandori" && name = "kitchen beat" }
-{ resource.service.name = "dandori" && kind = client && name =~ "supabase .*" }
-```
-
-Request rate and latency per route are TraceQL metrics over the server spans:
-
-```
-{ resource.service.name = "dandori" && kind = server } | rate() by (span.http.route)
-{ resource.service.name = "dandori" && kind = server } | quantile_over_time(duration, .95) by (span.http.route)
-```
 
 ## Dashboards
 
