@@ -112,6 +112,6 @@ A dashboard or an alert lives in the owner's Grafana Cloud stack, beside whateve
 | `Dandori server errors` | UID `dandori-errors`. Fires at 3 or more of prod's error lines in 5 minutes, `sum(count_over_time({service_name="dandori", deployment_environment_name="prod"} \| detected_level="error" [5m])) > 2` in `grafanacloud-logs`. Tempo can't back an alert, so it counts log lines, not spans: a failed beat or render counts too. No data means none, and is OK. |
 | Contact point | `Dandori owner`, email to the owner, set on each rule (the stack's root notification policy is untouched). |
 
-Synthetic Monitoring checks are made through `run_gcx_command` (`synthetic-monitoring checks list`, `get`, `status`); its `create` and `update` read a YAML file the sandbox doesn't have, so a new check is made in the UI, under Testing & synthetics → Synthetics.
+Synthetic Monitoring checks are made through `run_gcx_command` (`synthetic-monitoring checks list`, `get`, `status`); its `create` and `update` read a YAML file the sandbox doesn't have, so a new check is made in the UI, under Testing & synthetics → Synthetics. Its warning "Alerting setup is incomplete" is about Synthetics' own per-check alerts, which Dandori doesn't use: `Dandori is down` alerts on the check's `probe_success`.
 
 Calls through this server count toward the stack's Grafana Assistant usage; one that asks the Assistant (`ask_assistant`, investigations) spends its tokens.
