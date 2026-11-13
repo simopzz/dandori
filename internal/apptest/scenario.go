@@ -512,3 +512,28 @@ func (s *Scenario) CancelsRun(form FormData) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("cancels the Run: %d %s", s.page.StatusCode, s.page.Path))
 }
+
+// Targets are Targets as the Profile's form takes them, each value as typed.
+type Targets struct {
+	Kcal, Protein, Fibre, Sugar, Tolerance string
+}
+
+// Fill sets f, the Targets form, to targets.
+func (targets Targets) Fill(f FormData) {
+	for field, v := range map[string]string{
+		"kcal": targets.Kcal, "protein": targets.Protein, "fibre": targets.Fibre,
+		"sugar": targets.Sugar, "tolerance": targets.Tolerance,
+	} {
+		f.Values.Set(field, v)
+	}
+}
+
+// SavesTargets saves targets with the Targets form on the Profile open, posted as a
+// browser without htmx.
+func (s *Scenario) SavesTargets(targets Targets) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "profile-targets")
+	targets.Fill(form)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("saves Targets %+v: %d %s", targets, s.page.StatusCode, s.page.Path))
+}

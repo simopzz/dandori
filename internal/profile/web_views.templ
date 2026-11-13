@@ -49,8 +49,18 @@ templ choicePage(today time.Time, f LanguageForm) {
 	}
 }
 
-// profilePage is the User's Profile: their Language, and who is signed in.
-templ profilePage(today time.Time, email string, f LanguageForm) {
+// TargetsForm is the Targets as shown, by field: as saved or as typed, with why each
+// field was refused. Set is whether the User has saved theirs.
+type TargetsForm struct {
+	Values, Errs map[string]string
+	Set          bool
+}
+
+// targetsSectionID is the element the Targets form swaps when htmx posts it.
+const targetsSectionID = "targets"
+
+// profilePage is the User's Profile: their Language, their Targets, and who is signed in.
+templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		<form id="profile-language" method="post" action="/profile/language">
@@ -66,7 +76,13 @@ templ profilePage(today time.Time, email string, f LanguageForm) {
 				}
 			}
 		</form>
-		@web.Section(2, web.T(ctx, msgSigningIn)) {
+		<div
+			id={ targetsSectionID }
+			hx-on:htmx:after:swap="if (event.detail.ctx.target === this) this.querySelector('[aria-invalid=true]')?.focus()"
+		>
+			@targetsForm(targets)
+		</div>
+		@web.Section(3, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
@@ -76,5 +92,64 @@ templ profilePage(today time.Time, email string, f LanguageForm) {
 				}
 			</form>
 		}
+	}
+}
+
+// targetsForm is the Targets section, swapping itself when htmx posts it. Until the User
+// has saved their Targets, it says planning needs them.
+templ targetsForm(f TargetsForm) {
+	<form
+		id="profile-targets"
+		method="post"
+		action="/profile/targets"
+		hx-post="/profile/targets"
+		hx-target={ "#" + targetsSectionID }
+		hx-swap="innerHTML"
+	>
+		@web.FieldGroup(2, web.T(ctx, msgTargets)) {
+			<div class="stack">
+				if !f.Set {
+					@web.Hint() {
+						{ web.T(ctx, msgTargetsNeeded) }
+					}
+				}
+				@web.FieldRow() {
+					@targetField(msgKcal, msgKcalHint, "kcal", f)
+					@targetField(msgTolerance, msgToleranceHint, "tolerance", f)
+				}
+				@web.FieldRow() {
+					@targetField(msgProtein, msgFloorHint, "protein", f)
+					@targetField(msgFibre, msgFloorHint, "fibre", f)
+					@targetField(msgSugar, msgCeilingHint, "sugar", f)
+				}
+				@web.Hint() {
+					{ web.T(ctx, msgCarbsAndFat) }
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgSave) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// targetField is the Target named field, a whole number, labelled label with its unit
+// and direction in hint.
+templ targetField(label, hint web.Message, field string, f TargetsForm) {
+	@web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]) {
+		<input
+			type="number"
+			inputmode="numeric"
+			step="1"
+			name={ field }
+			value={ f.Values[field] }
+			required
+			autocomplete="off"
+			if f.Errs[field] != "" {
+				aria-invalid="true"
+			}
+		/>
 	}
 }
