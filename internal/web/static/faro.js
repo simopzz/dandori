@@ -11,9 +11,9 @@
   // Chrome's translator marks <html> with translated-ltr or translated-rtl, and changes its lang.
   const translated = () => /\btranslated-(ltr|rtl)\b/.test(html.className);
   // A query string can hold what the User typed into a search: every URL leaves without one.
-  const bare = (v) => {
+  const withoutQuery = (v) => {
     if (typeof v === "string") return v.replace(/(https?:\/\/[^\s?#"']*)[?#][^\s"')]*/g, "$1");
-    if (v && typeof v === "object") for (const k of Object.keys(v)) v[k] = bare(v[k]);
+    if (v && typeof v === "object") for (const k of Object.keys(v)) v[k] = withoutQuery(v[k]);
     return v;
   };
   const faro = initializeFaro({
@@ -24,9 +24,9 @@
     // lang, as the Layout's own script sets it, and its User, from the shell's data-user.
     metas: [() => ({
       page: { url: location.origin + location.pathname, attributes: { lang: html.lang, translated: String(translated()) } },
-      user: document.querySelector("[data-user]") ? { id: document.querySelector("[data-user]").dataset.user } : undefined,
+      user: ((id) => (id ? { id } : undefined))(document.querySelector("[data-user]")?.dataset.user),
     })],
-    beforeSend: bare,
+    beforeSend: withoutQuery,
   });
   let wasTranslated = translated();
   new MutationObserver(() => {

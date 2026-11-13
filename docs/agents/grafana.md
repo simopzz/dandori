@@ -71,16 +71,17 @@ Only production's pages send it: they load Faro when `DANDORI_FARO_URL` is set, 
 | User | `dandori.user.id`'s value as Faro's user id, absent before sign-in. |
 | Page | Its path, never its query string, with two attributes: `lang`, `<html>`'s as the report was sent (the Language the page spoke, or the one a translator rewrote it to), and `translated`, `"true"` once Chrome's translator marked `<html>` (`translated-ltr` or `translated-rtl`). Edge's translator leaves no mark. |
 | Session | Faro's own random id, kept in the tab's session storage, which groups one visit's reports. |
+| Browser | Faro's defaults: the browser and OS, their versions, the user agent, the viewport and `navigator.language`. |
 
 What it reports:
 
 | Kind | |
 |---|---|
 | `exception` | A JavaScript error nothing caught, or a rejected promise nothing handled, with its stack. |
-| `measurement` | Web vitals: LCP, CLS, INP, FCP, TTFB. |
+| `measurement` | Web vitals: LCP, CLS, INP, FCP, TTFB. Boosted links never unload the page, so LCP, FCP and TTFB are only the first page's, and CLS and INP span every page of the visit, reported as it ends under the path then current: a page's own vitals are only those of a visit that started on it. |
 | `event` `session_start` | A new Faro session. |
 | `event` `page translated` | The browser translated the page, with the `lang` it went to. |
-| `event` `htmx request` | Each request htmx made, with `method`, `path`, `status` and `trace_id`, the request span's: the link from the browser to the server's spans. |
+| `event` `htmx request` | Each request htmx made, with `method`, `path`, `status` and `trace_id`, the request span's: the link from the browser to the server's spans. Sent before the swap, so its page and `lang` are those of the page the request left from. |
 
 Not the console, nor form contents, nor resource timings, nor clicks.
 

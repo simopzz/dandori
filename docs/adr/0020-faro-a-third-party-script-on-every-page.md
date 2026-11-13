@@ -6,7 +6,7 @@ The SDK is vendored into `/static/` like htmx, pinned, with its checksum in `int
 
 ## Considered Options
 
-- **Faro's tracing package as well** (+90 KB): the browser's fetch spans become the parents of the server's request spans, one trace from the click to the query. But its fetch spans record full URLs, query strings included; a client that sent `traceparent` would choose whether the server's spans are sampled; and it wraps `window.fetch`, so a fault in it breaks every htmx request. Instead, an `htmx request` event carries the `X-Trace-Id` each response already has, and the server still ignores `traceparent`.
+- **Faro's tracing package as well** (+90 KB): the browser's fetch spans become the parents of the server's request spans, one tree of spans from the click to the query. But its fetch spans record full URLs, query strings included; a client that sent `traceparent` would choose whether the server's spans are sampled; and it wraps `window.fetch`, so a fault in it breaks every htmx request. Instead, an `htmx request` event carries the `X-Trace-Id` each response already has, and the server still ignores `traceparent`.
 - **Our own error and translation reporting to a route of the server's**: no third-party code, but our own collector, storage and web vitals, built again.
 
 ## Consequences
