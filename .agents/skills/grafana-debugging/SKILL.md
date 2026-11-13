@@ -134,7 +134,7 @@ A gap longer than five minutes between them means the server was down or restart
 
 ### An alert fired
 
-The two rules and what each counts are in `grafana.md`, under Dashboards and alerts. `Dandori server errors`: read the error lines in the window, as under An error, and open each `trace_id`. `Dandori is down`: what the probes saw, with `run_gcx_command` `["synthetic-monitoring", "checks", "status", "--job", "dandori-healthz", "-o", "json"]`, then the beat's gap and `serving` lines to see when the server stopped and came back; the deploys (`gh run list --branch v2`) say whether one was running.
+What each rule counts is in `docs/agents/grafana.md`, under Dashboards and alerts. `Dandori server errors`: read the error lines in the window, as under An error, and open each `trace_id`. `Dandori is down`: what the probes saw, with `run_gcx_command` `["synthetic-monitoring", "checks", "status", "--job", "dandori-healthz", "-o", "json"]`, then the gap in the beats and the `serving` lines, as under The beat, for when the server stopped and came back; the deploys (step 2 above) say whether one was running.
 
 ## Asking the Assistant
 

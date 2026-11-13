@@ -27,10 +27,10 @@ The tools name their arguments differently:
 | Request spans | server spans named for the route, e.g. `GET /profile`, `GET /{$}` for Home; `http.route`, the status code, the client IP and the attributes below. `/healthz`, `/static/*`, `/sw.js` and `/manifest.webmanifest` have none. Only a 5xx is an error span. Every response carries its span's trace id in `X-Trace-Id`, and the 500 page shows it: search Tempo for the id a report quotes. |
 | Query spans | client spans under the request or beat, named for the SQL's operation (`SELECT`, `BEGIN`, …), with the SQL but never its arguments. |
 | Supabase spans | client spans under the request that called Supabase Auth, named for the call: `supabase fetch JWKS` (a fresh server's, or a key it hasn't seen, at most once a minute), `supabase renew session`, `supabase send magic link`, `supabase verify link`, `supabase sign out`. The URL and status code as attributes, never a token, the API key or an email. A 4xx Supabase refused is an error span. |
-| Beat spans | `kitchen beat`, every five minutes on the clock, with its queries under it. |
+| Beat spans | `kitchen beat`, every five minutes on the clock, with its queries under it. A beat that fails for a User logs the error; its span stays OK. |
 | Run spans | `run <kind>` (`run parse`, …), under the request that started the Run though it outlives it, ending when the Run ends: the queries its tools run and its calls to the model are under it. Only a Run that failed is an error span, its status the Failure's reason (`model_refused`, `model_failed`, …). |
 | Model call spans | client spans under the Run's, named `chat <model>`, one for each call, a retried one too: their duration is the call's latency. A call that failed is an error span with the cause; one cut off by a cancel or a shutdown is not. |
-| Logs | `serving` at startup, and errors (the error in `exception_message`), carrying `trace_id` and `span_id` when logged in a span, and `dandori_user_id` when logged in a signed-in User's request. |
+| Logs | `serving` at startup, and errors (the error in `exception_message`): every 5xx logs one, and so does a failed beat or render. They carry `trace_id` and `span_id` when logged in a span, and `dandori_user_id` when logged in a signed-in User's request. |
 
 ### Request span attributes
 
@@ -103,13 +103,13 @@ Grafana calls a span's tree a trace; in this repo's code and docs it is spans, s
 
 ## Dashboards and alerts
 
-A dashboard or an alert lives in the user's Grafana Cloud stack, beside whatever they built themselves: show them what it will hold (panels and their queries, a rule's query and condition) and get a yes before creating or changing one. Put Dandori's in the `Dandori` folder (UID `dandori`), and give each dashboard an environment variable over `deployment.environment.name`, defaulting to `prod`. Create through the provisioning API with `X-Disable-Provenance: true`, so the owner can still edit it in the UI.
+A dashboard or an alert lives in the owner's Grafana Cloud stack, beside whatever they built themselves: show them what it will hold (panels and their queries, a rule's query and condition) and get a yes before creating or changing one. Put Dandori's in the `Dandori` folder (UID `dandori`), and give each dashboard an environment variable over `deployment.environment.name`, defaulting to `prod`. Create through the provisioning API with `X-Disable-Provenance: true`, so the owner can still edit it in the UI.
 
 | | |
 |---|---|
-| Dashboard | `Dandori`, UID `dandori-overview`, variable `env` (`prod`, `dev`). Panels: requests, p95 latency and 5xx per route (TraceQL metrics over the request spans; the p95 is Tempo's histogram bucket, a power of two), Supabase failures (its error spans, by call), the beat (`kitchen beat` spans, one every five minutes, beside the beat's error lines: a beat that fails for a User logs it, its span stays OK) and the server's error lines (Loki). |
+| Dashboard | `Dandori`, UID `dandori-overview`, variable `env` (`prod`, `dev`). Panels: requests, p95 latency and 5xx per route (TraceQL metrics over the request spans; the p95 is Tempo's histogram bucket, a power of two), Supabase failures (its error spans, by call), the beat (`kitchen beat` spans beside the beat's error lines) and the server's error lines (Loki). |
 | `Dandori is down` | UID `dandori-down`. Fires when the Synthetic Monitoring check `dandori-healthz` (GET `https://dandori.simopzz.com/healthz` from Frankfurt and Paris every 2 minutes) has failed from both probes for 5 minutes: `max(probe_success{job="dandori-healthz"}) < 1` in `grafanacloud-prom`. No data, the check gone, notifies too. |
-| `Dandori server errors` | UID `dandori-errors`. Fires at 3 or more of prod's error lines in 5 minutes, `sum(count_over_time({service_name="dandori", deployment_environment_name="prod"} \| detected_level="error" [5m])) > 2` in `grafanacloud-logs`. Tempo can't back an alert, so it counts log lines, not spans: every 5xx logs one, and so do a failed beat or render. No data means none, and is OK. |
+| `Dandori server errors` | UID `dandori-errors`. Fires at 3 or more of prod's error lines in 5 minutes, `sum(count_over_time({service_name="dandori", deployment_environment_name="prod"} \| detected_level="error" [5m])) > 2` in `grafanacloud-logs`. Tempo can't back an alert, so it counts log lines, not spans: a failed beat or render counts too. No data means none, and is OK. |
 | Contact point | `Dandori owner`, email to the owner, set on each rule (the stack's root notification policy is untouched). |
 
 Synthetic Monitoring checks are made through `run_gcx_command` (`synthetic-monitoring checks list`, `get`, `status`); its `create` and `update` read a YAML file the sandbox doesn't have, so a new check is made in the UI, under Testing & synthetics → Synthetics.
