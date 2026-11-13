@@ -712,6 +712,10 @@ func TestBrowserANoticeOverTheCountSheet(t *testing.T) {
 	if err := expect.Locator(sheet.GetByRole("searchbox")).ToBeFocused(); err != nil {
 		t.Fatalf("the Count sheet doesn't open on its search: %v", err)
 	}
+	// The sheet's list refreshes as the Ingredients sheet closes; measure it once it has.
+	if err := expect.Locator(sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "rice"})).ToBeVisible(); err != nil {
+		t.Fatalf("the Count sheet doesn't list rice: %v", err)
+	}
 	before, sheetBefore := top()
 	counts("700")
 	b.IsConfirmed(t, "Counted rice: 700 g in the pantry.")
