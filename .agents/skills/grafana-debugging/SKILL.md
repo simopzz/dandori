@@ -1,6 +1,6 @@
 ---
 name: grafana-debugging
-description: Use when investigating what Dandori's server or a User's browser did, in prod or a `mise run dev` run: a User's report ("saw X at about 14:00"), a slow page, an error or a quoted trace id, a JavaScript error, a refused form, a page in the wrong language or translated, a slow or costly Run, a beat.
+description: Use when investigating what Dandori's server or a User's browser did, in prod or a `mise run dev` run: a User's report ("saw X at about 14:00"), a slow page, an error or a quoted trace id, a JavaScript error, a refused form, a page in the wrong language or translated, a slow or costly Run, a beat, an alert email.
 ---
 
 # Debugging through Grafana
@@ -131,6 +131,10 @@ Older than 14 days, the Run's Trace in the database still has each call's tokens
 ```
 
 A gap longer than five minutes between them means the server was down or restarting: `serving` in the logs marks each start.
+
+### An alert fired
+
+What each rule counts is in `docs/agents/grafana.md`, under Dashboards and alerts. `Dandori server errors`: read the error lines in the window, as under An error, and open each `trace_id`. `Dandori is down`: what the probes saw, with `run_gcx_command` `["synthetic-monitoring", "checks", "status", "--job", "dandori-healthz", "-o", "json"]`, then the gap in the beats and the `serving` lines, as under The beat, for when the server stopped and came back; the deploys (step 2 above) say whether one was running.
 
 ## Asking the Assistant
 

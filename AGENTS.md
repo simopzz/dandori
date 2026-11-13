@@ -44,4 +44,4 @@ A PR body shows images from the one orphan branch `pr-images`, each PR's under `
 
 ### Grafana
 
-What the server did, in production or a `mise run dev` run (a slow request, an error, a slow or costly Run, a beat), and dashboards of it, go through the `grafana` MCP server in `.mcp.json`: Grafana Cloud, where its spans and logs land. Investigate with the `grafana-debugging` skill. For anything else, such as a dashboard, see `docs/agents/grafana.md` first.
+What the server did, in production or a `mise run dev` run (a slow request, an error, a slow or costly Run, a beat, an alert email), and dashboards of it, go through the `grafana` MCP server in `.mcp.json`: Grafana Cloud, where its spans and logs land. Investigate with the `grafana-debugging` skill. For anything else, such as creating a dashboard or an alert, see `docs/agents/grafana.md` first.
