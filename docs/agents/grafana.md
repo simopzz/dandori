@@ -101,8 +101,17 @@ A User is identified by their internal id only: never their email, a token, the 
 
 Grafana calls a span's tree a trace; in this repo's code and docs it is spans, since a Run's Trace is a domain term (`GLOSSARY.md`).
 
-## Dashboards
+## Dashboards and alerts
 
-A dashboard lives in the user's Grafana Cloud stack, beside whatever they built themselves: show them what it will hold (panels and their queries) and get a yes before creating or changing one. Put Dandori's dashboards in a `Dandori` folder, and give each an environment variable over `deployment.environment.name`, defaulting to `prod`.
+A dashboard or an alert lives in the user's Grafana Cloud stack, beside whatever they built themselves: show them what it will hold (panels and their queries, a rule's query and condition) and get a yes before creating or changing one. Put Dandori's in the `Dandori` folder (UID `dandori`), and give each dashboard an environment variable over `deployment.environment.name`, defaulting to `prod`. Create through the provisioning API with `X-Disable-Provenance: true`, so the owner can still edit it in the UI.
+
+| | |
+|---|---|
+| Dashboard | `Dandori`, UID `dandori-overview`, variable `env` (`prod`, `dev`). Panels: requests, p95 latency and 5xx per route (TraceQL metrics over the request spans; the p95 is Tempo's histogram bucket, a power of two), Supabase failures (its error spans, by call), the beat (`kitchen beat` spans, one every five minutes, beside the beat's error lines: a beat that fails for a User logs it, its span stays OK) and the server's error lines (Loki). |
+| `Dandori is down` | UID `dandori-down`. Fires when the Synthetic Monitoring check `dandori-healthz` (GET `https://dandori.simopzz.com/healthz` from Frankfurt and Paris every 2 minutes) has failed from both probes for 5 minutes: `max(probe_success{job="dandori-healthz"}) < 1` in `grafanacloud-prom`. No data, the check gone, notifies too. |
+| `Dandori server errors` | UID `dandori-errors`. Fires at 3 or more of prod's error lines in 5 minutes, `sum(count_over_time({service_name="dandori", deployment_environment_name="prod"} \| detected_level="error" [5m])) > 2` in `grafanacloud-logs`. Tempo can't back an alert, so it counts log lines, not spans: every 5xx logs one, and so do a failed beat or render. No data means none, and is OK. |
+| Contact point | `Dandori owner`, email to the owner, set on each rule (the stack's root notification policy is untouched). |
+
+Synthetic Monitoring checks are made through `run_gcx_command` (`synthetic-monitoring checks list`, `get`, `status`); its `create` and `update` read a YAML file the sandbox doesn't have, so a new check is made in the UI, under Testing & synthetics → Synthetics.
 
 Calls through this server count toward the stack's Grafana Assistant usage; one that asks the Assistant (`ask_assistant`, investigations) spends its tokens.
