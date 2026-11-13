@@ -99,7 +99,7 @@ func value(v float64) *float64 { return &v }
 var demoRecipes = map[domain.Language]parsedRecipe{
 	domain.English: {
 		Name: "Pasta and chickpeas", Portions: 2, ActiveMinutes: 10, TotalMinutes: 25,
-		SlotKinds: []domain.SlotKind{domain.Lunch, domain.Dinner}, Appliances: []string{"hob"},
+		SlotKinds: []domain.SlotKind{domain.Lunch, domain.Dinner}, Appliances: []domain.ApplianceKind{domain.Hob},
 		Steps: []string{"Soften the garlic in the oil.", "Add the chickpeas and water, then the pasta.", "Cook until the pasta is done."},
 		Ingredients: []parsedIngredient{
 			{Name: "dried pasta", Quantity: 160, Unit: domain.Grams, New: &proposedIngredient{
@@ -114,7 +114,7 @@ var demoRecipes = map[domain.Language]parsedRecipe{
 	},
 	domain.Italian: {
 		Name: "Pasta e ceci", Portions: 2, ActiveMinutes: 10, TotalMinutes: 25,
-		SlotKinds: []domain.SlotKind{domain.Lunch, domain.Dinner}, Appliances: []string{"fornello"},
+		SlotKinds: []domain.SlotKind{domain.Lunch, domain.Dinner}, Appliances: []domain.ApplianceKind{domain.Hob},
 		Steps: []string{"Fai appassire l'aglio nell'olio.", "Aggiungi i ceci e l'acqua, poi la pasta.", "Cuoci finché la pasta è pronta."},
 		Ingredients: []parsedIngredient{
 			{Name: "pasta secca", Quantity: 160, Unit: domain.Grams, New: &proposedIngredient{

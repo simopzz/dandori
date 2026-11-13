@@ -13,7 +13,7 @@ import (
 // riceBowl is a valid Recipe of one Ingredient the User already has, rice.
 func riceBowl() apptest.Recipe {
 	return apptest.Recipe{
-		Name: "Rice bowl", Portions: "2", Active: "10", Total: "25", Appliances: "rice cooker\nknife",
+		Name: "Rice bowl", Portions: "2", Active: "10", Total: "25", Appliances: []string{"microwave", "hob"},
 		Slots: []string{"lunch", "dinner"}, Steps: []string{"Rinse the rice.", "Cook it."},
 		Ingredients: []apptest.RecipeRow{{Ingredient: apptest.Ingredient{Name: "rice"}, Quantity: "200"}},
 	}
@@ -29,7 +29,7 @@ func TestARecipeWrittenByHandAppearsInTheRecipeLibrary(t *testing.T) {
 	s.WritesRecipe(riceBowl())
 	s.IsConfirmed("Added Rice bowl to the Recipe Library.")
 	s.Sees("Rice bowl")
-	s.Sees("Makes 2 Portions Active 10 min Total 25 min Eaten at lunch, dinner Needs rice cooker, knife")
+	s.Sees("Makes 2 Portions Active 10 min Total 25 min Eaten at lunch, dinner Needs hob, microwave")
 	s.Sees("350 kcal protein 7 g carbs 78 g fat 1 g fibre – unknown sugar – unknown")
 	s.Sees("rice 200 g")
 	s.Sees("Rinse the rice. Cook it.")
@@ -186,6 +186,23 @@ func TestARecipeFixesTheLanguage(t *testing.T) {
 	s.Open("/profile")
 	s.ChangesLanguage("Italiano")
 	s.IsRefused()
+}
+
+// A Recipe's kinds of appliance are shown in the User's Language, on its page and on
+// its edit form, ticked.
+func TestARecipesKindsOfApplianceAreShownInTheUsersLanguage(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("bea@example.com")
+	s.SignsIn("bea@example.com")
+	s.ChoosesLanguage("Italiano")
+	r := riceBowl()
+	r.Name, r.Ingredients, r.Appliances = "Tofu al forno", []apptest.RecipeRow{tofu()}, []string{"air_fryer", "oven"}
+
+	s.WritesRecipe(r)
+	s.Sees("Richiede forno, friggitrice ad aria")
+	s.Follows("Modifica")
+	draftHolds(t, s, map[string]string{"appliances": "oven\nair_fryer"})
+	s.Sees("Elettrodomestici forno piano cottura microonde friggitrice ad aria")
 }
 
 // An Ingredient a Recipe lists refuses deletion and a change of unit, naming the Recipe.
@@ -406,18 +423,19 @@ func TestEditingARecipeChangesItsPageAndTheLibrary(t *testing.T) {
 	s.Submits("recipe-form")
 	s.IsConfirmed("Saved Rice bowl.")
 	s.IsAt(page)
-	s.Sees("Makes 2 Portions Active 10 min Total 25 min Eaten at lunch, dinner Needs rice cooker, knife")
+	s.Sees("Makes 2 Portions Active 10 min Total 25 min Eaten at lunch, dinner Needs hob, microwave")
 	s.Sees("rice 200 g")
 	s.Sees("Rinse the rice. Cook it.")
 
 	s.Follows("Edit")
 	r := riceBowl()
 	r.Name, r.Portions, r.Slots, r.Steps = "Rice pot", "4", []string{"dinner"}, []string{"Boil it."}
+	r.Appliances = []string{"oven"}
 	r.Ingredients[0].Quantity = "400"
 	s.PostsRecipeForm(r)
 	s.IsAt(page)
 	s.Sees("Rice pot")
-	s.Sees("Makes 4 Portions")
+	s.Sees("Makes 4 Portions Active 10 min Total 25 min Eaten at dinner Needs oven")
 	s.Sees("rice 400 g")
 	s.DoesNotSee("Rinse the rice.")
 

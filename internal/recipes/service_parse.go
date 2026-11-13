@@ -25,14 +25,14 @@ const parseEffort = agent.EffortMedium
 // parsedRecipe is a Recipe as the model submits it, and as its Recipe Draft is stored:
 // its Ingredients by name, with values proposed for those that aren't known.
 type parsedRecipe struct {
-	Name          string             `json:"name"`
-	Portions      int                `json:"portions"`
-	ActiveMinutes int                `json:"active_minutes"`
-	TotalMinutes  int                `json:"total_minutes"`
-	SlotKinds     []domain.SlotKind  `json:"slot_kinds"`
-	Appliances    []string           `json:"appliances"`
-	Steps         []string           `json:"steps"`
-	Ingredients   []parsedIngredient `json:"ingredients"`
+	Name          string                 `json:"name"`
+	Portions      int                    `json:"portions"`
+	ActiveMinutes int                    `json:"active_minutes"`
+	TotalMinutes  int                    `json:"total_minutes"`
+	SlotKinds     []domain.SlotKind      `json:"slot_kinds"`
+	Appliances    []domain.ApplianceKind `json:"appliances"`
+	Steps         []string               `json:"steps"`
+	Ingredients   []parsedIngredient     `json:"ingredients"`
 }
 
 type parsedIngredient struct {
@@ -63,11 +63,16 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 	rec = domain.Recipe{
 		Name: strings.TrimSpace(p.Name), Portions: p.Portions,
 		ActiveMinutes: p.ActiveMinutes, TotalMinutes: p.TotalMinutes,
-		Kinds: p.SlotKinds, Appliances: nonBlank(p.Appliances), Steps: nonBlank(p.Steps),
+		Kinds: p.SlotKinds, Appliances: p.Appliances, Steps: nonBlank(p.Steps),
 	}
 	for _, k := range p.SlotKinds {
 		if !slices.Contains(domain.SlotKinds, k) {
 			problems["slot_kinds"] = fmt.Sprintf("%q is not a kind of Slot", k)
+		}
+	}
+	for _, k := range p.Appliances {
+		if _, ok := domain.ParseApplianceKind(string(k)); !ok {
+			problems["appliances"] = fmt.Sprintf("%q is not a kind of appliance", k)
 		}
 	}
 	unresolved := map[int]bool{} // rows whose own problems would only repeat why
@@ -150,14 +155,14 @@ const parseSystem = `You turn recipe text the user pasted into a structured Reci
 
 Call submit_recipe with the whole Recipe. Then end your turn with one short sentence.
 
-- Write the Recipe name, Ingredient names, steps and appliances in %[1]s. If the recipe text is in another language, translate it into %[1]s; for an Ingredient with no word-for-word %[1]s name, use the food a %[1]s-speaking cook would buy for it.
+- Write the Recipe name, Ingredient names and steps in %[1]s. If the recipe text is in another language, translate it into %[1]s; for an Ingredient with no word-for-word %[1]s name, use the food a %[1]s-speaking cook would buy for it.
 - Name each Ingredient as a generic food: lowercase, singular, no amounts or brands ("chicken breast", not "2 organic chicken breasts").
 - When an Ingredient is one of the known Ingredients, use exactly its name and unit, and leave out new.
 - Give every quantity in the Ingredient's unit: g for solids, ml for liquids, piece for things that are counted (eggs, lemons). Convert cups and spoons to g or ml. Give food packed in liquid drained: "1 tin of chickpeas" is 240 g.
 - For an Ingredient that is not known, propose in new its nutritional values per 100 g, per 100 ml or per piece, matching its unit, where it is usually kept (pantry, fridge or freezer), and whether it is a staple: always in the kitchen and too fiddly to weigh, such as oil, salt and spices. Give fibre_g and sugar_g as null when you can't tell; never guess 0.
 - portions is how many Portions the recipe makes as written; estimate it if the text doesn't say. active_minutes is the time spent working at it, total_minutes the whole time including unattended oven or resting time.
 - slot_kinds are when its Portions may be eaten: breakfast, lunch, snack or dinner, any number of them.
-- appliances are the kitchen appliances the recipe needs (oven, hob, air fryer, blender, …). steps are the method, one instruction each.
+- appliances are the kinds of kitchen appliance the recipe needs, each picked from the list in the schema. Leave any other equipment (a knife, an ice-cream maker) to the steps. steps are the method, one instruction each.
 
 If submit_recipe reports problems, fix them and call it again.`
 
@@ -169,7 +174,7 @@ var submitRecipeSchema = json.RawMessage(`{
     "active_minutes": {"type": "integer", "minimum": 0},
     "total_minutes": {"type": "integer", "minimum": 1},
     "slot_kinds": {"type": "array", "items": {"type": "string", "enum": ["breakfast", "lunch", "snack", "dinner"]}, "minItems": 1},
-    "appliances": {"type": "array", "items": {"type": "string"}},
+    "appliances": {"type": "array", "items": {"type": "string", "enum": ["oven", "hob", "microwave", "air_fryer", "pressure_cooker", "slow_cooker", "blender", "food_processor", "stand_mixer", "grill", "toaster", "steamer"]}},
     "steps": {"type": "array", "items": {"type": "string"}},
     "ingredients": {
       "type": "array",

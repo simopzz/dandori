@@ -41,14 +41,15 @@ type RecipeForm struct {
 	Title, Heading, Submit web.Message
 	// RemoveAction deletes the Recipe or discards the Recipe Draft, with the button
 	// Remove, or is "" for a new Recipe.
-	RemoveAction                              string
-	Remove                                    web.Message
-	Name, Portions, Active, Total, Appliances string
-	Slots                                     []string
-	Steps                                     []string
-	Ingredients                               []IngredientRow
-	Known                                     []domain.Ingredient
-	Errs                                      map[string]string
+	RemoveAction                  string
+	Remove                        web.Message
+	Name, Portions, Active, Total string
+	// Slots and Appliances are the codes of the kinds ticked.
+	Slots, Appliances []string
+	Steps             []string
+	Ingredients       []IngredientRow
+	Known             []domain.Ingredient
+	Errs              map[string]string
 	// Taken is the Recipe the name typed is already.
 	TakenID   int64
 	TakenName string
@@ -65,8 +66,8 @@ func blankForm(known []domain.Ingredient) RecipeForm {
 func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) RecipeForm {
 	f := RecipeForm{
 		ID: rec.ID, Name: rec.Name, Portions: strconv.Itoa(rec.Portions), Active: strconv.Itoa(rec.ActiveMinutes),
-		Total: strconv.Itoa(rec.TotalMinutes), Appliances: strings.Join(rec.Appliances, "\n"), Steps: rec.Steps,
-		Slots: slotKindsOf(rec.Kinds), Known: known, Errs: map[string]string{},
+		Total: strconv.Itoa(rec.TotalMinutes), Appliances: codesOf(rec.Appliances), Steps: rec.Steps,
+		Slots: codesOf(rec.Kinds), Known: known, Errs: map[string]string{},
 	}
 	for _, ri := range rec.Ingredients {
 		row := IngredientRow{
@@ -189,13 +190,18 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 	l := web.LanguageOf(ctx)
 	get := func(field string) string { return strings.TrimSpace(form.Get(field)) }
 	f := newForm(RecipeForm{
-		ID: id, DraftID: draftID, Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"), Appliances: form.Get("appliances"),
-		Steps: nonBlank(form["steps"]), Slots: form["slots"], Known: known, Errs: map[string]string{},
+		ID: id, DraftID: draftID, Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"),
+		Steps: nonBlank(form["steps"]), Slots: form["slots"], Appliances: form["appliances"], Known: known, Errs: map[string]string{},
 	})
-	rec := domain.Recipe{Name: f.Name, Appliances: nonBlank(strings.Split(f.Appliances, "\n")), Steps: nonBlank(form["steps"])}
+	rec := domain.Recipe{Name: f.Name, Steps: nonBlank(form["steps"])}
 	for _, kind := range domain.SlotKinds {
 		if slices.Contains(f.Slots, string(kind)) {
 			rec.Kinds = append(rec.Kinds, kind)
+		}
+	}
+	for _, kind := range domain.ApplianceKinds {
+		if slices.Contains(f.Appliances, string(kind)) {
+			rec.Appliances = append(rec.Appliances, kind)
 		}
 	}
 	refuse := func(field string, problem domain.Problem) {

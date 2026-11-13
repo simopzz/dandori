@@ -29,7 +29,8 @@ type Recipe struct {
 	Portions                    int
 	ActiveMinutes, TotalMinutes int
 	Kinds                       []SlotKind
-	Appliances, Steps           []string
+	Appliances                  []ApplianceKind
+	Steps                       []string
 	Ingredients                 []RecipeIngredient
 }
 

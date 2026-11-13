@@ -99,6 +99,15 @@ func kindsOf(ctx context.Context, kinds []domain.SlotKind) string {
 	return strings.Join(names, ", ")
 }
 
+// appliancesOf names kinds, the kinds of appliance a Recipe needs.
+func appliancesOf(ctx context.Context, kinds []domain.ApplianceKind) string {
+	names := make([]string, len(kinds))
+	for i, k := range kinds {
+		names[i] = web.T(ctx, web.ApplianceKindNames[k])
+	}
+	return strings.Join(names, ", ")
+}
+
 // recipePage is one Recipe, all of it, its header leaving room for a rating later.
 templ recipePage(now time.Time, rec domain.Recipe) {
 	@web.Layout(web.Tf(ctx, msgRecipeTitle, rec.Name), web.RecipesTab) {
@@ -238,9 +247,14 @@ templ recipeForm(f RecipeForm) {
 			}
 		}
 		<div class="section">
-			@web.Field(web.T(ctx, msgAppliances), web.T(ctx, msgOnePerLine), "") {
-				<textarea name="appliances" rows="3">{ f.Appliances }</textarea>
-			}
+			<fieldset class="stack">
+				<legend class="field-label">{ web.T(ctx, msgAppliances) }</legend>
+				for _, kind := range domain.ApplianceKinds {
+					@web.Check(web.T(ctx, web.ApplianceKindNames[kind]), "") {
+						<input type="checkbox" name="appliances" value={ string(kind) } checked?={ slices.Contains(f.Appliances, string(kind)) }/>
+					}
+				}
+			</fieldset>
 		</div>
 		if f.RemoveAction != "" {
 			@web.ActionsApart() {
@@ -401,7 +415,7 @@ templ recipeFacts(rec domain.Recipe) {
 		<dd>{ kindsOf(ctx, rec.Kinds) }</dd>
 		if len(rec.Appliances) > 0 {
 			<dt>{ web.T(ctx, msgNeeds) }</dt>
-			<dd>{ strings.Join(rec.Appliances, ", ") }</dd>
+			<dd>{ appliancesOf(ctx, rec.Appliances) }</dd>
 		}
 	</dl>
 }
