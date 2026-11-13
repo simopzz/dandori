@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/apptest"
 	"github.com/simopzz/dandori/internal/telemetry"
@@ -104,11 +107,7 @@ func TestARequestSpanSaysWhoAndInWhatLanguage(t *testing.T) {
 		"dandori.htmx":                        attribute.BoolValue(true),
 		"dandori.htmx.boosted":                attribute.BoolValue(true),
 	}
-	for key, value := range want {
-		if got, ok := attr(request, key); !ok || got != value {
-			t.Errorf("%s = %q, want %q", key, got.String(), value.String())
-		}
-	}
+	hasAttrs(t, "request span", request, want)
 	for _, s := range spans.GetSpans() {
 		for _, a := range s.Attributes {
 			if strings.Contains(a.Value.String(), "ada@example.com") {
@@ -146,11 +145,7 @@ func TestASignedOutRequestSpanHasNoUser(t *testing.T) {
 		"dandori.htmx":         attribute.BoolValue(false),
 		"dandori.htmx.boosted": attribute.BoolValue(false),
 	}
-	for key, value := range want {
-		if got, ok := attr(request, key); !ok || got != value {
-			t.Errorf("%s = %q, want %q", key, got.String(), value.String())
-		}
-	}
+	hasAttrs(t, "request span", request, want)
 }
 
 // A request the app refuses says why on its span, naming the fields a form refused, and
@@ -470,4 +465,170 @@ func attr(s tracetest.SpanStub, key attribute.Key) (attribute.Value, bool) {
 		}
 	}
 	return attribute.Value{}, false
+}
+
+// parseWithSpans is a signed-in User who knows rice, their spans going to the exporter it
+// returns, who has pasted pastedLasagne for a parse Run the model answers with steps.
+func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *tracetest.InMemoryExporter) {
+	t.Helper()
+	opt, spans := withSpans(t)
+	s := apptest.NewScenario(t, opt)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+	s.AddsIngredient(rice)
+	s.Model.Script(steps...)
+	spans.Reset()
+	s.StartsParse(pastedLasagne)
+	return s, spans
+}
+
+// runAndCallSpans is the one Run's span among those exported, and the spans of its
+// calls to the model under it, in order.
+func runAndCallSpans(t *testing.T, spans *tracetest.InMemoryExporter) (run tracetest.SpanStub, calls tracetest.SpanStubs) {
+	t.Helper()
+	all := spans.GetSpans()
+	run = onlySpan(t, all, "run parse", func(s tracetest.SpanStub) bool { return s.Name == "run parse" })
+	for _, s := range all {
+		if strings.HasPrefix(s.Name, "chat ") {
+			if s.Parent.SpanID() != run.SpanContext.SpanID() {
+				t.Errorf("%s span is not under the Run's", s.Name)
+			}
+			calls = append(calls, s)
+		}
+	}
+	return run, calls
+}
+
+// Each call a Run makes to the model is a client span under the Run's span, itself under
+// the request that started it: the model, the tokens and why the model stopped, never
+// what it was asked or said. A call that failed is an error span, and so is retried.
+func TestEachCallToTheModelIsASpanUnderItsRun(t *testing.T) {
+	s, spans := parseWithSpans(t,
+		fakellm.Overloaded(),
+		fakellm.CallTool("submit_recipe", submittedLasagne()),
+		fakellm.Respond(agent.Response{
+			StopReason: agent.StopEndTurn,
+			Content:    []agent.Block{{Type: agent.BlockText, Text: "Parsed the lasagne."}},
+			Usage:      agent.Usage{Input: 1200, Output: 300, Thinking: 250, CacheRead: 4000, CacheWrite: 900},
+		}))
+	runID, err := strconv.ParseInt(strings.TrimPrefix(s.Page().Path, "/runs/"), 10, 64)
+	if err != nil {
+		t.Fatalf("the paste landed on %s, not a Run's page", s.Page().Path)
+	}
+	var userID string
+	s.Scan(t, &userID, "SELECT user_id::text FROM profile")
+	s.Settle()
+
+	run, calls := runAndCallSpans(t, spans)
+	onlySpan(t, spans.GetSpans(), "POST /recipes/paste over the Run's", func(st tracetest.SpanStub) bool {
+		return st.Name == "POST /recipes/paste" && st.SpanContext.SpanID() == run.Parent.SpanID()
+	})
+	hasAttrs(t, "run span", run, map[attribute.Key]attribute.Value{
+		"dandori.run.id":     attribute.Int64Value(runID),
+		"dandori.run.kind":   attribute.StringValue("parse"),
+		"dandori.run.status": attribute.StringValue("succeeded"),
+		"dandori.user.id":    attribute.StringValue(userID),
+	})
+	if run.Status.Code != codes.Unset {
+		t.Errorf("a succeeded Run's span status is %s, want unset", run.Status.Code)
+	}
+
+	if len(calls) != 3 {
+		t.Fatalf("%d spans of calls to the model, want 3: %s", len(calls), names(spans.GetSpans()))
+	}
+	for _, c := range calls {
+		if c.Name != "chat claude-opus-5-5" || c.SpanKind != trace.SpanKindClient {
+			t.Errorf("a call to the model is a %s span named %q, want a client span named chat claude-opus-5-5", c.SpanKind, c.Name)
+		}
+		hasAttrs(t, "call span", c, map[attribute.Key]attribute.Value{
+			"gen_ai.operation.name": attribute.StringValue("chat"),
+			"gen_ai.request.model":  attribute.StringValue("claude-opus-5-5"),
+			"dandori.run.id":        attribute.Int64Value(runID),
+		})
+	}
+	if failed := calls[0]; failed.Status.Code != codes.Error || !strings.Contains(failed.Status.Description, "overloaded") {
+		t.Errorf("the overloaded call's span status = %s %q, want an error saying overloaded", failed.Status.Code, failed.Status.Description)
+	}
+	hasAttrs(t, "the tool call's span", calls[1], map[attribute.Key]attribute.Value{
+		"gen_ai.response.finish_reasons": attribute.StringSliceValue([]string{"tool_use"}),
+	})
+	hasAttrs(t, "the last call's span", calls[2], map[attribute.Key]attribute.Value{
+		"gen_ai.response.finish_reasons":           attribute.StringSliceValue([]string{"end_turn"}),
+		"gen_ai.usage.input_tokens":                attribute.Int64Value(6100), // the uncached 1200, with the cache's
+		"gen_ai.usage.cache_read.input_tokens":     attribute.Int64Value(4000),
+		"gen_ai.usage.cache_creation.input_tokens": attribute.Int64Value(900),
+		"gen_ai.usage.output_tokens":               attribute.Int64Value(300),
+		"gen_ai.usage.reasoning.output_tokens":     attribute.Int64Value(250),
+	})
+	if calls[2].Status.Code != codes.Unset {
+		t.Errorf("the last call's span status is %s, want unset", calls[2].Status.Code)
+	}
+
+	for _, sp := range append(calls, run) {
+		for _, a := range sp.Attributes {
+			for _, said := range []string{"Lasagne for 4", "Parsed the lasagne.", "Brown the mince."} {
+				if strings.Contains(a.Value.String(), said) {
+					t.Errorf("%s span's %s holds what the model was asked or said: %q", sp.Name, a.Key, said)
+				}
+			}
+		}
+	}
+}
+
+// A failed Run's span is an error, saying why; a cancelled one's is not, nor is the span
+// of the call it cut off.
+func TestAFailedRunIsAnErrorSpanAndACancelledOneIsNot(t *testing.T) {
+	s, spans := parseWithSpans(t, fakellm.Respond(agent.Response{StopReason: agent.StopRefusal, Refusal: "bio"}))
+	s.Settle()
+	run, _ := runAndCallSpans(t, spans)
+	if run.Status.Code != codes.Error || run.Status.Description != "model_refused" {
+		t.Errorf("a failed Run's span status = %s %q, want an error saying model_refused", run.Status.Code, run.Status.Description)
+	}
+
+	asked := make(chan struct{})
+	s.Model.Script(asksAgain(asked, fakellm.Hang()))
+	spans.Reset()
+	s.StartsParse(pastedLasagne)
+	<-asked
+	s.Open(s.Page().Path)
+	s.CancelsRun(apptest.Form(t, s.Page().Body, "cancel-run"))
+	s.Settle()
+	run, calls := runAndCallSpans(t, spans)
+	hasAttrs(t, "a cancelled Run's span", run, map[attribute.Key]attribute.Value{"dandori.run.status": attribute.StringValue("cancelled")})
+	if run.Status.Code != codes.Unset {
+		t.Errorf("a cancelled Run's span status is %s, want unset", run.Status.Code)
+	}
+	if len(calls) != 1 || calls[0].Status.Code != codes.Unset {
+		t.Errorf("the cut-off call's span = %v, want one, with no error", calls)
+	}
+}
+
+// A Run cut off by Dandori stopping is an error span, interrupted; its call is not.
+func TestARunInterruptedByAStopIsAnErrorSpanButNotItsCall(t *testing.T) {
+	asked := make(chan struct{})
+	s, spans := parseWithSpans(t, asksAgain(asked, fakellm.Hang()))
+	<-asked
+
+	s.Restarts()
+
+	run, calls := runAndCallSpans(t, spans)
+	if run.Status.Code != codes.Error || run.Status.Description != "interrupted" {
+		t.Errorf("an interrupted Run's span status = %s %q, want an error saying interrupted", run.Status.Code, run.Status.Description)
+	}
+	if len(calls) != 1 || calls[0].Status.Code != codes.Unset {
+		t.Errorf("the cut-off call's span = %v, want one, with no error", calls)
+	}
+}
+
+// hasAttrs fails the test for each attribute of want the span, described as what, lacks
+// or holds otherwise.
+func hasAttrs(t *testing.T, what string, s tracetest.SpanStub, want map[attribute.Key]attribute.Value) {
+	t.Helper()
+	for key, value := range want {
+		if got, ok := attr(s, key); !ok || got != value {
+			t.Errorf("%s's %s = %q, want %q", what, key, got.String(), value.String())
+		}
+	}
 }

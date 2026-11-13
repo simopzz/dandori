@@ -27,6 +27,8 @@ The tools name their arguments differently:
 | Query spans | client spans under the request or beat, named for the SQL's operation (`SELECT`, `BEGIN`, …), with the SQL but never its arguments. |
 | Supabase spans | client spans under the request that called Supabase Auth, named for the call: `supabase fetch JWKS` (a fresh server's, or a key it hasn't seen, at most once a minute), `supabase renew session`, `supabase send magic link`, `supabase verify link`, `supabase sign out`. The URL and status code as attributes, never a token, the API key or an email. A 4xx Supabase refused is an error span. |
 | Beat spans | `kitchen beat`, every five minutes on the clock, with its queries under it. |
+| Run spans | `run <kind>` (`run parse`, …), under the request that started the Run though it outlives it, ending when the Run ends: the queries its tools run and its calls to the model are under it. Only a Run that failed is an error span, its status the Failure's reason (`model_refused`, `model_failed`, …). |
+| Model call spans | client spans under the Run's, named `chat <model>`, one for each call, a retried one too: their duration is the call's latency. A call that failed is an error span with the cause; one cut off by a cancel or a shutdown is not. |
 | Logs | `serving` at startup, and errors (the error in `exception_message`), carrying `trace_id` and `span_id` when logged in a span, and `dandori_user_id` when logged in a signed-in User's request. |
 
 ### Request span attributes
@@ -41,6 +43,23 @@ Dandori's own attributes are under `dandori.`; in TraceQL, `span.dandori.user.id
 | `http.request.header.accept-language` | The browser's `Accept-Language`, as sent. |
 | `dandori.htmx`, `dandori.htmx.boosted` | Whether htmx sent the request (`HX-Request`), and from a boosted link or form (`HX-Boosted`). |
 | `dandori.refusal` | On a 422 (or a 401 or 403, which nothing answers yet), why, in English: a short reason such as `sign-in link expired or used` or `Language stays: a parse Run is going`, followed by the fields a form refused, as in `Ingredient refused: name, unit`. Never what the User typed. |
+
+### Run and model call span attributes
+
+| Attribute | |
+|---|---|
+| `dandori.run.id` | The Run's id, an integer, as `run.id` in the database and in its page's path, `/runs/<id>`. On the Run's span and on each of its calls'. |
+| `dandori.run.kind`, `dandori.user.id` | On the Run's span: its kind (`parse`, …) and whose it is. |
+| `dandori.run.status` | On the Run's span: how it ended, `succeeded`, `failed` or `cancelled`. |
+| `gen_ai.operation.name`, `gen_ai.request.model` | `chat`, and the model asked. |
+| `gen_ai.provider.name`, `gen_ai.response.model` | `anthropic`, and the model that answered: another than the one asked after a server-side fallback. Absent with the demo model. |
+| `gen_ai.response.finish_reasons` | Why the model stopped, as the Trace's stop reasons: `["tool_use"]`, `["end_turn"]`, `["max_tokens"]`, `["refusal"]`. |
+| `gen_ai.usage.input_tokens` | Every input token, the cache's included, as OTel's conventions count them (the API's own `input_tokens` leaves the cache out). |
+| `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.cache_creation.input_tokens` | The input tokens read from and written to the prompt cache, which are priced differently from uncached ones. |
+| `gen_ai.usage.output_tokens`, `gen_ai.usage.reasoning.output_tokens` | The output tokens, thinking included, and the thinking alone. The demo model reports every count as 0. |
+| `error.type` | On a call that failed: the API's status code (`429`, `529`, `400`, …), `timeout`, or the Go error's type for a network failure (`*url.Error`). The status description has the cause in full. |
+
+No span holds what the model was asked or said, nor the API key: that is the Run's Trace, in the database.
 
 ### Privacy
 

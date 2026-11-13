@@ -15,6 +15,8 @@ import (
 
 	sdk "github.com/anthropics/anthropic-sdk-go/v2"
 	"github.com/anthropics/anthropic-sdk-go/v2/option"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/simopzz/dandori/internal/agent"
 )
@@ -40,8 +42,11 @@ func New(opts ...option.RequestOption) *LLM {
 }
 
 // Send implements agent.LLM. It goes through the Beta Messages endpoint for the
-// server-side refusal fallback.
+// server-side refusal fallback. The span of the call, the caller's, gains the provider,
+// the model that answered, and why a call failed.
 func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, error) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(semconv.GenAIProviderNameAnthropic)
 	params := sdk.BetaMessageNewParams{
 		Model:     req.Model,
 		MaxTokens: maxTokens,
@@ -72,8 +77,13 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 
 	msg, err := l.client.Beta.Messages.New(ctx, params)
 	if err != nil {
+		if ctx.Err() == nil { // a call the caller cut off didn't fail
+			span.SetAttributes(semconv.ErrorTypeKey.String(errorType(err)))
+		}
 		return agent.Response{}, classify(ctx, err)
 	}
+	// A fallback hands the answer to another model than the one asked.
+	span.SetAttributes(semconv.GenAIResponseModel(msg.Model))
 	resp := agent.Response{
 		StopReason: agent.StopReason(msg.StopReason),
 		Usage: agent.Usage{
@@ -197,6 +207,18 @@ func classify(ctx context.Context, err error) error {
 		return &agent.RetryableError{Err: err, After: retryAfter(apiErr.Response)}
 	}
 	return err
+}
+
+// errorType is the kind of a call's failure, for its span: the API's status code, a
+// timeout, or else the Go error's type.
+func errorType(err error) string {
+	if apiErr, ok := errors.AsType[*sdk.Error](err); ok {
+		return strconv.Itoa(apiErr.StatusCode)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	return fmt.Sprintf("%T", err)
 }
 
 // retryAfter is the wait the API asked for, which it gives in seconds.

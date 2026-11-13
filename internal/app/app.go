@@ -44,8 +44,8 @@ type Config struct {
 	Auth auth.Config
 	// Runs is how agent Runs use the model; runs.New fills in what it leaves unset.
 	Runs runs.Config
-	// Spans makes the spans of every request, query, beat and call to Supabase
-	// Auth; without it, none are made.
+	// Spans makes the spans of every request, query, beat, Run, call to the model and
+	// call to Supabase Auth; without it, none are made.
 	Spans trace.TracerProvider
 }
 
@@ -81,7 +81,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 		return nil, err
 	}
 	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
-	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, log)
+	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.today = today.New(a.profile, a.ledger)

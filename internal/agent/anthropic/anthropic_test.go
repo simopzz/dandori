@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/v2/option"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/simopzz/dandori/internal/agent"
 )
@@ -130,6 +135,39 @@ func TestUsageIncludesTheCache(t *testing.T) {
 	}
 }
 
+// The span of the call, which the caller makes, says the provider and the model that
+// answered: after a fallback, not the one asked.
+func TestTheCallsSpanSaysWhoAnswered(t *testing.T) {
+	llm, _ := api(t, 200, toolCall)
+	got := spanOf(t, func(ctx context.Context) {
+		if _, err := llm.Send(ctx, parse); err != nil {
+			t.Fatal(err)
+		}
+	})
+	want := map[attribute.Key]string{"gen_ai.provider.name": "anthropic", "gen_ai.response.model": "m"}
+	if !maps.Equal(got, want) {
+		t.Errorf("the call's span attributes = %v, want only %v", got, want)
+	}
+}
+
+// spanOf is the attributes call gives the span of the context it is passed.
+func spanOf(t *testing.T, call func(ctx context.Context)) map[attribute.Key]string {
+	t.Helper()
+	spans := tracetest.NewInMemoryExporter()
+	ctx, span := sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans)).Tracer("test").Start(context.Background(), "chat")
+	call(ctx)
+	span.End()
+	ended := spans.GetSpans()
+	if len(ended) != 1 {
+		t.Fatalf("%d spans ended, want the call's", len(ended))
+	}
+	got := map[attribute.Key]string{}
+	for _, a := range ended[0].Attributes {
+		got[a.Key] = a.Value.String()
+	}
+	return got
+}
+
 func TestARefusalSaysWhy(t *testing.T) {
 	llm, _ := api(t, 200, `{"id":"msg_1","type":"message","role":"assistant","model":"m","stop_reason":"refusal",
 		"stop_details":{"type":"refusal","category":"bio","explanation":"Not this one."},
@@ -176,7 +214,11 @@ func TestFailuresAreClassifiedAndNotRetriedByTheSDK(t *testing.T) {
 		{400, false}, {401, false}, {404, false},
 	} {
 		llm, got := api(t, tc.status, `{"type":"error","error":{"type":"x","message":"no"}}`)
-		_, err := llm.Send(context.Background(), parse)
+		var err error
+		attrs := spanOf(t, func(ctx context.Context) { _, err = llm.Send(ctx, parse) })
+		if want := strconv.Itoa(tc.status); attrs["error.type"] != want {
+			t.Errorf("%d: error.type = %q, want %s", tc.status, attrs["error.type"], want)
+		}
 		retry, ok := errors.AsType[*agent.RetryableError](err)
 		if ok != tc.retryable {
 			t.Errorf("%d: retryable = %v, want %v (%v)", tc.status, ok, tc.retryable, err)
@@ -204,9 +246,13 @@ func TestARequestHasATimeLimit(t *testing.T) {
 	t.Cleanup(func() { close(release) }) // runs first, so Close isn't left waiting
 	llm := New(option.WithBaseURL(srv.URL), option.WithAPIKey("test"), option.WithRequestTimeout(50*time.Millisecond))
 
-	_, err := llm.Send(context.Background(), parse)
+	var err error
+	attrs := spanOf(t, func(ctx context.Context) { _, err = llm.Send(ctx, parse) })
 	if _, ok := errors.AsType[*agent.RetryableError](err); !ok {
 		t.Errorf("a timed-out request should be worth retrying, got %v", err)
+	}
+	if attrs["error.type"] != "timeout" {
+		t.Errorf("error.type = %q, want timeout", attrs["error.type"])
 	}
 	if calls.Load() != 1 {
 		t.Errorf("sent %d requests, want 1", calls.Load())

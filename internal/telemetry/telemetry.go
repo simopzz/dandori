@@ -69,6 +69,14 @@ const (
 	AcceptHeader attribute.Key = "http.request.header.accept-language"
 )
 
+// The attributes Dandori puts on a Run's span and on its calls to the model, as
+// docs/agents/grafana.md lists them.
+const (
+	RunID     attribute.Key = "dandori.run.id"
+	RunKind   attribute.Key = "dandori.run.kind"
+	RunStatus attribute.Key = "dandori.run.status"
+)
+
 // Version is the commit the binary was built from, which the image's build sets with
 // -ldflags "-X github.com/simopzz/dandori/internal/telemetry.Version=<sha>".
 var Version = "dev"
