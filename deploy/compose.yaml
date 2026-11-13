@@ -3,7 +3,8 @@
 # /srv/dandori and writes the .env next to them with DANDORI_IMAGE,
 # DANDORI_DOMAIN, DANDORI_DATABASE_URL, the Supabase project's URL and
 # publishable key, Grafana Cloud's OTLP endpoint and token, the Claude API
-# key and the model (empty for the app's default) on every deploy.
+# key, the model (empty for the app's default) and the Faro collector's URL
+# (empty for no browser telemetry) on every deploy.
 services:
   app:
     image: ${DANDORI_IMAGE:?}
@@ -16,6 +17,7 @@ services:
       OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?}
       DANDORI_MODEL: ${DANDORI_MODEL:-}
+      DANDORI_FARO_URL: ${DANDORI_FARO_URL:-}
       # Tells production's spans and logs from those of `mise run dev`, tagged dev.
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=prod
 

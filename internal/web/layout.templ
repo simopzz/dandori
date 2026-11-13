@@ -1,5 +1,10 @@
 package web
 
+import (
+	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/telemetry"
+)
+
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
@@ -21,6 +26,8 @@ const (
 // form is boosted, with a form's buttons disabled while its request is in flight;
 // ADR 0009 says why a rejection keeps its address and why settling is off. A request
 // slower than 300 ms shows the busy bar along the top, and its pressed button busy.
+// With a Faro url, the page loads Faro first (static/faro.js), and its shell carries the
+// signed-in User's id for it.
 templ Layout(title string, current Tab) {
 	<!DOCTYPE html>
 	<html lang={ string(LanguageOf(ctx)) } translate="no">
@@ -35,6 +42,10 @@ templ Layout(title string, current Tab) {
 			<link rel="apple-touch-icon" href="/static/icon-192.png"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			<meta name="htmx-config" content="defaultSettleDelay:0"/>
+			if url := faroURL(ctx); url != "" {
+				<script src="/static/faro-web-sdk.min.js" defer></script>
+				<script src="/static/faro.js" defer data-url={ url } data-version={ telemetry.Version }></script>
+			}
 			<script src="/static/htmx.min.js" defer></script>
 			<script src="/static/hx-sse.min.js" defer></script>
 			<script>
@@ -51,7 +62,14 @@ templ Layout(title string, current Tab) {
 			</script>
 		</head>
 		<body hx-boost:inherited="true" hx-disable:inherited="findAll button" hx-status:422:inherited="push:false">
-			<div class="busy-bar" aria-hidden="true" data-lang={ string(LanguageOf(ctx)) }></div>
+			<div
+				class="busy-bar"
+				aria-hidden="true"
+				data-lang={ string(LanguageOf(ctx)) }
+				if id, ok := db.UserID(ctx); ok && faroURL(ctx) != "" {
+					data-user={ id }
+				}
+			></div>
 			@busyButton()
 			<header class="masthead">
 				@sky("masthead-sky", []string{"cream", "peach", "salmon"})

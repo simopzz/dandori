@@ -8,6 +8,7 @@ The server's spans and logs go over OTLP to a Grafana Cloud stack in the EU (`in
 |---|---|
 | Spans | Tempo, datasource UID `grafanacloud-traces`. |
 | Logs | Loki, datasource UID `grafanacloud-logs`. Its only labels are `service_name` and `deployment_environment_name`. Everything else on a line is structured metadata, its dots turned to underscores (`trace_id`, `dandori_user_id`, `detected_level`), filtered after the selector: `{service_name="dandori", deployment_environment_name="prod"} \| trace_id="<id>"`. |
+| Browser | Frontend Observability's `dandori` app (Faro, ADR 0020), `frontend_observability_handler`: `list` gives its `appId`, then `errors` and `web-vitals` (with `rangeHours`, at most 168, and `pageId` for one path). What it reports lands in Loki, `grafanacloud-logs`, as below. |
 | Retention | 14 days for spans and logs, the free plan's, with no archive. A Run's own Trace stays in the database (`trace_event`). |
 
 The tools name their arguments differently:
@@ -61,9 +62,34 @@ Dandori's own attributes are under `dandori.`; in TraceQL, `span.dandori.user.id
 
 No span holds what the model was asked or said, nor the API key: that is the Run's Trace, in the database.
 
+### Browser telemetry
+
+Only production's pages send it: they load Faro when `DANDORI_FARO_URL` is set, and the Faro app takes reports from the production origin only, so there is no `dev` to filter out. Each report comes from the `dandori` app at its `version`, the commit, as on the server, and carries:
+
+| | |
+|---|---|
+| User | `dandori.user.id`'s value as Faro's user id, absent before sign-in. |
+| Page | Its path, never its query string, with two attributes: `lang`, `<html>`'s as the report was sent (the Language the page spoke, or the one a translator rewrote it to), and `translated`, `"true"` once Chrome's translator marked `<html>` (`translated-ltr` or `translated-rtl`). Edge's translator leaves no mark. |
+| Session | Faro's own random id, kept in the tab's session storage, which groups one visit's reports. |
+| Browser | Faro's defaults: the browser and OS, their versions, the user agent, the viewport and `navigator.language`. |
+
+What it reports:
+
+| Kind | |
+|---|---|
+| `exception` | A JavaScript error nothing caught, or a rejected promise nothing handled, with its stack. |
+| `measurement` | Web vitals: LCP, CLS, INP, FCP, TTFB. Boosted links never unload the page, so LCP, FCP and TTFB are only the first page's, and CLS and INP span every page of the visit, reported as it ends under the path then current: a page's own vitals are only those of a visit that started on it. |
+| `event` `session_start` | A new Faro session. |
+| `event` `page translated` | The browser translated the page, with the `lang` it went to. |
+| `event` `htmx request` | Each request htmx made, with `method`, `path`, `status` and `trace_id`, the request span's: the link from the browser to the server's spans. Sent before the swap, so its page and `lang` are those of the page the request left from. |
+
+Not the console, nor form contents, nor resource timings, nor clicks.
+
+In Loki, Faro's convention is a logfmt line under the labels `app_name="dandori"` and `kind`, with the event's attributes as `event_data_<name>` (`event_data_trace_id`) and the page's as `page_attr_<name>`. No Faro app had reported when this was written: check the labels with `list_loki_label_names` on the first data and correct this paragraph.
+
 ### Privacy
 
-A User is identified by their internal id only: never their email, a token, the API key or what they typed into a form, in a span, a log line or the `X-Trace-Id` header. The client IP `otelhttp` records stays while Dandori is a small private beta. Anything added to the telemetry keeps to this.
+A User is identified by their internal id only: never their email, a token, the API key or what they typed into a form, in a span, a log line, the `X-Trace-Id` header or what the browser sends Faro, whose URLs go without their query string. The client IP `otelhttp` records stays while Dandori is a small private beta. Anything added to the telemetry keeps to this.
 
 Grafana calls a span's tree a trace; in this repo's code and docs it is spans, since a Run's Trace is a domain term (`GLOSSARY.md`).
 

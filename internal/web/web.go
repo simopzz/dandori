@@ -3,6 +3,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"net/http"
@@ -16,6 +17,11 @@ import (
 // The htmx-guidance and htmx-debugging skills in .agents/skills and
 // .claude/skills come from the same package's dist/skills: upgrade them
 // with htmx.
+//
+// static/faro-web-sdk.min.js is Grafana's Faro Web SDK 2.13.0 (Apache-2.0), from
+// https://unpkg.com/@grafana/faro-web-sdk@2.13.0/dist/bundle/faro-web-sdk.iife.js
+// (sha256-hXQcRf0f1IdcXyWpWnlA4RceoR4wioPYj9XzpdyrjBw=): Faro starts it, static/faro.js,
+// in production only (ADR 0020).
 //
 // static/fonts holds DotGothic16 (400) and Zen Kaku Gothic New (400, 700), both SIL OFL
 // 1.1 (static/fonts/OFL.txt). Zen Kaku Gothic New is Fontsource's latin subset
@@ -62,4 +68,23 @@ func serveBytes(contentType string, body []byte) http.HandlerFunc {
 		w.Header().Set("Content-Type", contentType)
 		w.Write(body)
 	}
+}
+
+type faroKey struct{}
+
+// Faro serves next with the Faro collector's url, which the Layout sends the browser's
+// telemetry to (static/faro.js). Without one, as in `mise run dev` and the tests, the
+// pages load no Faro at all.
+func Faro(url string, next http.Handler) http.Handler {
+	if url == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), faroKey{}, url)))
+	})
+}
+
+func faroURL(ctx context.Context) string {
+	url, _ := ctx.Value(faroKey{}).(string)
+	return url
 }
