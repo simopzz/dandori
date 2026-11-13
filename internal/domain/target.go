@@ -10,10 +10,6 @@ import (
 // tolerance outside 1–20%.
 const OutOfRange Problem = "out of range"
 
-// DefaultTolerance is the calorie tolerance, in percent either side of the calorie
-// Target, of a User who hasn't set their own.
-const DefaultTolerance = 5
-
 // maxTarget bounds every Target: no daily goal comes near it.
 const maxTarget = 10000
 

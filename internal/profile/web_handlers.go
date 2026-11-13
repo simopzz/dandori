@@ -130,15 +130,11 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 }
 
 func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status int, f LanguageForm) {
-	targets, err := h.targetsForm(r)
+	targets, err := h.savedTargets(r)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
 		return
 	}
-	h.renderPage(w, r, status, f, targets)
-}
-
-func (h Handlers) renderPage(w http.ResponseWriter, r *http.Request, status int, f LanguageForm, targets TargetsForm) {
 	page, err := h.page(r, f, targets)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's email", err)
@@ -153,8 +149,8 @@ func (h Handlers) page(r *http.Request, f LanguageForm, targets TargetsForm) (te
 	return profilePage(h.Clock.Now(), email, f, targets), err
 }
 
-// targetsForm is the signed-in User's Targets as saved.
-func (h Handlers) targetsForm(r *http.Request) (TargetsForm, error) {
+// savedTargets is the signed-in User's Targets as saved.
+func (h Handlers) savedTargets(r *http.Request) (TargetsForm, error) {
 	t, set, err := h.Service.Targets(r.Context())
 	return shownTargets(t, set), err
 }
@@ -187,7 +183,7 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: targetsForm(shownTargets(t, true))}.Write(w, r, h.Log)
 		return
 	}
-	saved, err := h.targetsForm(r)
+	saved, err := h.savedTargets(r)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
 		return
