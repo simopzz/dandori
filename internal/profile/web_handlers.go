@@ -157,9 +157,9 @@ func (h Handlers) savedTargets(r *http.Request) (TargetsForm, error) {
 
 // shownTargets is t as the Targets form shows it, only its tolerance until it is set.
 func shownTargets(t domain.Targets, set bool) TargetsForm {
-	f := TargetsForm{Set: set, Values: map[string]string{"tolerance": strconv.Itoa(t.Tolerance)}}
-	if set {
-		for field, n := range map[string]int{"kcal": t.Kcal, "protein": t.Protein, "fibre": t.Fibre, "sugar": t.Sugar} {
+	f := TargetsForm{Set: set, Values: map[string]string{}}
+	for field, n := range t.ByField() {
+		if set || field == domain.TargetTolerance {
 			f.Values[field] = strconv.Itoa(n)
 		}
 	}
@@ -171,7 +171,7 @@ func shownTargets(t domain.Targets, set bool) TargetsForm {
 func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	typed := map[string]string{}
-	for _, field := range targetFields {
+	for _, field := range domain.TargetFields {
 		typed[field] = r.PostFormValue(field)
 	}
 	t, problems, err := h.Service.SetTargets(ctx, typed)
@@ -200,6 +200,3 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 	}
 	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: targetsForm(f)}.Write(w, r, h.Log)
 }
-
-// targetFields are the Targets form's fields.
-var targetFields = []string{"kcal", "protein", "fibre", "sugar", "tolerance"}

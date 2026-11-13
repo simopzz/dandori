@@ -76,12 +76,9 @@ templ profilePage(today time.Time, email string, f LanguageForm, targets Targets
 				}
 			}
 		</form>
-		<div
-			id={ targetsSectionID }
-			hx-on:htmx:after:swap="if (event.detail.ctx.target === this) this.querySelector('[aria-invalid=true]')?.focus()"
-		>
+		@web.SectionBody(targetsSectionID) {
 			@targetsForm(targets)
-		</div>
+		}
 		@web.Section(3, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
@@ -114,13 +111,13 @@ templ targetsForm(f TargetsForm) {
 					}
 				}
 				@web.FieldRow() {
-					@targetField(msgKcal, msgKcalHint, "kcal", f)
-					@targetField(msgTolerance, msgToleranceHint, "tolerance", f)
+					@targetField(msgKcal, msgKcalHint, domain.TargetKcal, f)
+					@targetField(msgTolerance, msgToleranceHint, domain.TargetTolerance, f)
 				}
 				@web.FieldRow() {
-					@targetField(msgProtein, msgFloorHint, "protein", f)
-					@targetField(msgFibre, msgFloorHint, "fibre", f)
-					@targetField(msgSugar, msgCeilingHint, "sugar", f)
+					@targetField(msgProtein, msgFloorHint, domain.TargetProtein, f)
+					@targetField(msgFibre, msgFloorHint, domain.TargetFibre, f)
+					@targetField(msgSugar, msgCeilingHint, domain.TargetSugar, f)
 				}
 				@web.Hint() {
 					{ web.T(ctx, msgCarbsAndFat) }
