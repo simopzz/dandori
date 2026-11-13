@@ -192,14 +192,18 @@ func (b *Browser) SignUp(t testing.TB, email string) {
 	b.IsAt(t, "/")
 }
 
-// ChooseLanguage picks the Language named name on the page and submits it with the button
-// named submit.
+// ChooseLanguage picks the Language named name on the page and submits it with its form's
+// button named submit.
 func (b *Browser) ChooseLanguage(t testing.TB, name, submit string) {
 	t.Helper()
-	if err := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: name}).Check(); err != nil {
+	radio := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: name})
+	if err := radio.Check(); err != nil {
 		t.Fatalf("choose %s: %v", name, err)
 	}
-	b.Click(t, submit)
+	form := b.Locator("form").Filter(playwright.LocatorFilterOptions{Has: radio})
+	if err := form.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: submit, Exact: playwright.Bool(true)}).Click(); err != nil {
+		t.Fatalf("click %q: %v", submit, err)
+	}
 }
 
 // Click clicks the button named name, exactly.

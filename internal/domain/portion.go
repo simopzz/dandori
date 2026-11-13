@@ -3,7 +3,6 @@ package domain
 import (
 	"cmp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -59,13 +58,11 @@ func ParsePortions(typed TypedPortions) (NewPortions, map[string]Problem) {
 // ParseHowMany reads how many Portions to add as the User typed it: a whole number of
 // at least 1 and at most maxPortions.
 func ParseHowMany(typed string) (int, Problem) {
-	typed = strings.TrimSpace(typed)
-	if typed == "" {
-		return 0, Required
-	}
-	n, err := strconv.Atoi(typed)
+	n, problem := parseWhole(typed)
 	switch {
-	case err != nil || n < 1:
+	case problem != "":
+		return 0, problem
+	case n < 1:
 		return 0, NotWhole
 	case n > maxPortions:
 		return 0, TooLarge

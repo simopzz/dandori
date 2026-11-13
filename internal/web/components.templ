@@ -575,6 +575,18 @@ templ SheetBody(id string) {
 	</div>
 }
 
+// SectionBody is a section of a page whose form swaps it in place, the form being the
+// children, as each of the Profile's does. A swap into it that comes back rejected
+// focuses its first field marked aria-invalid.
+templ SectionBody(id string) {
+	<div
+		id={ id }
+		hx-on:htmx:after:swap="if (event.detail.ctx.target === this) this.querySelector('[aria-invalid=true]')?.focus()"
+	>
+		{ children... }
+	</div>
+}
+
 // SideSheetBody is the id of the SheetBody of the sheet id, which a form in it targets.
 func SideSheetBody(id string) string { return id + "-body" }
 

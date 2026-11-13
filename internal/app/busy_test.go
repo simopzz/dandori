@@ -142,6 +142,7 @@ const (
 
 func busyBar(b *apptest.Browser) playwright.Locator { return b.Locator(busyBarSelector) }
 
+// save is the Language section's Save.
 func save(b *apptest.Browser) playwright.Locator {
-	return b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Save"})
+	return b.Locator("#profile-language").GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save"})
 }

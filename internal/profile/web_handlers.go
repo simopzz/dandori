@@ -5,6 +5,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
+
+	"github.com/a-h/templ"
 
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
@@ -27,6 +30,7 @@ const (
 	refusedNoLanguage    httpx.Refusal = "no Language chosen"
 	refusedLanguageStays httpx.Refusal = "Language stays: the User has written Food Terms in it"
 	refusedParsing       httpx.Refusal = "Language stays: a parse Run is going"
+	refusedTargets       httpx.Refusal = "Targets refused"
 )
 
 // LanguageChosen serves next in the signed-in User's Language, once they have chosen one;
@@ -126,10 +130,73 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 }
 
 func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status int, f LanguageForm) {
-	email, err := h.Email(r.Context())
+	targets, err := h.savedTargets(r)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
+		return
+	}
+	page, err := h.page(r, f, targets)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's email", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, status, profilePage(h.Clock.Now(), email, f))
+	httpx.Render(w, r, h.Log, status, page)
+}
+
+// page is the Profile page, its Language section f and its Targets section targets.
+func (h Handlers) page(r *http.Request, f LanguageForm, targets TargetsForm) (templ.Component, error) {
+	email, err := h.Email(r.Context())
+	return profilePage(h.Clock.Now(), email, f, targets), err
+}
+
+// savedTargets is the signed-in User's Targets as saved.
+func (h Handlers) savedTargets(r *http.Request) (TargetsForm, error) {
+	t, set, err := h.Service.Targets(r.Context())
+	return shownTargets(t, set), err
+}
+
+// shownTargets is t as the Targets form shows it, only its tolerance until it is set.
+func shownTargets(t domain.Targets, set bool) TargetsForm {
+	f := TargetsForm{Set: set, Values: map[string]string{}}
+	for field, n := range t.ByField() {
+		if set || field == domain.TargetTolerance {
+			f.Values[field] = strconv.Itoa(n)
+		}
+	}
+	return f
+}
+
+// SaveTargets saves the Targets posted, answering with the Targets section saved or
+// refused as typed; a plain post lands on the Profile page.
+func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	typed := map[string]string{}
+	for _, field := range domain.TargetFields {
+		typed[field] = r.PostFormValue(field)
+	}
+	t, problems, err := h.Service.SetTargets(ctx, typed)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "save the User's Targets", err)
+		return
+	}
+	if len(problems) == 0 {
+		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: targetsForm(shownTargets(t, true))}.Write(w, r, h.Log)
+		return
+	}
+	saved, err := h.savedTargets(r)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
+		return
+	}
+	f := TargetsForm{Values: typed, Errs: map[string]string{}, Set: saved.Set}
+	for field, problem := range problems {
+		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, targetProblems))
+	}
+	httpx.Refused(r, refusedTargets, f.Errs)
+	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, f)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's email", err)
+		return
+	}
+	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: targetsForm(f)}.Write(w, r, h.Log)
 }

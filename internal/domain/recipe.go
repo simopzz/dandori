@@ -2,7 +2,6 @@ package domain
 
 import (
 	"math"
-	"strconv"
 	"strings"
 )
 
@@ -45,13 +44,11 @@ type PortionNutrition struct {
 // ParseMinutes reads minutes as the User typed them: a whole number of at least 0, and
 // no more than maxMinutes.
 func ParseMinutes(typed string) (int, Problem) {
-	typed = strings.TrimSpace(typed)
-	if typed == "" {
-		return 0, Required
-	}
-	n, err := strconv.Atoi(typed)
+	n, problem := parseWhole(typed)
 	switch {
-	case err != nil || n < 0:
+	case problem != "":
+		return 0, problem
+	case n < 0:
 		return 0, NotWhole
 	case n > maxMinutes:
 		return 0, TooLarge

@@ -49,7 +49,7 @@ _Avoid_: Eating out, craving, cheat meal
 ### Cooking and food
 
 **Recipe**:
-A reusable description of a dish: its Ingredients with their quantities, steps, required appliances, how many Portions it makes as written, the kinds of Slot its Portions may be eaten at (a breakfast Recipe may also fill a snack, never a lunch), and two times: its active minutes, spent at it, and its total minutes, from starting to eating, the appliances' unattended time included.
+A reusable description of a dish: its Ingredients with their quantities, steps, the kinds of appliance it needs, how many Portions it makes as written, the kinds of Slot its Portions may be eaten at (a breakfast Recipe may also fill a snack, never a lunch), and two times: its active minutes, spent at it, and its total minutes, from starting to eating, the appliances' unattended time included.
 _Avoid_: Dish
 
 **Recipe Draft**:
@@ -117,7 +117,7 @@ The one language a User's Dandori speaks: its pages, and every Food Term. Chosen
 _Avoid_: Content Language, locale, app language
 
 **Food Term**:
-Food written in a User's Language: an Ingredient, Recipe or Portion name, a step, an appliance, the Profile's exclusions and allergies, and what the agent says about food.
+Food written in a User's Language: an Ingredient, Recipe or Portion name, a step, the Profile's exclusions and allergies, and what the agent says about food.
 _Avoid_: Food content, kitchen data
 
 **User**:
@@ -127,11 +127,11 @@ _Avoid_: Account, tenant, household
 ### Goals
 
 **Profile**:
-The user's stored settings: their Language, and for nutrition the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, and the time of day of each kind of Slot; and the kitchen appliances they own, the only ones a Plan's Recipes may need.
+The user's stored settings: their Language, and for nutrition the Targets, dietary exclusions and allergies, the default nutrition estimate for a Meal Out, and the time of day of each kind of Slot; and the kinds of appliance they own, each with a note on its model if they like, the only ones a Plan's Recipes may need.
 _Avoid_: Settings, preferences
 
 **Target**:
-A daily goal held in the Profile, each with its direction: calories as a range, protein and fibre as floors, sugar as a ceiling. Carbs and fat have none: they are shown, never aimed at.
+A daily goal held in the Profile, each with its direction: calories as a range (the user's tolerance either side, ±5% unless they set another), protein and fibre as floors, sugar as a ceiling. Carbs and fat have none: they are shown, never aimed at.
 _Avoid_: Goal, budget
 
 **Target Proposal**:
@@ -191,7 +191,7 @@ _Avoid_: Log entry, step
 - Each food is one Ingredient: plurals and size or grade words (eggs, large egg, extra virgin olive oil) don't make a new one; only a nutritionally different food does (egg white is not egg), or one the kitchen can't make from the other, which the Grocery List must buy as such (minced chicken is not chicken breast). A Recipe reuses existing Ingredients and adds a new one only once the user confirms its nutritional values: on its Recipe Draft, where they can be edited, or by approving a Plan Proposal that prepares the draft as it is.
 - Every Food Term is in the User's Language, whatever language it arrived in: a Recipe pasted in another language is translated when it is parsed. Ingredients get generic food names ("petto di pollo"); product names belong only to Catalog Products.
 - Portions and Stock Items can each live in any Storage Location; a frozen Portion is just a Portion in the freezer. A Portion's location depends on what it is and how long it must keep.
-- A Plan Proposal aims at the Targets on average over the days it plans, Meal Outs on those days included: calories within ±5%, with no planned day more than 25% off its Targets. Days already eaten are shown, as the trailing seven days, but never made up. Missing a Target never stops a Plan Proposal: it shows on it, for the user to weigh. A changed Target applies from the first Slot of the next Plan Proposal approved after it; each earlier day keeps the Target it was planned with, and an approved Plan is never rechecked.
+- A Plan Proposal aims at the Targets on average over the days it plans, Meal Outs on those days included: calories within the Profile's tolerance, with no planned day more than 25% off its Targets. Days already eaten are shown, as the trailing seven days, but never made up. Missing a Target never stops a Plan Proposal: it shows on it, for the user to weigh. A planning Run aims at the Targets as they are when it starts, and its Plan Proposal keeps them. Changing a Target, like the Planning Brief, never starts a planning Run nor leaves a Plan needing a new Plan Proposal, and an approved Plan is never rechecked. A day is shown against the Targets its Plan aimed at; a day no Plan covered, against the current ones.
 - An Exception logged ahead is input to the planning Run when the Plan doesn't rely on it yet, and leads to a Plan Proposal like any other when it does. Its Slot gets no Portion and no Prep Session; when cooking is impossible on a day without one, the user says so in a note. A Meal Out counts toward the Targets with the Profile's default estimate unless the Exception gives its own; a skipped Slot counts as nothing. Changing or removing it works the same way. It belongs to its day and Slot kind, not to a Cycle: it outlives a moved Delivery or a dropped Cycle, and counts toward what was eaten even if its day ends up between Cycles. Once its day is past it stands as what happened, unless the user changes it.
 - A Delivery's Stock Items are put away in their Ingredient's usual Storage Location, unless the Plan splits one: some of a fresh Ingredient used late in the Cycle goes in the freezer (of 800 g chicken breast, 400 g to the freezer). Today shows where each goes once the Delivery arrives, and frozen stock is thawed like frozen Portions.
 - A Plan uses first the Stock Items that would spoil first, judging by what they are and their Storage Location (fresh fish in the fridge before rice in the pantry). Dandori records no expiry dates.
