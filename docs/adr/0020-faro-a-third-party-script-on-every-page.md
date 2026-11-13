@@ -7,10 +7,12 @@ The SDK is vendored into `/static/` like htmx, pinned, with its checksum in `int
 ## Considered Options
 
 - **Faro's tracing package as well** (+90 KB): the browser's fetch spans become the parents of the server's request spans, one tree of spans from the click to the query. But its fetch spans record full URLs, query strings included; a client that sent `traceparent` would choose whether the server's spans are sampled; and it wraps `window.fetch`, so a fault in it breaks every htmx request. Instead, an `htmx request` event carries the `X-Trace-Id` each response already has, and the server still ignores `traceparent`.
+- **Proxying Faro's reports through our own domain**, as Grafana documents: privacy blockers block Faro's collector (EasyPrivacy, on by default in Brave's Shields and uBlock Origin), and a proxy would route around them. A User who chose a blocker chose not to be reported on, so Dandori respects it, at the cost of seeing nothing from those browsers.
 - **Our own error and translation reporting to a route of the server's**: no third-party code, but our own collector, storage and web vitals, built again.
 
 ## Consequences
 
+- A browser with a privacy blocker reports nothing; telemetry from the browser is a sample, never a full record.
 - Upgrading Faro is a reviewed change to the vendored file, as with htmx.
 - Every URL leaves the browser without its query string, which can hold what the User typed; a User is identified by their internal id only (`docs/agents/grafana.md`).
 - A Content Security Policy, when there is one, must allow the collector's origin in `connect-src`.

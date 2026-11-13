@@ -49,15 +49,13 @@ The server rendered the Language in `dandori.language`. If it is right and the U
 
 ### What the browser saw
 
-Production only. A JavaScript error, a slow page as the User felt it, a translated page. First the summaries: `frontend_observability_handler` with `list` for the `dandori` app's `appId`, then `errors` or `web-vitals` with `rangeHours` and, for one page, `pageId` (`/recipes`). Then one User's reports, around the report's time:
+Production only, and never from a browser with a privacy blocker (Brave's Shields, uBlock Origin): finding no reports from a User proves nothing. A JavaScript error, a slow page as the User felt it, a translated page. First the summaries: `frontend_observability_handler` with `list` for the `dandori` app's `appId`, then `errors` or `web-vitals` with `rangeHours` and, for one page, `pageId` (`/recipes`). Then one User's reports, around the report's time:
 
 ```
-{app_name="dandori"} | logfmt | user_id="<id>"
+{service_name="dandori", app_id="8291"} | logfmt | user_id="<id>"
 ```
 
 Each line's `kind` says what it is. A `page translated` event, or `page_attr_translated="true"`, means the browser translated the page: `page_attr_lang` is the language it went to. An `htmx request` event's `event_data_trace_id` is the request span's: open it with `get_tempo_trace`. A page loaded whole, not through htmx, has no such event: find its request span by User and time, as above.
-
-Check these field names against `docs/agents/grafana.md` first: they are Faro's convention, unconfirmed until its first reports.
 
 ### A slow page
 
