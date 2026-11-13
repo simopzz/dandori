@@ -35,8 +35,8 @@ func RecipesUsing(ctx context.Context, q db.Querier, id int64) (first string, ot
 	return first, others, err
 }
 
-// slotKindsOf is kinds as the database stores them.
-func slotKindsOf(kinds []domain.SlotKind) []string {
+// codesOf is kinds by their codes, as the database stores them.
+func codesOf[K ~string](kinds []K) []string {
 	out := make([]string, len(kinds))
 	for i, k := range kinds {
 		out[i] = string(k)
@@ -52,7 +52,7 @@ func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id, normalised_name) DO NOTHING
 		RETURNING id`,
-		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps).Scan(&id)
+		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.Kinds), codesOf(rec.Appliances), rec.Steps).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -66,7 +66,7 @@ func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe
 		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
 			slot_kinds = $7, appliances = $8, steps = $9
 		WHERE id = $1`,
-		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps)
+		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.Kinds), codesOf(rec.Appliances), rec.Steps)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrNoRecipe
 	}
@@ -122,10 +122,13 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 	}
 	recipes, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Recipe, error) {
 		var r domain.Recipe
-		var kinds []string
-		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.ActiveMinutes, &r.TotalMinutes, &kinds, &r.Appliances, &r.Steps)
+		var kinds, appliances []string
+		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.ActiveMinutes, &r.TotalMinutes, &kinds, &appliances, &r.Steps)
 		for _, k := range kinds {
 			r.Kinds = append(r.Kinds, domain.SlotKind(k))
+		}
+		for _, k := range appliances {
+			r.Appliances = append(r.Appliances, domain.ApplianceKind(k))
 		}
 		return r, err
 	})

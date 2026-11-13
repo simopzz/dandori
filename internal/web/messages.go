@@ -46,6 +46,22 @@ var SlotKindNames = map[domain.SlotKind]Message{
 	domain.Dinner:    {En: "dinner", It: "cena"},
 }
 
+// ApplianceKindNames are each ApplianceKind's name, as a page shows it.
+var ApplianceKindNames = map[domain.ApplianceKind]Message{
+	domain.Oven:           {En: "oven", It: "forno"},
+	domain.Hob:            {En: "hob", It: "piano cottura"},
+	domain.Microwave:      {En: "microwave", It: "microonde"},
+	domain.AirFryer:       {En: "air fryer", It: "friggitrice ad aria"},
+	domain.PressureCooker: {En: "pressure cooker", It: "pentola a pressione"},
+	domain.SlowCooker:     {En: "slow cooker", It: "slow cooker"},
+	domain.Blender:        {En: "blender", It: "frullatore"},
+	domain.FoodProcessor:  {En: "food processor", It: "robot da cucina"},
+	domain.StandMixer:     {En: "stand mixer", It: "planetaria"},
+	domain.Grill:          {En: "grill", It: "griglia"},
+	domain.Toaster:        {En: "toaster", It: "tostapane"},
+	domain.Steamer:        {En: "steamer", It: "vaporiera"},
+}
+
 // InLocations say where in each Storage Location, as Italian takes each Storage
 // Location with its own preposition.
 var InLocations = map[domain.StorageLocation]Message{

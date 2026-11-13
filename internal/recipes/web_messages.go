@@ -45,7 +45,6 @@ var (
 	msgTotal      = web.Message{En: "Total minutes", It: "Minuti totali"}
 	msgSlots      = web.Message{En: "Eaten at", It: "Si mangia a"}
 	msgAppliances = web.Message{En: "Appliances", It: "Elettrodomestici"}
-	msgOnePerLine = web.Message{En: "one per line", It: "uno per riga"}
 	msgIngredient = web.Message{En: "Ingredient", It: "Ingrediente"}
 	msgQuantity   = web.Message{En: "Quantity", It: "Quantità"}
 	msgStep       = web.Message{En: "Step", It: "Passaggio"}
