@@ -583,7 +583,21 @@ a.row-title:hover { text-decoration: underline; }
 
 .check input { width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; flex: none; accent-color: var(--color-fill); }
 
-.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: var(--space-4); }
+/* A row's Fields share their label, control and error rows, so the controls line up
+   when one label wraps. Gaps in a subgrid widen its rows, so margins space them instead,
+   and the row takes back the space after its last line. */
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  column-gap: var(--space-4);
+  margin-bottom: calc(-1 * var(--space-4));
+}
+
+.field-row > .field { grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; margin-bottom: var(--space-4); }
+
+.field-row > .field > .field-label { margin-bottom: var(--space-1); }
+
+.field-row > .field > .field-error { margin-top: var(--space-1); }
 
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: var(--space-5) 0 0; }
 

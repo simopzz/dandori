@@ -218,7 +218,7 @@ elements themselves.
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
-| `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. |
+| `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. Their controls line up even when one label wraps onto two lines. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |

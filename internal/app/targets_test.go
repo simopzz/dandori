@@ -216,4 +216,17 @@ func TestBrowserSavesTheTargetsInPlace(t *testing.T) {
 		t.Errorf("saving the Targets left the page: %v, %v", stayed, err)
 	}
 	b.Shot(t, "targets")
+
+	// On a phone the longer labels wrap, and the row's fields still line up.
+	if err := b.SetViewportSize(390, 844); err != nil {
+		t.Fatalf("narrow the page: %v", err)
+	}
+	tops, err := b.Evaluate(`[...document.querySelectorAll("#profile-targets input:is([name=protein], [name=fibre], [name=sugar])")].map(i => i.getBoundingClientRect().top)`)
+	if err != nil {
+		t.Fatalf("measure the fields: %v", err)
+	}
+	if ys, ok := tops.([]any); !ok || len(ys) != 3 || ys[0] != ys[1] || ys[1] != ys[2] {
+		t.Errorf("on a phone, protein, fibre and sugar sit at %v, want one line", tops)
+	}
+	b.Shot(t, "targets-phone")
 }
