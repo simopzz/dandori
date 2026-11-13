@@ -145,14 +145,13 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 	err := e.carryOut(ctx, tr, b)
 
 	status := Succeeded
-	var failure *agent.Failure // why it failed
+	var reason agent.Reason // why it failed
 	switch {
 	case ctx.Err() != nil && e.ctx.Err() == nil: // the User cancelled it
 		status = Cancelled
 	case err != nil:
 		status = Failed
-		var ok bool
-		failure, ok = errors.AsType[*agent.Failure](err)
+		failure, ok := errors.AsType[*agent.Failure](err)
 		switch {
 		case e.ctx.Err() != nil:
 			failure = &agent.Failure{Reason: agent.Interrupted}
@@ -160,6 +159,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 			failure = &agent.Failure{Reason: agent.Crashed, Detail: err.Error()}
 		}
 		tr.Emit(agent.TraceEvent{Kind: agent.Failed, Reason: failure.Reason, Text: failure.Detail})
+		reason = failure.Reason
 	}
 
 	storeCtx, cancel := tr.storeContext()
@@ -178,7 +178,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 	span := oteltrace.SpanFromContext(ctx)
 	span.SetAttributes(telemetry.RunStatus.String(string(status)))
 	if status == Failed {
-		span.SetStatus(codes.Error, string(failure.Reason))
+		span.SetStatus(codes.Error, string(reason))
 	}
 	span.End()
 
@@ -275,7 +275,7 @@ func (e *Engine) carryOut(ctx context.Context, tr agent.Trace, b agent.Brief) (e
 	if e.cfg.LLM == nil {
 		return &agent.Failure{Reason: agent.NoModel}
 	}
-	loop := agent.Loop{LLM: spanned{e.cfg.LLM, e.tracer}, Model: e.cfg.Model, Retries: e.cfg.Retries, Backoff: e.cfg.Backoff, MaxTurns: e.cfg.MaxTurns}
+	loop := agent.Loop{LLM: tracedLLM{e.cfg.LLM, e.tracer}, Model: e.cfg.Model, Retries: e.cfg.Retries, Backoff: e.cfg.Backoff, MaxTurns: e.cfg.MaxTurns}
 	return loop.Run(ctx, b, tr)
 }
 

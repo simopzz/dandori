@@ -11,15 +11,15 @@ import (
 	"github.com/simopzz/dandori/internal/telemetry"
 )
 
-// spanned makes each call to the model a client span under the Run's, as OTel's
+// tracedLLM makes each call to the model a client span under the Run's, as OTel's
 // generative-AI conventions describe one: the model, the tokens and why the model
 // stopped, never what it was asked or said. The LLM adapter adds what only it knows.
-type spanned struct {
+type tracedLLM struct {
 	llm    agent.LLM
 	tracer oteltrace.Tracer
 }
 
-func (s spanned) Send(ctx context.Context, req agent.Request) (agent.Response, error) {
+func (s tracedLLM) Send(ctx context.Context, req agent.Request) (agent.Response, error) {
 	ctx, span := s.tracer.Start(ctx, "chat "+req.Model, oteltrace.WithSpanKind(oteltrace.SpanKindClient), oteltrace.WithAttributes(
 		semconv.GenAIOperationNameChat, semconv.GenAIRequestModel(req.Model), telemetry.RunID.Int64(IDFrom(ctx))))
 	defer span.End()
@@ -30,15 +30,14 @@ func (s spanned) Send(ctx context.Context, req agent.Request) (agent.Response, e
 		}
 		return resp, err
 	}
-	span.SetAttributes(semconv.GenAIResponseFinishReasons(string(resp.StopReason)))
-	if u := resp.Usage; u != (agent.Usage{}) { // fakes report none
-		span.SetAttributes(
-			// The conventions count the cache's tokens as input; the API doesn't.
-			semconv.GenAIUsageInputTokens(int(u.Input+u.CacheRead+u.CacheWrite)),
-			semconv.GenAIUsageCacheReadInputTokens(int(u.CacheRead)),
-			semconv.GenAIUsageCacheCreationInputTokens(int(u.CacheWrite)),
-			semconv.GenAIUsageOutputTokens(int(u.Output)),
-			semconv.GenAIUsageReasoningOutputTokens(int(u.Thinking)))
-	}
+	u := resp.Usage
+	span.SetAttributes(
+		semconv.GenAIResponseFinishReasons(string(resp.StopReason)),
+		// The conventions count the cache's tokens as input; the API doesn't.
+		semconv.GenAIUsageInputTokens(int(u.Input+u.CacheRead+u.CacheWrite)),
+		semconv.GenAIUsageCacheReadInputTokens(int(u.CacheRead)),
+		semconv.GenAIUsageCacheCreationInputTokens(int(u.CacheWrite)),
+		semconv.GenAIUsageOutputTokens(int(u.Output)),
+		semconv.GenAIUsageReasoningOutputTokens(int(u.Thinking)))
 	return resp, nil
 }

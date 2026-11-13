@@ -107,11 +107,7 @@ func TestARequestSpanSaysWhoAndInWhatLanguage(t *testing.T) {
 		"dandori.htmx":                        attribute.BoolValue(true),
 		"dandori.htmx.boosted":                attribute.BoolValue(true),
 	}
-	for key, value := range want {
-		if got, ok := attr(request, key); !ok || got != value {
-			t.Errorf("%s = %q, want %q", key, got.String(), value.String())
-		}
-	}
+	hasAttrs(t, "request span", request, want)
 	for _, s := range spans.GetSpans() {
 		for _, a := range s.Attributes {
 			if strings.Contains(a.Value.String(), "ada@example.com") {
@@ -149,11 +145,7 @@ func TestASignedOutRequestSpanHasNoUser(t *testing.T) {
 		"dandori.htmx":         attribute.BoolValue(false),
 		"dandori.htmx.boosted": attribute.BoolValue(false),
 	}
-	for key, value := range want {
-		if got, ok := attr(request, key); !ok || got != value {
-			t.Errorf("%s = %q, want %q", key, got.String(), value.String())
-		}
-	}
+	hasAttrs(t, "request span", request, want)
 }
 
 // A request the app refuses says why on its span, naming the fields a form refused, and
@@ -492,9 +484,9 @@ func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *tr
 	return s, spans
 }
 
-// runSpan is the one Run's span among those exported, and the spans of its calls to the
-// model under it, in order.
-func runSpan(t *testing.T, spans *tracetest.InMemoryExporter) (run tracetest.SpanStub, calls tracetest.SpanStubs) {
+// runAndCallSpans is the one Run's span among those exported, and the spans of its
+// calls to the model under it, in order.
+func runAndCallSpans(t *testing.T, spans *tracetest.InMemoryExporter) (run tracetest.SpanStub, calls tracetest.SpanStubs) {
 	t.Helper()
 	all := spans.GetSpans()
 	run = onlySpan(t, all, "run parse", func(s tracetest.SpanStub) bool { return s.Name == "run parse" })
@@ -529,23 +521,16 @@ func TestEachCallToTheModelIsASpanUnderItsRun(t *testing.T) {
 	s.Scan(t, &userID, "SELECT user_id::text FROM profile")
 	s.Settle()
 
-	run, calls := runSpan(t, spans)
-	request := onlySpan(t, spans.GetSpans(), "POST /recipes/parse", func(st tracetest.SpanStub) bool {
-		return st.SpanKind == trace.SpanKindServer && st.SpanContext.SpanID() == run.Parent.SpanID()
+	run, calls := runAndCallSpans(t, spans)
+	onlySpan(t, spans.GetSpans(), "POST /recipes/paste over the Run's", func(st tracetest.SpanStub) bool {
+		return st.Name == "POST /recipes/paste" && st.SpanContext.SpanID() == run.Parent.SpanID()
 	})
-	if !strings.HasPrefix(request.Name, "POST ") {
-		t.Errorf("the Run's span is under %q, want the request that started it", request.Name)
-	}
-	for key, value := range map[attribute.Key]attribute.Value{
+	hasAttrs(t, "run span", run, map[attribute.Key]attribute.Value{
 		"dandori.run.id":     attribute.Int64Value(runID),
 		"dandori.run.kind":   attribute.StringValue("parse"),
 		"dandori.run.status": attribute.StringValue("succeeded"),
 		"dandori.user.id":    attribute.StringValue(userID),
-	} {
-		if got, ok := attr(run, key); !ok || got != value {
-			t.Errorf("run span's %s = %q, want %q", key, got.String(), value.String())
-		}
-	}
+	})
 	if run.Status.Code != codes.Unset {
 		t.Errorf("a succeeded Run's span status is %s, want unset", run.Status.Code)
 	}
@@ -557,37 +542,28 @@ func TestEachCallToTheModelIsASpanUnderItsRun(t *testing.T) {
 		if c.Name != "chat claude-opus-5-5" || c.SpanKind != trace.SpanKindClient {
 			t.Errorf("a call to the model is a %s span named %q, want a client span named chat claude-opus-5-5", c.SpanKind, c.Name)
 		}
-		for key, value := range map[attribute.Key]attribute.Value{
+		hasAttrs(t, "call span", c, map[attribute.Key]attribute.Value{
 			"gen_ai.operation.name": attribute.StringValue("chat"),
 			"gen_ai.request.model":  attribute.StringValue("claude-opus-5-5"),
 			"dandori.run.id":        attribute.Int64Value(runID),
-		} {
-			if got, ok := attr(c, key); !ok || got != value {
-				t.Errorf("call span's %s = %q, want %q", key, got.String(), value.String())
-			}
-		}
+		})
 	}
 	if failed := calls[0]; failed.Status.Code != codes.Error || !strings.Contains(failed.Status.Description, "overloaded") {
 		t.Errorf("the overloaded call's span status = %s %q, want an error saying overloaded", failed.Status.Code, failed.Status.Description)
 	}
-	if got, _ := attr(calls[1], "gen_ai.response.finish_reasons"); got.String() != `["tool_use"]` {
-		t.Errorf("the tool call's finish reasons = %s, want [tool_use]", got.String())
-	}
-	last := calls[2]
-	for key, want := range map[attribute.Key]string{
-		"gen_ai.response.finish_reasons":           `["end_turn"]`,
-		"gen_ai.usage.input_tokens":                "6100", // the uncached 1200, with the cache's
-		"gen_ai.usage.cache_read.input_tokens":     "4000",
-		"gen_ai.usage.cache_creation.input_tokens": "900",
-		"gen_ai.usage.output_tokens":               "300",
-		"gen_ai.usage.reasoning.output_tokens":     "250",
-	} {
-		if got, _ := attr(last, key); got.String() != want {
-			t.Errorf("the last call's %s = %q, want %s", key, got.String(), want)
-		}
-	}
-	if last.Status.Code != codes.Unset {
-		t.Errorf("the last call's span status is %s, want unset", last.Status.Code)
+	hasAttrs(t, "the tool call's span", calls[1], map[attribute.Key]attribute.Value{
+		"gen_ai.response.finish_reasons": attribute.StringSliceValue([]string{"tool_use"}),
+	})
+	hasAttrs(t, "the last call's span", calls[2], map[attribute.Key]attribute.Value{
+		"gen_ai.response.finish_reasons":           attribute.StringSliceValue([]string{"end_turn"}),
+		"gen_ai.usage.input_tokens":                attribute.Int64Value(6100), // the uncached 1200, with the cache's
+		"gen_ai.usage.cache_read.input_tokens":     attribute.Int64Value(4000),
+		"gen_ai.usage.cache_creation.input_tokens": attribute.Int64Value(900),
+		"gen_ai.usage.output_tokens":               attribute.Int64Value(300),
+		"gen_ai.usage.reasoning.output_tokens":     attribute.Int64Value(250),
+	})
+	if calls[2].Status.Code != codes.Unset {
+		t.Errorf("the last call's span status is %s, want unset", calls[2].Status.Code)
 	}
 
 	for _, sp := range append(calls, run) {
@@ -606,7 +582,7 @@ func TestEachCallToTheModelIsASpanUnderItsRun(t *testing.T) {
 func TestAFailedRunIsAnErrorSpanAndACancelledOneIsNot(t *testing.T) {
 	s, spans := parseWithSpans(t, fakellm.Respond(agent.Response{StopReason: agent.StopRefusal, Refusal: "bio"}))
 	s.Settle()
-	run, _ := runSpan(t, spans)
+	run, _ := runAndCallSpans(t, spans)
 	if run.Status.Code != codes.Error || run.Status.Description != "model_refused" {
 		t.Errorf("a failed Run's span status = %s %q, want an error saying model_refused", run.Status.Code, run.Status.Description)
 	}
@@ -619,11 +595,40 @@ func TestAFailedRunIsAnErrorSpanAndACancelledOneIsNot(t *testing.T) {
 	s.Open(s.Page().Path)
 	s.CancelsRun(apptest.Form(t, s.Page().Body, "cancel-run"))
 	s.Settle()
-	run, calls := runSpan(t, spans)
-	if got, _ := attr(run, "dandori.run.status"); run.Status.Code != codes.Unset || got.AsString() != "cancelled" {
-		t.Errorf("a cancelled Run's span status = %s, dandori.run.status = %q, want unset and cancelled", run.Status.Code, got.AsString())
+	run, calls := runAndCallSpans(t, spans)
+	hasAttrs(t, "a cancelled Run's span", run, map[attribute.Key]attribute.Value{"dandori.run.status": attribute.StringValue("cancelled")})
+	if run.Status.Code != codes.Unset {
+		t.Errorf("a cancelled Run's span status is %s, want unset", run.Status.Code)
 	}
 	if len(calls) != 1 || calls[0].Status.Code != codes.Unset {
 		t.Errorf("the cut-off call's span = %v, want one, with no error", calls)
+	}
+}
+
+// A Run cut off by Dandori stopping is an error span, interrupted; its call is not.
+func TestARunInterruptedByAStopIsAnErrorSpanButNotItsCall(t *testing.T) {
+	asked := make(chan struct{})
+	s, spans := parseWithSpans(t, asksAgain(asked, fakellm.Hang()))
+	<-asked
+
+	s.Restarts()
+
+	run, calls := runAndCallSpans(t, spans)
+	if run.Status.Code != codes.Error || run.Status.Description != "interrupted" {
+		t.Errorf("an interrupted Run's span status = %s %q, want an error saying interrupted", run.Status.Code, run.Status.Description)
+	}
+	if len(calls) != 1 || calls[0].Status.Code != codes.Unset {
+		t.Errorf("the cut-off call's span = %v, want one, with no error", calls)
+	}
+}
+
+// hasAttrs fails the test for each attribute of want the span, described as what, lacks
+// or holds otherwise.
+func hasAttrs(t *testing.T, what string, s tracetest.SpanStub, want map[attribute.Key]attribute.Value) {
+	t.Helper()
+	for key, value := range want {
+		if got, ok := attr(s, key); !ok || got != value {
+			t.Errorf("%s's %s = %q, want %q", what, key, got.String(), value.String())
+		}
 	}
 }

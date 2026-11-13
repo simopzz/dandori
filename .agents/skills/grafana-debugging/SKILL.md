@@ -91,17 +91,25 @@ Start from the Run's id, the number in its page's path `/runs/<id>`. Its span, w
 { resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && span.dandori.run.id = <id> }
 ```
 
-Open it with `get_tempo_trace`. Each `chat <model>` span is one call: its duration is the call's latency, and several error spans before one that worked are retries (a 429 or 529, the cause in the status). Time not spent in calls went to the tools' queries, under the Run's span too. The cost is in each call's tokens:
+Open it with `get_tempo_trace`. Each `chat <model>` span is one call: its duration is the call's latency, and several error spans before one that worked are retries (`error.type` says which failure, `429`, `529`, `timeout`, …, the status the cause). Time not spent in calls went to the tools' queries, under the Run's span too, or to waiting before a retry, the gap between a failed call and the next. The cost is in each call's tokens:
 
 ```
 { resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && span.dandori.run.id = <id> && name =~ "chat .*" } | select(span.gen_ai.response.model, span.gen_ai.response.finish_reasons, span.gen_ai.usage.input_tokens, span.gen_ai.usage.cache_read.input_tokens, span.gen_ai.usage.cache_creation.input_tokens, span.gen_ai.usage.output_tokens, span.gen_ai.usage.reasoning.output_tokens)
 ```
 
-Many calls means many turns of tools; input that grows each turn without cache reads means the prompt cache missed; most of the output in reasoning means the model thought long. Which Runs were slowest, and the calls that were (`query_tempo_metrics`, `range`):
+Many calls means many turns of tools; input that grows each turn without cache reads means the prompt cache missed; most of the output in reasoning means the model thought long.
+
+Without an id, how long each kind of Run takes (`query_tempo_metrics`, `range`):
 
 ```
 { resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && name =~ "run .*" } | quantile_over_time(duration, .95) by (span.dandori.run.kind)
-{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && name =~ "chat .*" && duration > 60s }
+```
+
+Then the slow Runs themselves, and the slow calls, with `search_tempo_traces`: a query with no function after it is a search, which `query_tempo_metrics` refuses.
+
+```
+{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && name =~ "run .*" && duration > 2m } | select(span.dandori.run.id, span.dandori.run.status)
+{ resource.service.name = "dandori" && resource.deployment.environment.name = "prod" && name =~ "chat .*" && duration > 60s } | select(span.dandori.run.id, span.gen_ai.usage.output_tokens)
 ```
 
 Older than 14 days, the Run's Trace in the database still has each call's tokens and its retries.

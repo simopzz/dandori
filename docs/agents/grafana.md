@@ -55,8 +55,9 @@ Dandori's own attributes are under `dandori.`; in TraceQL, `span.dandori.user.id
 | `gen_ai.provider.name`, `gen_ai.response.model` | `anthropic`, and the model that answered: another than the one asked after a server-side fallback. Absent with the demo model. |
 | `gen_ai.response.finish_reasons` | Why the model stopped, as the Trace's stop reasons: `["tool_use"]`, `["end_turn"]`, `["max_tokens"]`, `["refusal"]`. |
 | `gen_ai.usage.input_tokens` | Every input token, the cache's included, as OTel's conventions count them (the API's own `input_tokens` leaves the cache out). |
-| `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.cache_creation.input_tokens` | The input tokens read from and written to the prompt cache: a read costs a tenth of an uncached token, a write a quarter more. |
-| `gen_ai.usage.output_tokens`, `gen_ai.usage.reasoning.output_tokens` | The output tokens, thinking included, and the thinking alone. |
+| `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.cache_creation.input_tokens` | The input tokens read from and written to the prompt cache, which are priced differently from uncached ones. |
+| `gen_ai.usage.output_tokens`, `gen_ai.usage.reasoning.output_tokens` | The output tokens, thinking included, and the thinking alone. The demo model reports every count as 0. |
+| `error.type` | On a call that failed: the API's status code (`429`, `529`, `400`, …), `timeout`, or the Go error's type for a network failure (`*url.Error`). The status description has the cause in full. |
 
 No span holds what the model was asked or said, nor the API key: that is the Run's Trace, in the database.
 
