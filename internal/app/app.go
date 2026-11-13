@@ -47,6 +47,9 @@ type Config struct {
 	// Spans makes the spans of every request, query, beat, Run, call to the model and
 	// call to Supabase Auth; without it, none are made.
 	Spans trace.TracerProvider
+	// FaroURL is the Faro collector the pages send the browser's telemetry to; without
+	// it, they load no Faro.
+	FaroURL string
 }
 
 // App is a running Dandori instance.
@@ -54,6 +57,7 @@ type App struct {
 	pool        *pgxpool.Pool
 	clock       clock.Clock
 	spans       trace.TracerProvider
+	faroURL     string
 	log         *slog.Logger
 	auth        *auth.Service
 	profile     *profile.Service
@@ -80,7 +84,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
@@ -208,7 +212,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /ingredients", signedIn(ings.Add))
 	mux.Handle("POST /ingredients/{id}", signedIn(ings.Edit))
 	mux.Handle("POST /ingredients/{id}/delete", signedIn(ings.Delete))
-	return otelhttp.NewHandler(described(web.Languages(web.Notices(named(mux)))), "request",
+	return otelhttp.NewHandler(described(web.Faro(a.faroURL, web.Languages(web.Notices(named(mux))))), "request",
 		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
 		otelhttp.WithFilter(traced))

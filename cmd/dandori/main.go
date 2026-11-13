@@ -12,7 +12,8 @@
 // ANTHROPIC_API_KEY, which Runs ask Claude with (unset, every Run fails for having no
 // model), DANDORI_MODEL, the Claude model (default claude-opus-5-5), and
 // DANDORI_DEMO_LLM, which set to true answers every Run with recipes.DemoLLM instead,
-// asking no real model and costing nothing.
+// asking no real model and costing nothing, and DANDORI_FARO_URL, the Faro collector the
+// pages send the browser's telemetry to (unset, they load no Faro).
 package main
 
 import (
@@ -61,6 +62,7 @@ func run(log *slog.Logger, args []string) error {
 		cfg := app.Config{
 			DatabaseURL: os.Getenv("DANDORI_DATABASE_URL"),
 			Clock:       clock.Real(loc),
+			FaroURL:     os.Getenv("DANDORI_FARO_URL"),
 			Auth: auth.Config{
 				SupabaseURL:    os.Getenv("DANDORI_SUPABASE_URL"),
 				PublishableKey: os.Getenv("DANDORI_SUPABASE_PUBLISHABLE_KEY"),
