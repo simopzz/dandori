@@ -178,7 +178,7 @@ templ timesForm(f TimesForm) {
 			<div class="stack">
 				@web.FieldRow() {
 					for _, k := range domain.SlotKinds {
-						@web.TimeField(web.T(ctx, slotTimeLabels[k]), string(k), f.Values[string(k)], f.Errs[string(k)])
+						@web.TimeField(web.Capitalised(web.T(ctx, web.SlotKindNames[k])), string(k), f.Values[string(k)], f.Errs[string(k)])
 					}
 				}
 				@web.Actions() {

@@ -236,13 +236,10 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f := TimesForm{Values: typed, Errs: map[string]string{}}
-	for i, k := range domain.SlotKinds {
-		switch problem := problems[string(k)]; problem {
-		case "":
-		case domain.NotAfterTheOneBefore:
-			f.Errs[string(k)] = web.Tf(ctx, msgAfter, web.T(ctx, web.SlotKindNames[domain.SlotKinds[i-1]]))
-		default:
-			f.Errs[string(k)] = web.T(ctx, web.ProblemMessage(problem, timeProblems))
+	for field, problem := range problems {
+		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, nil))
+		if problem == domain.NotAfterTheOneBefore {
+			f.Errs[field] = web.Tf(ctx, msgAfter, web.T(ctx, web.SlotKindNames[domain.SlotKind(field).Before()]))
 		}
 	}
 	httpx.Refused(r, refusedTimes, f.Errs)

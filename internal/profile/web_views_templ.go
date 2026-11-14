@@ -885,7 +885,7 @@ func timesForm(f TimesForm) templ.Component {
 				}
 				ctx = templ.InitializeContext(ctx)
 				for _, k := range domain.SlotKinds {
-					templ_7745c5c3_Err = web.TimeField(web.T(ctx, slotTimeLabels[k]), string(k), f.Values[string(k)], f.Errs[string(k)]).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = web.TimeField(web.Capitalised(web.T(ctx, web.SlotKindNames[k])), string(k), f.Values[string(k)], f.Errs[string(k)]).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

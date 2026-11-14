@@ -348,6 +348,7 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")
 	b.ChooseLanguage(t, "Italiano", "Save")
+	b.Sees(t, "Profilo")  // the Language saved, before the page is opened again
 	b.Open(t, "/profile") // without the Language's Notice, which also says "Profilo salvato."
 	b.Sees(t, "Orari")
 

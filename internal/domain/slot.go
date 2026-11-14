@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"slices"
 	"time"
 )
 
@@ -17,6 +18,14 @@ const (
 // SlotKinds lists every SlotKind in the order of a day.
 var SlotKinds = []SlotKind{Breakfast, Lunch, Snack, Dinner}
 
+// Before is the kind before k in the day; breakfast has none, "".
+func (k SlotKind) Before() SlotKind {
+	if i := slices.Index(SlotKinds, k); i > 0 {
+		return SlotKinds[i-1]
+	}
+	return ""
+}
+
 // SlotTimes is the Profile's time of day of each SlotKind, the same every day.
 type SlotTimes map[SlotKind]TimeOfDay
 
@@ -31,17 +40,14 @@ const NotAfterTheOneBefore Problem = "not after the one before"
 // isn't a time skips the order check against it.
 func ParseSlotTimes(typed map[string]string) (SlotTimes, map[string]Problem) {
 	times, problems := SlotTimes{}, map[string]Problem{}
-	for i, k := range SlotKinds {
+	for _, k := range SlotKinds {
 		t, problem := ParseTimeOfDay(typed[string(k)])
 		if problem != "" {
 			problems[string(k)] = problem
 			continue
 		}
 		times[k] = t
-		if i == 0 {
-			continue
-		}
-		if before, ok := times[SlotKinds[i-1]]; ok && t <= before {
+		if before, ok := times[k.Before()]; ok && t <= before {
 			problems[string(k)] = NotAfterTheOneBefore
 		}
 	}

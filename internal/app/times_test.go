@@ -9,10 +9,14 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-var times = apptest.TimesOfDay{Breakfast: "7:30 am", Lunch: "12:30 pm", Snack: "4:00 pm", Dinner: "7:30 pm"}
+// defaultTimes are a new User's times of day; savedTimes are the ones the tests save.
+var (
+	defaultTimes = apptest.TimesOfDay{Breakfast: "8:00 am", Lunch: "1:00 pm", Snack: "5:00 pm", Dinner: "8:00 pm"}
+	savedTimes   = apptest.TimesOfDay{Breakfast: "7:30 am", Lunch: "12:30 pm", Snack: "4:00 pm", Dinner: "7:30 pm"}
+)
 
-// shownTimes are the times of day the times-of-day form on page holds.
-func shownTimes(t *testing.T, page string) apptest.TimesOfDay {
+// timesOnForm are the times of day the times-of-day form on page holds.
+func timesOnForm(t *testing.T, page string) apptest.TimesOfDay {
 	t.Helper()
 	f := apptest.Form(t, page, "profile-times")
 	return apptest.TimesOfDay{Breakfast: f.Get("breakfast"), Lunch: f.Get("lunch"), Snack: f.Get("snack"), Dinner: f.Get("dinner")}
@@ -22,9 +26,8 @@ func shownTimes(t *testing.T, page string) apptest.TimesOfDay {
 func TestANewUserHasTheDefaultTimesOfDay(t *testing.T) {
 	s := profileOf(t, "ada@example.com")
 	s.Sees("Times of day")
-	want := apptest.TimesOfDay{Breakfast: "8:00 am", Lunch: "1:00 pm", Snack: "5:00 pm", Dinner: "8:00 pm"}
-	if got := shownTimes(t, s.Page().Body); got != want {
-		t.Errorf("a new User's times of day are %+v, want %+v", got, want)
+	if got := timesOnForm(t, s.Page().Body); got != defaultTimes {
+		t.Errorf("a new User's times of day are %+v, want %+v", got, defaultTimes)
 	}
 }
 
@@ -35,12 +38,12 @@ func TestTimesOfDayAreSavedAndTodayFollowsThem(t *testing.T) {
 	s.SavesTimesOfDay(apptest.TimesOfDay{Breakfast: "07:30", Lunch: "12.30", Snack: "4pm", Dinner: "1930"})
 	s.IsAt("/profile")
 	s.IsConfirmed("Profile saved.")
-	if got := shownTimes(t, s.Page().Body); got != times {
-		t.Errorf("the saved times of day show %+v, want %+v", got, times)
+	if got := timesOnForm(t, s.Page().Body); got != savedTimes {
+		t.Errorf("the saved times of day show %+v, want %+v", got, savedTimes)
 	}
 	s.Open("/profile")
-	if got := shownTimes(t, s.Page().Body); got != times {
-		t.Errorf("the times of day reopened show %+v, want %+v", got, times)
+	if got := timesOnForm(t, s.Page().Body); got != savedTimes {
+		t.Errorf("the times of day reopened show %+v, want %+v", got, savedTimes)
 	}
 
 	s.At("Mon 07:00")
@@ -67,7 +70,7 @@ func TestATimeOfDayNotAfterTheOneBeforeIsRefusedOnItsField(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			s := profileOf(t, "ada@example.com")
-			typed := times
+			typed := savedTimes
 			c.change(&typed)
 			s.SavesTimesOfDay(typed)
 			if s.Page().StatusCode != http.StatusUnprocessableEntity {
@@ -75,12 +78,12 @@ func TestATimeOfDayNotAfterTheOneBeforeIsRefusedOnItsField(t *testing.T) {
 			}
 			s.Sees(c.shown)
 			s.IsNotConfirmed()
-			if got := shownTimes(t, s.Page().Body); got != typed {
+			if got := timesOnForm(t, s.Page().Body); got != typed {
 				t.Errorf("the refused times of day hold %+v, want what was typed, %+v", got, typed)
 			}
 			s.Open("/profile")
-			if got, want := shownTimes(t, s.Page().Body), (apptest.TimesOfDay{Breakfast: "8:00 am", Lunch: "1:00 pm", Snack: "5:00 pm", Dinner: "8:00 pm"}); got != want {
-				t.Errorf("after a refusal the times of day are %+v, want the defaults %+v", got, want)
+			if got := timesOnForm(t, s.Page().Body); got != defaultTimes {
+				t.Errorf("after a refusal the times of day are %+v, want the defaults %+v", got, defaultTimes)
 			}
 		})
 	}
@@ -91,7 +94,7 @@ func TestATimeOfDayNotAfterTheOneBeforeIsRefusedOnItsField(t *testing.T) {
 func TestTheTimesOfDaySectionAnswersHTMXWithItself(t *testing.T) {
 	s := profileOf(t, "ada@example.com")
 	form := apptest.Form(t, s.Page().Body, "profile-times")
-	refusedTimes := times
+	refusedTimes := savedTimes
 	refusedTimes.Snack = "11:00 am"
 	refusedTimes.Fill(form)
 
@@ -99,7 +102,7 @@ func TestTheTimesOfDaySectionAnswersHTMXWithItself(t *testing.T) {
 	if refused.StatusCode != http.StatusUnprocessableEntity || strings.Contains(refused.Body, "<html") {
 		t.Fatalf("the refused times of day answered %d, want 422 and a fragment:\n%s", refused.StatusCode, refused.Body)
 	}
-	if got := shownTimes(t, refused.Body); got != refusedTimes {
+	if got := timesOnForm(t, refused.Body); got != refusedTimes {
 		t.Errorf("the refused times of day hold %+v, want %+v", got, refusedTimes)
 	}
 	if shown := apptest.Text(refused.Body); !strings.Contains(shown, "Must be after lunch.") {
@@ -109,13 +112,13 @@ func TestTheTimesOfDaySectionAnswersHTMXWithItself(t *testing.T) {
 		t.Errorf("the refused times of day confirm %q", notices)
 	}
 
-	times.Fill(form)
+	savedTimes.Fill(form)
 	saved := s.HTMXPostForm(t, form.Action, form.Values)
 	if saved.StatusCode != http.StatusOK || strings.Contains(saved.Body, "<html") {
 		t.Fatalf("saving the times of day answered %d, want 200 and a fragment:\n%s", saved.StatusCode, saved.Body)
 	}
-	if got := shownTimes(t, saved.Body); got != times {
-		t.Errorf("the saved times of day hold %+v, want %+v", got, times)
+	if got := timesOnForm(t, saved.Body); got != savedTimes {
+		t.Errorf("the saved times of day hold %+v, want %+v", got, savedTimes)
 	}
 	if notices := apptest.Notices(t, saved.Body); !slices.Equal(notices, []string{"Profile saved."}) {
 		t.Errorf("saving the times of day confirms %q", notices)
