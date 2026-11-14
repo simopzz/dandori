@@ -3,6 +3,7 @@ package recipes
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 
@@ -42,6 +43,17 @@ func codesOf[K ~string](kinds []K) []string {
 		out[i] = string(k)
 	}
 	return out
+}
+
+// kindsIn is the kinds of all whose codes are in codes, in all's order, each once.
+func kindsIn[K ~string](all []K, codes []string) []K {
+	var in []K
+	for _, k := range all {
+		if slices.Contains(codes, string(k)) {
+			in = append(in, k)
+		}
+	}
+	return in
 }
 
 // saveRecipe adds rec for the signed-in User under its normalised name, unless they have
@@ -124,12 +136,7 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 		var r domain.Recipe
 		var kinds, appliances []string
 		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.ActiveMinutes, &r.TotalMinutes, &kinds, &appliances, &r.Steps)
-		for _, k := range kinds {
-			r.Kinds = append(r.Kinds, domain.SlotKind(k))
-		}
-		for _, k := range appliances {
-			r.Appliances = append(r.Appliances, domain.ApplianceKind(k))
-		}
+		r.Kinds, r.Appliances = kindsIn(domain.SlotKinds, kinds), kindsIn(domain.ApplianceKinds, appliances)
 		return r, err
 	})
 	if err != nil || len(recipes) == 0 {

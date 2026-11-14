@@ -224,18 +224,24 @@ func TestSubmitRecipesProblemsGoBackToTheModelWhichFixesThem(t *testing.T) {
 	draftHolds(t, s, map[string]string{"ing_name_4": "rice", "ing_quantity_4": "100", "ing_name_0": "beef mince", "ing_kcal_0": "250"})
 }
 
-// A kind of appliance not on the list goes back to the model, which picks one that is, so
-// the Recipe Draft holds only kinds.
-func TestAnUnknownKindOfApplianceGoesBackToTheModel(t *testing.T) {
+// Every kind of appliance and of Slot not on its list goes back to the model in one
+// refusal, so it fixes them all in one call and the Recipe Draft holds only kinds.
+func TestUnknownKindsGoBackToTheModelAllAtOnce(t *testing.T) {
 	s := kitchenWith(t, rice)
 	wrong := submittedLasagne()
-	wrong["appliances"] = []string{"oven", "ice_cream_maker"}
+	wrong["appliances"] = []string{"oven", "ice_cream_maker", "wok"}
+	wrong["slot_kinds"] = []string{"brunch", "dinner", "supper"}
 	s.Model.Script(
 		fakellm.CallTool("submit_recipe", wrong),
 		fakellm.Then(func(req agent.Request) fakellm.Step {
 			refused := lastToolResult(req)
-			if want := `appliances: "ice_cream_maker" is not a kind of appliance`; !refused.IsError || !strings.Contains(refused.Text, want) {
-				t.Errorf("the model was told %q, want it told %q", refused.Text, want)
+			for _, want := range []string{
+				`appliances: "ice_cream_maker" is not a kind of appliance; "wok" is not a kind of appliance`,
+				`slot_kinds: "brunch" is not a kind of Slot; "supper" is not a kind of Slot`,
+			} {
+				if !refused.IsError || !strings.Contains(refused.Text, want) {
+					t.Errorf("the model was told %q, want it told %q", refused.Text, want)
+				}
 			}
 			return fakellm.CallTool("submit_recipe", submittedLasagne())
 		}),
