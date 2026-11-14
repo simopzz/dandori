@@ -9,8 +9,6 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-const msgLanguageStays = "You have already written Ingredients, Recipes, Recipe Drafts, Portions, exclusions or allergies in this Language, so it stays."
-
 // foodsOnForm are the exclusions and allergies the form of their section on page holds.
 func foodsOnForm(t *testing.T, page string) (exclusions, allergies string) {
 	t.Helper()

@@ -126,10 +126,11 @@ func (s *Service) Brief(ctx context.Context) (brief string, err error) {
 	return brief, err
 }
 
-// SetBrief saves typed as the signed-in User's Planning Brief, without the blank space
-// around it, so a blank one is empty, and is what it saved.
+// SetBrief saves typed as the signed-in User's Planning Brief, and is what it saved:
+// each line ending in a bare newline, and without the blank space around it, so a blank
+// Brief is empty.
 func (s *Service) SetBrief(ctx context.Context, typed string) (string, error) {
-	brief := strings.TrimSpace(typed)
+	brief := strings.TrimSpace(strings.ReplaceAll(typed, "\r\n", "\n"))
 	return brief, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveBrief(ctx, tx, brief) })
 }
 

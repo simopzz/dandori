@@ -63,8 +63,8 @@ var (
 	msgGrams     = web.Message{En: "g", It: "g"}
 	msgFoods     = web.Message{En: "Exclusions and allergies", It: "Esclusioni e allergie"}
 	msgFoodsHint = web.Message{
-		En: "One food per line, or separated by commas. Planning never uses them.",
-		It: "Un alimento per riga, o separati da virgole. La pianificazione non li usa mai.",
+		En: "One food per line, or separated by commas or semicolons. Every planning Run is told to leave them out.",
+		It: "Un alimento per riga, o separati da virgole o punti e virgola. Ogni Run di pianificazione è tenuto a escluderli.",
 	}
 	msgExclusions = web.Message{En: "Never eat", It: "Non mangio mai"}
 	msgAllergies  = web.Message{En: "Allergies", It: "Allergie"}
