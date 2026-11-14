@@ -52,13 +52,22 @@ var (
 	msgCeilingHint   = web.Message{En: "g, at most", It: "g, al massimo"}
 	msgTimesOfDay    = web.Message{En: "Times of day", It: "Orari"}
 	msgAfter         = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
-	msgSigningIn     = web.Message{En: "Signing in", It: "Accesso"}
-	msgSignedInAs    = web.Message{En: "Signed in as %s", It: "Accesso effettuato come %s"}
-	msgSignOut       = web.Message{En: "Sign out", It: "Esci"}
+	msgMealOut       = web.Message{En: "Meal Out estimate", It: "Stima di un Pasto Fuori"}
+	msgMealOutHint   = web.Message{
+		En: "What a Meal Out counts toward your Targets, unless you give it its own. Fibre and sugar may be left blank.",
+		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua. Fibre e zuccheri si possono lasciare vuoti.",
+	}
+	msgCarbs      = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat        = web.Message{En: "Fat", It: "Grassi"}
+	msgKcalUnit   = web.Message{En: "kcal", It: "kcal"}
+	msgGrams      = web.Message{En: "g", It: "g"}
+	msgSigningIn  = web.Message{En: "Signing in", It: "Accesso"}
+	msgSignedInAs = web.Message{En: "Signed in as %s", It: "Accesso effettuato come %s"}
+	msgSignOut    = web.Message{En: "Sign out", It: "Esci"}
 )
 
-// targetProblems say why a typed Target is refused.
-var targetProblems = map[domain.Problem]web.Message{
+// numberProblems say why a typed Target or Meal Out value is refused.
+var numberProblems = map[domain.Problem]web.Message{
 	domain.NotWhole:     {En: "Type a whole number.", It: "Scrivi un numero intero."},
 	domain.NotAboveZero: {En: "Must be above 0.", It: "Deve essere sopra 0."},
 	domain.TooLarge:     {En: "Must be below 10000.", It: "Deve essere sotto 10000."},

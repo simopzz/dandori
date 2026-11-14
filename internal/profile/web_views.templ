@@ -68,9 +68,18 @@ type TimesForm struct {
 // timesSectionID is the element the times-of-day form swaps when htmx posts it.
 const timesSectionID = "times"
 
-// profilePage is the User's Profile: their Language, their Targets, the time of day of
-// each kind of Slot, and who is signed in.
-templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm, times TimesForm) {
+// MealOutForm is the Meal Out estimate as shown, by field: as saved or as typed, with
+// why each field was refused. An unknown fibre or sugar is blank, never 0.
+type MealOutForm struct {
+	Values, Errs map[string]string
+}
+
+// mealOutSectionID is the element the Meal Out form swaps when htmx posts it.
+const mealOutSectionID = "meal-out"
+
+// profilePage is the User's Profile: their Language, the time of day of each kind of
+// Slot, their Targets, their Meal Out estimate, and who is signed in.
+templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm, times TimesForm, mealOut MealOutForm) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		<form id="profile-language" method="post" action="/profile/language">
@@ -86,13 +95,16 @@ templ profilePage(today time.Time, email string, f LanguageForm, targets Targets
 				}
 			}
 		</form>
-		@web.SectionBody(targetsSectionID) {
-			@targetsForm(targets)
-		}
 		@web.SectionBody(timesSectionID) {
 			@timesForm(times)
 		}
-		@web.Section(4, web.T(ctx, msgSigningIn)) {
+		@web.SectionBody(targetsSectionID) {
+			@targetsForm(targets)
+		}
+		@web.SectionBody(mealOutSectionID) {
+			@mealOutForm(mealOut)
+		}
+		@web.Section(5, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
@@ -116,7 +128,7 @@ templ targetsForm(f TargetsForm) {
 		hx-target={ "#" + targetsSectionID }
 		hx-swap="innerHTML"
 	>
-		@web.FieldGroup(2, web.T(ctx, msgTargets)) {
+		@web.FieldGroup(3, web.T(ctx, msgTargets)) {
 			<div class="stack">
 				if !f.Set {
 					@web.Hint() {
@@ -174,7 +186,7 @@ templ timesForm(f TimesForm) {
 		hx-target={ "#" + timesSectionID }
 		hx-swap="innerHTML"
 	>
-		@web.FieldGroup(3, web.T(ctx, msgTimesOfDay)) {
+		@web.FieldGroup(2, web.T(ctx, msgTimesOfDay)) {
 			<div class="stack">
 				@web.FieldRow() {
 					for _, k := range domain.SlotKinds {
@@ -189,4 +201,59 @@ templ timesForm(f TimesForm) {
 			</div>
 		}
 	</form>
+}
+
+// mealOutForm is the Meal Out estimate's section, swapping itself when htmx posts it.
+templ mealOutForm(f MealOutForm) {
+	<form
+		id="profile-meal-out"
+		method="post"
+		action="/profile/meal-out"
+		hx-post="/profile/meal-out"
+		hx-target={ "#" + mealOutSectionID }
+		hx-swap="innerHTML"
+	>
+		@web.FieldGroup(4, web.T(ctx, msgMealOut)) {
+			<div class="stack">
+				@web.Hint() {
+					{ web.T(ctx, msgMealOutHint) }
+				}
+				@web.FieldRow() {
+					@mealOutField(msgKcal, msgKcalUnit, domain.MealOutKcal, f)
+					@mealOutField(msgProtein, msgGrams, domain.MealOutProtein, f)
+					@mealOutField(msgCarbs, msgGrams, domain.MealOutCarbs, f)
+				}
+				@web.FieldRow() {
+					@mealOutField(msgFat, msgGrams, domain.MealOutFat, f)
+					@mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f)
+					@mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f)
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgSave) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// mealOutField is the Meal Out estimate's value named field, a whole number from 0,
+// labelled label with its unit; fibre and sugar may be left blank.
+templ mealOutField(label, unit web.Message, field string, f MealOutForm) {
+	@web.Field(web.T(ctx, label), web.T(ctx, unit), f.Errs[field]) {
+		<input
+			type="number"
+			inputmode="numeric"
+			step="1"
+			min="0"
+			name={ field }
+			value={ f.Values[field] }
+			required?={ domain.MealOutRequired(field) }
+			autocomplete="off"
+			if f.Errs[field] != "" {
+				aria-invalid="true"
+			}
+		/>
+	}
 }

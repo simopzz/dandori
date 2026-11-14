@@ -12,6 +12,7 @@ import (
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -32,6 +33,7 @@ const (
 	refusedParsing       httpx.Refusal = "Language stays: a parse Run is going"
 	refusedTargets       httpx.Refusal = "Targets refused"
 	refusedTimes         httpx.Refusal = "times of day refused"
+	refusedMealOut       httpx.Refusal = "Meal Out estimate refused"
 )
 
 // LanguageChosen serves next in the signed-in User's Language, once they have chosen one;
@@ -131,7 +133,7 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 }
 
 func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status int, f LanguageForm) {
-	page, err := h.page(r, f, nil, nil)
+	page, err := h.page(r, f, nil, nil, nil)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
 		return
@@ -139,9 +141,9 @@ func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status i
 	httpx.Render(w, r, h.Log, status, page)
 }
 
-// page is the Profile page with its Language section f, and its Targets and times-of-day
-// sections as given, or as saved when not.
-func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, times *TimesForm) (templ.Component, error) {
+// page is the Profile page with its Language section f, and its Targets, times-of-day
+// and Meal Out sections as given, or as saved when not.
+func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, times *TimesForm, mealOut *MealOutForm) (templ.Component, error) {
 	ctx := r.Context()
 	if targets == nil {
 		t, set, err := h.Service.Targets(ctx)
@@ -159,8 +161,15 @@ func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, ti
 		saved := shownTimes(ctx, t)
 		times = &saved
 	}
+	if mealOut == nil {
+		n, err := h.Service.MealOut(ctx)
+		if err != nil {
+			return nil, err
+		}
+		mealOut = &MealOutForm{Values: ingredients.ValuesOf(n)}
+	}
 	email, err := h.Email(ctx)
-	return profilePage(h.Clock.Now(), email, f, *targets, *times), err
+	return profilePage(h.Clock.Now(), email, f, *targets, *times, *mealOut), err
 }
 
 // shownTargets is t as the Targets form shows it, only its tolerance until it is set.
@@ -198,10 +207,10 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 	}
 	f := TargetsForm{Values: typed, Errs: map[string]string{}, Set: set}
 	for field, problem := range problems {
-		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, targetProblems))
+		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, numberProblems))
 	}
 	httpx.Refused(r, refusedTargets, f.Errs)
-	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, &f, nil)
+	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, &f, nil, nil)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
 		return
@@ -243,10 +252,37 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.Refused(r, refusedTimes, f.Errs)
-	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, nil, &f)
+	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, nil, &f, nil)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
 		return
 	}
 	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: timesForm(f)}.Write(w, r, h.Log)
+}
+
+// SaveMealOut saves the Meal Out estimate posted, answering with the Meal Out section
+// saved or refused as typed; a plain post lands on the Profile page.
+func (h Handlers) SaveMealOut(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	typed := ingredients.PostedNutrition(r)
+	n, problems, err := h.Service.SetMealOut(ctx, typed)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "save the User's Meal Out estimate", err)
+		return
+	}
+	if len(problems) == 0 {
+		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: mealOutForm(MealOutForm{Values: ingredients.ValuesOf(n)})}.Write(w, r, h.Log)
+		return
+	}
+	f := MealOutForm{Values: typed, Errs: map[string]string{}}
+	for field, problem := range problems {
+		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, numberProblems))
+	}
+	httpx.Refused(r, refusedMealOut, f.Errs)
+	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, nil, nil, &f)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
+		return
+	}
+	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: mealOutForm(f)}.Write(w, r, h.Log)
 }
