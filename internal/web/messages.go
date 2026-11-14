@@ -62,6 +62,30 @@ var ApplianceKindNames = map[domain.ApplianceKind]Message{
 	domain.Steamer:        {En: "steamer", It: "vaporiera"},
 }
 
+// SlotKindChoices are the kinds of Slot as choices, in the order of a day.
+func SlotKindChoices(ctx context.Context) []Choice {
+	return kindChoices(ctx, domain.SlotKinds, SlotKindNames, false)
+}
+
+// ApplianceKindChoices are the kinds of appliance as choices, in the list's order, each
+// with its icon.
+func ApplianceKindChoices(ctx context.Context) []Choice {
+	return kindChoices(ctx, domain.ApplianceKinds, ApplianceKindNames, true)
+}
+
+// kindChoices are all as choices named by names, with icons named by their codes when
+// iconed says so.
+func kindChoices[K ~string](ctx context.Context, all []K, names map[K]Message, iconed bool) []Choice {
+	choices := make([]Choice, len(all))
+	for i, k := range all {
+		choices[i] = Choice{Value: string(k), Label: T(ctx, names[k])}
+		if iconed {
+			choices[i].Icon = string(k)
+		}
+	}
+	return choices
+}
+
 // InLocations say where in each Storage Location, as Italian takes each Storage
 // Location with its own preposition.
 var InLocations = map[domain.StorageLocation]Message{

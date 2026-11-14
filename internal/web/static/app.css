@@ -583,6 +583,11 @@ a.row-title:hover { text-decoration: underline; }
 
 .check input { width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; flex: none; accent-color: var(--color-fill); }
 
+.check > .icon { flex: none; }
+
+/* Checks: a group of checkboxes in as many columns as the width allows */
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); column-gap: var(--space-4); }
+
 /* A row's Fields share their label, control and error rows, so the controls line up
    when one label wraps. Gaps in a subgrid widen its rows, so margins space them instead,
    and the row takes back the space after its last line. */

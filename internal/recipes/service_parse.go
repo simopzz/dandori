@@ -65,15 +65,11 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 		ActiveMinutes: p.ActiveMinutes, TotalMinutes: p.TotalMinutes,
 		Kinds: p.SlotKinds, Appliances: p.Appliances, Steps: nonBlank(p.Steps),
 	}
-	for _, k := range p.SlotKinds {
-		if !slices.Contains(domain.SlotKinds, k) {
-			problems["slot_kinds"] = fmt.Sprintf("%q is not a kind of Slot", k)
-		}
+	if unknown := unknownKinds(p.SlotKinds, domain.SlotKinds, "Slot"); unknown != "" {
+		problems["slot_kinds"] = unknown
 	}
-	for _, k := range p.Appliances {
-		if _, ok := domain.ParseApplianceKind(string(k)); !ok {
-			problems["appliances"] = fmt.Sprintf("%q is not a kind of appliance", k)
-		}
+	if unknown := unknownKinds(p.Appliances, domain.ApplianceKinds, "appliance"); unknown != "" {
+		problems["appliances"] = unknown
 	}
 	unresolved := map[int]bool{} // rows whose own problems would only repeat why
 	byName := map[string]domain.Ingredient{}
@@ -125,6 +121,18 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 	return rec, problems
 }
 
+// unknownKinds says which of got aren't on the list of kinds known, each a kind of what,
+// all of them so the model fixes them in one call, or is "" when there are none.
+func unknownKinds[K ~string](got, known []K, what string) string {
+	var unknown []string
+	for _, k := range got {
+		if !slices.Contains(known, k) {
+			unknown = append(unknown, fmt.Sprintf("%q is not a kind of %s", k, what))
+		}
+	}
+	return strings.Join(unknown, "; ")
+}
+
 // schemaFields are submit_recipe's names for the fields domain.Recipe.Problems names
 // otherwise, a row's prefixed "ingredient.".
 var schemaFields = map[string]string{
@@ -166,15 +174,17 @@ Call submit_recipe with the whole Recipe. Then end your turn with one short sent
 
 If submit_recipe reports problems, fix them and call it again.`
 
-var submitRecipeSchema = json.RawMessage(`{
+// submitRecipeSchema lists the kinds of Slot and of appliance from their domain lists, so
+// the model is offered exactly the kinds the checks take.
+var submitRecipeSchema = json.RawMessage(fmt.Sprintf(`{
   "type": "object",
   "properties": {
     "name": {"type": "string"},
     "portions": {"type": "integer", "minimum": 1},
     "active_minutes": {"type": "integer", "minimum": 0},
     "total_minutes": {"type": "integer", "minimum": 1},
-    "slot_kinds": {"type": "array", "items": {"type": "string", "enum": ["breakfast", "lunch", "snack", "dinner"]}, "minItems": 1},
-    "appliances": {"type": "array", "items": {"type": "string", "enum": ["oven", "hob", "microwave", "air_fryer", "pressure_cooker", "slow_cooker", "blender", "food_processor", "stand_mixer", "grill", "toaster", "steamer"]}},
+    "slot_kinds": {"type": "array", "items": {"type": "string", "enum": %s}, "minItems": 1},
+    "appliances": {"type": "array", "items": {"type": "string", "enum": %s}},
     "steps": {"type": "array", "items": {"type": "string"}},
     "ingredients": {
       "type": "array",
@@ -205,7 +215,16 @@ var submitRecipeSchema = json.RawMessage(`{
     }
   },
   "required": ["name", "portions", "active_minutes", "total_minutes", "slot_kinds", "appliances", "steps", "ingredients"]
-}`)
+}`, enumOf(domain.SlotKinds), enumOf(domain.ApplianceKinds)))
+
+// enumOf is kinds as a JSON array of their codes, for a schema's enum.
+func enumOf[K ~string](kinds []K) []byte {
+	b, err := json.Marshal(kinds)
+	if err != nil {
+		panic(err) // a slice of strings always marshals
+	}
+	return b
+}
 
 // parseBrief reads text into a Recipe Draft for a User speaking l, stored with the Run.
 // known are their Ingredients, which the model is told to reuse.

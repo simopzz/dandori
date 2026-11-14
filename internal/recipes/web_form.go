@@ -193,16 +193,9 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 		ID: id, DraftID: draftID, Name: get("name"), Portions: get("portions"), Active: get("active"), Total: get("total"),
 		Steps: nonBlank(form["steps"]), Slots: form["slots"], Appliances: form["appliances"], Known: known, Errs: map[string]string{},
 	})
-	rec := domain.Recipe{Name: f.Name, Steps: nonBlank(form["steps"])}
-	for _, kind := range domain.SlotKinds {
-		if slices.Contains(f.Slots, string(kind)) {
-			rec.Kinds = append(rec.Kinds, kind)
-		}
-	}
-	for _, kind := range domain.ApplianceKinds {
-		if slices.Contains(f.Appliances, string(kind)) {
-			rec.Appliances = append(rec.Appliances, kind)
-		}
+	rec := domain.Recipe{
+		Name: f.Name, Steps: nonBlank(form["steps"]),
+		Kinds: kindsIn(domain.SlotKinds, f.Slots), Appliances: kindsIn(domain.ApplianceKinds, f.Appliances),
 	}
 	refuse := func(field string, problem domain.Problem) {
 		if _, refused := f.Errs[field]; !refused && problem != "" {
