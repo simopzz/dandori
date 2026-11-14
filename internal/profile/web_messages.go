@@ -50,6 +50,8 @@ var (
 	msgSugar         = web.Message{En: "Sugar", It: "Zuccheri"}
 	msgFloorHint     = web.Message{En: "g, at least", It: "g, almeno"}
 	msgCeilingHint   = web.Message{En: "g, at most", It: "g, al massimo"}
+	msgTimesOfDay    = web.Message{En: "Times of day", It: "Orari"}
+	msgAfter         = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
 	msgSigningIn     = web.Message{En: "Signing in", It: "Accesso"}
 	msgSignedInAs    = web.Message{En: "Signed in as %s", It: "Accesso effettuato come %s"}
 	msgSignOut       = web.Message{En: "Sign out", It: "Esci"}
@@ -62,4 +64,17 @@ var targetProblems = map[domain.Problem]web.Message{
 	domain.NotAboveZero: {En: "Must be above 0.", It: "Deve essere sopra 0."},
 	domain.TooLarge:     {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 	domain.OutOfRange:   {En: "From 1 to 20.", It: "Da 1 a 20."},
+}
+
+// timeProblems say why a typed time of day is refused, beyond what every field says.
+var timeProblems = map[domain.Problem]web.Message{
+	domain.Required: {En: "Required.", It: "Obbligatorio."},
+}
+
+// slotTimeLabels name each kind of Slot's field in the times-of-day form.
+var slotTimeLabels = map[domain.SlotKind]web.Message{
+	domain.Breakfast: {En: "Breakfast", It: "Colazione"},
+	domain.Lunch:     {En: "Lunch", It: "Pranzo"},
+	domain.Snack:     {En: "Snack", It: "Spuntino"},
+	domain.Dinner:    {En: "Dinner", It: "Cena"},
 }

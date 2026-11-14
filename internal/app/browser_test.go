@@ -1,16 +1,12 @@
 package app_test
 
 import (
-	"bytes"
-	"context"
 	"testing"
 	"time"
 
 	"github.com/mxschmitt/playwright-go"
 
 	"github.com/simopzz/dandori/internal/apptest"
-	"github.com/simopzz/dandori/internal/domain"
-	"github.com/simopzz/dandori/internal/web"
 )
 
 // TestPagesShowTheClocksDay through a real browser: the clock is set
@@ -344,28 +340,54 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 }
 
-// A time field shows the User's Language, not the browser's: an English-locale browser
-// (Playwright's default) on an Italian page reads "13:00", where a native time input
-// would show "01:00 PM". There is no Slot-times form yet (#139), so the field is
-// rendered on a fixture page.
-func TestBrowserTimeFieldFollowsTheLanguageNotTheBrowser(t *testing.T) {
-	b := apptest.Start(t).Browser(t)
-	ctx := web.WithLanguage(context.Background(), domain.Italian)
-	var page bytes.Buffer
-	if err := web.TimeField("Pranzo", "lunch", web.TimeOfDay(ctx, 13*60), "").Render(ctx, &page); err != nil {
-		t.Fatalf("render the field: %v", err)
+// The Profile's times of day show the User's Language, not the browser's: an
+// English-locale browser (Playwright's default) on an Italian page reads "13:00", where a
+// native time input would show "01:00 PM". Saved, the section swaps in place: a time out
+// of order gets the focus, and saved ones are confirmed in a floating Notice.
+func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/profile")
+	b.ChooseLanguage(t, "Italiano", "Save")
+	b.Open(t, "/profile") // without the Language's Notice, which also says "Profilo salvato."
+	b.Sees(t, "Orari")
+
+	section := b.Locator("#profile-times")
+	lunch := section.GetByLabel("Pranzo")
+	if got, err := lunch.InputValue(); err != nil || got != "13:00" {
+		t.Errorf("lunch shows %q (err %v), want 13:00", got, err)
 	}
-	if err := b.SetContent(page.String()); err != nil {
-		t.Fatalf("open the fixture page: %v", err)
+	if got, err := lunch.GetAttribute("type"); err != nil || got != "text" {
+		t.Errorf("lunch is a %q input (err %v), want text: a native time input follows the browser's locale", got, err)
 	}
-	field := b.GetByLabel("Pranzo")
-	if got, err := field.InputValue(); err != nil || got != "13:00" {
-		t.Errorf("the field shows %q (err %v), want 13:00", got, err)
-	}
-	if got, err := field.GetAttribute("type"); err != nil || got != "text" {
-		t.Errorf("the field is a %q input (err %v), want text: a native time input follows the browser's locale", got, err)
-	}
-	if got, err := field.GetAttribute("inputmode"); err != nil || got != "numeric" {
+	if got, err := lunch.GetAttribute("inputmode"); err != nil || got != "numeric" {
 		t.Errorf("inputmode = %q (err %v), want numeric", got, err)
 	}
+
+	if err := lunch.Fill("7:00"); err != nil {
+		t.Fatalf("fill lunch: %v", err)
+	}
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva"})
+	if err := save.Click(); err != nil {
+		t.Fatalf("save the times of day: %v", err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(lunch).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("lunch isn't refused: %v", err)
+	}
+	if err := expect.Locator(lunch).ToBeFocused(); err != nil {
+		t.Errorf("the refused lunch isn't focused: %v", err)
+	}
+	b.Sees(t, "Deve essere dopo l'ora di colazione.")
+
+	if err := lunch.Fill("12:30"); err != nil {
+		t.Fatalf("fill lunch: %v", err)
+	}
+	if err := save.Click(); err != nil {
+		t.Fatalf("save the times of day: %v", err)
+	}
+	b.IsConfirmed(t, "Profilo salvato.")
+	if err := expect.Locator(lunch).ToHaveValue("12:30"); err != nil {
+		t.Errorf("the saved lunch isn't shown: %v", err)
+	}
+	b.Shot(t, "times-of-day")
 }

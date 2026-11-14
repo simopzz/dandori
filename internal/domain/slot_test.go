@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -85,5 +86,35 @@ func TestASlotIsAtItsTimeOfDayOnTheWallClock(t *testing.T) {
 	got := domain.TodayAt(time.Date(2026, time.October, 25, 8, 30, 0, 0, rome), domain.DefaultSlotTimes)
 	if got.First.Kind != domain.Breakfast || !got.Now {
 		t.Errorf("at 08:30 on the day the clocks go back, first = %s, now %v; want breakfast, now", got.First.Kind, got.Now)
+	}
+}
+
+// Slot times are read in either form, each kind's time after the one before's, with the
+// problem on the later field; a field that isn't a time skips the order check against it.
+func TestParseSlotTimes(t *testing.T) {
+	got, problems := domain.ParseSlotTimes(map[string]string{"breakfast": "7:30 am", "lunch": "12:30", "snack": "4pm", "dinner": "1930"})
+	want := domain.SlotTimes{domain.Breakfast: 7*60 + 30, domain.Lunch: 12*60 + 30, domain.Snack: 16 * 60, domain.Dinner: 19*60 + 30}
+	if !maps.Equal(got, want) || len(problems) != 0 {
+		t.Errorf("ParseSlotTimes = %v, %v; want %v and no problems", got, problems, want)
+	}
+
+	cases := []struct {
+		name                            string
+		breakfast, lunch, snack, dinner string
+		want                            map[string]domain.Problem
+	}{
+		{"lunch at breakfast's time", "08:00", "08:00", "17:00", "20:00", map[string]domain.Problem{"lunch": domain.NotAfterTheOneBefore}},
+		{"dinner before snack", "08:00", "13:00", "17:00", "16:00", map[string]domain.Problem{"dinner": domain.NotAfterTheOneBefore}},
+		{"dinner past midnight", "08:00", "13:00", "17:00", "00:30", map[string]domain.Problem{"dinner": domain.NotAfterTheOneBefore}},
+		{"breakfast last", "21:00", "13:00", "17:00", "20:00", map[string]domain.Problem{"lunch": domain.NotAfterTheOneBefore}},
+		{"two out of order", "08:00", "07:00", "06:00", "20:00", map[string]domain.Problem{"lunch": domain.NotAfterTheOneBefore, "snack": domain.NotAfterTheOneBefore}},
+		{"missing", "", "13:00", "17:00", "20:00", map[string]domain.Problem{"breakfast": domain.Required}},
+		{"not a time beside one out of order", "08:00", "noon", "07:00", "20:00", map[string]domain.Problem{"lunch": domain.NotATime}},
+	}
+	for _, c := range cases {
+		_, problems := domain.ParseSlotTimes(map[string]string{"breakfast": c.breakfast, "lunch": c.lunch, "snack": c.snack, "dinner": c.dinner})
+		if !maps.Equal(problems, c.want) {
+			t.Errorf("ParseSlotTimes with %s: problems %v; want %v", c.name, problems, c.want)
+		}
 	}
 }

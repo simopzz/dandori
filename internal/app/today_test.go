@@ -76,7 +76,8 @@ func TestTodayFollowsTheProfilesTimesOfDay(t *testing.T) {
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
 	s.ChoosesLanguage("English")
-	s.HasTimesOfDay("ada@example.com", "07:30", "12:30", "16:00", "19:30")
+	s.Open("/profile")
+	s.SavesTimesOfDay(apptest.TimesOfDay{Breakfast: "07:30", Lunch: "12:30", Snack: "16:00", Dinner: "19:30"})
 
 	s.At("Mon 08:00")
 	s.Open("/")

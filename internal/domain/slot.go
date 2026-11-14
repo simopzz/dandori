@@ -23,6 +23,31 @@ type SlotTimes map[SlotKind]TimeOfDay
 // DefaultSlotTimes are the times of day of a Profile the User hasn't changed.
 var DefaultSlotTimes = SlotTimes{Breakfast: 8 * 60, Lunch: 13 * 60, Snack: 17 * 60, Dinner: 20 * 60}
 
+// NotAfterTheOneBefore is a kind's time of day not after the one before it in the day.
+const NotAfterTheOneBefore Problem = "not after the one before"
+
+// ParseSlotTimes reads SlotTimes as typed, by SlotKind, with a problem per field refused:
+// a kind's time not after the one before's is refused on the later kind, and a field that
+// isn't a time skips the order check against it.
+func ParseSlotTimes(typed map[string]string) (SlotTimes, map[string]Problem) {
+	times, problems := SlotTimes{}, map[string]Problem{}
+	for i, k := range SlotKinds {
+		t, problem := ParseTimeOfDay(typed[string(k)])
+		if problem != "" {
+			problems[string(k)] = problem
+			continue
+		}
+		times[k] = t
+		if i == 0 {
+			continue
+		}
+		if before, ok := times[SlotKinds[i-1]]; ok && t <= before {
+			problems[string(k)] = NotAfterTheOneBefore
+		}
+	}
+	return times, problems
+}
+
 // Slot is one eating occasion: a SlotKind on a day, at midnight in the clock's zone.
 type Slot struct {
 	On   time.Time

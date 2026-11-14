@@ -48,6 +48,13 @@ func loadSlotTimes(ctx context.Context, q db.Querier) (domain.SlotTimes, error) 
 	}, nil
 }
 
+// saveSlotTimes sets the signed-in User's times of day of each kind of Slot to t.
+func saveSlotTimes(ctx context.Context, q db.Querier, t domain.SlotTimes) error {
+	_, err := q.Exec(ctx, `UPDATE profile SET breakfast_at = $1, lunch_at = $2, snack_at = $3, dinner_at = $4`,
+		t[domain.Breakfast].String(), t[domain.Lunch].String(), t[domain.Snack].String(), t[domain.Dinner].String())
+	return err
+}
+
 // timeOfDay is t to the minute.
 func timeOfDay(t pgtype.Time) domain.TimeOfDay {
 	return domain.TimeOfDay(time.Duration(t.Microseconds) * time.Microsecond / time.Minute)

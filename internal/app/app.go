@@ -165,6 +165,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("POST /profile/targets", signedIn(prof.SaveTargets))
+	mux.Handle("POST /profile/times", signedIn(prof.SaveTimes))
 	mux.Handle("GET /recipes", signedIn(recs.Library))
 	mux.Handle("POST /recipes", signedIn(recs.Add))
 	mux.Handle("POST /recipes/paste", signedIn(recs.Paste))

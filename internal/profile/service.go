@@ -48,6 +48,16 @@ func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error)
 	return t, err
 }
 
+// SetSlotTimes saves typed, by SlotKind, as the signed-in User's time of day of each
+// kind of Slot, unless a field is refused: then it saves nothing and is each problem.
+func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (domain.SlotTimes, map[string]domain.Problem, error) {
+	t, problems := domain.ParseSlotTimes(typed)
+	if len(problems) > 0 {
+		return t, problems, nil
+	}
+	return t, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveSlotTimes(ctx, tx, t) })
+}
+
 // Targets is the signed-in User's Targets; set is false until they save theirs, when
 // only the tolerance is.
 func (s *Service) Targets(ctx context.Context) (t domain.Targets, set bool, err error) {
