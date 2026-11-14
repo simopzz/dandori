@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -269,6 +270,35 @@ templ Check(label, hint string) {
 	</label>
 }
 
+// Checks is a group of checkboxes named name under legend, one per choice, those whose
+// Values are in ticked ticked, in as many columns as the width allows. err marks each
+// and shows under them.
+templ Checks(legend, name string, choices []Choice, ticked []string, err string) {
+	<fieldset class="stack">
+		<legend class="field-label">{ legend }</legend>
+		<div class="check-grid">
+			for _, c := range choices {
+				<label class="check">
+					<input
+						type="checkbox"
+						name={ name }
+						value={ c.Value }
+						checked?={ slices.Contains(ticked, c.Value) }
+						if err != "" {
+							aria-invalid="true"
+						}
+					/>
+					if c.Icon != "" {
+						@Icon(c.Icon)
+					}
+					<span>{ c.Label }</span>
+				</label>
+			}
+		</div>
+		@FieldError(err)
+	</fieldset>
+}
+
 // FieldError is why a value was rejected, or nothing.
 templ FieldError(err string) {
 	if err != "" {
@@ -334,10 +364,12 @@ templ DestructiveButton(attrs templ.Attributes) {
 	</button>
 }
 
-// Choice is one option of a Segmented choice.
+// Choice is one option of a Segmented choice or of Checks. Icon, if any, names the icon
+// Checks shows before the label.
 type Choice struct {
 	Value string
 	Label string
+	Icon  string
 }
 
 // Segmented chooses one of a few options with square toggles. selected

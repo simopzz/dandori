@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -72,7 +71,7 @@ templ recipeList(recipes []domain.Recipe, q string) {
 				@web.Row() {
 					<a class="row-title" href={ templ.SafeURL(recipeURL(rec.ID)) }>{ rec.Name }</a>
 					<span class="row-meta">
-						<span>{ kindsOf(ctx, rec.Kinds) }</span>
+						<span>{ kindNames(ctx, rec.Kinds, web.SlotKindNames) }</span>
 						<span>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</span>
 						<span>{ web.Tf(ctx, msgKcalPer, web.Number(ctx, rec.NutritionPerPortion().Kcal.Value)) }</span>
 					</span>
@@ -90,13 +89,13 @@ func parsedDate(ctx context.Context, now, at time.Time) string {
 	return web.ShortDate(ctx, at)
 }
 
-// kindsOf names kinds in the order of a day.
-func kindsOf(ctx context.Context, kinds []domain.SlotKind) string {
-	names := make([]string, len(kinds))
+// kindNames names kinds, of Slot or of appliance, by names, in the order given.
+func kindNames[K comparable](ctx context.Context, kinds []K, names map[K]web.Message) string {
+	out := make([]string, len(kinds))
 	for i, k := range kinds {
-		names[i] = web.T(ctx, web.SlotKindNames[k])
+		out[i] = web.T(ctx, names[k])
 	}
-	return strings.Join(names, ", ")
+	return strings.Join(out, ", ")
 }
 
 // recipePage is one Recipe, all of it, its header leaving room for a rating later.
@@ -199,15 +198,7 @@ templ recipeForm(f RecipeForm) {
 				@numberField(msgActive, "active", f.Active, f.Errs["active"])
 				@numberField(msgTotal, "total", f.Total, f.Errs["total"])
 			}
-			<fieldset class="stack">
-				<legend class="field-label">{ web.T(ctx, msgSlots) }</legend>
-				for _, kind := range domain.SlotKinds {
-					@web.Check(web.T(ctx, web.SlotKindNames[kind]), "") {
-						<input type="checkbox" name="slots" value={ string(kind) } checked?={ slices.Contains(f.Slots, string(kind)) } { ingredients.Invalid(f.Errs["slots"])... }/>
-					}
-				}
-				@web.FieldError(f.Errs["slots"])
-			</fieldset>
+			@web.Checks(web.T(ctx, msgSlots), "slots", web.SlotKindChoices(ctx), f.Slots, f.Errs["slots"])
 		</div>
 		@web.FieldGroup(1, web.T(ctx, msgIngredients)) {
 			@web.Hint() {
@@ -238,9 +229,7 @@ templ recipeForm(f RecipeForm) {
 			}
 		}
 		<div class="section">
-			@web.Field(web.T(ctx, msgAppliances), web.T(ctx, msgOnePerLine), "") {
-				<textarea name="appliances" rows="3">{ f.Appliances }</textarea>
-			}
+			@web.Checks(web.T(ctx, msgAppliances), "appliances", web.ApplianceKindChoices(ctx), f.Appliances, "")
 		</div>
 		if f.RemoveAction != "" {
 			@web.ActionsApart() {
@@ -398,10 +387,10 @@ templ recipeFacts(rec domain.Recipe) {
 		<dt>{ web.T(ctx, msgTotalShort) }</dt>
 		<dd>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</dd>
 		<dt>{ web.T(ctx, msgSlots) }</dt>
-		<dd>{ kindsOf(ctx, rec.Kinds) }</dd>
+		<dd>{ kindNames(ctx, rec.Kinds, web.SlotKindNames) }</dd>
 		if len(rec.Appliances) > 0 {
 			<dt>{ web.T(ctx, msgNeeds) }</dt>
-			<dd>{ strings.Join(rec.Appliances, ", ") }</dd>
+			<dd>{ kindNames(ctx, rec.Appliances, web.ApplianceKindNames) }</dd>
 		}
 	</dl>
 }

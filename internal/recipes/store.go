@@ -3,6 +3,7 @@ package recipes
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 
@@ -35,13 +36,24 @@ func RecipesUsing(ctx context.Context, q db.Querier, id int64) (first string, ot
 	return first, others, err
 }
 
-// slotKindsOf is kinds as the database stores them.
-func slotKindsOf(kinds []domain.SlotKind) []string {
+// codesOf is kinds by their codes, as the database stores them.
+func codesOf[K ~string](kinds []K) []string {
 	out := make([]string, len(kinds))
 	for i, k := range kinds {
 		out[i] = string(k)
 	}
 	return out
+}
+
+// kindsIn is the kinds of all whose codes are in codes, in all's order, each once.
+func kindsIn[K ~string](all []K, codes []string) []K {
+	var in []K
+	for _, k := range all {
+		if slices.Contains(codes, string(k)) {
+			in = append(in, k)
+		}
+	}
+	return in
 }
 
 // saveRecipe adds rec for the signed-in User under its normalised name, unless they have
@@ -52,7 +64,7 @@ func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id, normalised_name) DO NOTHING
 		RETURNING id`,
-		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps).Scan(&id)
+		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.Kinds), codesOf(rec.Appliances), rec.Steps).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -66,7 +78,7 @@ func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe
 		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
 			slot_kinds = $7, appliances = $8, steps = $9
 		WHERE id = $1`,
-		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, slotKindsOf(rec.Kinds), rec.Appliances, rec.Steps)
+		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.Kinds), codesOf(rec.Appliances), rec.Steps)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrNoRecipe
 	}
@@ -122,11 +134,9 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 	}
 	recipes, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Recipe, error) {
 		var r domain.Recipe
-		var kinds []string
-		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.ActiveMinutes, &r.TotalMinutes, &kinds, &r.Appliances, &r.Steps)
-		for _, k := range kinds {
-			r.Kinds = append(r.Kinds, domain.SlotKind(k))
-		}
+		var kinds, appliances []string
+		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.ActiveMinutes, &r.TotalMinutes, &kinds, &appliances, &r.Steps)
+		r.Kinds, r.Appliances = kindsIn(domain.SlotKinds, kinds), kindsIn(domain.ApplianceKinds, appliances)
 		return r, err
 	})
 	if err != nil || len(recipes) == 0 {

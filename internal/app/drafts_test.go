@@ -203,7 +203,7 @@ func draftHolds(t *testing.T, s *apptest.Scenario, want map[string]string) {
 	t.Helper()
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
 	for field, v := range want {
-		if got := form.Get(field); got != v {
+		if got := strings.Join(form.Values[field], "\n"); got != v { // a field ticked more than once, one per line
 			t.Errorf("the form's %s is %q, want %q", field, got, v)
 		}
 	}

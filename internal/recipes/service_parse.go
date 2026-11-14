@@ -25,14 +25,14 @@ const parseEffort = agent.EffortMedium
 // parsedRecipe is a Recipe as the model submits it, and as its Recipe Draft is stored:
 // its Ingredients by name, with values proposed for those that aren't known.
 type parsedRecipe struct {
-	Name          string             `json:"name"`
-	Portions      int                `json:"portions"`
-	ActiveMinutes int                `json:"active_minutes"`
-	TotalMinutes  int                `json:"total_minutes"`
-	SlotKinds     []domain.SlotKind  `json:"slot_kinds"`
-	Appliances    []string           `json:"appliances"`
-	Steps         []string           `json:"steps"`
-	Ingredients   []parsedIngredient `json:"ingredients"`
+	Name          string                 `json:"name"`
+	Portions      int                    `json:"portions"`
+	ActiveMinutes int                    `json:"active_minutes"`
+	TotalMinutes  int                    `json:"total_minutes"`
+	SlotKinds     []domain.SlotKind      `json:"slot_kinds"`
+	Appliances    []domain.ApplianceKind `json:"appliances"`
+	Steps         []string               `json:"steps"`
+	Ingredients   []parsedIngredient     `json:"ingredients"`
 }
 
 type parsedIngredient struct {
@@ -63,12 +63,13 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 	rec = domain.Recipe{
 		Name: strings.TrimSpace(p.Name), Portions: p.Portions,
 		ActiveMinutes: p.ActiveMinutes, TotalMinutes: p.TotalMinutes,
-		Kinds: p.SlotKinds, Appliances: nonBlank(p.Appliances), Steps: nonBlank(p.Steps),
+		Kinds: p.SlotKinds, Appliances: p.Appliances, Steps: nonBlank(p.Steps),
 	}
-	for _, k := range p.SlotKinds {
-		if !slices.Contains(domain.SlotKinds, k) {
-			problems["slot_kinds"] = fmt.Sprintf("%q is not a kind of Slot", k)
-		}
+	if unknown := unknownKinds(p.SlotKinds, domain.SlotKinds, "Slot"); unknown != "" {
+		problems["slot_kinds"] = unknown
+	}
+	if unknown := unknownKinds(p.Appliances, domain.ApplianceKinds, "appliance"); unknown != "" {
+		problems["appliances"] = unknown
 	}
 	unresolved := map[int]bool{} // rows whose own problems would only repeat why
 	byName := map[string]domain.Ingredient{}
@@ -120,6 +121,18 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 	return rec, problems
 }
 
+// unknownKinds says which of got aren't on the list of kinds known, each a kind of what,
+// all of them so the model fixes them in one call, or is "" when there are none.
+func unknownKinds[K ~string](got, known []K, what string) string {
+	var unknown []string
+	for _, k := range got {
+		if !slices.Contains(known, k) {
+			unknown = append(unknown, fmt.Sprintf("%q is not a kind of %s", k, what))
+		}
+	}
+	return strings.Join(unknown, "; ")
+}
+
 // schemaFields are submit_recipe's names for the fields domain.Recipe.Problems names
 // otherwise, a row's prefixed "ingredient.".
 var schemaFields = map[string]string{
@@ -150,26 +163,28 @@ const parseSystem = `You turn recipe text the user pasted into a structured Reci
 
 Call submit_recipe with the whole Recipe. Then end your turn with one short sentence.
 
-- Write the Recipe name, Ingredient names, steps and appliances in %[1]s. If the recipe text is in another language, translate it into %[1]s; for an Ingredient with no word-for-word %[1]s name, use the food a %[1]s-speaking cook would buy for it.
+- Write the Recipe name, Ingredient names and steps in %[1]s. If the recipe text is in another language, translate it into %[1]s; for an Ingredient with no word-for-word %[1]s name, use the food a %[1]s-speaking cook would buy for it.
 - Name each Ingredient as a generic food: lowercase, singular, no amounts or brands ("chicken breast", not "2 organic chicken breasts").
 - When an Ingredient is one of the known Ingredients, use exactly its name and unit, and leave out new.
 - Give every quantity in the Ingredient's unit: g for solids, ml for liquids, piece for things that are counted (eggs, lemons). Convert cups and spoons to g or ml. Give food packed in liquid drained: "1 tin of chickpeas" is 240 g.
 - For an Ingredient that is not known, propose in new its nutritional values per 100 g, per 100 ml or per piece, matching its unit, where it is usually kept (pantry, fridge or freezer), and whether it is a staple: always in the kitchen and too fiddly to weigh, such as oil, salt and spices. Give fibre_g and sugar_g as null when you can't tell; never guess 0.
 - portions is how many Portions the recipe makes as written; estimate it if the text doesn't say. active_minutes is the time spent working at it, total_minutes the whole time including unattended oven or resting time.
 - slot_kinds are when its Portions may be eaten: breakfast, lunch, snack or dinner, any number of them.
-- appliances are the kitchen appliances the recipe needs (oven, hob, air fryer, blender, …). steps are the method, one instruction each.
+- appliances are the kinds of kitchen appliance the recipe needs, each picked from the list in the schema. Leave any other equipment (a knife, an ice-cream maker) to the steps. steps are the method, one instruction each.
 
 If submit_recipe reports problems, fix them and call it again.`
 
-var submitRecipeSchema = json.RawMessage(`{
+// submitRecipeSchema lists the kinds of Slot and of appliance from their domain lists, so
+// the model is offered exactly the kinds the checks take.
+var submitRecipeSchema = json.RawMessage(fmt.Sprintf(`{
   "type": "object",
   "properties": {
     "name": {"type": "string"},
     "portions": {"type": "integer", "minimum": 1},
     "active_minutes": {"type": "integer", "minimum": 0},
     "total_minutes": {"type": "integer", "minimum": 1},
-    "slot_kinds": {"type": "array", "items": {"type": "string", "enum": ["breakfast", "lunch", "snack", "dinner"]}, "minItems": 1},
-    "appliances": {"type": "array", "items": {"type": "string"}},
+    "slot_kinds": {"type": "array", "items": {"type": "string", "enum": %s}, "minItems": 1},
+    "appliances": {"type": "array", "items": {"type": "string", "enum": %s}},
     "steps": {"type": "array", "items": {"type": "string"}},
     "ingredients": {
       "type": "array",
@@ -200,7 +215,16 @@ var submitRecipeSchema = json.RawMessage(`{
     }
   },
   "required": ["name", "portions", "active_minutes", "total_minutes", "slot_kinds", "appliances", "steps", "ingredients"]
-}`)
+}`, enumOf(domain.SlotKinds), enumOf(domain.ApplianceKinds)))
+
+// enumOf is kinds as a JSON array of their codes, for a schema's enum.
+func enumOf[K ~string](kinds []K) []byte {
+	b, err := json.Marshal(kinds)
+	if err != nil {
+		panic(err) // a slice of strings always marshals
+	}
+	return b
+}
 
 // parseBrief reads text into a Recipe Draft for a User speaking l, stored with the Run.
 // known are their Ingredients, which the model is told to reuse.
