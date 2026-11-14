@@ -116,6 +116,32 @@ func saveMealOut(ctx context.Context, q db.Querier, n domain.Nutrition) error {
 	return err
 }
 
+// loadFoods reads the signed-in User's exclusions and allergies, each normalised. It has
+// no WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
+func loadFoods(ctx context.Context, q db.Querier) (exclusions, allergies []string, err error) {
+	err = q.QueryRow(ctx, `SELECT exclusions, allergies FROM profile`).Scan(&exclusions, &allergies)
+	return exclusions, allergies, err
+}
+
+// saveFoods sets the signed-in User's exclusions and allergies, each normalised.
+func saveFoods(ctx context.Context, q db.Querier, exclusions, allergies []string) error {
+	_, err := q.Exec(ctx, `UPDATE profile SET exclusions = $1, allergies = $2`, exclusions, allergies)
+	return err
+}
+
+// loadBrief reads the signed-in User's Planning Brief, empty until they write one. It has
+// no WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
+func loadBrief(ctx context.Context, q db.Querier) (brief string, err error) {
+	err = q.QueryRow(ctx, `SELECT planning_brief FROM profile`).Scan(&brief)
+	return brief, err
+}
+
+// saveBrief sets the signed-in User's Planning Brief to brief.
+func saveBrief(ctx context.Context, q db.Querier, brief string) error {
+	_, err := q.Exec(ctx, `UPDATE profile SET planning_brief = $1`, brief)
+	return err
+}
+
 // saveLanguage creates the signed-in User's Profile with Language l, or changes the
 // Language of the one they have.
 func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
@@ -131,8 +157,8 @@ func countParsing(ctx context.Context, q db.Querier) (int, error) {
 	return recipes.CountParsing(ctx, q)
 }
 
-// loadFoodTerms is the signed-in User's Food Terms: Ingredients, Portions, Recipes and
-// Recipe Drafts.
+// loadFoodTerms is the signed-in User's Food Terms: Ingredients, Portions, Recipes,
+// Recipe Drafts, and the Profile's exclusions and allergies.
 func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) {
 	ings, err := ingredients.CountIngredients(ctx, q)
 	if err != nil {
@@ -147,5 +173,12 @@ func loadFoodTerms(ctx context.Context, q db.Querier) (domain.FoodTerms, error) 
 		return domain.FoodTerms{}, err
 	}
 	drafts, err := recipes.CountDrafts(ctx, q)
-	return domain.FoodTerms{Ingredients: ings, Portions: portions, Recipes: recs, Drafts: drafts}, err
+	if err != nil {
+		return domain.FoodTerms{}, err
+	}
+	exclusions, allergies, err := loadFoods(ctx, q)
+	return domain.FoodTerms{
+		Ingredients: ings, Portions: portions, Recipes: recs, Drafts: drafts,
+		Exclusions: len(exclusions), Allergies: len(allergies),
+	}, err
 }

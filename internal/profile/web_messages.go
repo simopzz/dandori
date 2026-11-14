@@ -21,8 +21,8 @@ var (
 	msgContinue      = web.Message{En: "Continue", It: "Continua"}
 	msgChooseOne     = web.Message{En: "Choose English or Italiano.", It: "Scegli English o Italiano."}
 	msgLanguageStays = web.Message{
-		En: "Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.",
-		It: "La tua cucina ha già Ingredienti, Ricette, Bozze di Ricetta o Porzioni in questa lingua, quindi resta questa.",
+		En: "You have already written Ingredients, Recipes, Recipe Drafts, Portions, exclusions or allergies in this Language, so it stays.",
+		It: "Hai già scritto Ingredienti, Ricette, Bozze di Ricetta, Porzioni, esclusioni o allergie in questa lingua, quindi resta questa.",
 	}
 	msgParsing = web.Message{
 		En: "A recipe is being read in this Language, so it stays until that ends.",
@@ -57,10 +57,27 @@ var (
 		En: "What a Meal Out counts toward your Targets, unless you give it its own. Fibre and sugar may be left blank.",
 		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua. Fibre e zuccheri si possono lasciare vuoti.",
 	}
-	msgCarbs      = web.Message{En: "Carbs", It: "Carboidrati"}
-	msgFat        = web.Message{En: "Fat", It: "Grassi"}
-	msgKcalUnit   = web.Message{En: "kcal", It: "kcal"}
-	msgGrams      = web.Message{En: "g", It: "g"}
+	msgCarbs     = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat       = web.Message{En: "Fat", It: "Grassi"}
+	msgKcalUnit  = web.Message{En: "kcal", It: "kcal"}
+	msgGrams     = web.Message{En: "g", It: "g"}
+	msgFoods     = web.Message{En: "Exclusions and allergies", It: "Esclusioni e allergie"}
+	msgFoodsHint = web.Message{
+		En: "One food per line, or separated by commas. Planning never uses them.",
+		It: "Un alimento per riga, o separati da virgole. La pianificazione non li usa mai.",
+	}
+	msgExclusions = web.Message{En: "Never eat", It: "Non mangio mai"}
+	msgAllergies  = web.Message{En: "Allergies", It: "Allergie"}
+	msgBrief      = web.Message{En: "Planning Brief", It: "Indicazioni per la pianificazione"}
+	msgBriefHint  = web.Message{
+		En: "Your lasting wishes for every Plan: variety, effort, what you enjoy. Every planning Run reads it and follows it as far as the rules of the Plan allow. Saving it starts no planning Run: it applies from the next one.",
+		It: "I tuoi desideri durevoli per ogni Piano: varietà, impegno, cosa ti piace. Ogni Run di pianificazione li legge e li segue per quanto le regole del Piano lo permettono. Salvarli non avvia alcun Run: valgono dal prossimo.",
+	}
+	msgWishes           = web.Message{En: "Wishes", It: "Desideri"}
+	msgBriefPlaceholder = web.Message{
+		En: "Low-care Recipes, about 15 active minutes",
+		It: "Ricette che chiedono poca cura, circa 15 minuti attivi",
+	}
 	msgSigningIn  = web.Message{En: "Signing in", It: "Accesso"}
 	msgSignedInAs = web.Message{En: "Signed in as %s", It: "Accesso effettuato come %s"}
 	msgSignOut    = web.Message{En: "Sign out", It: "Esci"}

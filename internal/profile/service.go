@@ -1,11 +1,13 @@
 // Package profile is the User's Profile: for now, their Language, chosen at their first
 // sign-in and changeable until they have written a Food Term (ADR-0015), the time of day
-// of each kind of Slot, their Targets, and their Meal Out estimate.
+// of each kind of Slot, their Targets, their Meal Out estimate, their exclusions and
+// allergies, and their Planning Brief.
 package profile
 
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -96,6 +98,39 @@ func (s *Service) SetMealOut(ctx context.Context, typed map[string]string) (doma
 		return n, problems, nil
 	}
 	return n, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveMealOut(ctx, tx, n) })
+}
+
+// Foods are the signed-in User's exclusions and allergies, the foods they never eat and
+// those they are allergic to, each normalised.
+func (s *Service) Foods(ctx context.Context) (exclusions, allergies []string, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		exclusions, allergies, err = loadFoods(ctx, tx)
+		return err
+	})
+	return exclusions, allergies, err
+}
+
+// SetFoods saves the exclusions and allergies typed as the signed-in User's, each
+// normalised, and is what it saved. Either may be empty.
+func (s *Service) SetFoods(ctx context.Context, typedExclusions, typedAllergies string) (exclusions, allergies []string, err error) {
+	exclusions, allergies = domain.NormaliseFoods(typedExclusions), domain.NormaliseFoods(typedAllergies)
+	return exclusions, allergies, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveFoods(ctx, tx, exclusions, allergies) })
+}
+
+// Brief is the signed-in User's Planning Brief, empty until they write one.
+func (s *Service) Brief(ctx context.Context) (brief string, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		brief, err = loadBrief(ctx, tx)
+		return err
+	})
+	return brief, err
+}
+
+// SetBrief saves typed as the signed-in User's Planning Brief, without the blank space
+// around it, so a blank one is empty, and is what it saved.
+func (s *Service) SetBrief(ctx context.Context, typed string) (string, error) {
+	brief := strings.TrimSpace(typed)
+	return brief, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveBrief(ctx, tx, brief) })
 }
 
 // SetLanguage chooses the signed-in User's Language, or changes it while they have

@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -77,9 +78,16 @@ type MealOutForm struct {
 // mealOutSectionID is the element the Meal Out form swaps when htmx posts it.
 const mealOutSectionID = "meal-out"
 
+// foodsSectionID is the element the exclusions and allergies form swaps on an htmx post.
+const foodsSectionID = "foods"
+
+// briefSectionID is the element the Planning Brief's form swaps when htmx posts it.
+const briefSectionID = "brief"
+
 // profilePage is the User's Profile: their Language, the time of day of each kind of
-// Slot, their Targets, their Meal Out estimate, and who is signed in.
-templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm, times TimesForm, mealOut MealOutForm) {
+// Slot, their Targets, their Meal Out estimate, their exclusions and allergies, their
+// Planning Brief, and who is signed in.
+templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm, times TimesForm, mealOut MealOutForm, exclusions, allergies []string, brief string) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		<form id="profile-language" method="post" action="/profile/language">
@@ -104,7 +112,13 @@ templ profilePage(today time.Time, email string, f LanguageForm, targets Targets
 		@web.SectionBody(mealOutSectionID) {
 			@mealOutForm(mealOut)
 		}
-		@web.Section(5, web.T(ctx, msgSigningIn)) {
+		@web.SectionBody(foodsSectionID) {
+			@foodsForm(exclusions, allergies)
+		}
+		@web.SectionBody(briefSectionID) {
+			@briefForm(brief)
+		}
+		@web.Section(7, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
@@ -256,4 +270,65 @@ templ mealOutField(label, unit web.Message, field string, f MealOutForm) {
 			}
 		/>
 	}
+}
+
+// foodsForm is the exclusions-and-allergies section, each list shown one food per line,
+// swapping itself when htmx posts it.
+templ foodsForm(exclusions, allergies []string) {
+	<form
+		id="profile-foods"
+		method="post"
+		action="/profile/foods"
+		hx-post="/profile/foods"
+		hx-target={ "#" + foodsSectionID }
+		hx-swap="innerHTML"
+	>
+		@web.FieldGroup(5, web.T(ctx, msgFoods)) {
+			<div class="stack">
+				@web.Hint() {
+					{ web.T(ctx, msgFoodsHint) }
+				}
+				@web.Field(web.T(ctx, msgExclusions), "", "") {
+					<textarea name="exclusions" rows="4">{ strings.Join(exclusions, "\n") }</textarea>
+				}
+				@web.Field(web.T(ctx, msgAllergies), "", "") {
+					<textarea name="allergies" rows="4">{ strings.Join(allergies, "\n") }</textarea>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgSave) }
+					}
+				}
+			</div>
+		}
+	</form>
+}
+
+// briefForm is the Planning Brief's section, its example only a placeholder the planner
+// never reads, swapping itself when htmx posts it.
+templ briefForm(brief string) {
+	<form
+		id="profile-brief"
+		method="post"
+		action="/profile/brief"
+		hx-post="/profile/brief"
+		hx-target={ "#" + briefSectionID }
+		hx-swap="innerHTML"
+	>
+		@web.FieldGroup(6, web.T(ctx, msgBrief)) {
+			<div class="stack">
+				@web.Hint() {
+					{ web.T(ctx, msgBriefHint) }
+				}
+				@web.Field(web.T(ctx, msgWishes), "", "") {
+					<textarea name="brief" rows="5" placeholder={ web.T(ctx, msgBriefPlaceholder) }>{ brief }</textarea>
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgSave) }
+					}
+				}
+			</div>
+		}
+	</form>
 }

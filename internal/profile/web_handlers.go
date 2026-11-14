@@ -142,7 +142,8 @@ func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status i
 }
 
 // page is the Profile page with its Language section f, and its Targets, times-of-day
-// and Meal Out sections as given, or as saved when not.
+// and Meal Out sections as given, or as saved when not. Its exclusions and allergies and
+// its Planning Brief, never refused, are as saved.
 func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, times *TimesForm, mealOut *MealOutForm) (templ.Component, error) {
 	ctx := r.Context()
 	if targets == nil {
@@ -168,8 +169,16 @@ func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, ti
 		}
 		mealOut = &MealOutForm{Values: ingredients.ValuesOf(n)}
 	}
+	exclusions, allergies, err := h.Service.Foods(ctx)
+	if err != nil {
+		return nil, err
+	}
+	brief, err := h.Service.Brief(ctx)
+	if err != nil {
+		return nil, err
+	}
 	email, err := h.Email(ctx)
-	return profilePage(h.Clock.Now(), email, f, *targets, *times, *mealOut), err
+	return profilePage(h.Clock.Now(), email, f, *targets, *times, *mealOut, exclusions, allergies, brief), err
 }
 
 // shownTargets is t as the Targets form shows it, only its tolerance until it is set.
@@ -285,4 +294,28 @@ func (h Handlers) SaveMealOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: mealOutForm(f)}.Write(w, r, h.Log)
+}
+
+// SaveFoods saves the exclusions and allergies posted, answering with their section as
+// saved, normalised; a plain post lands on the Profile page.
+func (h Handlers) SaveFoods(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	exclusions, allergies, err := h.Service.SetFoods(ctx, r.PostFormValue("exclusions"), r.PostFormValue("allergies"))
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "save the User's exclusions and allergies", err)
+		return
+	}
+	web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: foodsForm(exclusions, allergies)}.Write(w, r, h.Log)
+}
+
+// SaveBrief saves the Planning Brief posted, answering with its section as saved; a plain
+// post lands on the Profile page.
+func (h Handlers) SaveBrief(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	brief, err := h.Service.SetBrief(ctx, r.PostFormValue("brief"))
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "save the User's Planning Brief", err)
+		return
+	}
+	web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: briefForm(brief)}.Write(w, r, h.Log)
 }

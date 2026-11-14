@@ -161,7 +161,7 @@ func TestTheLanguageStaysOnceTheUserHasAnIngredient(t *testing.T) {
 	s.Open("/profile")
 	s.ChangesLanguage("Italiano")
 	s.IsRefused()
-	s.Sees("Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.")
+	s.Sees(msgLanguageStays)
 	s.Open("/")
 	s.Sees("Monday, November 2")
 }

@@ -18,6 +18,8 @@ func TestTheLanguageCanChangeUntilAFoodTermIsWritten(t *testing.T) {
 		{name: "an Ingredient", terms: domain.FoodTerms{Ingredients: 1}, want: false},
 		{name: "a Recipe", terms: domain.FoodTerms{Recipes: 1}, want: false},
 		{name: "a Recipe Draft", terms: domain.FoodTerms{Drafts: 1}, want: false},
+		{name: "an exclusion", terms: domain.FoodTerms{Exclusions: 1}, want: false},
+		{name: "an allergy", terms: domain.FoodTerms{Allergies: 1}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

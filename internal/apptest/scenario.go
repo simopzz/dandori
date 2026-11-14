@@ -576,3 +576,24 @@ func (s *Scenario) SavesMealOut(estimate MealOut) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("saves the Meal Out estimate %+v: %d %s", estimate, s.page.StatusCode, s.page.Path))
 }
+
+// SavesFoods saves exclusions and allergies, each as typed, with their form on the
+// Profile open, posted as a browser without htmx.
+func (s *Scenario) SavesFoods(exclusions, allergies string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "profile-foods")
+	form.Values.Set("exclusions", exclusions)
+	form.Values.Set("allergies", allergies)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("saves exclusions %q and allergies %q: %d %s", exclusions, allergies, s.page.StatusCode, s.page.Path))
+}
+
+// SavesBrief saves brief, as typed, as the Planning Brief with its form on the Profile
+// open, posted as a browser without htmx.
+func (s *Scenario) SavesBrief(brief string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "profile-brief")
+	form.Values.Set("brief", brief)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("saves the Planning Brief %q: %d %s", brief, s.page.StatusCode, s.page.Path))
+}
