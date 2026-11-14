@@ -62,26 +62,22 @@ var ApplianceKindNames = map[domain.ApplianceKind]Message{
 	domain.Steamer:        {En: "steamer", It: "vaporiera"},
 }
 
-// SlotKindChoices are the kinds of Slot as choices, in the order of a day.
+// SlotKindChoices are the kinds of Slot as choices, each with its icon, in day order.
 func SlotKindChoices(ctx context.Context) []Choice {
-	return kindChoices(ctx, domain.SlotKinds, SlotKindNames, false)
+	return kindChoices(ctx, domain.SlotKinds, SlotKindNames)
 }
 
 // ApplianceKindChoices are the kinds of appliance as choices, in the list's order, each
 // with its icon.
 func ApplianceKindChoices(ctx context.Context) []Choice {
-	return kindChoices(ctx, domain.ApplianceKinds, ApplianceKindNames, true)
+	return kindChoices(ctx, domain.ApplianceKinds, ApplianceKindNames)
 }
 
-// kindChoices are all as choices named by names, with icons named by their codes when
-// iconed says so.
-func kindChoices[K ~string](ctx context.Context, all []K, names map[K]Message, iconed bool) []Choice {
+// kindChoices are all as choices named by names, each with the icon named by its code.
+func kindChoices[K ~string](ctx context.Context, all []K, names map[K]Message) []Choice {
 	choices := make([]Choice, len(all))
 	for i, k := range all {
-		choices[i] = Choice{Value: string(k), Label: T(ctx, names[k])}
-		if iconed {
-			choices[i].Icon = string(k)
-		}
+		choices[i] = Choice{Value: string(k), Label: T(ctx, names[k]), Icon: string(k)}
 	}
 	return choices
 }

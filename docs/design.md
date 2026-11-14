@@ -217,7 +217,7 @@ elements themselves.
 | `DateField(label, name, value, err)` | A `Field` for a day, shown in the Language's order (`domain.FormatDate`); never a native `type="date"`. |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
-| `Checks(legend, name, choices, ticked, err)` | Ticking any of a fixed list of kinds (the kinds of Slot or of appliance a Recipe takes): one `Check` per `Choice`, in as many columns as the width allows, each with its icon when the `Choice` names one. `web.SlotKindChoices` and `web.ApplianceKindChoices` give the lists. |
+| `Checks(legend, name, choices, ticked, err)` | Ticking any of a fixed list of kinds (the kinds of Slot or of appliance a Recipe takes): one `Check` per `Choice`, in as many columns as the width allows, each with its icon when the `Choice` names one, as every kind does. `web.SlotKindChoices` and `web.ApplianceKindChoices` give the lists. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. Their controls line up even when one label wraps onto two lines. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
