@@ -71,7 +71,7 @@ templ recipeList(recipes []domain.Recipe, q string) {
 				@web.Row() {
 					<a class="row-title" href={ templ.SafeURL(recipeURL(rec.ID)) }>{ rec.Name }</a>
 					<span class="row-meta">
-						<span>{ kindNames(ctx, rec.Kinds, web.SlotKindNames) }</span>
+						<span>{ kindNames(ctx, rec.SlotKinds, web.SlotKindNames) }</span>
 						<span>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</span>
 						<span>{ web.Tf(ctx, msgKcalPer, web.Number(ctx, rec.NutritionPerPortion().Kcal.Value)) }</span>
 					</span>
@@ -387,7 +387,7 @@ templ recipeFacts(rec domain.Recipe) {
 		<dt>{ web.T(ctx, msgTotalShort) }</dt>
 		<dd>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</dd>
 		<dt>{ web.T(ctx, msgSlots) }</dt>
-		<dd>{ kindNames(ctx, rec.Kinds, web.SlotKindNames) }</dd>
+		<dd>{ kindNames(ctx, rec.SlotKinds, web.SlotKindNames) }</dd>
 		if len(rec.Appliances) > 0 {
 			<dt>{ web.T(ctx, msgNeeds) }</dt>
 			<dd>{ kindNames(ctx, rec.Appliances, web.ApplianceKindNames) }</dd>

@@ -63,7 +63,7 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 	rec = domain.Recipe{
 		Name: strings.TrimSpace(p.Name), Portions: p.Portions,
 		ActiveMinutes: p.ActiveMinutes, TotalMinutes: p.TotalMinutes,
-		Kinds: p.SlotKinds, Appliances: p.Appliances, Steps: nonBlank(p.Steps),
+		SlotKinds: p.SlotKinds, Appliances: p.Appliances, Steps: nonBlank(p.Steps),
 	}
 	if unknown := unknownKinds(p.SlotKinds, domain.SlotKinds, "Slot"); unknown != "" {
 		problems["slot_kinds"] = unknown

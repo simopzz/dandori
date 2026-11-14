@@ -67,7 +67,7 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 	f := RecipeForm{
 		ID: rec.ID, Name: rec.Name, Portions: strconv.Itoa(rec.Portions), Active: strconv.Itoa(rec.ActiveMinutes),
 		Total: strconv.Itoa(rec.TotalMinutes), Appliances: codesOf(rec.Appliances), Steps: rec.Steps,
-		Slots: codesOf(rec.Kinds), Known: known, Errs: map[string]string{},
+		Slots: codesOf(rec.SlotKinds), Known: known, Errs: map[string]string{},
 	}
 	for _, ri := range rec.Ingredients {
 		row := IngredientRow{
@@ -195,7 +195,7 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 	})
 	rec := domain.Recipe{
 		Name: f.Name, Steps: nonBlank(form["steps"]),
-		Kinds: kindsIn(domain.SlotKinds, f.Slots), Appliances: kindsIn(domain.ApplianceKinds, f.Appliances),
+		SlotKinds: kindsIn(domain.SlotKinds, f.Slots), Appliances: kindsIn(domain.ApplianceKinds, f.Appliances),
 	}
 	refuse := func(field string, problem domain.Problem) {
 		if _, refused := f.Errs[field]; !refused && problem != "" {

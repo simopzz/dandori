@@ -28,7 +28,7 @@ type Recipe struct {
 	Name                        string
 	Portions                    int
 	ActiveMinutes, TotalMinutes int
-	Kinds                       []SlotKind
+	SlotKinds                   []SlotKind
 	Appliances                  []ApplianceKind
 	Steps                       []string
 	Ingredients                 []RecipeIngredient
@@ -76,7 +76,7 @@ func (r Recipe) Problems(l Language) (map[string]Problem, []map[string]Problem) 
 	} else if r.ActiveMinutes > r.TotalMinutes {
 		problems["active"] = AboveTotal
 	}
-	if len(r.Kinds) == 0 {
+	if len(r.SlotKinds) == 0 {
 		problems["slots"] = Required
 	}
 	if len(r.Ingredients) == 0 {

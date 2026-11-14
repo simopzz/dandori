@@ -88,7 +88,7 @@ func TestRecipeValidation(t *testing.T) {
 	valid := func() domain.Recipe {
 		return domain.Recipe{
 			Name: "Chicken and rice", Portions: 3, ActiveMinutes: 20, TotalMinutes: 40,
-			Kinds: []domain.SlotKind{domain.Dinner},
+			SlotKinds: []domain.SlotKind{domain.Dinner},
 			Ingredients: []domain.RecipeIngredient{
 				{Ingredient: chicken, Quantity: grams(600)},
 				{Ingredient: rice, Quantity: grams(240)},
@@ -108,7 +108,7 @@ func TestRecipeValidation(t *testing.T) {
 		{name: "active minutes equal to total are fine", change: func(r *domain.Recipe) { r.ActiveMinutes = 40 }},
 		{name: "no name", change: func(r *domain.Recipe) { r.Name = "  " }, want: problems{"name": domain.Required}},
 		{name: "no Ingredient", change: func(r *domain.Recipe) { r.Ingredients = nil }, want: problems{"ingredients": domain.Required}},
-		{name: "no kind of Slot", change: func(r *domain.Recipe) { r.Kinds = nil }, want: problems{"slots": domain.Required}},
+		{name: "no kind of Slot", change: func(r *domain.Recipe) { r.SlotKinds = nil }, want: problems{"slots": domain.Required}},
 		{name: "no Portion as written", change: func(r *domain.Recipe) { r.Portions = 0 }, want: problems{"portions": domain.NotWhole}},
 		{name: "total minutes of 0", change: func(r *domain.Recipe) { r.TotalMinutes, r.ActiveMinutes = 0, 0 }, want: problems{"total": domain.NotAboveZero}},
 		{name: "active minutes above total", change: func(r *domain.Recipe) { r.ActiveMinutes = 41 }, want: problems{"active": domain.AboveTotal}},

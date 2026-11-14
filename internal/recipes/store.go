@@ -64,7 +64,7 @@ func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id, normalised_name) DO NOTHING
 		RETURNING id`,
-		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.Kinds), codesOf(rec.Appliances), rec.Steps).Scan(&id)
+		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.SlotKinds), codesOf(rec.Appliances), rec.Steps).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -78,7 +78,7 @@ func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe
 		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
 			slot_kinds = $7, appliances = $8, steps = $9
 		WHERE id = $1`,
-		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.Kinds), codesOf(rec.Appliances), rec.Steps)
+		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.SlotKinds), codesOf(rec.Appliances), rec.Steps)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrNoRecipe
 	}
@@ -136,7 +136,7 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 		var r domain.Recipe
 		var kinds, appliances []string
 		err := row.Scan(&r.ID, &r.Name, &r.Portions, &r.ActiveMinutes, &r.TotalMinutes, &kinds, &appliances, &r.Steps)
-		r.Kinds, r.Appliances = kindsIn(domain.SlotKinds, kinds), kindsIn(domain.ApplianceKinds, appliances)
+		r.SlotKinds, r.Appliances = kindsIn(domain.SlotKinds, kinds), kindsIn(domain.ApplianceKinds, appliances)
 		return r, err
 	})
 	if err != nil || len(recipes) == 0 {
