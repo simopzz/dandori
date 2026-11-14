@@ -150,18 +150,6 @@ func (s *Scenario) SwitchesTo(email string) {
 	s.SignsIn(email)
 }
 
-// HasTimesOfDay sets the Profile of the User signed in as email to these times of day of
-// breakfast, lunch, snack and dinner, each HH:MM. It stands in for the Profile's form,
-// until one changes them.
-func (s *Scenario) HasTimesOfDay(email, breakfast, lunch, snack, dinner string) {
-	s.t.Helper()
-	s.Exec(s.t, `
-		UPDATE profile SET breakfast_at = $2, lunch_at = $3, snack_at = $4, dinner_at = $5
-		WHERE user_id = (SELECT id FROM "user" WHERE email = $1)`,
-		email, breakfast, lunch, snack, dinner)
-	s.record(fmt.Sprintf("has times of day %s, %s, %s, %s", breakfast, lunch, snack, dinner))
-}
-
 // Follows follows the link on the page open that shows text.
 func (s *Scenario) Follows(text string) {
 	s.t.Helper()
@@ -537,4 +525,29 @@ func (s *Scenario) SavesTargets(targets Targets) {
 	targets.Fill(form)
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("saves Targets %+v: %d %s", targets, s.page.StatusCode, s.page.Path))
+}
+
+// TimesOfDay are the times of day of breakfast, lunch, snack and dinner as the Profile's
+// form takes them, each as typed.
+type TimesOfDay struct {
+	Breakfast, Lunch, Snack, Dinner string
+}
+
+// Fill sets f, the times-of-day form, to times.
+func (times TimesOfDay) Fill(f FormData) {
+	for field, v := range map[string]string{
+		"breakfast": times.Breakfast, "lunch": times.Lunch, "snack": times.Snack, "dinner": times.Dinner,
+	} {
+		f.Values.Set(field, v)
+	}
+}
+
+// SavesTimesOfDay saves times with the times-of-day form on the Profile open, posted as
+// a browser without htmx.
+func (s *Scenario) SavesTimesOfDay(times TimesOfDay) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "profile-times")
+	times.Fill(form)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("saves times of day %+v: %d %s", times, s.page.StatusCode, s.page.Path))
 }

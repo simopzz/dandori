@@ -50,6 +50,8 @@ var (
 	msgSugar         = web.Message{En: "Sugar", It: "Zuccheri"}
 	msgFloorHint     = web.Message{En: "g, at least", It: "g, almeno"}
 	msgCeilingHint   = web.Message{En: "g, at most", It: "g, al massimo"}
+	msgTimesOfDay    = web.Message{En: "Times of day", It: "Orari"}
+	msgAfter         = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
 	msgSigningIn     = web.Message{En: "Signing in", It: "Accesso"}
 	msgSignedInAs    = web.Message{En: "Signed in as %s", It: "Accesso effettuato come %s"}
 	msgSignOut       = web.Message{En: "Sign out", It: "Esci"}
@@ -57,7 +59,6 @@ var (
 
 // targetProblems say why a typed Target is refused.
 var targetProblems = map[domain.Problem]web.Message{
-	domain.Required:     {En: "Required.", It: "Obbligatorio."},
 	domain.NotWhole:     {En: "Type a whole number.", It: "Scrivi un numero intero."},
 	domain.NotAboveZero: {En: "Must be above 0.", It: "Deve essere sopra 0."},
 	domain.TooLarge:     {En: "Must be below 10000.", It: "Deve essere sotto 10000."},

@@ -31,6 +31,7 @@ const (
 	refusedLanguageStays httpx.Refusal = "Language stays: the User has written Food Terms in it"
 	refusedParsing       httpx.Refusal = "Language stays: a parse Run is going"
 	refusedTargets       httpx.Refusal = "Targets refused"
+	refusedTimes         httpx.Refusal = "times of day refused"
 )
 
 // LanguageChosen serves next in the signed-in User's Language, once they have chosen one;
@@ -130,29 +131,36 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 }
 
 func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status int, f LanguageForm) {
-	targets, err := h.savedTargets(r)
+	page, err := h.page(r, f, nil, nil)
 	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
-		return
-	}
-	page, err := h.page(r, f, targets)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's email", err)
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
 		return
 	}
 	httpx.Render(w, r, h.Log, status, page)
 }
 
-// page is the Profile page, its Language section f and its Targets section targets.
-func (h Handlers) page(r *http.Request, f LanguageForm, targets TargetsForm) (templ.Component, error) {
-	email, err := h.Email(r.Context())
-	return profilePage(h.Clock.Now(), email, f, targets), err
-}
-
-// savedTargets is the signed-in User's Targets as saved.
-func (h Handlers) savedTargets(r *http.Request) (TargetsForm, error) {
-	t, set, err := h.Service.Targets(r.Context())
-	return shownTargets(t, set), err
+// page is the Profile page with its Language section f, and its Targets and times-of-day
+// sections as given, or as saved when not.
+func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, times *TimesForm) (templ.Component, error) {
+	ctx := r.Context()
+	if targets == nil {
+		t, set, err := h.Service.Targets(ctx)
+		if err != nil {
+			return nil, err
+		}
+		saved := shownTargets(t, set)
+		targets = &saved
+	}
+	if times == nil {
+		t, err := h.Service.SlotTimes(ctx)
+		if err != nil {
+			return nil, err
+		}
+		saved := shownTimes(ctx, t)
+		times = &saved
+	}
+	email, err := h.Email(ctx)
+	return profilePage(h.Clock.Now(), email, f, *targets, *times), err
 }
 
 // shownTargets is t as the Targets form shows it, only its tolerance until it is set.
@@ -183,20 +191,62 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: targetsForm(shownTargets(t, true))}.Write(w, r, h.Log)
 		return
 	}
-	saved, err := h.savedTargets(r)
+	_, set, err := h.Service.Targets(ctx)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
 		return
 	}
-	f := TargetsForm{Values: typed, Errs: map[string]string{}, Set: saved.Set}
+	f := TargetsForm{Values: typed, Errs: map[string]string{}, Set: set}
 	for field, problem := range problems {
 		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, targetProblems))
 	}
 	httpx.Refused(r, refusedTargets, f.Errs)
-	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, f)
+	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, &f, nil)
 	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's email", err)
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
 		return
 	}
 	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: targetsForm(f)}.Write(w, r, h.Log)
+}
+
+// shownTimes is t as the times-of-day form shows it, as the Language writes a time.
+func shownTimes(ctx context.Context, t domain.SlotTimes) TimesForm {
+	f := TimesForm{Values: map[string]string{}}
+	for k, at := range t {
+		f.Values[string(k)] = web.TimeOfDay(ctx, at)
+	}
+	return f
+}
+
+// SaveTimes saves the times of day posted, answering with the times-of-day section saved
+// or refused as typed; a plain post lands on the Profile page.
+func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	typed := map[string]string{}
+	for _, k := range domain.SlotKinds {
+		typed[string(k)] = r.PostFormValue(string(k))
+	}
+	t, problems, err := h.Service.SetSlotTimes(ctx, typed)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "save the User's times of day", err)
+		return
+	}
+	if len(problems) == 0 {
+		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: timesForm(shownTimes(ctx, t))}.Write(w, r, h.Log)
+		return
+	}
+	f := TimesForm{Values: typed, Errs: map[string]string{}}
+	for field, problem := range problems {
+		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, nil))
+		if problem == domain.NotAfterTheOneBefore {
+			f.Errs[field] = web.Tf(ctx, msgAfter, web.T(ctx, web.SlotKindNames[domain.SlotKind(field).Before()]))
+		}
+	}
+	httpx.Refused(r, refusedTimes, f.Errs)
+	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, nil, &f)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
+		return
+	}
+	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: timesForm(f)}.Write(w, r, h.Log)
 }

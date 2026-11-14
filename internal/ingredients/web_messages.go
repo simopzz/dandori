@@ -82,7 +82,6 @@ var (
 // problemMessages say why a nutritional value is refused, where web.ProblemMessage's
 // wording doesn't fit it.
 var problemMessages = map[domain.Problem]web.Message{
-	domain.Required: {En: "Required.", It: "Obbligatorio."},
 	domain.TooLarge: {En: "Must be below 10000.", It: "Deve essere sotto 10000."},
 }
 

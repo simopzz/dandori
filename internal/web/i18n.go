@@ -139,9 +139,14 @@ func TimeOfDay(ctx context.Context, t domain.TimeOfDay) string { return t.In(Lan
 
 // shortName is a weekday's or a month's name cut to its first three letters, capitalised,
 // which is how both Languages shorten every one of them.
-func shortName(name string) string {
-	letters := []rune(name)[:3]
-	letters[0] = unicode.ToUpper(letters[0])
+func shortName(name string) string { return Capitalised(string([]rune(name)[:3])) }
+
+// Capitalised is s with its first letter a capital, as a name starting a label is.
+func Capitalised(s string) string {
+	letters := []rune(s)
+	if len(letters) > 0 {
+		letters[0] = unicode.ToUpper(letters[0])
+	}
 	return string(letters)
 }
 

@@ -59,8 +59,18 @@ type TargetsForm struct {
 // targetsSectionID is the element the Targets form swaps when htmx posts it.
 const targetsSectionID = "targets"
 
-// profilePage is the User's Profile: their Language, their Targets, and who is signed in.
-templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm) {
+// TimesForm is the time of day of each kind of Slot as shown, by SlotKind: as saved or as
+// typed, with why each field was refused.
+type TimesForm struct {
+	Values, Errs map[string]string
+}
+
+// timesSectionID is the element the times-of-day form swaps when htmx posts it.
+const timesSectionID = "times"
+
+// profilePage is the User's Profile: their Language, their Targets, the time of day of
+// each kind of Slot, and who is signed in.
+templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm, times TimesForm) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		<form id="profile-language" method="post" action="/profile/language">
@@ -79,7 +89,10 @@ templ profilePage(today time.Time, email string, f LanguageForm, targets Targets
 		@web.SectionBody(targetsSectionID) {
 			@targetsForm(targets)
 		}
-		@web.Section(3, web.T(ctx, msgSigningIn)) {
+		@web.SectionBody(timesSectionID) {
+			@timesForm(times)
+		}
+		@web.Section(4, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
@@ -149,4 +162,31 @@ templ targetField(label, hint web.Message, field string, f TargetsForm) {
 			}
 		/>
 	}
+}
+
+// timesForm is the times-of-day section, swapping itself when htmx posts it.
+templ timesForm(f TimesForm) {
+	<form
+		id="profile-times"
+		method="post"
+		action="/profile/times"
+		hx-post="/profile/times"
+		hx-target={ "#" + timesSectionID }
+		hx-swap="innerHTML"
+	>
+		@web.FieldGroup(3, web.T(ctx, msgTimesOfDay)) {
+			<div class="stack">
+				@web.FieldRow() {
+					for _, k := range domain.SlotKinds {
+						@web.TimeField(web.Capitalised(web.T(ctx, web.SlotKindNames[k])), string(k), f.Values[string(k)], f.Errs[string(k)])
+					}
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgSave) }
+					}
+				}
+			</div>
+		}
+	</form>
 }

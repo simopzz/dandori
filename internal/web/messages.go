@@ -20,8 +20,9 @@ var (
 	msgCloseNotice    = Message{En: "Close notice", It: "Chiudi avviso"}
 )
 
-// problems say why a typed number is refused, the same for every field.
+// problems say why a typed value is refused, the same for every field.
 var problems = map[domain.Problem]Message{
+	domain.Required:   {En: "Required.", It: "Obbligatorio."},
 	domain.NotANumber: {En: "Type a number.", It: "Scrivi un numero."},
 	domain.Negative:   {En: "Can't be below 0.", It: "Non può essere sotto 0."},
 	domain.TooPrecise: {En: "One decimal place at most.", It: "Al massimo un decimale."},
