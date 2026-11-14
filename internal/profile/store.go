@@ -90,6 +90,9 @@ func loadMealOut(ctx context.Context, q db.Querier) (domain.Nutrition, error) {
 	err := q.QueryRow(ctx, `
 		SELECT meal_out_kcal, meal_out_protein, meal_out_carbs, meal_out_fat, meal_out_fibre, meal_out_sugar
 		FROM profile`).Scan(&kcal, &protein, &carbs, &fat, &fibre, &sugar)
+	if err != nil {
+		return domain.Nutrition{}, err
+	}
 	amount := func(v pgtype.Int4) domain.Amount {
 		if !v.Valid {
 			return domain.Unknown
@@ -99,7 +102,7 @@ func loadMealOut(ctx context.Context, q db.Querier) (domain.Nutrition, error) {
 	return domain.Nutrition{
 		Kcal: amount(kcal), Protein: amount(protein), Carbs: amount(carbs),
 		Fat: amount(fat), Fibre: amount(fibre), Sugar: amount(sugar),
-	}, err
+	}, nil
 }
 
 // saveMealOut sets the signed-in User's Meal Out estimate to n, its values whole numbers;

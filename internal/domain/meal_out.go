@@ -2,8 +2,19 @@ package domain
 
 import "strings"
 
-// MealOutFields are the Meal Out estimate's fields, as typed.
-var MealOutFields = []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"}
+// The Meal Out estimate's fields, as typed.
+const (
+	MealOutKcal    = "kcal"
+	MealOutProtein = "protein"
+	MealOutCarbs   = "carbs"
+	MealOutFat     = "fat"
+	MealOutFibre   = "fibre"
+	MealOutSugar   = "sugar"
+)
+
+// MealOutRequired is whether the Meal Out estimate's field must be given: all but fibre
+// and sugar, which may be left Unknown.
+func MealOutRequired(field string) bool { return field != MealOutFibre && field != MealOutSugar }
 
 // ParseMealOut reads the Meal Out estimate as typed, by field, with a problem per field
 // refused: each value a whole number from 0, below 10000, and fibre and sugar Unknown
@@ -11,7 +22,7 @@ var MealOutFields = []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"
 func ParseMealOut(typed map[string]string) (Nutrition, map[string]Problem) {
 	problems := map[string]Problem{}
 	read := func(field string) Amount {
-		if (field == "fibre" || field == "sugar") && strings.TrimSpace(typed[field]) == "" {
+		if !MealOutRequired(field) && strings.TrimSpace(typed[field]) == "" {
 			return Unknown
 		}
 		v, problem := parseWhole(typed[field])
@@ -29,8 +40,8 @@ func ParseMealOut(typed map[string]string) (Nutrition, map[string]Problem) {
 		return Known(float64(v))
 	}
 	n := Nutrition{
-		Kcal: read("kcal"), Protein: read("protein"), Carbs: read("carbs"), Fat: read("fat"),
-		Fibre: read("fibre"), Sugar: read("sugar"),
+		Kcal: read(MealOutKcal), Protein: read(MealOutProtein), Carbs: read(MealOutCarbs), Fat: read(MealOutFat),
+		Fibre: read(MealOutFibre), Sugar: read(MealOutSugar),
 	}
 	return n, problems
 }

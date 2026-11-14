@@ -219,14 +219,14 @@ templ mealOutForm(f MealOutForm) {
 					{ web.T(ctx, msgMealOutHint) }
 				}
 				@web.FieldRow() {
-					@mealOutField(msgKcal, msgKcalUnit, "kcal", f)
-					@mealOutField(msgProtein, msgGrams, "protein", f)
-					@mealOutField(msgCarbs, msgGrams, "carbs", f)
+					@mealOutField(msgKcal, msgKcalUnit, domain.MealOutKcal, f)
+					@mealOutField(msgProtein, msgGrams, domain.MealOutProtein, f)
+					@mealOutField(msgCarbs, msgGrams, domain.MealOutCarbs, f)
 				}
 				@web.FieldRow() {
-					@mealOutField(msgFat, msgGrams, "fat", f)
-					@mealOutField(msgFibre, msgGrams, "fibre", f)
-					@mealOutField(msgSugar, msgGrams, "sugar", f)
+					@mealOutField(msgFat, msgGrams, domain.MealOutFat, f)
+					@mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f)
+					@mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f)
 				}
 				@web.Actions() {
 					@web.Button(templ.Attributes{"type": "submit"}) {
@@ -249,7 +249,7 @@ templ mealOutField(label, unit web.Message, field string, f MealOutForm) {
 			min="0"
 			name={ field }
 			value={ f.Values[field] }
-			required?={ field != "fibre" && field != "sugar" }
+			required?={ domain.MealOutRequired(field) }
 			autocomplete="off"
 			if f.Errs[field] != "" {
 				aria-invalid="true"

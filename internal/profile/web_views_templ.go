@@ -1084,15 +1084,15 @@ func mealOutForm(f MealOutForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = mealOutField(msgKcal, msgKcalUnit, "kcal", f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgKcal, msgKcalUnit, domain.MealOutKcal, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = mealOutField(msgProtein, msgGrams, "protein", f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgProtein, msgGrams, domain.MealOutProtein, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = mealOutField(msgCarbs, msgGrams, "carbs", f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgCarbs, msgGrams, domain.MealOutCarbs, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1114,15 +1114,15 @@ func mealOutForm(f MealOutForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = mealOutField(msgFat, msgGrams, "fat", f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgFat, msgGrams, domain.MealOutFat, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = mealOutField(msgFibre, msgGrams, "fibre", f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = mealOutField(msgSugar, msgGrams, "sugar", f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1260,7 +1260,7 @@ func mealOutField(label, unit web.Message, field string, f MealOutForm) templ.Co
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if field != "fibre" && field != "sugar" {
+			if domain.MealOutRequired(field) {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, " required")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

@@ -264,10 +264,7 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 // saved or refused as typed; a plain post lands on the Profile page.
 func (h Handlers) SaveMealOut(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	typed := map[string]string{}
-	for _, field := range domain.MealOutFields {
-		typed[field] = r.PostFormValue(field)
-	}
+	typed := ingredients.PostedNutrition(r)
 	n, problems, err := h.Service.SetMealOut(ctx, typed)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "save the User's Meal Out estimate", err)

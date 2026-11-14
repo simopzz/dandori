@@ -122,3 +122,25 @@ func TestTheMealOutSectionAnswersHTMXWithItself(t *testing.T) {
 		t.Errorf("saving the Meal Out estimate confirms %q", notices)
 	}
 }
+
+// Each User sees only their own Meal Out estimate.
+func TestEachUserHasTheirOwnMealOutEstimate(t *testing.T) {
+	s := profileOf(t, "ada@example.com")
+	own := apptest.MealOut{Kcal: "800", Protein: "30", Carbs: "80", Fat: "35"}
+	s.SavesMealOut(own)
+	s.SignsOut()
+
+	s.Invite("bea@example.com")
+	s.SignsIn("bea@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/profile")
+	if got := mealOutOnForm(t, s.Page().Body); got != defaultMealOut {
+		t.Errorf("another User's Meal Out estimate is %+v, want the default %+v", got, defaultMealOut)
+	}
+
+	s.SwitchesTo("ada@example.com")
+	s.Open("/profile")
+	if got := mealOutOnForm(t, s.Page().Body); got != own {
+		t.Errorf("the first User's Meal Out estimate is %+v, want %+v", got, own)
+	}
+}
