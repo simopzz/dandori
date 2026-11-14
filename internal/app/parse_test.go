@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -68,7 +69,7 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 	s.Follows("Recipe Draft")
 	s.Sees("Recipe Draft Name Portions")
 	draftHolds(t, s, map[string]string{
-		"name": "Lasagne", "portions": "4", "active": "30", "total": "70", "slots": "lunch", "appliances": "oven\nhob",
+		"name": "Lasagne", "portions": "4", "active": "30", "total": "70", "slots": "lunch\ndinner", "appliances": "oven\nhob",
 		"ing_name_4": "rice", "ing_quantity_4": "100", "ing_kcal_4": "",
 		"ing_name_0": "beef mince", "ing_quantity_0": "500", "ing_unit_0": "g", "ing_usual_0": "fridge", "ing_staple_0": "",
 		"ing_kcal_0": "250", "ing_protein_0": "26", "ing_carbs_0": "0", "ing_fat_0": "17", "ing_fibre_0": "0", "ing_sugar_0": "0",
@@ -223,6 +224,36 @@ func TestSubmitRecipesProblemsGoBackToTheModelWhichFixesThem(t *testing.T) {
 	draftHolds(t, s, map[string]string{"ing_name_4": "rice", "ing_quantity_4": "100", "ing_name_0": "beef mince", "ing_kcal_0": "250"})
 }
 
+// Every kind of appliance and of Slot not on its list goes back to the model in one
+// refusal, so it fixes them all in one call and the Recipe Draft holds only kinds.
+func TestUnknownKindsGoBackToTheModelAllAtOnce(t *testing.T) {
+	s := kitchenWith(t, rice)
+	wrong := submittedLasagne()
+	wrong["appliances"] = []string{"oven", "ice_cream_maker", "wok"}
+	wrong["slot_kinds"] = []string{"brunch", "dinner", "supper"}
+	s.Model.Script(
+		fakellm.CallTool("submit_recipe", wrong),
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			refused := lastToolResult(req)
+			for _, want := range []string{
+				`appliances: "ice_cream_maker" is not a kind of appliance; "wok" is not a kind of appliance`,
+				`slot_kinds: "brunch" is not a kind of Slot; "supper" is not a kind of Slot`,
+			} {
+				if !refused.IsError || !strings.Contains(refused.Text, want) {
+					t.Errorf("the model was told %q, want it told %q", refused.Text, want)
+				}
+			}
+			return fakellm.CallTool("submit_recipe", submittedLasagne())
+		}),
+		fakellm.Reply("Fixed the lasagne."),
+	)
+
+	s.PastesRecipe(pastedLasagne)
+	s.Sees("submit_recipe refuses")
+	s.Follows("Recipe Draft")
+	draftHolds(t, s, map[string]string{"appliances": "oven\nhob"})
+}
+
 // lastToolResult is the last tool result the model was sent.
 func lastToolResult(req agent.Request) agent.Block {
 	last := req.Messages[len(req.Messages)-1]
@@ -233,7 +264,7 @@ func lastToolResult(req agent.Request) agent.Block {
 func italianLasagne() map[string]any {
 	return map[string]any{
 		"name": "Lasagne", "portions": 4, "active_minutes": 30, "total_minutes": 70,
-		"slot_kinds": []string{"dinner"}, "appliances": []string{"forno"},
+		"slot_kinds": []string{"dinner"}, "appliances": []string{"oven"},
 		"steps": []string{"Rosola la carne.", "Alterna sfoglia e pomodoro.", "Cuoci 40 minuti."},
 		"ingredients": []map[string]any{
 			{"name": "carne macinata", "quantity": 500, "unit": "g", "new": map[string]any{
@@ -252,7 +283,7 @@ func TestARecipeInAnotherLanguageBecomesARecipeDraftInTheUsersLanguage(t *testin
 	s.ChoosesLanguage("Italiano")
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step {
-			if !strings.Contains(req.System, "Write the Recipe name, Ingredient names, steps and appliances in Italian.") {
+			if !strings.Contains(req.System, "Write the Recipe name, Ingredient names and steps in Italian.") {
 				t.Errorf("the system prompt does not name Italian:\n%s", req.System)
 			}
 			return fakellm.CallTool("submit_recipe", italianLasagne())
@@ -264,7 +295,7 @@ func TestARecipeInAnotherLanguageBecomesARecipeDraftInTheUsersLanguage(t *testin
 	s.Sees("Lettura di una Ricetta")
 	s.Follows("Bozza di Ricetta")
 	draftHolds(t, s, map[string]string{
-		"name": "Lasagne", "portions": "4", "slots": "dinner", "appliances": "forno",
+		"name": "Lasagne", "portions": "4", "slots": "dinner", "appliances": "oven",
 		"ing_name_0": "carne macinata", "ing_quantity_0": "500", "ing_kcal_0": "250", "ing_fibre_0": "", "ing_usual_0": "fridge",
 	})
 	s.Sees("Rosola la carne.")
@@ -296,8 +327,9 @@ func TestTheParseSystemPromptVariesOnlyByLanguage(t *testing.T) {
 }
 
 // submit_recipe's schema tells the model the rules its checks hold a Recipe to, so a
-// typical one is taken the first time rather than refused: a quantity whole but for a
-// piece's, and nutritional values to one decimal place, none negative or too large.
+// typical one is taken the first time rather than refused: the kinds of appliance, a
+// quantity whole but for a piece's, and nutritional values to one decimal place, none
+// negative or too large.
 func TestSubmitRecipesSchemaStatesTheRulesItChecks(t *testing.T) {
 	s := kitchenWith(t)
 	s.Model.Script(fakellm.Reply("Not a recipe."))
@@ -310,6 +342,11 @@ func TestSubmitRecipesSchemaStatesTheRulesItChecks(t *testing.T) {
 	}
 	var schema struct {
 		Properties struct {
+			Appliances struct {
+				Items struct {
+					Enum []string `json:"enum"`
+				} `json:"items"`
+			} `json:"appliances"`
 			Ingredients struct {
 				Items struct {
 					Properties struct {
@@ -324,6 +361,12 @@ func TestSubmitRecipesSchemaStatesTheRulesItChecks(t *testing.T) {
 	}
 	if err := json.Unmarshal(s.Model.Requests()[0].Tools[0].InputSchema, &schema); err != nil {
 		t.Fatal(err)
+	}
+	if got, want := schema.Properties.Appliances.Items.Enum, []string{
+		"oven", "hob", "microwave", "air_fryer", "pressure_cooker", "slow_cooker",
+		"blender", "food_processor", "stand_mixer", "grill", "toaster", "steamer",
+	}; !slices.Equal(got, want) {
+		t.Errorf("appliances are %q, want %q", got, want)
 	}
 	ingredient := schema.Properties.Ingredients.Items.Properties
 	if q := ingredient.Quantity; q.Description != "A whole number in g or ml; at most one decimal place in piece." ||

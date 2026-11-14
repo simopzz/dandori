@@ -422,21 +422,22 @@ type RecipeRow struct {
 	Confirmed bool
 }
 
-// Recipe is a Recipe as the Recipe form takes it, each value as typed.
+// Recipe is a Recipe as the Recipe form takes it, each value as typed, and the kinds of
+// Slot and of appliance ticked by code.
 type Recipe struct {
-	Name, Portions, Active, Total, Appliances string
-	Slots, Steps                              []string
-	Ingredients                               []RecipeRow
+	Name, Portions, Active, Total string
+	Slots, Appliances, Steps      []string
+	Ingredients                   []RecipeRow
 }
 
 // Fill sets f, the Recipe form, to r.
 func (r Recipe) Fill(f FormData) {
 	for field, v := range map[string]string{
-		"name": r.Name, "portions": r.Portions, "active": r.Active, "total": r.Total, "appliances": r.Appliances,
+		"name": r.Name, "portions": r.Portions, "active": r.Active, "total": r.Total,
 	} {
 		f.Values.Set(field, v)
 	}
-	f.Values["slots"], f.Values["steps"] = r.Slots, r.Steps
+	f.Values["slots"], f.Values["appliances"], f.Values["steps"] = r.Slots, r.Appliances, r.Steps
 	for field := range f.Values {
 		if strings.HasPrefix(field, "ing_") {
 			f.Values.Del(field)
