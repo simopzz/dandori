@@ -551,3 +551,28 @@ func (s *Scenario) SavesTimesOfDay(times TimesOfDay) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("saves times of day %+v: %d %s", times, s.page.StatusCode, s.page.Path))
 }
+
+// MealOut is the Meal Out estimate as the Profile's form takes it, each value as typed.
+type MealOut struct {
+	Kcal, Protein, Carbs, Fat, Fibre, Sugar string
+}
+
+// Fill sets f, the Meal Out estimate's form, to estimate.
+func (estimate MealOut) Fill(f FormData) {
+	for field, v := range map[string]string{
+		"kcal": estimate.Kcal, "protein": estimate.Protein, "carbs": estimate.Carbs,
+		"fat": estimate.Fat, "fibre": estimate.Fibre, "sugar": estimate.Sugar,
+	} {
+		f.Values.Set(field, v)
+	}
+}
+
+// SavesMealOut saves estimate with the Meal Out estimate's form on the Profile open,
+// posted as a browser without htmx.
+func (s *Scenario) SavesMealOut(estimate MealOut) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "profile-meal-out")
+	estimate.Fill(form)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("saves the Meal Out estimate %+v: %d %s", estimate, s.page.StatusCode, s.page.Path))
+}

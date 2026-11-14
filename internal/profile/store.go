@@ -82,6 +82,37 @@ func saveTargets(ctx context.Context, q db.Querier, t domain.Targets) error {
 	return err
 }
 
+// loadMealOut reads the signed-in User's Meal Out estimate: the default until they set
+// theirs. It has no WHERE on purpose: run in db.AsUser, row-level security leaves only
+// their row.
+func loadMealOut(ctx context.Context, q db.Querier) (domain.Nutrition, error) {
+	var kcal, protein, carbs, fat, fibre, sugar pgtype.Int4
+	err := q.QueryRow(ctx, `
+		SELECT meal_out_kcal, meal_out_protein, meal_out_carbs, meal_out_fat, meal_out_fibre, meal_out_sugar
+		FROM profile`).Scan(&kcal, &protein, &carbs, &fat, &fibre, &sugar)
+	amount := func(v pgtype.Int4) domain.Amount {
+		if !v.Valid {
+			return domain.Unknown
+		}
+		return domain.Known(float64(v.Int32))
+	}
+	return domain.Nutrition{
+		Kcal: amount(kcal), Protein: amount(protein), Carbs: amount(carbs),
+		Fat: amount(fat), Fibre: amount(fibre), Sugar: amount(sugar),
+	}, err
+}
+
+// saveMealOut sets the signed-in User's Meal Out estimate to n, its values whole numbers;
+// an Unknown one is saved as null.
+func saveMealOut(ctx context.Context, q db.Querier, n domain.Nutrition) error {
+	whole := func(a domain.Amount) pgtype.Int4 { return pgtype.Int4{Int32: int32(a.Value), Valid: a.Known} }
+	_, err := q.Exec(ctx, `
+		UPDATE profile SET meal_out_kcal = $1, meal_out_protein = $2, meal_out_carbs = $3,
+			meal_out_fat = $4, meal_out_fibre = $5, meal_out_sugar = $6`,
+		whole(n.Kcal), whole(n.Protein), whole(n.Carbs), whole(n.Fat), whole(n.Fibre), whole(n.Sugar))
+	return err
+}
+
 // saveLanguage creates the signed-in User's Profile with Language l, or changes the
 // Language of the one they have.
 func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {

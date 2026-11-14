@@ -1,6 +1,6 @@
 // Package profile is the User's Profile: for now, their Language, chosen at their first
 // sign-in and changeable until they have written a Food Term (ADR-0015), the time of day
-// of each kind of Slot, and their Targets.
+// of each kind of Slot, their Targets, and their Meal Out estimate.
 package profile
 
 import (
@@ -76,6 +76,26 @@ func (s *Service) SetTargets(ctx context.Context, typed map[string]string) (doma
 		return t, problems, nil
 	}
 	return t, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveTargets(ctx, tx, t) })
+}
+
+// MealOut is the signed-in User's Meal Out estimate: what a Meal Out counts unless its
+// Exception gives its own.
+func (s *Service) MealOut(ctx context.Context) (n domain.Nutrition, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		n, err = loadMealOut(ctx, tx)
+		return err
+	})
+	return n, err
+}
+
+// SetMealOut saves typed as the signed-in User's Meal Out estimate, by field, unless a
+// field is refused: then it saves nothing and is the problem with each.
+func (s *Service) SetMealOut(ctx context.Context, typed map[string]string) (domain.Nutrition, map[string]domain.Problem, error) {
+	n, problems := domain.ParseMealOut(typed)
+	if len(problems) > 0 {
+		return n, problems, nil
+	}
+	return n, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveMealOut(ctx, tx, n) })
 }
 
 // SetLanguage chooses the signed-in User's Language, or changes it while they have
