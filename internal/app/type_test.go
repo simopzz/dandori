@@ -19,7 +19,7 @@ func TestBrowserTypeFloorFitsAPhone(t *testing.T) {
 			}
 			b.SignUp(t, "ada@example.com")
 			b.Open(t, "/profile")
-			b.ChooseLanguage(t, lang, "Save")
+			b.ChooseLanguage(t, lang, "Save Language")
 			b.IsAt(t, "/profile")
 			fits(t, b, ".tab")
 			fits(t, b, ".field-row")
