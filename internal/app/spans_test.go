@@ -1,11 +1,13 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,24 +28,81 @@ import (
 
 // startWithSpans starts the app with its spans going to an in-memory exporter, in place
 // of Grafana Cloud, described by the resource production's are.
-func startWithSpans(t *testing.T) (*apptest.Harness, *tracetest.InMemoryExporter) {
+func startWithSpans(t *testing.T) (*apptest.Harness, *recordedSpans) {
 	t.Helper()
 	opt, spans := withSpans(t)
 	return apptest.Start(t, opt), spans
 }
 
 // withSpans sends the app's spans to the in-memory exporter it returns.
-func withSpans(t *testing.T) (apptest.Option, *tracetest.InMemoryExporter) {
+func withSpans(t *testing.T) (apptest.Option, *recordedSpans) {
 	t.Helper()
-	spans := tracetest.NewInMemoryExporter()
+	spans := &recordedSpans{InMemoryExporter: tracetest.NewInMemoryExporter(), t: t}
 	res, err := telemetry.Resource(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans), sdktrace.WithResource(res))
+	// The exporter first, so a request span is recorded before it counts as ended.
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans), sdktrace.WithSpanProcessor(spans), sdktrace.WithResource(res))
 	t.Cleanup(func() { _ = tp.Shutdown(t.Context()) })
 	return apptest.WithConfig(func(c *app.Config) { c.Spans = tp }), spans
 }
+
+// recordedSpans are the spans the app ended. A request's span ends only once its handler
+// returns, which can be after the client has the response, so GetSpans first waits for
+// every request span begun to end.
+type recordedSpans struct {
+	*tracetest.InMemoryExporter
+	t    *testing.T
+	mu   sync.Mutex
+	open int
+	// ended is closed once no request span is open, and replaced as the next begins.
+	ended chan struct{}
+}
+
+// GetSpans are the spans ended so far, once no request span is still open.
+func (r *recordedSpans) GetSpans() tracetest.SpanStubs {
+	r.t.Helper()
+	r.mu.Lock()
+	ended := r.ended
+	if r.open == 0 {
+		ended = nil
+	}
+	r.mu.Unlock()
+	if ended != nil {
+		select {
+		case <-ended:
+		case <-time.After(5 * time.Second):
+			r.t.Fatal("a request span is still open after 5s")
+		}
+	}
+	return r.InMemoryExporter.GetSpans()
+}
+
+func (r *recordedSpans) OnStart(_ context.Context, s sdktrace.ReadWriteSpan) {
+	if s.SpanKind() != trace.SpanKindServer {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.open == 0 {
+		r.ended = make(chan struct{})
+	}
+	r.open++
+}
+
+func (r *recordedSpans) OnEnd(s sdktrace.ReadOnlySpan) {
+	if s.SpanKind() != trace.SpanKindServer {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.open--; r.open == 0 {
+		close(r.ended)
+	}
+}
+
+func (r *recordedSpans) ForceFlush(context.Context) error { return nil }
 
 // A request is a span named for its route, with a span for each database query it runs
 // under it.
@@ -450,7 +509,7 @@ func get(t *testing.T, h *apptest.Harness, path string, header http.Header) http
 }
 
 // requestSpan is the one request's span among those exported.
-func requestSpan(t *testing.T, spans *tracetest.InMemoryExporter) tracetest.SpanStub {
+func requestSpan(t *testing.T, spans *recordedSpans) tracetest.SpanStub {
 	t.Helper()
 	return onlySpan(t, spans.GetSpans(), "server", func(s tracetest.SpanStub) bool {
 		return s.SpanKind == trace.SpanKindServer
@@ -469,7 +528,7 @@ func attr(s tracetest.SpanStub, key attribute.Key) (attribute.Value, bool) {
 
 // parseWithSpans is a signed-in User who knows rice, their spans going to the exporter it
 // returns, who has pasted pastedLasagne for a parse Run the model answers with steps.
-func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *tracetest.InMemoryExporter) {
+func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *recordedSpans) {
 	t.Helper()
 	opt, spans := withSpans(t)
 	s := apptest.NewScenario(t, opt)
@@ -486,7 +545,7 @@ func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *tr
 
 // runAndCallSpans is the one Run's span among those exported, and the spans of its
 // calls to the model under it, in order.
-func runAndCallSpans(t *testing.T, spans *tracetest.InMemoryExporter) (run tracetest.SpanStub, calls tracetest.SpanStubs) {
+func runAndCallSpans(t *testing.T, spans *recordedSpans) (run tracetest.SpanStub, calls tracetest.SpanStubs) {
 	t.Helper()
 	all := spans.GetSpans()
 	run = onlySpan(t, all, "run parse", func(s tracetest.SpanStub) bool { return s.Name == "run parse" })

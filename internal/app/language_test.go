@@ -10,6 +10,9 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
+// msgLanguageStays is the Profile refusing a new Language once a Food Term is written.
+const msgLanguageStays = "You have already written Ingredients, Recipes, Recipe Drafts, Portions, exclusions or allergies in this Language, so it stays."
+
 // A User's first sign-in asks for their Language before anything else. Picking Italian
 // makes the pages Italian, and the next sign-in doesn't ask again.
 func TestTheFirstSignInAsksForTheLanguage(t *testing.T) {
@@ -161,7 +164,7 @@ func TestTheLanguageStaysOnceTheUserHasAnIngredient(t *testing.T) {
 	s.Open("/profile")
 	s.ChangesLanguage("Italiano")
 	s.IsRefused()
-	s.Sees("Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.")
+	s.Sees(msgLanguageStays)
 	s.Open("/")
 	s.Sees("Monday, November 2")
 }

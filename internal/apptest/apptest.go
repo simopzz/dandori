@@ -91,10 +91,14 @@ func WithUnmigratedDatabase() Option {
 }
 
 // Start boots the app against a new database cloned from a migrated
-// template. Everything is torn down when the test ends; a failed test's
-// database is kept for inspection.
+// template, and runs the test in parallel with the others. Everything is torn
+// down when the test ends; a failed test's database is kept for inspection.
 func Start(t testing.TB, opts ...Option) *Harness {
 	t.Helper()
+	// Each test has its own app, database and clock, so every one runs in parallel.
+	if p, ok := t.(interface{ Parallel() }); ok {
+		p.Parallel()
+	}
 	var s settings
 	for _, opt := range opts {
 		opt(&s)

@@ -29,8 +29,17 @@ depends = ["generate"]
 run = "go test ./..."
 
 [tasks.testdb]
-description = "Start the disposable Postgres + pgvector test server (docker needs sudo)"
-run = "sudo docker run -d --rm --name dandori-testdb -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5433:5432 pgvector/pgvector:pg17"
+description = "Start the disposable Postgres + pgvector test server afresh, replacing one already running (docker needs sudo)"
+# Its data is thrown away, so it never waits for the disk: with fsync on, the seam-1
+# tests running in parallel spend most of their time on commits. pg_isready over TCP, as
+# devdb's: while the image initialises, its temporary server listens only on the socket.
+run = '''
+sudo docker rm -f dandori-testdb >/dev/null 2>&1 || true
+sudo docker run -d --rm --name dandori-testdb -e POSTGRES_PASSWORD=postgres \
+  -p 127.0.0.1:5433:5432 pgvector/pgvector:pg17 \
+  -c fsync=off -c synchronous_commit=off -c full_page_writes=off >/dev/null
+until sudo docker exec dandori-testdb pg_isready -q -h 127.0.0.1; do sleep 0.5; done
+'''
 
 [tasks.browsers]
 description = "Install the Chromium the browser tests drive (CI adds --with-deps for its system libraries)"

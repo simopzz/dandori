@@ -31,11 +31,13 @@ type FoodTerms struct {
 	Portions    int
 	Recipes     int
 	Drafts      int
+	Exclusions  int
+	Allergies   int
 }
 
 // Any reports whether the User has written any Food Term.
 func (f FoodTerms) Any() bool {
-	return f.Ingredients > 0 || f.Portions > 0 || f.Recipes > 0 || f.Drafts > 0
+	return f.Ingredients > 0 || f.Portions > 0 || f.Recipes > 0 || f.Drafts > 0 || f.Exclusions > 0 || f.Allergies > 0
 }
 
 // LanguageCanChange reports whether a User who has written f can still change their

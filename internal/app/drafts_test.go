@@ -195,7 +195,7 @@ func TestARecipeDraftFixesTheLanguage(t *testing.T) {
 	s.Open("/profile")
 	s.ChangesLanguage("Italiano")
 	s.IsRefused()
-	s.Sees("Your kitchen already holds Ingredients, Recipes, Recipe Drafts or Portions in this Language, so it stays.")
+	s.Sees(msgLanguageStays)
 }
 
 // draftHolds checks the Recipe form open on s holds each field's value.
