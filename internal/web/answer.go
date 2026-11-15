@@ -24,14 +24,7 @@ type Answer struct {
 // Redirects reports whether a answers r with its redirect whatever its Page and Fragment,
 // so a write needn't load what they show.
 func (a Answer) Redirects(r *http.Request) bool {
-	return a.RedirectTo != "" && !partial(r)
-}
-
-// partial reports whether r is htmx's to swap part of a page, not a boosted one's
-// swapping the whole body. htmx 4 also marks a request that uses hx-select "full", so
-// that one gets the whole page to select from, even with an hx-target.
-func partial(r *http.Request) bool {
-	return httpx.IsHTMX(r) && r.Header.Get("HX-Request-Type") != "full"
+	return a.RedirectTo != "" && !httpx.IsPartial(r)
 }
 
 // Write answers r with a.
@@ -40,7 +33,7 @@ func (a Answer) Write(w http.ResponseWriter, r *http.Request, log *slog.Logger) 
 	if status == 0 {
 		status = http.StatusOK
 	}
-	if partial(r) && (a.Fragment != nil || a.Trigger != "") {
+	if httpx.IsPartial(r) && (a.Fragment != nil || a.Trigger != "") {
 		if a.Trigger != "" {
 			w.Header().Set("HX-Trigger", a.Trigger)
 		}

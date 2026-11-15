@@ -56,8 +56,9 @@ Rules code review checks against. Each says what it protects.
   and forms ride the `hx-boost` on `<body>`, and handlers answer the same
   way for htmx and a plain browser: redirect after a write, re-render the
   page with 422 on a rejection. A form swaps a fragment of its own
-  (`httpx.IsHTMX`) only when the boosted jump to the top would lose the
-  user's place, such as a row deep in a list. See
+  (`httpx.IsPartial`, through `web.Answer`) only when the boosted jump to
+  the top would lose the user's place, such as a row deep in a list. A
+  boosted request is answered as a plain browser is. See
   [ADR 0009](../adr/0009-boosted-pages-with-fragments-only-to-keep-your-place.md).
   *Protects: one way to answer a request, and fragment code only where it
   pays.*

@@ -9,6 +9,7 @@ Every link and form rides an `hx-boost` on `<body>`: htmx fetches the page and s
 
 ## Consequences
 
+- Whether htmx wants a fragment is one rule, `httpx.IsPartial`, which `web.Answer` applies: htmx sent the request, and not as a boosted one swapping the whole body (`HX-Request-Type: full`, which htmx 4 also sends for an `hx-select`). A boosted request gets what a plain browser does, so a form posting to a handler that also answers a sheet's fragment can't swap that fragment in for the whole page.
 - A rejection (422) keeps the address of the page the form was on (`hx-status:422="push:false"`), since a form's action may answer only a POST: pushing it would make reload and Back fail.
 - htmx's settling is off (`defaultSettleDelay:0`). Settling briefly gives a swapped-in element the attributes of the old one with the same id, so a script in the new page, such as the one reopening a rejected add form's sheet, would see the old page.
 - Scripts in a page are re-run by each boosted swap and nothing is unloaded, so anything long-lived, such as the live Trace's stream, comes from an htmx extension that cleans up when its element is removed, not from a hand-written script.

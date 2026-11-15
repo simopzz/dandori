@@ -29,6 +29,14 @@ func PathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 // swapping its own fragment.
 func IsHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
 
+// IsPartial reports whether htmx sent r to swap part of a page, so a fragment answers it:
+// not a boosted one, swapping the whole body, which is answered as a plain browser is.
+// htmx 4 also marks a request that uses hx-select "full", so that one gets the whole page
+// to select from, even with an hx-target.
+func IsPartial(r *http.Request) bool {
+	return IsHTMX(r) && r.Header.Get("HX-Request-Type") != "full"
+}
+
 // Render answers with page as HTML, with status.
 func Render(w http.ResponseWriter, r *http.Request, log *slog.Logger, status int, page templ.Component) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

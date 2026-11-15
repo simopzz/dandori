@@ -480,7 +480,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 // the sheet under the Ingredients sheet when htmx sent the add, else on the Count page.
 func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	chosen := url.Values{"ingredient": {strconv.FormatInt(id, 10)}}
-	if !httpx.IsHTMX(r) {
+	if !httpx.IsPartial(r) {
 		http.Redirect(w, r, "/kitchen/count?"+chosen.Encode(), http.StatusSeeOther)
 		return
 	}
