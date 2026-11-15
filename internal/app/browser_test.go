@@ -403,6 +403,7 @@ func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
 	s.Counts("rice", "", "700", "")
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
+	b.IsAt(t, "/")
 	tall := func(what string, l playwright.Locator) {
 		t.Helper()
 		if h := box(t, what, l).Height; h < 44 {

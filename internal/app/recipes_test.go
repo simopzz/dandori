@@ -914,6 +914,7 @@ func TestBrowserTheFirstRecipeShowsOnAPhoneWithoutScrolling(t *testing.T) {
 		t.Fatalf("size a phone: %v", err)
 	}
 	b.SignIn(t, "ada@example.com")
+	b.IsAt(t, "/")
 	b.Open(t, "/recipes")
 	first := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Rice bowl"})
 	if err := playwright.NewPlaywrightAssertions().Locator(first).ToBeInViewport(); err != nil {
