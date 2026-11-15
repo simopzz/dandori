@@ -67,6 +67,13 @@ Japanese text falls back to the system's Gothic.
 
 `--font-mono` is for code and trace details.
 
+Nothing a User reads to act is under 0.875rem: field labels, errors, tab
+names, tags, a row's details, table and grid heads. Only the eyebrow and the
+wordmark are smaller. Segment labels are 1rem. Labels stay soft ink, 6.7:1 at
+0.875rem. Letter-spacing is for the eyebrow, the wordmark and the titles in
+the pixel face (0.04em); labels, buttons, tabs, tags and running text keep
+the body's, as tracking breaks up a word's shape. `type_test.go` checks both.
+
 Space: `--space-1` … `--space-7` (0.25rem to 4rem). Shape: `--radius` is 0, so
 every control, tag and the `+` is plainly square, with no stepped edges;
 `--focus-ring` is the focus outline. Pixels: `--pixel` (3px) is one pixel of
