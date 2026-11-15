@@ -3,8 +3,11 @@ package app_test
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/simopzz/dandori/internal/apptest"
 )
@@ -77,8 +80,32 @@ func TestTodayIsServedInTheAppShell(t *testing.T) {
 	if !strings.Contains(page.Body, `<nav class="shell"`) {
 		t.Errorf("Today is not rendered in the app shell:\n%s", page.Body)
 	}
-	if strings.Contains(page.Body, `aria-current="page"`) {
-		t.Errorf("Today marks a tab as current:\n%s", page.Body)
+}
+
+// Every signed-in page has the same tabs, Today first, and marks its own; Runs sits
+// apart from them, at the rail's foot.
+func TestEverySignedInPageHasTheSameTabs(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	h.SignUp(t, "ada@example.com")
+	tab := regexp.MustCompile(`(?s)<a class="tab" href="([^"]+)"( aria-current="page")?>.*?<span>([^<]+)</span>`)
+
+	for path, current := range map[string]string{"/": "Today", "/recipes": "Recipes", "/kitchen": "Kitchen", "/profile": "Profile", "/runs": ""} {
+		page := h.Get(t, path)
+		var labels []string
+		marked := ""
+		for _, m := range tab.FindAllStringSubmatch(page.Body, -1) {
+			labels = append(labels, m[3])
+			if m[2] != "" {
+				marked = m[3]
+			}
+		}
+		if got := strings.Join(labels, ", "); got != "Today, Recipes, Kitchen, Profile" {
+			t.Errorf("%s's tabs are %q, want Today, Recipes, Kitchen, Profile", path, got)
+		}
+		if marked != current {
+			t.Errorf("%s marks %q as the current tab, want %q", path, marked, current)
+		}
 	}
 }
 
@@ -98,6 +125,59 @@ func TestTheShellHasTabsOnceTheLanguageIsChosen(t *testing.T) {
 	page := h.Get(t, "/profile")
 	if !strings.Contains(page.Body, `href="/profile" aria-current="page"`) {
 		t.Errorf("the Profile does not mark its tab as current:\n%s", page.Body)
+	}
+}
+
+// On a phone the bottom tabs fit the screen, Runs not among them: the Profile links it.
+func TestBrowserPhoneTabsFitAndTheProfileLinksRuns(t *testing.T) {
+	b := signedUpBrowser(t)
+	if err := b.SetViewportSize(360, 740); err != nil {
+		t.Fatalf("size the page as a phone: %v", err)
+	}
+	b.Open(t, "/")
+	shell := b.Locator("nav.shell")
+	fits, err := shell.Evaluate(`nav => [...nav.querySelectorAll(".tab")].filter((a) => a.checkVisibility()).every((a) => a.scrollWidth <= a.clientWidth && a.getBoundingClientRect().right <= window.innerWidth) && nav.scrollWidth <= nav.clientWidth`, nil)
+	if err != nil {
+		t.Fatalf("measure the tabs: %v", err)
+	}
+	if fits != true {
+		t.Error("the bottom tabs overflow a phone's screen")
+	}
+	runs := shell.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Runs"})
+	if visible, err := runs.IsVisible(); err != nil || visible {
+		t.Errorf("Runs is among a phone's bottom tabs (visible %v, err %v)", visible, err)
+	}
+
+	b.Open(t, "/profile")
+	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Runs"}).Click(); err != nil {
+		t.Fatalf("follow the Profile's link to the Runs: %v", err)
+	}
+	b.IsAt(t, "/runs")
+}
+
+// On desktop Runs sits at the rail's foot, apart from the tabs above it.
+func TestBrowserDesktopRailHasRunsAtItsFoot(t *testing.T) {
+	b := signedUpBrowser(t)
+	if err := b.SetViewportSize(1280, 800); err != nil {
+		t.Fatalf("size the page as a desktop: %v", err)
+	}
+	b.Open(t, "/")
+	shell := b.Locator("nav.shell")
+	box := func(l playwright.Locator) *playwright.Rect {
+		t.Helper()
+		r, err := l.BoundingBox()
+		if err != nil || r == nil {
+			t.Fatalf("measure %v: %v", l, err)
+		}
+		return r
+	}
+	rail := box(shell)
+	profile := box(shell.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Profile"}))
+	runs := box(shell.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Runs"}))
+	above := runs.Y - (profile.Y + profile.Height)
+	below := rail.Y + rail.Height - (runs.Y + runs.Height)
+	if below >= above {
+		t.Errorf("Runs isn't at the rail's foot: %.0fpx below Profile, %.0fpx above the rail's end", above, below)
 	}
 }
 

@@ -216,7 +216,7 @@ templ movementRows(now time.Time, movements []domain.StockMovement, location dom
 					<span class="row-title">{ causeText(ctx, m, location) }</span>
 					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, unit), web.Quantity(ctx, m.After, unit)) }</span>
 					<span class="row-meta">
-						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
+						<span>{ web.DateTime(ctx, now, m.At.In(now.Location())) }</span>
 						if m.Note != "" {
 							<em>{ m.Note }</em>
 						}
@@ -241,22 +241,13 @@ func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bo
 	return link
 }
 
-// happenedText says when a Movement happened, told in at's zone, with its year unless
-// that is now's.
-func happenedText(ctx context.Context, now, at time.Time) string {
-	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgHappened, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
-	}
-	return web.Tf(ctx, msgHappened, web.ShortDate(ctx, at), web.Time(ctx, at))
-}
-
 // countedText says when a Stock Item was last counted, told in now's zone, with its date
 // unless it was today.
 func countedText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
 		return web.Tf(ctx, msgCountedAt, web.Time(ctx, at))
 	}
-	return web.Tf(ctx, msgCountedOn, happenedText(ctx, now, at))
+	return web.Tf(ctx, msgCountedOn, web.DateTime(ctx, now, at))
 }
 
 // countBody is the form of the Ingredient chosen, or else the search for one.
@@ -331,6 +322,7 @@ func ingredientURL(path string, ing domain.Ingredient) templ.SafeURL {
 // one the form started on, whose Movements link the other two.
 templ countForm(f CountForm) {
 	<form
+		novalidate
 		id="count-form"
 		method="post"
 		action="/kitchen/count"
@@ -416,17 +408,20 @@ func quantityStep(unit domain.Unit) string {
 templ portionsPage(now time.Time, f PortionsForm) {
 	@web.Layout(web.T(ctx, msgAddPortionsTitle), web.KitchenTab) {
 		@web.PageHeader("台所", web.T(ctx, msgAddPortions), now)
+		@web.ErrorSummary(f.refusals(ctx))
 		<div id={ web.SideSheetBody(portionsSheetID) }>
-			@portionsForm(f)
+			@portionsForm(f, false)
 		</div>
 	}
 }
 
 // portionsForm adds Portions no Prep Session produced, swapping the sheet's body when
 // htmx posts it. Its Storage Location starts unchosen, so nothing lands in the wrong
-// place by default.
-templ portionsForm(f PortionsForm) {
+// place by default. inSheet focuses its name as the sheet opens; a page focuses nothing,
+// so a phone's keyboard doesn't cover it.
+templ portionsForm(f PortionsForm, inSheet bool) {
 	<form
+		novalidate
 		id="portions-form"
 		method="post"
 		action="/kitchen/portions"
@@ -436,7 +431,7 @@ templ portionsForm(f PortionsForm) {
 	>
 		<div class="stack">
 			@web.Field(web.T(ctx, msgPortionName), "", f.Errs["name"]) {
-				<input name="name" value={ f.Name } required autocomplete="off" autofocus { ingredients.Invalid(f.Errs["name"])... }/>
+				<input id="name" name="name" value={ f.Name } required autocomplete="off" autofocus?={ inSheet } { ingredients.Invalid(f.Errs["name"])... }/>
 			}
 			@web.Field(web.T(ctx, msgHowMany), "", f.Errs["how_many"]) {
 				<input
@@ -444,6 +439,7 @@ templ portionsForm(f PortionsForm) {
 					inputmode="numeric"
 					min="1"
 					step="1"
+					id="how_many"
 					name="how_many"
 					value={ f.HowMany }
 					required
@@ -455,7 +451,7 @@ templ portionsForm(f PortionsForm) {
 			@web.Hint() {
 				{ web.T(ctx, msgPortionValuesHint) }
 			}
-			@ingredients.NutritionFields(f.Values, f.Errs)
+			@ingredients.NutritionFields(f.Values, f.Errs, true)
 			@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
 				<input name="note" value={ f.Note } autocomplete="off"/>
 			}
@@ -516,6 +512,7 @@ templ portionCountPage(now time.Time, f PortionLotForm) {
 // portionCountForm counts f's Lot, swapping the sheet's body when htmx posts it.
 templ portionCountForm(f PortionLotForm) {
 	<form
+		novalidate
 		id="count-form"
 		method="post"
 		action="/kitchen/portions/count"
@@ -577,6 +574,7 @@ templ portionMovePage(now time.Time, f PortionLotForm) {
 // posts it. Its target starts unchosen, so nothing goes to the wrong place by default.
 templ portionMoveForm(f PortionLotForm) {
 	<form
+		novalidate
 		id="move-form"
 		method="post"
 		action="/kitchen/portions/move"
@@ -618,6 +616,7 @@ templ movePage(now time.Time, f MoveForm) {
 // starts unchosen, so stock can't go to the wrong place by default.
 templ moveForm(f MoveForm) {
 	<form
+		novalidate
 		id="move-form"
 		method="post"
 		action="/kitchen/move"

@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -538,7 +539,7 @@ func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
 		t.Errorf("the refused row isn't open as typed:\n%s", fixed.Body)
 	}
 
-	del := apptest.DeleteForm(t, saved.Body, "rice")
+	del := deleteStep(t, s, saved.Body, "rice")
 	refused := s.HTMXPostForm(t, del.Action, del.Values)
 	if shown := fragment("deleting rice", refused, http.StatusUnprocessableEntity); !strings.Contains(shown, "It has Movements, so it can't be deleted") {
 		t.Errorf("the sheet refusing to delete rice shows: %s", shown)
@@ -546,8 +547,11 @@ func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
 	if !strings.Contains(refused.Body, "<details open") {
 		t.Errorf("the row refused deleting isn't open:\n%s", refused.Body)
 	}
+	if got := refused.Header.Get("HX-Trigger"); got != "close-sheet" {
+		t.Errorf("refusing to delete rice triggers %q, want the step's sheet closed", got)
+	}
 
-	del = apptest.DeleteForm(t, s.HTMXGet(t, "/ingredients/list").Body, "egg")
+	del = deleteStep(t, s, s.HTMXGet(t, "/ingredients/list").Body, "egg")
 	deleted := s.HTMXPostForm(t, del.Action, del.Values)
 	if shown := fragment("deleting egg", deleted, http.StatusOK); strings.Contains(shown, "egg Fridge") {
 		t.Errorf("the sheet after deleting egg shows: %s", shown)
@@ -555,19 +559,57 @@ func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
 	if notices := apptest.Notices(t, deleted.Body); !slices.Equal(notices, []string{"Deleted egg."}) {
 		t.Errorf("deleting egg from the sheet confirms %q", notices)
 	}
+	if got := deleted.Header.Get("HX-Trigger"); got != "close-sheet" {
+		t.Errorf("deleting egg triggers %q, want the step's sheet closed", got)
+	}
+}
+
+// deleteStep is the form of the step asking before deleting the Ingredient name, as the
+// sheet its Delete on page opens has it.
+func deleteStep(t *testing.T, s *apptest.Scenario, page, name string) apptest.FormData {
+	t.Helper()
+	_, src := apptest.DeleteLink(t, page, name)
+	return apptest.Form(t, s.HTMXGet(t, src).Body, "remove-step")
+}
+
+// Deleting an Ingredient asks once, in the User's Language, naming it, from a step its
+// row's Delete opens; the row has no Delete that posts at once.
+func TestDeletingAnIngredientAsksFirst(t *testing.T) {
+	s := kitchenIn(t, "Italiano", egg)
+	if regexp.MustCompile(`action="/ingredients/\d+/delete"`).MatchString(s.Page().Body) {
+		t.Errorf("the Ingredients page deletes in one post:\n%s", s.Page().Body)
+	}
+	href, src := apptest.DeleteLink(t, s.Page().Body, "egg")
+	sheet := s.HTMXGet(t, src)
+	if shown := apptest.Text(sheet.Body); sheet.StatusCode != http.StatusOK || strings.Contains(sheet.Body, "<html") || !strings.Contains(shown, "Eliminare l'Ingrediente egg?") {
+		t.Errorf("the step's sheet answered %d:\n%s", sheet.StatusCode, sheet.Body)
+	}
+	s.Open(href)
+	s.Sees("Eliminare l'Ingrediente egg?")
+	s.Submits("remove-step")
+	s.IsAt("/ingredients")
+	if notices := apptest.Notices(t, s.Page().Body); len(notices) != 1 || !strings.HasSuffix(notices[0], ": egg.") { // misspell reads Italian as English
+		t.Errorf("deleting egg confirms %q", notices)
+	}
 }
 
 // A User can neither edit nor delete another's Ingredient.
 func TestAnotherUsersIngredientCantBeEditedOrDeleted(t *testing.T) {
 	s := kitchenWith(t, rice)
 	edit := apptest.EditForm(t, s.Page().Body, "rice")
-	del := apptest.DeleteForm(t, s.Page().Body, "rice")
+	href, src := apptest.DeleteLink(t, s.Page().Body, "rice")
+	del := apptest.Form(t, s.Get(t, href).Body, "remove-step")
 
 	s.Invite("bea@example.com")
 	s.SwitchesTo("bea@example.com")
 	s.ChoosesLanguage("English")
 	if got := s.PostForm(t, edit.Action, edit.Values); got.StatusCode != http.StatusNotFound {
 		t.Errorf("editing another User's Ingredient answered %d, want 404", got.StatusCode)
+	}
+	for _, step := range []string{href, src} {
+		if got := s.Get(t, step); got.StatusCode != http.StatusNotFound {
+			t.Errorf("the step deleting another User's Ingredient, %s, answered %d, want 404", step, got.StatusCode)
+		}
 	}
 	if got := s.PostForm(t, del.Action, del.Values); got.StatusCode != http.StatusNotFound {
 		t.Errorf("deleting another User's Ingredient answered %d, want 404", got.StatusCode)
@@ -578,8 +620,8 @@ func TestAnotherUsersIngredientCantBeEditedOrDeleted(t *testing.T) {
 }
 
 // In the side sheet, an Ingredient's row opens to edit it, and saving closes it in place,
-// the sheet staying open; a refused delete keeps it open with why, and a delete takes
-// the Ingredient off the list.
+// the sheet staying open; a refused delete keeps it open with why, and a delete, asked
+// once in a sheet over it, takes the Ingredient off the list.
 func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -637,10 +679,20 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 		t.Fatalf("name brown rice again: %v", err)
 	}
 	b.Shot(t, "ingredient-edit")
-	if err := row.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
+	if err := row.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
 		t.Fatalf("delete brown rice: %v", err)
 	}
+	asks := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Delete the Ingredient"})
+	if err := expect.Locator(asks).ToContainText("Delete the Ingredient brown rice?"); err != nil {
+		t.Fatalf("the sheet asking first never showed: %v", err)
+	}
+	if err := asks.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
+		t.Fatalf("confirm deleting brown rice: %v", err)
+	}
 	b.IsConfirmed(t, "Deleted brown rice.")
+	if err := expect.Locator(asks).Not().ToBeVisible(); err != nil {
+		t.Errorf("the sheet asking first stays open: %v", err)
+	}
 	if err := expect.Locator(sheet).ToContainText("No Ingredients yet."); err != nil {
 		t.Errorf("the sheet still lists brown rice: %v", err)
 	}

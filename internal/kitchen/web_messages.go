@@ -50,7 +50,6 @@ var (
 	msgNoMovements    = web.Message{En: "No Movements here yet.", It: "Ancora nessun Movimento qui."}
 	msgHeldIn         = web.Message{En: "%s · %s", It: "%s · %s"}
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
-	msgHappened       = web.Message{En: "%s %s", It: "%s %s"}
 
 	msgAddPortions         = web.Message{En: "Add Portions", It: "Aggiungi Porzioni"}
 	msgAddPortionsTitle    = web.Message{En: "Add Portions · Dandori", It: "Aggiungi Porzioni · Dandori"}

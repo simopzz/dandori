@@ -167,17 +167,39 @@ templ formPage(now time.Time, f RecipeForm) {
 // knownIngredients is the id of the list of names a row's name offers as the User types.
 const knownIngredients = "known-ingredients"
 
-// removeFormID is the id of the form deleting the Recipe being edited or discarding the
-// Recipe Draft, beside the Recipe form since forms don't nest, so Enter still saves.
-const removeFormID = "recipe-remove"
+// removeSheetID is the id of the sheet asking before deleting the Recipe being edited or
+// discarding the Recipe Draft, beside the Recipe form since forms don't nest.
+const removeSheetID = "recipe-remove"
+
+// removal is what the step asking before deleting a Recipe or discarding a Recipe Draft
+// shows: its Title, the Question naming it, the button Remove posting to Action, and the
+// page Back it leaves for.
+type removal struct {
+	Title, Remove          web.Message
+	Question, Action, Back string
+}
+
+// removePage is the step r as a page of its own, for a browser without htmx.
+templ removePage(now time.Time, r removal) {
+	@web.Layout(web.Tf(ctx, msgRecipeTitle, web.T(ctx, r.Title)), web.RecipesTab) {
+		@web.PageHeader("レシピ", web.T(ctx, r.Title), now)
+		@removeStep(r, templ.SafeURL(r.Back))
+	}
+}
+
+// removeStep is the step r, with a link back unless back is "", as in its sheet.
+templ removeStep(r removal, back templ.SafeURL) {
+	@web.RemoveStep(r.Question, web.T(ctx, r.Remove), templ.SafeURL(r.Action), back, nil)
+}
 
 // recipeForm is the one form every Recipe is written with. Its add buttons ask htmx for
 // one more row, and without htmx post the form back with one.
 templ recipeForm(f RecipeForm) {
-	<form id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
+	<form novalidate id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
 		// Enter presses a form's first submit button: this one saves, not
 		// the add or pick buttons above the save button shown.
 		<button type="submit" hidden tabindex="-1"></button>
+		@web.ErrorSummary(f.refusals(ctx))
 		if f.Confirm {
 			@web.Alert() {
 				{ web.T(ctx, msgConfirmNew) }
@@ -186,7 +208,7 @@ templ recipeForm(f RecipeForm) {
 		<div class="stack section">
 			<div>
 				@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
-					<input name="name" value={ f.Name } required autocomplete="off" { ingredients.Invalid(f.Errs["name"])... }/>
+					<input id="name" name="name" value={ f.Name } required autocomplete="off" { ingredients.Invalid(f.Errs["name"])... }/>
 				}
 				if f.TakenID != 0 {
 					@web.TextLink(templ.Attributes{"href": recipeURL(f.TakenID)}) {
@@ -202,9 +224,6 @@ templ recipeForm(f RecipeForm) {
 			@web.Checks(web.T(ctx, msgSlots), "slots", web.SlotKindChoices(ctx), f.Slots, f.Errs["slots"])
 		</div>
 		@web.FieldGroup(1, web.T(ctx, msgIngredients)) {
-			@web.Hint() {
-				{ web.T(ctx, msgRowsHint) }
-			}
 			<div id="ingredients" class="ingredient-grid">
 				for i, row := range f.Ingredients {
 					@ingredientRow(i, row)
@@ -232,10 +251,10 @@ templ recipeForm(f RecipeForm) {
 		<div class="section">
 			@web.Checks(web.T(ctx, msgAppliances), "appliances", web.ApplianceKindChoices(ctx), f.Appliances, "")
 		</div>
-		if f.RemoveAction != "" {
+		if f.RemoveStep != "" {
 			@web.ActionsApart() {
 				@saveButton(f)
-				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": removeFormID}) {
+				@web.RemoveLink(removeSheetID, templ.SafeURL(f.RemoveStep), templ.SafeURL(f.RemoveStep+"/sheet")) {
 					{ web.T(ctx, f.Remove) }
 				}
 			}
@@ -245,8 +264,8 @@ templ recipeForm(f RecipeForm) {
 			}
 		}
 	</form>
-	if f.RemoveAction != "" {
-		<form id={ removeFormID } method="post" action={ templ.SafeURL(f.RemoveAction) }></form>
+	if f.RemoveStep != "" {
+		@web.SideSheet(removeSheetID, web.T(ctx, f.RemoveTitle))
 	}
 	<script src="/static/recipe-form.js"></script>
 }
@@ -263,7 +282,7 @@ templ saveButton(f RecipeForm) {
 // rows and take the same number.
 func addButton(list, src, include string) templ.Attributes {
 	attrs := templ.Attributes{
-		"type": "submit", "name": "add", "value": list, "formnovalidate": true,
+		"type": "submit", "name": "add", "value": list,
 		"hx-get": src, "hx-target": "#" + list, "hx-swap": "beforeend", "hx-sync": "this:drop",
 	}
 	if include != "" {
@@ -278,16 +297,16 @@ func addButton(list, src, include string) templ.Attributes {
 func pickButton(i int, name string) templ.Attributes {
 	vals, _ := json.Marshal(map[string]string{rowField("pick", i): name})
 	return templ.Attributes{
-		"type": "submit", "name": rowField("pick", i), "value": name, "formnovalidate": true,
+		"type": "submit", "name": rowField("pick", i), "value": name,
 		"hx-get": "/recipes/ingredient-row", "hx-vals": string(vals),
 		"hx-include": "closest .ingredient-row", "hx-target": "closest .ingredient-row", "hx-swap": "outerHTML",
 	}
 }
 
-// numberField is a Field for a whole number.
+// numberField is a Field for a whole number, its name its id.
 templ numberField(label web.Message, name, value, err string) {
 	@web.Field(web.T(ctx, label), "", err) {
-		<input type="number" inputmode="numeric" name={ name } value={ value } required { ingredients.Invalid(err)... }/>
+		<input type="number" inputmode="numeric" id={ name } name={ name } value={ value } required { ingredients.Invalid(err)... }/>
 	}
 }
 
@@ -297,11 +316,13 @@ templ stepRow(step string, focus bool) {
 }
 
 // ingredientRow is the row at index i: its name, which says what it is as the User leaves
-// it, and its quantity, with what the name leads to beneath them.
+// it, and its quantity, with what the name leads to beneath them, and a Remove that posts
+// the form back without the row, renumbering the rest.
 templ ingredientRow(i int, row IngredientRow) {
 	<div class="ingredient-row">
 		@web.Field(web.T(ctx, msgIngredient), "", row.Errs["name"]) {
 			<input
+				id={ rowField("name", i) }
 				name={ rowField("name", i) }
 				value={ row.Name }
 				list={ knownIngredients }
@@ -316,11 +337,17 @@ templ ingredientRow(i int, row IngredientRow) {
 			/>
 		}
 		@web.Field(web.T(ctx, msgQuantity), "", cmp.Or(row.UnitChanged, row.Errs["quantity"])) {
-			<input name={ rowField("quantity", i) } value={ row.Quantity } inputmode="decimal" autocomplete="off" { ingredients.Invalid(cmp.Or(row.UnitChanged, row.Errs["quantity"]))... }/>
+			<input id={ rowField("quantity", i) } name={ rowField("quantity", i) } value={ row.Quantity } inputmode="decimal" autocomplete="off" { ingredients.Invalid(cmp.Or(row.UnitChanged, row.Errs["quantity"]))... }/>
 		}
 		<div class="ingredient-details">
 			@rowDetails(i, row)
 		</div>
+		@web.TextButton(templ.Attributes{"type": "submit", "name": "remove", "value": strconv.Itoa(i)}) {
+			{ web.T(ctx, msgRemoveRow) }
+			if row.Name != "" {
+				<span class="sr-only">{ row.Name }</span>
+			}
+		}
 	</div>
 }
 
@@ -330,7 +357,7 @@ templ rowDetails(i int, row IngredientRow) {
 	if row.Name != "" {
 		<input type="hidden" name={ rowField("new", i) } value={ strconv.FormatBool(row.New) }/>
 		if row.New {
-			@web.Tag(true, "") {
+			@web.Tag(false, "") {
 				{ web.T(ctx, msgNew) }
 			}
 			if row.Suggested != "" {
@@ -353,7 +380,7 @@ type PasteForm struct{ Text, Err string }
 
 // pasteForm reads a pasted recipe into a Recipe Draft through a parse Run.
 templ pasteForm(f PasteForm) {
-	<form id="paste-form" method="post" action="/recipes/paste" class="section">
+	<form novalidate id="paste-form" method="post" action="/recipes/paste" class="section">
 		@web.Field(web.T(ctx, msgPaste), web.T(ctx, msgPasteHint), f.Err) {
 			<textarea
 				name="text"

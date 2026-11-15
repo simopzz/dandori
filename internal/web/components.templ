@@ -253,6 +253,7 @@ templ SearchField(label string) {
 // opens action searched. The children are the input of its SearchField, named by label.
 templ ListSearch(id, action, listURL, listID, label string) {
 	<form
+		novalidate
 		id={ id }
 		role="search"
 		method="get"
@@ -320,12 +321,12 @@ templ Check(label, hint string) {
 
 // Checks is a group of checkboxes named name under legend, one per choice, those whose
 // Values are in ticked ticked, in as many columns as the width allows. err marks each
-// and shows under them.
+// and shows under them, the first taking name as its id, for an ErrorSummary to link to.
 templ Checks(legend, name string, choices []Choice, ticked []string, err string) {
 	<fieldset class="stack">
 		<legend class="field-label">{ legend }</legend>
 		<div class="check-grid">
-			for _, c := range choices {
+			for i, c := range choices {
 				<label class="check">
 					<input
 						type="checkbox"
@@ -334,6 +335,9 @@ templ Checks(legend, name string, choices []Choice, ticked []string, err string)
 						checked?={ slices.Contains(ticked, c.Value) }
 						if err != "" {
 							aria-invalid="true"
+						}
+						if err != "" && i == 0 {
+							id={ name }
 						}
 					/>
 					if c.Icon != "" {
@@ -405,6 +409,39 @@ templ DestructiveButton(attrs templ.Attributes) {
 	</button>
 }
 
+// RemoveLink is a DestructiveButton that asks first: it opens the SideSheet id on the
+// RemoveStep loaded from src, a fragment, or without htmx goes to href, the step's page.
+templ RemoveLink(id string, href, src templ.SafeURL) {
+	@sheetLink("btn-text btn-danger", id, href, src, nil) {
+		{ children... }
+	}
+}
+
+// RemoveStepID is the id of a RemoveStep's form.
+const RemoveStepID = "remove-step"
+
+// RemoveStep asks once before deleting or discarding what the User wrote, question
+// naming what will go: a form posting to action, whose DestructiveButton says remove,
+// attrs adding such as the swap of a sheet's body, and the children its hidden fields.
+// back, unless "", is a TextLink back, for the step as a page of its own; in a sheet,
+// the sheet's Close is the way back.
+templ RemoveStep(question, remove string, action, back templ.SafeURL, attrs templ.Attributes) {
+	<form novalidate id={ RemoveStepID } class="stack" method="post" action={ action } { attrs... }>
+		<p>{ question }</p>
+		{ children... }
+		@Actions() {
+			@DestructiveButton(templ.Attributes{"type": "submit"}) {
+				{ remove }
+			}
+			if back != "" {
+				@TextLink(templ.Attributes{"href": back}) {
+					{ T(ctx, msgBack) }
+				}
+			}
+		}
+	</form>
+}
+
 // Choice is one option of a Segmented choice or of Checks. Icon, if any, names the icon
 // Checks shows before the label.
 type Choice struct {
@@ -415,14 +452,15 @@ type Choice struct {
 
 // Segmented chooses one of a few options with square toggles, under legend, shown as a
 // Field's label: none when the group around it already names it. selected is the chosen
-// Value; err is why a choice was rejected, marking each option.
+// Value; err is why a choice was rejected, marking each option, the first then taking
+// name as its id, for an ErrorSummary to link to.
 templ Segmented(legend, name string, choices []Choice, selected, err string) {
 	<fieldset class="field">
 		if legend != "" {
 			<legend class="field-label">{ legend }</legend>
 		}
 		<div class="seg">
-			for _, c := range choices {
+			for i, c := range choices {
 				<label>
 					<input
 						type="radio"
@@ -432,6 +470,9 @@ templ Segmented(legend, name string, choices []Choice, selected, err string) {
 						checked?={ selected == c.Value }
 						if err != "" {
 							aria-invalid="true"
+						}
+						if err != "" && i == 0 {
+							id={ name }
 						}
 					/>
 					<span>{ c.Label }</span>
@@ -467,6 +508,25 @@ templ Alert() {
 	<div class="alert" role="alert">
 		{ children... }
 	</div>
+}
+
+// Refusal is a field a form refused: the id of its control, its label and why.
+type Refusal struct{ ID, Label, Err string }
+
+// ErrorSummary opens a rejected form longer than a screen: an Alert listing each of
+// refusals, in the form's order, as a link to its field, taking focus as the page loads.
+// It is nothing when there are none.
+templ ErrorSummary(refusals []Refusal) {
+	if len(refusals) > 0 {
+		<div class="alert error-summary" role="alert" tabindex="-1" autofocus>
+			<p>{ T(ctx, msgErrorSummary) }</p>
+			<ul>
+				for _, r := range refusals {
+					<li><a href={ templ.SafeURL("#" + r.ID) }>{ r.Label }: { r.Err }</a></li>
+				}
+			</ul>
+		</div>
+	}
 }
 
 // notices is where floating Notices show, at the top of the screen: text, when set, is
@@ -605,7 +665,8 @@ templ SideSheet(id, title string) {
 // behind it is inert, and a tap on the veil or Esc closes it, the top one of several.
 // closedby="any" closes it on the veil where the browser knows it; where it doesn't, a
 // press that both starts and ends on the veil does, so dragging out of a field doesn't
-// close it. open marks it to open as the page loads.
+// close it. Once its form is changed the veil no longer closes it (see keepsChanges).
+// open marks it to open as the page loads.
 templ sheet(id, class, title string, open bool) {
 	<dialog
 		id={ id }
@@ -615,6 +676,7 @@ templ sheet(id, class, title string, open bool) {
 		data-open?={ open }
 		{ veilCloses... }
 		{ closesOnDone... }
+		{ keepsChanges... }
 	>
 		<div class="sheet-head">
 			<h2 id={ id + "-title" }>{ title }</h2>
@@ -627,8 +689,23 @@ templ sheet(id, class, title string, open bool) {
 // veilCloses closes a sheet on a press that starts and ends on its veil, for a browser
 // that doesn't know closedby.
 var veilCloses = templ.Attributes{
-	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && " + onVeil,
+	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && !this.changed && " + onVeil,
 	"hx-on:click":       "if (this.veilPressed && " + onVeil + ") this.close()",
+}
+
+// keepsChanges keeps a sheet open on the veil once the User types or chooses in its form,
+// a search aside, until it closes or a form in it saves: Esc and Close still close it.
+// It sets the attribute: setting closedBy would add the property veilCloses checks.
+var keepsChanges = templ.Attributes{
+	"hx-on:input":              "if (!event.target.closest('[role=search]')) " + sheetChanged("true"),
+	"hx-on:close":              sheetChanged("false"),
+	"hx-on:htmx:after:request": "if (event.detail.ctx.request.method === 'POST' && event.detail.ctx.response?.status < 400) " + sheetChanged("false"),
+}
+
+// sheetChanged is the script that marks a sheet's form changed, or not, as changed is
+// "true" or "false".
+func sheetChanged(changed string) string {
+	return "{ this.changed = " + changed + "; this.setAttribute('closedby', this.changed ? 'closerequest' : 'any') }"
 }
 
 // CloseSheet is the event an answer to a form in a sheet triggers, with HX-Trigger, to

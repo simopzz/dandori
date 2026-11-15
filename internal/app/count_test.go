@@ -22,10 +22,16 @@ var (
 // kitchenWith signs a new User in, in English, with these Ingredients.
 func kitchenWith(t *testing.T, ings ...apptest.Ingredient) *apptest.Scenario {
 	t.Helper()
+	return kitchenIn(t, "English", ings...)
+}
+
+// kitchenIn signs a new User in, in the Language named language, with these Ingredients.
+func kitchenIn(t *testing.T, language string, ings ...apptest.Ingredient) *apptest.Scenario {
+	t.Helper()
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
-	s.ChoosesLanguage("English")
+	s.ChoosesLanguage(language)
 	s.Open("/ingredients")
 	for _, ing := range ings {
 		s.AddsIngredient(ing)
@@ -123,7 +129,7 @@ func TestEveryCountHappensWhenItIsSaved(t *testing.T) {
 	s.Counts("egg", "", "6", "")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Mon, Nov 2 2:05 pm")
+	s.Sees("rice 700 g counted on Mon, Nov 2 · 2:05 pm")
 	s.Sees("egg 6 pieces counted at 9:30 am")
 
 	s.At("Tue 10:45")
@@ -141,7 +147,7 @@ func TestAStockItemCountedLastYearShowsTheYear(t *testing.T) {
 	s.At("2027-01-04 10:00")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Mon, Nov 2, 2026 2:05 pm")
+	s.Sees("rice 700 g counted on Mon, Nov 2, 2026 · 2:05 pm")
 }
 
 // A Count below 0 or finer than its unit is refused on the field, keeping what was typed
@@ -163,6 +169,7 @@ func TestARefusedCount(t *testing.T) {
 			s.Counts(c.ingredient, "", c.stated, "a note")
 			s.IsRefused()
 			s.Sees(c.why)
+			s.DoesNotSee("Some fields need fixing")
 			form := apptest.Form(t, s.Page().Body, "count-form")
 			if form.Get("stated") != c.stated || form.Get("note") != "a note" {
 				t.Errorf("the refused Count holds %q and note %q, want what was typed", form.Get("stated"), form.Get("note"))
@@ -801,9 +808,9 @@ func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("rice 30 g")
 	s.Follows("rice")
-	s.Sees("Counted 100 g → 30 g Mon, Nov 2 10:00 am " +
-		"Counted 100 g → 100 g Mon, Nov 2 10:00 am " +
-		"Counted 0 g → 100 g Mon, Nov 2 10:00 am")
+	s.Sees("Counted 100 g → 30 g Mon, Nov 2 · 10:00 am " +
+		"Counted 100 g → 100 g Mon, Nov 2 · 10:00 am " +
+		"Counted 0 g → 100 g Mon, Nov 2 · 10:00 am")
 }
 
 // recordedAtTheLatest checks the last want Movements share the ledger's latest time,
@@ -814,5 +821,58 @@ func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {
 	s.Scan(t, &n, `SELECT count(*) FROM movement WHERE happened_at = (SELECT max(happened_at) FROM movement)`)
 	if n != want {
 		t.Errorf("%d Movements are at the latest time, want %d", n, want)
+	}
+}
+
+// Focus is a navy ring, so the Count sheet's search, focused as it opens, doesn't look
+// refused; a refused quantity, focused as it comes back, is marked by its vermilion
+// underline and aria-invalid, in the same navy ring.
+func TestBrowserFocusIsNavyAndARefusalVermilion(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	addsRiceInTheBrowser(t, b)
+	expect := playwright.NewPlaywrightAssertions()
+	const navy, vermilion = "rgb(45, 51, 82)", "rgb(184, 50, 27)"
+
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}).First().Click(); err != nil {
+		t.Fatalf("open the Count sheet: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
+	search := sheet.GetByRole("searchbox")
+	if err := expect.Locator(search).ToBeFocused(); err != nil {
+		t.Fatalf("the Count sheet doesn't open on its search: %v", err)
+	}
+	if err := expect.Locator(search).ToHaveCSS("outline-color", navy); err != nil {
+		t.Errorf("the focused search isn't ringed in navy: %v", err)
+	}
+	if err := expect.Locator(search).ToHaveCSS("outline-width", "3px"); err != nil {
+		t.Errorf("the focus ring isn't 3px: %v", err)
+	}
+
+	if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "rice"}).Click(); err != nil {
+		t.Fatalf("choose rice: %v", err)
+	}
+	stated := sheet.GetByLabel("How much is there")
+	if err := stated.Fill("-1"); err != nil {
+		t.Fatalf("state the quantity: %v", err)
+	}
+	// The browser would refuse -1 itself; this is about the app's refusal.
+	if _, err := sheet.Locator("form:has([name=stated])").Evaluate(`(f) => { f.noValidate = true }`, nil); err != nil {
+		t.Fatalf("turn off the browser's validation: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
+		t.Fatalf("save the Count: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("the refused quantity isn't marked aria-invalid: %v", err)
+	}
+	if err := expect.Locator(stated).ToBeFocused(); err != nil {
+		t.Errorf("the refused quantity isn't focused: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveCSS("border-bottom-color", vermilion); err != nil {
+		t.Errorf("the refused quantity isn't underlined in vermilion: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveCSS("outline-color", navy); err != nil {
+		t.Errorf("the refused quantity's focus ring isn't navy: %v", err)
 	}
 }

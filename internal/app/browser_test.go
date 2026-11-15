@@ -73,7 +73,7 @@ func TestBrowserChoosesALanguage(t *testing.T) {
 	b.Sees(t, "lunedì 2 novembre")
 
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "English", "Salva")
+	b.ChooseLanguage(t, "English", "Salva la Lingua")
 	b.IsAt(t, "/profile")
 	b.IsConfirmed(t, "Profile saved.")
 }
@@ -117,11 +117,7 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 // open and the page under it the same.
 func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
-	b.Open(t, "/")
-	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Open your kitchen"}).Click(); err != nil {
-		t.Fatalf("follow the link to the kitchen: %v", err)
-	}
-	b.IsAt(t, "/kitchen")
+	b.Open(t, "/kitchen")
 	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).Click(); err != nil {
 		t.Fatalf("open the Ingredients: %v", err)
 	}
@@ -347,7 +343,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "Italiano", "Save")
+	b.ChooseLanguage(t, "Italiano", "Save Language")
 	b.Sees(t, "Profilo")  // the Language saved, before the page is opened again
 	b.Open(t, "/profile") // without the Language's Notice, which also says "Profilo salvato."
 	b.Sees(t, "Orari")
@@ -367,7 +363,7 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	if err := lunch.Fill("7:00"); err != nil {
 		t.Fatalf("fill lunch: %v", err)
 	}
-	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva"})
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva gli orari"})
 	if err := save.Click(); err != nil {
 		t.Fatalf("save the times of day: %v", err)
 	}
@@ -391,4 +387,26 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 		t.Errorf("the saved lunch isn't shown: %v", err)
 	}
 	b.Shot(t, "times-of-day")
+}
+
+// A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line
+// of a Run's Trace that opens.
+func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
+	s := draftedLasagne(t)
+	run := s.Page().Path
+	s.Counts("rice", "", "700", "")
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	tall := func(what string, l playwright.Locator) {
+		t.Helper()
+		if h := box(t, what, l).Height; h < 44 {
+			t.Errorf("%s is %.1fpx tall, want at least 44", what, h)
+		}
+	}
+
+	b.Open(t, "/kitchen")
+	tall("Count", b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice", Exact: playwright.Bool(true)}))
+	tall("Move", b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move rice in the pantry", Exact: playwright.Bool(true)}))
+	b.Open(t, run)
+	tall("a Trace line that opens", b.Locator(".fold > summary").First())
 }

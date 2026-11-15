@@ -18,6 +18,46 @@ const SheetID = "ingredients"
 // page that shows a SheetLink renders it once.
 templ Sheet() {
 	@web.SideSheet(SheetID, web.T(ctx, msgIngredients))
+	@deleteSheet()
+}
+
+// deleteSheetID is the id of the sheet asking before deleting an Ingredient, which opens
+// over the Ingredients.
+const deleteSheetID = "ingredient-delete"
+
+// deleteSheet is the sheet asking before deleting an Ingredient, empty until a row's
+// Delete opens it.
+templ deleteSheet() {
+	@web.SideSheet(deleteSheetID, web.T(ctx, msgDeleteIngredient))
+}
+
+// deletePage is the step asking before deleting ing, searched for q, as a page of its
+// own for a browser without htmx: confirmed, it lands on the Ingredients page.
+templ deletePage(today time.Time, ing domain.Ingredient, q string) {
+	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
+		@web.PageHeader("食材", web.T(ctx, msgDeleteIngredient), today)
+		@web.RemoveStep(web.Tf(ctx, msgDeleteAsk, ing.Name), web.T(ctx, msgDelete), templ.SafeURL(ingredientURL(ing.ID, "/delete")), templ.SafeURL(searched(q)), nil) {
+			<input type="hidden" name="q" value={ q }/>
+		}
+	}
+}
+
+// deleteBody is the step asking before deleting ing, searched for q, as its sheet's
+// body: confirmed, it swaps the Ingredients' body under it and closes.
+templ deleteBody(ing domain.Ingredient, q string) {
+	@web.RemoveStep(web.Tf(ctx, msgDeleteAsk, ing.Name), web.T(ctx, msgDelete), templ.SafeURL(ingredientURL(ing.ID, "/delete")), "", deleteSwap(ing.ID)) {
+		<input type="hidden" name="q" value={ q }/>
+	}
+}
+
+// deleteSwap posts the deletion of the Ingredient id by htmx, swapping the Ingredients'
+// body under the sheet that asked.
+func deleteSwap(id int64) templ.Attributes {
+	return templ.Attributes{
+		"hx-post":   ingredientURL(id, "/delete"),
+		"hx-target": "#" + web.SideSheetBody(SheetID),
+		"hx-swap":   "innerHTML",
+	}
 }
 
 // SheetLink opens the Ingredients side sheet; without htmx it goes to the
@@ -49,6 +89,7 @@ templ page(today time.Time, ings []domain.Ingredient, view sheetView) {
 		<div id={ web.SideSheetBody(SheetID) }>
 			@sheetBody(ings, view, true)
 		</div>
+		@deleteSheet()
 	}
 }
 
@@ -133,12 +174,13 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 }
 
 // editForm edits ing, posted from its row, swapping the side sheet's body when htmx posts
-// it, searched for q as it was. Its Delete belongs to the delete form beside it, as forms
-// don't nest, so Enter still saves. When some Movement refers to it, withMovements, a
+// it, searched for q as it was. Its Delete opens the step asking first, a link, so Enter
+// still saves. When some Movement refers to it, withMovements, a
 // link opens its Movements in its usual Storage Location, which reach the other two: the
 // only way to them for a Staple, which no Stock Item holds.
 templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) {
 	<form
+		novalidate
 		id={ editFormID(ing.ID) }
 		method="post"
 		action={ templ.SafeURL(ingredientURL(ing.ID, "")) }
@@ -174,23 +216,22 @@ templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) 
 				@web.Button(templ.Attributes{"type": "submit"}) {
 					{ web.T(ctx, msgSave) }
 				}
-				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": deleteFormID(ing.ID)}) {
+				@web.RemoveLink(deleteSheetID, templ.SafeURL(deleteURL(ing.ID, "", q)), templ.SafeURL(deleteURL(ing.ID, "/sheet", q))) {
 					{ web.T(ctx, msgDelete) }
 				}
 			}
 			@web.FieldError(f.DeleteErr)
 		</div>
 	</form>
-	<form
-		id={ deleteFormID(ing.ID) }
-		method="post"
-		action={ templ.SafeURL(ingredientURL(ing.ID, "/delete")) }
-		hx-post={ ingredientURL(ing.ID, "/delete") }
-		hx-target={ "#" + web.SideSheetBody(SheetID) }
-		hx-swap="innerHTML"
-	>
-		<input type="hidden" name="q" value={ q }/>
-	</form>
+}
+
+// deleteURL is the step asking before deleting the Ingredient id, searched for q, then
+// rest: "" for its page, "/sheet" for its sheet's body.
+func deleteURL(id int64, rest, q string) string {
+	if q == "" {
+		return ingredientURL(id, "/delete"+rest)
+	}
+	return ingredientURL(id, "/delete"+rest) + "?q=" + url.QueryEscape(q)
 }
 
 // stapleCheck marks an Ingredient a Staple, checked when staple says it is one.
@@ -214,15 +255,13 @@ func ingredientURL(id int64, rest string) string {
 // editFormID is the id of the form editing the Ingredient id.
 func editFormID(id int64) string { return "ingredient-edit-" + strconv.FormatInt(id, 10) }
 
-// deleteFormID is the id of the form deleting the Ingredient id.
-func deleteFormID(id int64) string { return "ingredient-delete-" + strconv.FormatInt(id, 10) }
-
 // addForm adds an Ingredient, swapping the side sheet's body when htmx posts it. Added to
 // count, the answer swaps the sheet under this one instead, leaving this form in place
 // for htmx to tell, which is the one time it does: it closes its sheet and hands the
 // focus to the sheet left open. num is its group's number.
 templ addForm(f AddForm, num int) {
 	<form
+		novalidate
 		id="ingredient-add"
 		method="post"
 		action="/ingredients"
@@ -292,13 +331,15 @@ templ ingredientFields(f AddForm) {
 	@web.Hint() {
 		{ web.T(ctx, msgNutritionHint) }
 	}
-	@NutritionFields(f.Values, f.Errs)
+	@NutritionFields(f.Values, f.Errs, false)
 }
 
 // NutritionFields are the six nutritional value fields, with the values as typed and why
-// each was refused, by field. Fibre and sugar may be left blank.
-templ NutritionFields(values, errs map[string]string) {
-	@nutritionFields(func(field string) string { return field }, values, errs)
+// each was refused, by field. Fibre and sugar may be left blank. ids gives each control
+// its name as its id, for an ErrorSummary to link to, where no other form on the page
+// has the same names.
+templ NutritionFields(values, errs map[string]string, ids bool) {
+	@nutritionFields(func(field string) string { return field }, ids, values, errs)
 }
 
 // TypedIngredient is a new Ingredient's fields as typed, with why each was refused.
@@ -312,11 +353,12 @@ type TypedIngredient struct {
 }
 
 // NewIngredientFields confirm a new Ingredient inside another form, whose field names
-// are named gives them: its unit, usual Storage Location, Staple flag and values.
+// are named gives them, as are their ids: its unit, usual Storage Location, Staple flag
+// and values.
 templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 	@web.FieldRow() {
 		@web.Field(web.T(ctx, msgUnit), "", ing.Errs["unit"]) {
-			<select name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... }>
+			<select id={ named("unit") } name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, u := range domain.Units {
 					<option value={ string(u) } selected?={ ing.Unit == string(u) }>{ web.T(ctx, UnitNames[u]) }</option>
@@ -324,7 +366,7 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 			</select>
 		}
 		@web.Field(web.T(ctx, msgUsual), "", ing.Errs["usual"]) {
-			<select name={ named("usual") } { Invalid(ing.Errs["usual"])... }>
+			<select id={ named("usual") } name={ named("usual") } { Invalid(ing.Errs["usual"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, l := range domain.StorageLocations {
 					<option value={ string(l) } selected?={ ing.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
@@ -332,14 +374,15 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 			</select>
 		}
 	}
-	@nutritionFields(named, ing.Values, ing.Errs)
+	@nutritionFields(named, true, ing.Values, ing.Errs)
 	@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
 		<input type="checkbox" name={ named("staple") } value="on" checked?={ ing.Staple }/>
 	}
 }
 
-// nutritionFields are the six fields as NutritionFields has them, named as named says.
-templ nutritionFields(named func(string) string, values, errs map[string]string) {
+// nutritionFields are the six fields as NutritionFields has them, named as named says,
+// and with ids, their names as ids.
+templ nutritionFields(named func(string) string, ids bool, values, errs map[string]string) {
 	@web.FieldRow() {
 		for _, n := range nutrients {
 			@web.Field(web.T(ctx, nutrientNames[n]), "", errs[n]) {
@@ -349,6 +392,9 @@ templ nutritionFields(named func(string) string, values, errs map[string]string)
 					step="0.1"
 					min="0"
 					name={ named(n) }
+					if ids {
+						id={ named(n) }
+					}
 					value={ values[n] }
 					required?={ n != "fibre" && n != "sugar" }
 					{ Invalid(errs[n])... }
@@ -363,7 +409,7 @@ const suggestionID = "ingredient-suggestion"
 
 // suggestion says closest is what name may have meant, if it isn't blank, and confirms
 // name, so Add means the name typed. Picking closest adds nothing, so it is a link, which
-// the form's other fields don't hold up and Enter doesn't press.
+// Enter doesn't press.
 templ suggestion(name, closest string) {
 	if closest != "" {
 		<input type="hidden" name="confirm" value={ name }/>
