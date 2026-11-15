@@ -2,11 +2,13 @@ package app_test
 
 import (
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/mxschmitt/playwright-go"
+	"golang.org/x/net/html"
 
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
@@ -30,7 +32,7 @@ func TestAcceptingARecipeDraftAddsItAndItsNewIngredients(t *testing.T) {
 	run := s.Page().Path
 
 	s.Follows("Recipe Draft")
-	s.Sees("Recipe Draft Name Portions")
+	s.Sees("Recipe Draft What you pasted")
 	draftHolds(t, s, map[string]string{"name": "Lasagne", "ing_name_0": "beef mince", "ing_name_4": "rice"})
 	draft := s.Page().Path
 
@@ -109,7 +111,7 @@ func TestARefusedAcceptChangesNothing(t *testing.T) {
 	s.Open("/recipes")
 	s.DoesNotSee("Lasagne al forno")
 	s.Open(draft)
-	s.Sees("Recipe Draft Name Portions")
+	s.Sees("Recipe Draft What you pasted")
 }
 
 // A known Ingredient keeps its own values and unit on the Recipe Draft, whatever the
@@ -149,6 +151,77 @@ func TestARecipeDraftRowGivesItsUnitAndWhatItsValuesArePer(t *testing.T) {
 	if n := strings.Count(apptest.Text(s.Page().Body), "Quantity (g)"); n != 4 {
 		t.Errorf("%d rows give their quantity in g, want 4", n)
 	}
+}
+
+// A Recipe Draft shows the text its Run read, to check it against, and folds each new
+// Ingredient's row to its name, quantity and New, its values and their basis inside.
+func TestARecipeDraftShowsWhatWasPastedAndFoldsItsNewIngredients(t *testing.T) {
+	s := draftedLasagne(t)
+	s.Follows("Recipe Draft")
+
+	s.Sees("Recipe Draft What you pasted " + strings.Join(strings.Fields(pastedLasagne), " ") + " Name")
+	s.Sees("beef mince New 500 g")
+	s.Sees("olive oil New 10 ml")
+	if n := strings.Count(s.Page().Body, "Per 100 g, as on the label."); n != 3 {
+		t.Errorf("%d new Ingredients give their values per 100 g, want 3", n)
+	}
+	for field, folds := range map[string]bool{"ing_kcal_0": true, "ing_kcal_3": true, "ing_name_4": false} {
+		if folded, open := rowFolded(t, s.Page().Body, field); folded != folds || open {
+			t.Errorf("the row of %s is folded %t, open %t", field, folded, open)
+		}
+	}
+}
+
+// A refused Recipe Draft comes back with the refused new Ingredient's row open with
+// why, the others still folded, whether posted as htmx or not.
+func TestARefusedRecipeDraftOpensTheRefusedRow(t *testing.T) {
+	s := draftedLasagne(t)
+	s.Follows("Recipe Draft")
+	form := apptest.Form(t, s.Page().Body, "recipe-form")
+	form.Values.Set("ing_kcal_1", "")
+
+	for _, post := range []func(testing.TB, string, url.Values) apptest.Response{s.PostForm, s.HTMXPostForm} {
+		res := post(t, form.Action, form.Values)
+		if res.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("the refused Draft answered %d, want 422", res.StatusCode)
+		}
+		if _, open := rowFolded(t, res.Body, "ing_kcal_1"); !open {
+			t.Errorf("the refused row is closed:\n%s", res.Body)
+		}
+		if _, open := rowFolded(t, res.Body, "ing_kcal_0"); open {
+			t.Errorf("a row refused nothing is open")
+		}
+		shown := apptest.Text(res.Body)
+		if !strings.Contains(shown, "What you pasted") || !strings.Contains(shown, "kcal) Required.") {
+			t.Errorf("the refused Draft doesn't show what was pasted and why the row was refused:\n%s", shown)
+		}
+	}
+}
+
+// rowFolded reports whether the control named field on page is in a row that folds, and
+// whether that row is open.
+func rowFolded(t *testing.T, page, field string) (folded, open bool) {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	has := func(n *html.Node, key, val string) bool {
+		return slices.ContainsFunc(n.Attr, func(a html.Attribute) bool { return a.Key == key && (val == "" || a.Val == val) })
+	}
+	for n := range doc.Descendants() {
+		if n.Type != html.ElementNode || !has(n, "name", field) {
+			continue
+		}
+		for p := n.Parent; p != nil; p = p.Parent {
+			if p.Type == html.ElementNode && p.Data == "details" {
+				return true, has(p, "open", "")
+			}
+		}
+		return false, false
+	}
+	t.Fatalf("page has no control named %s", field)
+	return false, false
 }
 
 // The sheet a Recipe Draft's Discard opens asks in the User's Language, and its form
@@ -218,7 +291,7 @@ func TestRecipeDraftsToCheckAreListedFirstOnTheRecipeLibrary(t *testing.T) {
 	s.Open("/recipes")
 	s.Sees("Recipe Drafts to check Curry read Wed, Nov 4 Lasagne read Mon, Nov 2 02 Recipes Search Rice bowl")
 	s.Follows("Lasagne")
-	s.Sees("Recipe Draft Name Portions")
+	s.Sees("Recipe Draft What you pasted")
 	s.Submits("recipe-form")
 	s.Open("/recipes")
 	s.Follows("Curry")
@@ -287,4 +360,29 @@ func TestBrowserDiscardsARecipeDraftWithoutJS(t *testing.T) {
 	b.IsAt(t, "/recipes")
 	b.IsConfirmed(t, "Discarded the Recipe Draft Lasagne.")
 	b.Sees(t, "No Recipes yet.")
+}
+
+// On a phone, the Recipe Draft of pastedLasagne, its new Ingredients' rows closed, is
+// under half the 3,806px it was with every row's values shown.
+func TestBrowserARecipeDraftIsShortOnAPhone(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	if err := b.SetViewportSize(390, 844); err != nil {
+		t.Fatalf("size the page as a phone: %v", err)
+	}
+	b.SignUp(t, "ada@example.com")
+	r := submittedLasagne()
+	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
+	h.Model.Script(fakellm.CallTool("submit_recipe", r), fakellm.Reply("Done."))
+	pastesInTheSheet(t, b, pastedLasagne)
+	b.FollowsRun(t)
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Recipe Draft"}).Click(); err != nil {
+		t.Fatalf("open the Recipe Draft: %v", err)
+	}
+	b.Sees(t, "What you pasted")
+
+	if got := measure(t, b, `document.documentElement.scrollHeight`); got >= 3806/2 {
+		t.Errorf("the Recipe Draft is %vpx tall on a phone, want under %d", got, 3806/2)
+	}
 }

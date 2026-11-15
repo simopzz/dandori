@@ -51,7 +51,7 @@ func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (domain.Recipe, error) {
 	var doc []byte
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
-		doc, err = loadDraft(ctx, tx, id)
+		doc, _, err = loadDraft(ctx, tx, id)
 		return err
 	})
 	if err != nil {
@@ -67,6 +67,17 @@ func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (d
 	}
 	rec, _ := p.recipe(l, known)
 	return rec, nil
+}
+
+// Pasted is the text the Run of the signed-in User's Recipe Draft id read, to check the
+// Recipe Draft against, or ErrNoDraft as FindDraft is.
+func (s *Service) Pasted(ctx context.Context, id int64) (string, error) {
+	var pasted string
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		_, pasted, err = loadDraft(ctx, tx, id)
+		return err
+	})
+	return pasted, err
 }
 
 // Draft is a Recipe Draft awaiting the User's check: its name, and when its Run started.
