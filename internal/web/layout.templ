@@ -8,12 +8,12 @@ import (
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
-// NoTab is a page outside every tab, such as Today. SignedOut is a page before the User
-// is signed in and has chosen their Language, whose shell has no tabs to lead anywhere
-// yet. Each feature adds its tab here, and to the shell in Layout, as it lands.
+// SignedOut is a page before the User is signed in and has chosen their Language, whose
+// shell has no tabs to lead anywhere yet. Each feature adds its tab here, and to the
+// shell in Layout, as it lands.
 const (
-	NoTab      Tab = ""
 	SignedOut  Tab = "signed-out"
+	TodayTab   Tab = "/"
 	RecipesTab Tab = "/recipes"
 	KitchenTab Tab = "/kitchen"
 	ProfileTab Tab = "/profile"
@@ -79,6 +79,7 @@ templ Layout(title string, current Tab) {
 				@sky("rail-sky", []string{"paper", "cream", "peach", "salmon"})
 				if current != SignedOut {
 					<div class="tabs">
+						@tab(TodayTab, current, "calendar-day", T(ctx, msgToday), false)
 						@tab(RecipesTab, current, "book-open", T(ctx, msgRecipes), false)
 						@tab(KitchenTab, current, "package", T(ctx, msgKitchen), false)
 						@tab(ProfileTab, current, "user", T(ctx, msgProfile), false)
@@ -197,7 +198,8 @@ templ ramp(colours []string) {
 	</div>
 }
 
-// tab is one link of the shell; aux ones sit apart, at the rail's foot.
+// tab is one link of the shell; aux ones sit apart, at the rail's foot, and leave the
+// bottom tabs on a phone for a link on the Profile.
 templ tab(t, current Tab, icon, label string, aux bool) {
 	<a
 		class={ "tab", templ.KV("tab-aux", aux) }

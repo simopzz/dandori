@@ -151,6 +151,8 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 				}
 			</form>
 		}
+		// Runs is no bottom tab on a phone, so the Profile links it.
+		<p class="section"><a href="/runs">{ web.T(ctx, msgOpenRuns) }</a></p>
 	}
 }
 

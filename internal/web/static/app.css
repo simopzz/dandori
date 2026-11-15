@@ -301,6 +301,9 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
   color: var(--color-on-shell-soft);
 }
 
+/* Runs is secondary: on a phone the Profile links it instead. */
+.tab-aux { display: none; }
+
 /* Navy is lost on navy, so a focused tab is ringed in the marker's salmon. */
 .tabs { --focus-ring: 3px solid var(--color-shell-marker); }
 
@@ -351,7 +354,7 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
   .tab[aria-current="page"]::before { top: auto; left: calc(-1 * var(--space-5)); width: 3px; height: 1.5rem; }
 
-  .tab-aux { margin-top: auto; font-size: 0.875rem; }
+  .tab-aux { display: flex; margin-top: auto; font-size: 0.875rem; }
 
   .page { margin-left: var(--rail-width); max-width: calc(var(--measure) + 10rem); padding: var(--space-7) var(--space-7) var(--space-7) 6rem; }
 }

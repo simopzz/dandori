@@ -16,12 +16,12 @@ import (
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
-// NoTab is a page outside every tab, such as Today. SignedOut is a page before the User
-// is signed in and has chosen their Language, whose shell has no tabs to lead anywhere
-// yet. Each feature adds its tab here, and to the shell in Layout, as it lands.
+// SignedOut is a page before the User is signed in and has chosen their Language, whose
+// shell has no tabs to lead anywhere yet. Each feature adds its tab here, and to the
+// shell in Layout, as it lands.
 const (
-	NoTab      Tab = ""
 	SignedOut  Tab = "signed-out"
+	TodayTab   Tab = "/"
 	RecipesTab Tab = "/recipes"
 	KitchenTab Tab = "/kitchen"
 	ProfileTab Tab = "/profile"
@@ -219,6 +219,10 @@ func Layout(title string, current Tab) templ.Component {
 		}
 		if current != SignedOut {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"tabs\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = tab(TodayTab, current, "calendar-day", T(ctx, msgToday), false).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -469,7 +473,8 @@ func ramp(colours []string) templ.Component {
 	})
 }
 
-// tab is one link of the shell; aux ones sit apart, at the rail's foot.
+// tab is one link of the shell; aux ones sit apart, at the rail's foot, and leave the
+// bottom tabs on a phone for a link on the Profile.
 func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -516,7 +521,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var21 templ.SafeURL
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 204, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 206, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -547,7 +552,7 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 210, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 212, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
