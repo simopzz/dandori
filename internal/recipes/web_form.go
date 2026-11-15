@@ -56,6 +56,8 @@ type RecipeForm struct {
 	TakenName string
 	// Confirm says some Ingredient's fields are shown for the first time.
 	Confirm bool
+	// Pasted is the text the Recipe Draft's Run read, to check it against.
+	Pasted string
 }
 
 // blankForm is the form to write a new Recipe with, with an empty row and step to start.

@@ -950,6 +950,11 @@ html:has(dialog:modal) { overflow: hidden; }
 
 .ingredient-row > .btn-text { grid-column: 1 / -1; justify-self: start; }
 
+/* A Recipe Draft's new Ingredient, folded to an EditRow: its own list, one row long. */
+.ingredient-grid > .rows { margin: 0; }
+
+.row-body > .ingredient-row { padding: 0; border-bottom: 0; }
+
 .cell-label {
   position: absolute;
   width: 1px;

@@ -112,12 +112,19 @@ func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
 		return
 	}
+	pasted, err := h.Service.Pasted(ctx, id)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
+		return
+	}
 	known, err := h.Service.KnownIngredients(ctx)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), draftForm(ctx, id, rec, known)))
+	f := draftForm(ctx, id, rec, known)
+	f.Pasted = pasted
+	httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), f))
 }
 
 // Accept adds the Recipe posted, as checked from the Recipe Draft in the path, to the
@@ -364,7 +371,20 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 		httpx.ServerError(w, r, h.Log, "list the Ingredients", err)
 		return
 	}
+	var pasted string
+	if draftID != 0 {
+		pasted, err = h.Service.Pasted(ctx, draftID)
+		if errors.Is(err, ErrNoDraft) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
+			return
+		}
+	}
 	rec, f, ok := readForm(ctx, r.PostForm, id, draftID, known)
+	f.Pasted = pasted
 	switch r.PostForm.Get("add") {
 	case "ingredients":
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), withRow(f)))
@@ -426,6 +446,7 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 			return
 		}
 		_, f, _ = readForm(ctx, r.PostForm, id, draftID, known)
+		f.Pasted = pasted
 		refused(refusedIngredientTaken, f)
 		return
 	}

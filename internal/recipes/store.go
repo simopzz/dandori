@@ -199,17 +199,17 @@ func loadDraftID(ctx context.Context, q db.Querier, runID int64) (id int64, err 
 	return id, err
 }
 
-// loadDraft is the document of the Recipe Draft id, or ErrNoDraft unless its Run has
-// succeeded: while it goes the model may still change it, and a failed or cancelled
-// Run's is never checked.
-func loadDraft(ctx context.Context, q db.Querier, id int64) (doc []byte, err error) {
+// loadDraft is the document of the Recipe Draft id and the text its Run read, or
+// ErrNoDraft unless its Run has succeeded: while it goes the model may still change it,
+// and a failed or cancelled Run's is never checked.
+func loadDraft(ctx context.Context, q db.Querier, id int64) (doc []byte, pasted string, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT d.document FROM recipe_draft d JOIN run r ON r.id = d.run_id
-		WHERE d.id = $1 AND r.status = $2`, id, runs.Succeeded).Scan(&doc)
+		SELECT d.document, r.asked FROM recipe_draft d JOIN run r ON r.id = d.run_id
+		WHERE d.id = $1 AND r.status = $2`, id, runs.Succeeded).Scan(&doc, &pasted)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNoDraft
+		return nil, "", ErrNoDraft
 	}
-	return doc, err
+	return doc, pasted, err
 }
 
 // CountDrafts is how many Recipe Drafts the signed-in User has or may yet have, their

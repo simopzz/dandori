@@ -177,6 +177,11 @@ templ floored(name web.Message, a domain.Amount, floor bool) {
 templ formPage(now time.Time, f RecipeForm) {
 	@web.Layout(web.T(ctx, f.Title), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, f.Heading), now)
+		if f.Pasted != "" {
+			@web.Disclosure(web.T(ctx, msgWhatYouPasted), false) {
+				<pre class="trace-detail">{ f.Pasted }</pre>
+			}
+		}
 		@recipeForm(f)
 	}
 }
@@ -243,7 +248,18 @@ templ recipeForm(f RecipeForm) {
 		@web.FieldGroup(1, web.T(ctx, msgIngredients)) {
 			<div id="ingredients" class="ingredient-grid">
 				for i, row := range f.Ingredients {
-					@ingredientRow(i, row)
+					if f.DraftID != 0 && row.New {
+						// A Recipe Draft's new Ingredient folds its proposed
+						// values, so the Draft is quick to check; one refused or
+						// to confirm opens.
+						@web.Rows() {
+							@web.EditRow(len(row.Errs) > 0 || row.Confirming, draftRowSummary(row)) {
+								@ingredientRow(i, row)
+							}
+						}
+					} else {
+						@ingredientRow(i, row)
+					}
 				}
 			</div>
 			<datalist id={ knownIngredients }>
@@ -285,6 +301,18 @@ templ recipeForm(f RecipeForm) {
 		@web.SideSheet(removeSheetID, web.T(ctx, f.RemoveTitle))
 	}
 	<script src="/static/recipe-form.js"></script>
+}
+
+// draftRowSummary is the line a Recipe Draft's new Ingredient folds to: its name and
+// New, and its quantity in its unit.
+templ draftRowSummary(row IngredientRow) {
+	<span class="row-title">
+		{ row.Name + " " }
+		@web.Tag(false, "") {
+			{ web.T(ctx, msgNew) }
+		}
+	</span>
+	<span class="row-figure">{ strings.TrimSpace(row.Quantity + " " + quantityUnit(ctx, row)) }</span>
 }
 
 // saveButton saves f.
