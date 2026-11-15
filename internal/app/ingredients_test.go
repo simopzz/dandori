@@ -31,7 +31,7 @@ func TestAddingIngredients(t *testing.T) {
 	s.AddsIngredient(egg)
 	s.IsAt("/ingredients")
 	s.IsConfirmed("Added egg.")
-	s.Sees("egg fridge per piece: 70 kcal protein 6.3 g carbs 0.4 g fat 4.8 g fibre – unknown sugar – unknown")
+	s.Sees("egg Fridge per piece: 70 kcal protein 6.3 g carbs 0.4 g fat 4.8 g fibre – unknown sugar – unknown")
 	s.DoesNotSee("No Ingredients yet.")
 
 	s.AddsIngredient(apptest.Ingredient{
@@ -42,11 +42,11 @@ func TestAddingIngredients(t *testing.T) {
 		Name: "olive oil", Unit: "ml", Usual: "pantry", Kcal: "824", Protein: "0", Carbs: "0", Fat: "91.6", Staple: true,
 	})
 	s.IsConfirmed("Added olive oil.")
-	s.Sees("egg fridge per piece: 70 kcal")
-	s.Sees("olive oil Staple pantry per 100 ml: 824 kcal protein 0 g carbs 0 g fat 91.6 g fibre – unknown sugar – unknown")
-	s.Sees("Rolled oats pantry per 100 g: 372 kcal protein 13.5 g carbs 58.7 g fat 7 g fibre 10.1 g sugar 0 g")
+	s.Sees("egg Fridge per piece: 70 kcal")
+	s.Sees("olive oil Staple Pantry per 100 ml: 824 kcal protein 0 g carbs 0 g fat 91.6 g fibre – unknown sugar – unknown")
+	s.Sees("Rolled oats Pantry per 100 g: 372 kcal protein 13.5 g carbs 58.7 g fat 7 g fibre 10.1 g sugar 0 g")
 	shown, last := apptest.Text(s.Page().Body), -1
-	for _, name := range []string{"egg fridge", "olive oil Staple", "Rolled oats pantry"} {
+	for _, name := range []string{"egg Fridge", "olive oil Staple", "Rolled oats Pantry"} {
 		at := strings.Index(shown, name)
 		if at < 0 {
 			t.Fatalf("the Ingredients don't show %q: %s", name, shown)
@@ -125,7 +125,7 @@ func TestIngredientsInItalian(t *testing.T) {
 		Name: "uovo", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6,3", Carbs: "0.4", Fat: "4.8",
 	})
 	s.IsConfirmed("Aggiunto: uovo.")
-	s.Sees("uovo frigo per pezzo: 70 kcal proteine 6,3 g carboidrati 0,4 g grassi 4,8 g fibre – non noto zuccheri – non noto")
+	s.Sees("uovo Frigo per pezzo: 70 kcal proteine 6,3 g carboidrati 0,4 g grassi 4,8 g fibre – non noto zuccheri – non noto")
 
 	s.AddsIngredient(apptest.Ingredient{
 		Name: "Uovo grande", Unit: "piece", Usual: "fridge", Kcal: "70", Protein: "6", Carbs: "0", Fat: "5",
@@ -150,7 +150,7 @@ func TestIngredientsInItalian(t *testing.T) {
 func TestTheIngredientsComeBeforeTheAddForm(t *testing.T) {
 	s := kitchenWith(t, egg)
 	s.Open("/ingredients")
-	s.Sees("egg fridge per piece")
+	s.Sees("egg Fridge per piece")
 	if strings.Contains(s.Page().Body, `id="ingredient-add"`) {
 		t.Error("the Ingredients page holds the add form")
 	}
@@ -189,7 +189,7 @@ func TestTheIngredientsSheetAddsInPlace(t *testing.T) {
 	if added.StatusCode != http.StatusOK || strings.Contains(added.Body, "<html") {
 		t.Fatalf("adding from the sheet answered %d, want 200 and a fragment:\n%s", added.StatusCode, added.Body)
 	}
-	if shown := apptest.Text(added.Body); !strings.Contains(shown, "egg fridge per piece") {
+	if shown := apptest.Text(added.Body); !strings.Contains(shown, "egg Fridge per piece") {
 		t.Errorf("the sheet after adding egg shows: %s", shown)
 	}
 	if notices := apptest.Notices(t, added.Body); !slices.Equal(notices, []string{"Added egg."}) {
@@ -363,7 +363,7 @@ func TestSearchingIngredientsBySpelling(t *testing.T) {
 	s.IsAt("/ingredients")
 	s.DoesNotSee("uovo")
 	shown := apptest.Text(s.Page().Body)
-	pollo, polenta := strings.Index(shown, "petto di pollo frigo"), strings.Index(shown, "polenta frigo")
+	pollo, polenta := strings.Index(shown, "petto di pollo Frigo"), strings.Index(shown, "polenta Frigo")
 	if pollo < 0 || polenta < 0 || polenta < pollo {
 		t.Errorf("searching for polo shows, want petto di pollo then polenta: %s", shown)
 	}
@@ -375,8 +375,8 @@ func TestSearchingIngredientsBySpelling(t *testing.T) {
 	s.Sees("Nessun Ingrediente somiglia a salmone.")
 
 	s.SearchesIngredients("")
-	s.Sees("uovo frigo")
-	s.Sees("polenta frigo")
+	s.Sees("uovo Frigo")
+	s.Sees("polenta Frigo")
 
 	list := s.HTMXGet(t, "/ingredients/list?q=polo")
 	if list.StatusCode != http.StatusOK || strings.Contains(list.Body, "<html") || strings.Contains(list.Body, "ingredient-add") {
@@ -403,7 +403,7 @@ func TestEditingAnIngredient(t *testing.T) {
 	})
 	s.IsAt("/ingredients")
 	s.IsConfirmed("Saved oat flakes.")
-	s.Sees("oat flakes fridge per 100 g: 370 kcal protein 13 g carbs 59 g fat 7 g fibre – unknown sugar – unknown")
+	s.Sees("oat flakes Fridge per 100 g: 370 kcal protein 13 g carbs 59 g fat 7 g fibre – unknown sugar – unknown")
 	s.DoesNotSee("Rolled oats")
 
 	s.EditsIngredient("oat flakes", apptest.Ingredient{Name: "Oat Flakes", Unit: "g", Usual: "fridge", Kcal: "", Protein: "13", Carbs: "59", Fat: "7"})
@@ -413,7 +413,7 @@ func TestEditingAnIngredient(t *testing.T) {
 		t.Errorf("the refused edit form holds protein %q, want what was typed", got.Get("protein"))
 	}
 	s.Open("/ingredients")
-	s.Sees("oat flakes fridge per 100 g: 370 kcal")
+	s.Sees("oat flakes Fridge per 100 g: 370 kcal")
 }
 
 // A rename that normalises to another Ingredient's name is refused on the name, naming
@@ -431,7 +431,7 @@ func TestARenameToAnotherIngredientIsRefused(t *testing.T) {
 		t.Errorf("the refused edit form holds kcal %q, want what was typed", got)
 	}
 	s.Open("/ingredients")
-	s.Sees("rice pantry")
+	s.Sees("rice Pantry")
 
 	bigEgg := egg
 	bigEgg.Name = "Egg"
@@ -467,9 +467,9 @@ func TestTheUnitIsFixedOnceStockIsCounted(t *testing.T) {
 	inPieces.Unit = "piece"
 	s.EditsIngredient("rice", inPieces)
 	s.IsConfirmed("Saved rice.")
-	s.Sees("rice pantry per piece")
+	s.Sees("rice Pantry per piece")
 	s.EditsIngredient("rice", rice)
-	s.Sees("rice pantry per 100 g")
+	s.Sees("rice Pantry per 100 g")
 
 	s.Counts("rice", "", "700", "")
 	s.Counts("rice", "", "0", "")
@@ -482,7 +482,7 @@ func TestTheUnitIsFixedOnceStockIsCounted(t *testing.T) {
 		t.Errorf("the refused edit form holds unit %q, want what was chosen", got)
 	}
 	s.Open("/ingredients")
-	s.Sees("rice pantry per 100 g: 350 kcal")
+	s.Sees("rice Pantry per 100 g: 350 kcal")
 }
 
 // Editing nutrition, or renaming, changes no Movement: the Kitchen page holds what it
@@ -498,7 +498,7 @@ func TestEditingAnIngredientLeavesTheKitchenAsItWas(t *testing.T) {
 
 	s.Open("/kitchen")
 	s.Sees("01 Pantry brown rice 700 g")
-	s.DoesNotSee("Fridge")
+	s.DoesNotSee("02 Fridge")
 }
 
 // An Ingredient nothing refers to is deleted. One with a Movement is refused, saying why,
@@ -509,7 +509,7 @@ func TestDeletingAnIngredient(t *testing.T) {
 	s.IsAt("/ingredients")
 	s.IsConfirmed("Deleted egg.")
 	s.DoesNotSee("egg")
-	s.Sees("rice pantry")
+	s.Sees("rice Pantry")
 
 	s.Counts("rice", "", "0", "")
 	s.Open("/ingredients")
@@ -517,7 +517,7 @@ func TestDeletingAnIngredient(t *testing.T) {
 	s.IsRefused()
 	s.Sees("It has Movements, so it can't be deleted: the Kitchen Ledger keeps every one.")
 	s.Open("/ingredients")
-	s.Sees("rice pantry")
+	s.Sees("rice Pantry")
 
 	s.Refuses(t, foreignKeyViolation, `DELETE FROM ingredient WHERE name = 'rice'`)
 }
@@ -541,7 +541,7 @@ func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
 	edit.Values.Set("q", "rice")
 	edit.Values.Set("kcal", "360")
 	saved := s.HTMXPostForm(t, edit.Action, edit.Values)
-	if shown := fragment("saving rice", saved, http.StatusOK); !strings.Contains(shown, "rice pantry per 100 g: 360 kcal") || strings.Contains(shown, "egg") {
+	if shown := fragment("saving rice", saved, http.StatusOK); !strings.Contains(shown, "rice Pantry per 100 g: 360 kcal") || strings.Contains(shown, "egg") {
 		t.Errorf("the sheet after saving rice, searched for rice, shows: %s", shown)
 	}
 	if notices := apptest.Notices(t, saved.Body); !slices.Equal(notices, []string{"Saved rice."}) {
@@ -577,7 +577,7 @@ func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
 
 	del = deleteStep(t, s, s.HTMXGet(t, "/ingredients/list").Body, "egg")
 	deleted := s.HTMXPostForm(t, del.Action, del.Values)
-	if shown := fragment("deleting egg", deleted, http.StatusOK); strings.Contains(shown, "egg fridge") {
+	if shown := fragment("deleting egg", deleted, http.StatusOK); strings.Contains(shown, "egg Fridge") {
 		t.Errorf("the sheet after deleting egg shows: %s", shown)
 	}
 	if notices := apptest.Notices(t, deleted.Body); !slices.Equal(notices, []string{"Deleted egg."}) {
@@ -640,7 +640,7 @@ func TestAnotherUsersIngredientCantBeEditedOrDeleted(t *testing.T) {
 	}
 	s.SwitchesTo("ada@example.com")
 	s.Open("/ingredients")
-	s.Sees("rice pantry")
+	s.Sees("rice Pantry")
 }
 
 // In the side sheet, an Ingredient's row opens to edit it, and saving closes it in place,
@@ -770,7 +770,7 @@ func TestTheIngredientsSheetRefusesAndConfirmsEditsInPlace(t *testing.T) {
 	}
 
 	post("changing eggs to pieces", "eggs", map[string]string{"unit": "piece", "fibre": "", "sugar": ""}, http.StatusOK)
-	if shown := apptest.Text(s.HTMXGet(t, "/ingredients/list?q=eggs").Body); !strings.Contains(shown, "eggs pantry per piece: 350 kcal protein 7 g carbs 78 g fat 0.6 g fibre – unknown sugar – unknown") {
+	if shown := apptest.Text(s.HTMXGet(t, "/ingredients/list?q=eggs").Body); !strings.Contains(shown, "eggs Pantry per piece: 350 kcal protein 7 g carbs 78 g fat 0.6 g fibre – unknown sugar – unknown") {
 		t.Errorf("the sheet after changing eggs shows: %s", shown)
 	}
 

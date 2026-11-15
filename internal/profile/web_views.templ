@@ -121,7 +121,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		@sectionForm(languageSection) {
-			@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
+			@web.Segmented("", "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
 			@web.Hint() {
 				{ web.T(ctx, msgChooseHint) }
 			}

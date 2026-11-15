@@ -23,7 +23,7 @@ templ library(now time.Time, drafts []Draft, recipes []domain.Recipe, q string) 
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
 		if len(drafts) > 0 {
-			@web.Section(0, web.T(ctx, msgDraftsToCheck)) {
+			@web.Section(1, web.T(ctx, msgDraftsToCheck)) {
 				@web.Rows() {
 					for _, d := range drafts {
 						@web.Row() {
@@ -34,7 +34,8 @@ templ library(now time.Time, drafts []Draft, recipes []domain.Recipe, q string) 
 				}
 			}
 		}
-		@web.Section(0, web.T(ctx, msgRecipes)) {
+		// The Recipes follow the Recipe Drafts to check, if there are any.
+		@web.Section(min(len(drafts), 1)+1, web.T(ctx, msgRecipes)) {
 			if q != "" || len(recipes) > 0 {
 				@searchForm(q)
 			}
@@ -118,7 +119,7 @@ func kindNames[K comparable](ctx context.Context, kinds []K, names map[K]web.Mes
 // recipePage is one Recipe, all of it, its header leaving room for a rating later.
 templ recipePage(now time.Time, rec domain.Recipe) {
 	@web.Layout(web.Tf(ctx, msgRecipeTitle, rec.Name), web.RecipesTab) {
-		@web.PageHeader("レシピ", rec.Name, now) {
+		@web.PageHeader("レシピ", web.Data(rec.Name), now) {
 			<p class="lede">
 				@web.TextLink(templ.Attributes{"href": recipeURL(rec.ID) + "/edit"}) {
 					{ web.T(ctx, msgEdit) }
@@ -126,10 +127,10 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 			</p>
 		}
 		@recipeFacts(rec)
-		@web.Section(0, web.T(ctx, msgPerPortion)) {
+		@web.Section(1, web.T(ctx, msgPerPortion)) {
 			@perPortion(rec.NutritionPerPortion())
 		}
-		@web.Section(1, web.T(ctx, msgIngredients)) {
+		@web.Section(2, web.T(ctx, msgIngredients)) {
 			@web.Rows() {
 				for _, ri := range rec.Ingredients {
 					@web.Row() {
@@ -443,7 +444,7 @@ templ recipeFacts(rec domain.Recipe) {
 // recipeSteps are a Recipe's steps, if it has any.
 templ recipeSteps(steps []string) {
 	if len(steps) > 0 {
-		@web.Section(2, web.T(ctx, msgSteps)) {
+		@web.Section(3, web.T(ctx, msgSteps)) {
 			<ol>
 				for _, step := range steps {
 					<li>{ step }</li>

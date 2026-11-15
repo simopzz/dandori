@@ -133,7 +133,7 @@ func TestAKnownIngredientKeepsItsValuesAndUnitOnARecipeDraft(t *testing.T) {
 	s.Submits("recipe-form")
 	s.IsConfirmed("Added Lasagne to the Recipe Library.")
 	s.Open("/ingredients")
-	s.Sees("rice pantry per 100 g: 350 kcal protein 7 g")
+	s.Sees("rice Pantry per 100 g: 350 kcal protein 7 g")
 }
 
 // The sheet a Recipe Draft's Discard opens asks in the User's Language, and its form
@@ -201,7 +201,7 @@ func TestRecipeDraftsToCheckAreListedFirstOnTheRecipeLibrary(t *testing.T) {
 	s.PastesRecipe("Curry for 4")
 
 	s.Open("/recipes")
-	s.Sees("Recipe Drafts to check Curry read Wed, Nov 4 Lasagne read Mon, Nov 2 Recipes Search Rice bowl")
+	s.Sees("Recipe Drafts to check Curry read Wed, Nov 4 Lasagne read Mon, Nov 2 02 Recipes Search Rice bowl")
 	s.Follows("Lasagne")
 	s.Sees("Recipe Draft Name Portions")
 	s.Submits("recipe-form")

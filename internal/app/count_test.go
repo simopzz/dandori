@@ -72,9 +72,9 @@ func TestACountShowsWhatDandoriBelieves(t *testing.T) {
 
 	s.Open("/kitchen/count")
 	s.Follows("rice")
-	s.Sees("pantry 200 g")
-	s.Sees("fridge 0 g")
-	s.Sees("freezer 0 g")
+	s.Sees("Pantry 200 g")
+	s.Sees("Fridge 0 g")
+	s.Sees("Freezer 0 g")
 	if got := apptest.Form(t, s.Page().Body, "count-form").Get("location"); got != "pantry" {
 		t.Errorf("the Count form holds Storage Location %q, want the usual pantry", got)
 	}
@@ -100,7 +100,7 @@ func TestAStockItemHasItsOwnCount(t *testing.T) {
 	if form.Get("location") != "freezer" || form.Get("stated") != "" {
 		t.Errorf("the Stock Item's Count holds Storage Location %q and quantity %q, want freezer and none", form.Get("location"), form.Get("stated"))
 	}
-	s.Sees("freezer 300 g")
+	s.Sees("Freezer 300 g")
 }
 
 // A Count to nothing takes the Stock Item off the Kitchen page, and one that changes
@@ -115,7 +115,7 @@ func TestCountingToNothing(t *testing.T) {
 	s.Open("/kitchen")
 	s.DoesNotSee("rice 700 g")
 	s.DoesNotSee("Count rice")
-	s.DoesNotSee("Pantry")
+	s.DoesNotSee("01 Pantry")
 	s.Sees("01 Fridge egg 6 pieces")
 }
 
@@ -374,7 +374,7 @@ func TestTheCountSheetWorksInPlace(t *testing.T) {
 	if shown := apptest.Text(found.Body); found.StatusCode != http.StatusOK || strings.Contains(found.Body, "<html") || strings.Contains(found.Body, "count-search") || !strings.Contains(shown, "rice") {
 		t.Fatalf("searching with htmx answered %d, want the list alone:\n%s", found.StatusCode, found.Body)
 	}
-	if shown := apptest.Text(s.HTMXGet(t, "/kitchen/count/list?q=salt").Body); strings.Contains(shown, "salt pantry") {
+	if shown := apptest.Text(s.HTMXGet(t, "/kitchen/count/list?q=salt").Body); strings.Contains(shown, "salt Pantry") {
 		t.Errorf("searching with htmx offers a Staple: %s", shown)
 	}
 
@@ -520,7 +520,7 @@ func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	if _, err := add.GetByLabel("Unit").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"g"}}); err != nil {
 		t.Fatalf("choose the unit: %v", err)
 	}
-	if _, err := add.GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"pantry"}}); err != nil {
+	if _, err := add.GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"Pantry"}}); err != nil {
 		t.Fatalf("choose where it is kept: %v", err)
 	}
 	for _, label := range []string{"Calories", "Protein", "Carbs", "Fat"} {

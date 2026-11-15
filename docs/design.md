@@ -30,7 +30,7 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
 | `--color-rule-strong` | `#2d3352` navy | section numbers, strokes and rules, input underlines, borders of controls, the focus ring |
 | `--color-fill` | navy | primary buttons, the chosen segment, a floating Notice |
-| `--color-fill-dither` | `#4b5582` slate | dithered over the fill: the chosen segment, a button's hover |
+| `--color-fill-dither` | `#4b5582` slate | dithered over the fill: a button's hover, a busy button |
 | `--color-on-fill` | paper | text on a fill or on the accent |
 | `--color-accent` | `#b8321b` vermilion seal | wrong, urgent or irreversible only (see below) |
 | `--color-accent-wash` | `#fbe5dc` salmon wash | behind alerts |
@@ -66,6 +66,12 @@ so a title in Japanese falls back to the system's face. `--font-body` is Zen
 Kaku Gothic New (400, 700, latin subset) for everything else, `h3` in bold;
 Japanese text falls back to the system's Gothic.
 
+A title's data, its times, quantities and User text (Today's `1:00 pm`, a
+Recipe's or an Ingredient's name), is set in the body face, where the pixel
+face makes l, I and 1 hard to tell apart: wrap it in `web.Data` where the
+title is made (`web.Tf(ctx, msgNextAt, kind, web.Data(at))`), and
+`PageHeader`, `Section` and `FieldGroup` set it so.
+
 `--font-mono` is for code and trace details.
 
 Nothing a User reads to act is under 0.875rem: field labels, errors, tab
@@ -94,12 +100,11 @@ square pixels of two colours, built in CSS from tokens, at four densities
 `--dither-under`, and `--dither-pixel` the size of a pixel. A ramp steps from
 one colour to the next through all four.
 
-It may go in five places only:
+It may go in four places only:
 
 - **the sky**: the masthead's dusk on a phone, cream to peach to salmon, then
   deep navy dithering down into the paper; the rail's, paper to salmon;
 - **the veil** behind an open sheet: a navy checker over the page;
-- **the chosen segment**: navy and slate;
 - **a primary button's hover**: navy and slate;
 - **a busy primary button**: navy and slate (see [Busy](#busy)).
 
@@ -125,9 +130,10 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
   section. No cards, no shadows, no boxes around content.
 - **The shell** (`Layout`) is navy. On a phone, bottom tabs, each a pixel
   icon and a label in paper, with a salmon bar over the current one, and above
-  the page the masthead: the dithered sky with the horizontal 段取り DANDORI
-  wordmark linking Home, the pixel sun and Fuji, dithering down into the
-  paper. From 900px, a left rail whose top is the same sky with the vertical
+  the page the masthead: on Today, the full sky, the dithered dusk with the
+  horizontal 段取り DANDORI wordmark linking Home, the pixel sun and Fuji,
+  dithering down into the paper; on every other page a slim strip of it,
+  about 48px, with the wordmark alone, so the page's content starts high. From 900px, a left rail whose top is the same sky with the vertical
   wordmark, then the tabs, and Runs at the rail's foot. Before the Language is
   chosen there are no tabs: a phone shows no bar, desktop the rail's sky alone.
   Tabs are Today, Recipes, Kitchen and Profile; later steps add Plan and Catalog.
@@ -140,9 +146,14 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 - **Content is grouped into numbered `Section`s** (`01 Stock Items`): a pixel
   heading over the banner's underline, the number and a short stroke under
   it in navy, a gap, then the navy rule. In a form, use `FieldGroup`, its
-  fieldset twin.
+  fieldset twin. A page numbers all its own groups, in order; the square in
+  the number's place is for a side sheet's.
 - **Lists are `Rows`**: lines separated by hairlines, the name first,
   quantities in tabular numbers.
+- **How a row says it opens**, the same everywhere: a name that goes
+  somewhere is underlined, as a link, whether to a page or a sheet (a sheet
+  has a page of its own without JS); what opens inside the row (`EditRow`,
+  `Disclosure`, `Fold`) has a chevron instead.
 
 ## Busy
 
@@ -249,13 +260,12 @@ elements themselves.
 | `Actions()` | The row of buttons ending a form; the primary one first. |
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. On a page of forms each saved on its own, as the Profile's sections are, each says what it saves ("Save Targets"), so none reads as saving the page. |
-| `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
-| `TextButton(attrs)` | A secondary action, underlined text. |
+| `TextButton(attrs)` | A secondary action, underlined text. Its target is wider than its text, which still lines up with the column. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. Deleting or discarding what the User wrote asks once, naming what will go; nothing is removed by a single tap. Its Delete or Discard is a `RemoveLink` to a `RemoveStep`, whose own `DestructiveButton` does it. Cancelling a Run stays one tap: the User didn't write it. |
 | `RemoveLink(id, href, src)` | A `DestructiveButton`'s look on a `SideSheetLink`: opens the `SideSheet` `id` on the `RemoveStep` at `src`, or without htmx goes to `href`, the step as a page of its own. |
 | `RemoveStep(question, remove, action, back, attrs)` | The step that asks once: `question` names what will go ("Delete the Recipe Rice bowl?"), and its form posts to `action` with a `DestructiveButton` saying `remove`; children are its hidden fields, `attrs` the htmx swap of a sheet's body if any. In a sheet, the sheet's Close is the way back; as a page, `back` gives a `TextLink`. |
-| `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
+| `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion), the chosen one solid navy. `legend` shows over them as a `Field`'s label; leave it empty when the group around it already names them (the Profile's Language). For more, or in a long form, use a `<select>`. |
 | `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
@@ -322,9 +332,9 @@ and closing.
   `internal/web` when a piece will recur, and catalogue it here.
 - **Do** use tokens for every colour, space and radius.
 - **Do** let space separate things: hairlines and section rules, not boxes.
-- **Do** keep dithering to the sky, the veil, the chosen segment, a
-  button's hover and a busy button, and the banner's colours other than
-  navy to the sky and the pixel art.
+- **Do** keep dithering to the sky, the veil, a button's hover and a busy
+  button, and the banner's colours other than navy to the sky and the pixel
+  art.
 - **Do** give every form one primary `Button`; everything else is a
   `TextButton` or `DestructiveButton`.
 - **Don't** write a colour value outside the token block, or in a template.
@@ -336,4 +346,4 @@ and closing.
   a second accent.
 - **Don't** add an icon font, a stroke icon or runtime JS for presentation
   (the busy button's and the floating Notices' scripts are the exceptions).
-- **Don't** set body text, labels or rows in the pixel face.
+- **Don't** set body text, labels, rows or a title's data in the pixel face.

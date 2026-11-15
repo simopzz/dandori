@@ -108,9 +108,10 @@ var (
 	}
 )
 
-// StorageLocationNames name each Storage Location.
+// StorageLocationNames name each Storage Location, written the same everywhere it
+// stands alone: a heading, an option, a row's details.
 var StorageLocationNames = map[domain.StorageLocation]web.Message{
-	domain.Pantry:  {En: "pantry", It: "dispensa"},
-	domain.Fridge:  {En: "fridge", It: "frigo"},
-	domain.Freezer: {En: "freezer", It: "congelatore"},
+	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
+	domain.Fridge:  {En: "Fridge", It: "Frigo"},
+	domain.Freezer: {En: "Freezer", It: "Congelatore"},
 }

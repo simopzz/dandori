@@ -87,7 +87,7 @@ templ page(today time.Time, ings []domain.Ingredient, view sheetView) {
 	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
 		@web.PageHeader("食材", web.T(ctx, msgIngredients), today)
 		<div id={ web.SideSheetBody(SheetID) }>
-			@listing(ings, view)
+			@listing(ings, view, 1)
 		</div>
 		@web.AddButton([]web.AddChoice{{Title: web.T(ctx, msgAddIngredient), Href: "/ingredients/new"}})
 		@deleteSheet()
@@ -111,12 +111,13 @@ templ sheetBody(ings []domain.Ingredient, view sheetView) {
 	@web.Disclosure(web.T(ctx, msgAddIngredient), view.Add.Counting || view.Add.Name != "" || len(view.Add.Errs) > 0) {
 		@addForm(view.Add)
 	}
-	@listing(ings, view)
+	@listing(ings, view, 0)
 }
 
-// listing is the search of the User's Ingredients for view's Q.
-templ listing(ings []domain.Ingredient, view sheetView) {
-	@web.Section(0, web.T(ctx, msgYourIngredients)) {
+// listing is the search of the User's Ingredients for view's Q, num its group's number:
+// the page's own, or 0, the side sheet's mark.
+templ listing(ings []domain.Ingredient, view sheetView, num int) {
+	@web.Section(num, web.T(ctx, msgYourIngredients)) {
 		@searchForm(view.Q)
 		<div id={ listID }>
 			@list(ings, view)

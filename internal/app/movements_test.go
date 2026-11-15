@@ -355,7 +355,7 @@ func TestBrowserOpensAStockItemsMovementsInPlace(t *testing.T) {
 		t.Fatalf("close the Movements: %v", err)
 	}
 
-	if err := count.GetByRole("radio", playwright.LocatorGetByRoleOptions{Name: "fridge 0 g"}).Check(playwright.LocatorCheckOptions{Force: playwright.Bool(true)}); err != nil {
+	if err := count.GetByRole("radio", playwright.LocatorGetByRoleOptions{Name: "Fridge 0 g"}).Check(playwright.LocatorCheckOptions{Force: playwright.Bool(true)}); err != nil {
 		t.Fatalf("choose the fridge: %v", err)
 	}
 	if err := movements.Click(); err != nil {

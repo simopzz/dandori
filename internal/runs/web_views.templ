@@ -145,7 +145,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 				}
 			</div>
 		}
-		@web.Section(0, web.T(ctx, msgTrace)) {
+		@web.Section(1, web.T(ctx, msgTrace)) {
 			<div
 				if r.Status == Going {
 					hx-get={ runURL(r.ID) + "?ended" }
