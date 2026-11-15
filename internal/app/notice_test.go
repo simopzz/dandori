@@ -17,7 +17,7 @@ func TestBrowserANoticeShowsWithoutJS(t *testing.T) {
 	b.SignUp(t, "ada@example.com")
 
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "Italiano", "Save")
+	b.ChooseLanguage(t, "Italiano", "Save Language")
 	b.IsAt(t, "/profile")
 	b.IsConfirmed(t, "Profilo salvato.")
 	b.Shot(t, "notice-without-js")

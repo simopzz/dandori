@@ -817,3 +817,56 @@ func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {
 		t.Errorf("%d Movements are at the latest time, want %d", n, want)
 	}
 }
+
+// Focus is a navy ring, so the Count sheet's search, focused as it opens, doesn't look
+// refused; a refused quantity, focused as it comes back, is marked by its vermilion
+// underline and aria-invalid, in the same navy ring.
+func TestBrowserFocusIsNavyAndARefusalVermilion(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	addsRiceInTheBrowser(t, b)
+	expect := playwright.NewPlaywrightAssertions()
+	const navy, vermilion = "rgb(45, 51, 82)", "rgb(184, 50, 27)"
+
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}).First().Click(); err != nil {
+		t.Fatalf("open the Count sheet: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
+	search := sheet.GetByRole("searchbox")
+	if err := expect.Locator(search).ToBeFocused(); err != nil {
+		t.Fatalf("the Count sheet doesn't open on its search: %v", err)
+	}
+	if err := expect.Locator(search).ToHaveCSS("outline-color", navy); err != nil {
+		t.Errorf("the focused search isn't ringed in navy: %v", err)
+	}
+	if err := expect.Locator(search).ToHaveCSS("outline-width", "3px"); err != nil {
+		t.Errorf("the focus ring isn't 3px: %v", err)
+	}
+
+	if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "rice"}).Click(); err != nil {
+		t.Fatalf("choose rice: %v", err)
+	}
+	stated := sheet.GetByLabel("How much is there")
+	if err := stated.Fill("-1"); err != nil {
+		t.Fatalf("state the quantity: %v", err)
+	}
+	// The browser would refuse -1 itself; this is about the app's refusal.
+	if _, err := sheet.Locator("form:has([name=stated])").Evaluate(`(f) => { f.noValidate = true }`, nil); err != nil {
+		t.Fatalf("turn off the browser's validation: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
+		t.Fatalf("save the Count: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("the refused quantity isn't marked aria-invalid: %v", err)
+	}
+	if err := expect.Locator(stated).ToBeFocused(); err != nil {
+		t.Errorf("the refused quantity isn't focused: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveCSS("border-bottom-color", vermilion); err != nil {
+		t.Errorf("the refused quantity isn't underlined in vermilion: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveCSS("outline-color", navy); err != nil {
+		t.Errorf("the refused quantity's focus ring isn't navy: %v", err)
+	}
+}
