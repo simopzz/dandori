@@ -179,11 +179,7 @@ func TestBrowserARunsTraceStreamsLiveAndThePageGoesToItsRecipeDraft(t *testing.T
 	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
 	h.Model.Script(fakellm.CallTool("submit_recipe", r).After(submit), fakellm.Reply("Parsed the lasagne.").After(reply))
 
-	b.Open(t, "/recipes")
-	if err := b.GetByLabel("Paste a recipe").Fill(pastedLasagne); err != nil {
-		t.Fatal(err)
-	}
-	b.Click(t, "Read it")
+	pastesInTheSheet(t, b, pastedLasagne)
 	if err := b.WaitForURL("**/runs/*"); err != nil {
 		t.Fatalf("pasting does not land on the Run's page: %v", err)
 	}

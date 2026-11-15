@@ -429,7 +429,7 @@ func TestSeveralParseRunsGoAtOnceEachMakingItsOwnRecipeDraft(t *testing.T) {
 
 	var runs []string
 	for _, text := range []string{pastedLasagne, "Moussaka for 4\n" + pastedLasagne} {
-		form := apptest.Form(t, s.Get(t, "/recipes").Body, "paste-form")
+		form := apptest.Form(t, s.Get(t, "/recipes/paste").Body, "paste-form")
 		form.Values.Set("text", text)
 		runs = append(runs, s.PostForm(t, form.Action, form.Values).Path)
 	}
@@ -477,7 +477,7 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	s := kitchenWith(t, rice)
 	release := make(chan struct{})
 	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Done.").After(release))
-	form := apptest.Form(t, s.Get(t, "/recipes").Body, "paste-form")
+	form := apptest.Form(t, s.Get(t, "/recipes/paste").Body, "paste-form")
 	form.Values.Set("text", pastedLasagne)
 	s.PostForm(t, form.Action, form.Values)
 	var id int64
@@ -493,6 +493,24 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	s.Settle()
 	s.Open(draft)
 	draftHolds(t, s, map[string]string{"ing_name_0": "beef mince", "ing_quantity_0": "500"})
+}
+
+// pastesInTheSheet pastes text in the sheet the Recipe Library's + opens, focused on its
+// field, and reads it.
+func pastesInTheSheet(t *testing.T, b *apptest.Browser, text string) {
+	t.Helper()
+	b.Open(t, "/recipes")
+	if err := b.Locator(`a.fab[aria-label="Paste a recipe"]`).Click(); err != nil {
+		t.Fatalf("press the +: %v", err)
+	}
+	field := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Paste a recipe"}).GetByLabel("Paste a recipe")
+	if err := playwright.NewPlaywrightAssertions().Locator(field).ToBeFocused(); err != nil {
+		t.Errorf("the paste sheet doesn't focus its field: %v", err)
+	}
+	if err := field.Fill(text); err != nil {
+		t.Fatalf("paste: %v", err)
+	}
+	b.Click(t, "Read it")
 }
 
 // A Run's page folds what the User gave it, the paste, at its top, and its Trace reads as
@@ -511,11 +529,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
 	h.Model.Script(fakellm.CallTool("submit_recipe", r), fakellm.Reply("Parsed the lasagne."))
 
-	b.Open(t, "/recipes")
-	if err := b.GetByLabel("Paste a recipe").Fill(pastedLasagne); err != nil {
-		t.Fatal(err)
-	}
-	b.Click(t, "Read it")
+	pastesInTheSheet(t, b, pastedLasagne)
 	b.FollowsRun(t)
 	expect := playwright.NewPlaywrightAssertions()
 	paste := b.Locator("pre", playwright.PageLocatorOptions{HasText: "Lasagne for 4"}).First()

@@ -42,11 +42,10 @@ type Handlers struct {
 const Saved = "ingredient-saved"
 
 // Show is the Ingredients page, searched for its query q, or for the Ingredient just
-// picked, confirming it. Its query name starts the add form,
-// and counting says it is to count what is added.
+// picked, confirming it.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	f, q := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Picked: query.Get("picked")}, query.Get("q")
+	f, q := AddForm{Picked: query.Get("picked")}, query.Get("q")
 	if f.Picked != "" {
 		q = f.Picked
 	}
@@ -56,6 +55,14 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		}
 		httpx.Render(w, r, h.Log, http.StatusOK, a.Page)
 	}
+}
+
+// ShowNew is the add page. Its query name starts the add form, and counting says it is
+// to count what is added.
+func (h Handlers) ShowNew(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	f := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != ""}
+	httpx.Render(w, r, h.Log, http.StatusOK, addPage(h.Clock.Now(), f))
 }
 
 // ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
@@ -99,15 +106,16 @@ func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
 
 // Add adds an Ingredient. Posted from the side sheet by htmx, it answers with the sheet's
 // body, so the page under it stays: the add form cleared once it is added, or as typed
-// with why it was refused. A plain post lands on the Ingredients page. A name close to an
-// Ingredient's is refused with that one suggested, unless the suggestion was already
-// shown for this name, which confirms it: pressing Add past one means the name typed. One
-// added to count, unless it is a Staple, which is never counted, goes on to its Count.
+// with why it was refused. A plain post lands on the Ingredients page, or refused on the
+// add page. A name close to an Ingredient's is refused with that one suggested, unless
+// the suggestion was already shown for this name, which confirms it: pressing Add past
+// one means the name typed. One added to count, unless it is a Staple, which is never
+// counted, goes on to its Count.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	ing, f := parseAddForm(r)
 	if len(f.Errs) > 0 {
 		httpx.Refused(r, refusedIngredient, f.Errs)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
+		h.refuseAdd(w, r, f)
 		return
 	}
 	confirmed := r.PostFormValue("confirm") == f.Name
@@ -115,13 +123,13 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"] = web.Tf(r.Context(), msgNameTaken, taken.Existing)
 		httpx.Refused(r, refusedNameTaken, nil)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
+		h.refuseAdd(w, r, f)
 		return
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		f.Suggested = suggested.Closest
 		httpx.Refused(r, refusedCloseName, nil)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
+		h.refuseAdd(w, r, f)
 		return
 	}
 	if err != nil {
@@ -133,6 +141,14 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.answerWrite(w, r, web.Answer{Notice: web.Tf(r.Context(), msgAdded, ing.Name), RedirectTo: "/ingredients"}, sheetView{})
+}
+
+// refuseAdd answers an add refused, f as typed with why: as the sheet's body, or as the
+// add page.
+func (h Handlers) refuseAdd(w http.ResponseWriter, r *http.Request, f AddForm) {
+	if shown, ok := h.answer(w, r, sheetView{Add: f}); ok {
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: addPage(h.Clock.Now(), f), Fragment: shown.Fragment}.Write(w, r, h.Log)
+	}
 }
 
 // Edit edits the Ingredient id. Posted from the side sheet by htmx, it answers with the

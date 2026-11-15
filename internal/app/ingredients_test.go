@@ -74,11 +74,12 @@ func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {
 	s.Sees("One decimal place at most.")
 	s.Sees("Required.")
 	s.Sees("Type a number.")
-	s.Sees("No Ingredients yet.")
 	form := apptest.Form(t, s.Page().Body, "ingredient-add")
 	if form.Get("name") != "egg" || form.Get("kcal") != "70" || form.Get("carbs") != "0.45" {
 		t.Errorf("the refused add form holds name %q, kcal %q, carbs %q; want what was typed", form.Get("name"), form.Get("kcal"), form.Get("carbs"))
 	}
+	s.Open("/ingredients")
+	s.Sees("No Ingredients yet.")
 
 	s.AddsIngredient(apptest.Ingredient{Unit: "g", Usual: "pantry", Kcal: "1", Protein: "1", Carbs: "1", Fat: "1"})
 	s.IsRefused()
@@ -141,6 +142,32 @@ func TestIngredientsInItalian(t *testing.T) {
 	s.Sees("Intendevi pesca?")
 	s.Submits("ingredient-add")
 	s.IsConfirmed("Aggiunto: pesce.")
+}
+
+// The Ingredients come before the add form: the page holds none, its + going to the add
+// page, and the side sheet holds it closed, under "Add an Ingredient", above its list.
+func TestTheIngredientsComeBeforeTheAddForm(t *testing.T) {
+	s := kitchenWith(t, egg)
+	s.Open("/ingredients")
+	s.Sees("egg fridge per piece")
+	if strings.Contains(s.Page().Body, `id="ingredient-add"`) {
+		t.Error("the Ingredients page holds the add form")
+	}
+	if !strings.Contains(s.Page().Body, `href="/ingredients/new"`) {
+		t.Error("the Ingredients page's + doesn't go to the add page")
+	}
+
+	sheet := s.HTMXGet(t, "/ingredients/sheet").Body
+	closed, add, list := strings.Index(sheet, `<details class="disclosure section">`), strings.Index(sheet, `id="ingredient-add"`), strings.Index(sheet, `id="ingredient-list"`)
+	if closed < 0 || add < closed || list < add {
+		t.Errorf("the side sheet doesn't hold a closed add form above its list:\n%s", sheet)
+	}
+	if !strings.Contains(apptest.Text(sheet), "Add an Ingredient") {
+		t.Errorf("the side sheet's add form isn't under Add an Ingredient: %s", apptest.Text(sheet))
+	}
+	if counting := s.HTMXGet(t, "/ingredients/sheet?counting=1&name=salmon").Body; !strings.Contains(counting, `<details class="disclosure section" open>`) {
+		t.Errorf("the side sheet adding salmon to count doesn't open its add form:\n%s", counting)
+	}
 }
 
 // Posted from the side sheet by htmx, the add form answers with the sheet's body alone:
@@ -225,9 +252,6 @@ func TestANearMissSuggestsTheIngredientItMeant(t *testing.T) {
 	s.IsAt("/ingredients")
 	s.IsConfirmed("egg is already one of your Ingredients.")
 	s.DoesNotSee("eggs")
-	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "" {
-		t.Errorf("the add form after picking egg holds name %q, want it cleared", got)
-	}
 	if got := apptest.Form(t, s.Page().Body, "ingredient-search").Get("q"); got != "egg" {
 		t.Errorf("the search after picking egg holds %q, want egg", got)
 	}

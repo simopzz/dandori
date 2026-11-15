@@ -25,6 +25,7 @@ var (
 	msgDeleted      = web.Message{En: "Deleted %s.", It: "Eliminata: %s."}
 
 	msgPaste         = web.Message{En: "Paste a recipe", It: "Incolla una ricetta"}
+	msgPasteTitle    = web.Message{En: "Paste a recipe · Dandori", It: "Incolla una ricetta · Dandori"}
 	msgPasteHint     = web.Message{En: "in any language", It: "in qualsiasi lingua"}
 	msgRead          = web.Message{En: "Read it", It: "Leggila"}
 	msgPasteRequired = web.Message{En: "Paste a recipe to read.", It: "Incolla una ricetta da leggere."}

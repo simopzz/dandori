@@ -30,9 +30,9 @@ templ SheetLink() {
 
 // AddLink opens the Ingredients side sheet to add an Ingredient to count, its add form
 // started on name, which a search found nothing for, or blank; without htmx it goes to
-// the Ingredients page.
+// the add page.
 templ AddLink(name string) {
-	@web.SideSheetLink(SheetID, templ.SafeURL("/ingredients?counting=1&name="+url.QueryEscape(name)), templ.SafeURL("/ingredients/sheet?counting=1&name="+url.QueryEscape(name))) {
+	@web.SideSheetLink(SheetID, templ.SafeURL("/ingredients/new?counting=1&name="+url.QueryEscape(name)), templ.SafeURL("/ingredients/sheet?counting=1&name="+url.QueryEscape(name))) {
 		if name == "" {
 			{ web.T(ctx, msgAddIngredient) }
 		} else {
@@ -41,21 +41,40 @@ templ AddLink(name string) {
 	}
 }
 
-// page is the Ingredients as a page of their own, for a browser without htmx: the side
-// sheet's body, under the page's header.
+// page is the Ingredients as a page of their own, for a browser without htmx: the search
+// of the User's Ingredients for view's Q under the page's header, and a + to add one.
 templ page(today time.Time, ings []domain.Ingredient, view sheetView) {
 	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
 		@web.PageHeader("食材", web.T(ctx, msgIngredients), today)
 		<div id={ web.SideSheetBody(SheetID) }>
-			@sheetBody(ings, view)
+			@listing(ings, view)
+		</div>
+		@web.AddButton([]web.AddChoice{{Title: web.T(ctx, msgAddIngredient), Href: "/ingredients/new"}})
+	}
+}
+
+// addPage is the add form as a page of its own, f as typed, for a browser without htmx.
+templ addPage(today time.Time, f AddForm) {
+	@web.Layout(web.T(ctx, msgAddTitle), web.KitchenTab) {
+		@web.PageHeader("食材", web.T(ctx, msgAddIngredient), today)
+		<div id={ web.SideSheetBody(SheetID) }>
+			@addForm(f)
 		</div>
 	}
 }
 
-// sheetBody is what the Ingredients side sheet shows: view's add form, and the search of
-// the User's Ingredients for its Q.
+// sheetBody is what the Ingredients side sheet shows: view's add form, closed under its
+// name until the User opens it or has begun it, then the search of the User's
+// Ingredients for its Q.
 templ sheetBody(ings []domain.Ingredient, view sheetView) {
-	@addForm(view.Add)
+	@web.Disclosure(web.T(ctx, msgAddIngredient), view.Add.Counting || view.Add.Name != "" || len(view.Add.Errs) > 0) {
+		@addForm(view.Add)
+	}
+	@listing(ings, view)
+}
+
+// listing is the search of the User's Ingredients for view's Q.
+templ listing(ings []domain.Ingredient, view sheetView) {
 	@web.Section(0, web.T(ctx, msgYourIngredients)) {
 		@searchForm(view.Q)
 		<div id={ listID }>
@@ -228,35 +247,33 @@ templ addForm(f AddForm) {
 		if f.Counting {
 			<input type="hidden" name="counting" value="1"/>
 		}
-		@web.FieldGroup(0, web.T(ctx, msgAddIngredient)) {
-			<div class="stack">
-				<div>
-					@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
-						<input
-							name="name"
-							value={ f.Name }
-							required
-							autocomplete="off"
-							hx-get="/ingredients/suggestion"
-							hx-trigger="change"
-							hx-target={ "#" + suggestionID }
-							hx-swap="innerHTML"
-							{ Invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
-						/>
-					}
-					<div id={ suggestionID }>
-						@suggestion(f.Name, f.Suggested)
-					</div>
-				</div>
-				@ingredientFields(f)
-				@stapleCheck(f.Staple)
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgAdd) }
-					}
+		<div class="stack">
+			<div>
+				@web.Field(web.T(ctx, msgName), "", f.Errs["name"]) {
+					<input
+						name="name"
+						value={ f.Name }
+						required
+						autocomplete="off"
+						hx-get="/ingredients/suggestion"
+						hx-trigger="change"
+						hx-target={ "#" + suggestionID }
+						hx-swap="innerHTML"
+						{ Invalid(cmp.Or(f.Errs["name"], f.Suggested))... }
+					/>
 				}
+				<div id={ suggestionID }>
+					@suggestion(f.Name, f.Suggested)
+				</div>
 			</div>
-		}
+			@ingredientFields(f)
+			@stapleCheck(f.Staple)
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					{ web.T(ctx, msgAdd) }
+				}
+			}
+		</div>
 	</form>
 }
 

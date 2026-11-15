@@ -279,7 +279,7 @@ func TestACountSearchFindingNothingOffersANewIngredient(t *testing.T) {
 	s.Open("/kitchen/count?q=salmon")
 	s.Sees("No Ingredient is like salmon.")
 	s.Follows("Add salmon as a new Ingredient")
-	s.IsAt("/ingredients")
+	s.IsAt("/ingredients/new")
 	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "salmon" {
 		t.Errorf("the add form holds name %q, want salmon", got)
 	}
@@ -355,7 +355,7 @@ func TestCountingWithNoIngredients(t *testing.T) {
 	s.Open("/kitchen/count")
 	s.Sees("No Ingredients to count yet.")
 	s.Follows("Add an Ingredient")
-	s.IsAt("/ingredients")
+	s.IsAt("/ingredients/new")
 }
 
 // As htmx posts them, the Count sheet's pieces answer with fragments: saved, its body
@@ -483,10 +483,26 @@ func addsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 	}
 }
 
+// opensAddForm opens the add form in sheet, under "Add an Ingredient", if it is closed.
+func opensAddForm(t *testing.T, sheet playwright.Locator) {
+	t.Helper()
+	if err := sheet.Locator("#ingredient-add").WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateAttached}); err != nil {
+		t.Fatalf("the sheet has no add form: %v", err)
+	}
+	closed := sheet.Locator("details:not([open]):has(#ingredient-add) > summary")
+	if n, err := closed.Count(); err != nil || n == 0 {
+		return
+	}
+	if err := closed.Click(); err != nil {
+		t.Fatalf("open Add an Ingredient: %v", err)
+	}
+}
+
 // fillsIngredient fills the add form in sheet for a food in grams kept in the pantry,
 // named name, and adds it.
 func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	t.Helper()
+	opensAddForm(t, sheet)
 	add := sheet.Locator("#ingredient-add")
 	field := func(label string) playwright.Locator {
 		return add.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
