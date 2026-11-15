@@ -28,10 +28,16 @@ var (
 		En: "A recipe is being read in this Language, so it stays until that ends.",
 		It: "Una ricetta è in lettura in questa lingua, quindi resta questa finché non finisce.",
 	}
-	msgProfile       = web.Message{En: "Profile", It: "Profilo"}
-	msgProfileTitle  = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
-	msgSave          = web.Message{En: "Save", It: "Salva"}
-	msgSaved         = web.Message{En: "Profile saved.", It: "Profilo salvato."}
+	msgProfile      = web.Message{En: "Profile", It: "Profilo"}
+	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
+	msgSaved        = web.Message{En: "Profile saved.", It: "Profilo salvato."}
+	// Each section's Save names it: each is saved on its own.
+	msgSaveLanguage  = web.Message{En: "Save Language", It: "Salva la Lingua"}
+	msgSaveTimes     = web.Message{En: "Save the times of day", It: "Salva gli orari"}
+	msgSaveTargets   = web.Message{En: "Save Targets", It: "Salva gli Obiettivi"}
+	msgSaveMealOut   = web.Message{En: "Save the Meal Out estimate", It: "Salva la stima di un Pasto Fuori"}
+	msgSaveFoods     = web.Message{En: "Save exclusions and allergies", It: "Salva esclusioni e allergie"}
+	msgSaveBrief     = web.Message{En: "Save the Planning Brief", It: "Salva le indicazioni per la pianificazione"}
 	msgTargets       = web.Message{En: "Targets", It: "Obiettivi"}
 	msgTargetsNeeded = web.Message{
 		En: "Planning needs your Targets.",

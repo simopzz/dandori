@@ -185,7 +185,7 @@ func TestBrowserSavesTheTargetsInPlace(t *testing.T) {
 			t.Fatalf("fill %s: %v", name, err)
 		}
 	}
-	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save"})
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save Targets"})
 	if err := save.Click(); err != nil {
 		t.Fatalf("save the Targets: %v", err)
 	}
