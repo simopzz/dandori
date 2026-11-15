@@ -34,7 +34,7 @@ func TestARunsPageWithoutJavaScriptShowsItsTraceSoFarAndALink(t *testing.T) {
 	<-asked
 	s.Open(run)
 	s.Sees("Reading a Recipe Going")
-	s.Sees("Calls submit_recipe")
+	s.Sees("The model asks Dandori submit_recipe")
 	s.Follows("See how it's going")
 	if s.Page().Path != run {
 		t.Errorf("the link to see the Run further along leads to %s, want %s", s.Page().Path, run)
@@ -111,7 +111,7 @@ func TestARunACrashLeftGoingIsFailedOnceDandoriStarts(t *testing.T) {
 		s.Follows("Lasagne for 4")
 		run := s.Page().Path
 		s.Sees("Reading a Recipe Failed")
-		s.Sees("Started with claude-opus-5-5")
+		s.Sees("Started claude-opus-5-5")
 		s.Sees("Dandori stopped while it was going.")
 		s.Sees("Ended: Failed")
 		if strings.Contains(s.Page().Body, `id="cancel-run"`) {
@@ -138,12 +138,12 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 
 	s.Open("/")
 	s.Follows("Runs")
-	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue, Nov 3 10:30 am Two eggs, boiled. Failed Reading a Recipe Tue, Nov 3 9:15 am")
+	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue, Nov 3 · 10:30 am Two eggs, boiled. Failed Reading a Recipe Tue, Nov 3 · 9:15 am")
 	s.Follows("Lasagne for 4")
 	if s.Page().Path != going {
 		t.Errorf("the newest Run opens %s, want %s", s.Page().Path, going)
 	}
-	s.Sees("Started with")
+	s.Sees("Started")
 
 	s.Open("/runs")
 	s.Follows("Two eggs, boiled.")
@@ -184,13 +184,13 @@ func TestBrowserARunsTraceStreamsLiveAndThePageGoesToItsRecipeDraft(t *testing.T
 		t.Fatalf("pasting does not land on the Run's page: %v", err)
 	}
 	b.Sees(t, "Asking the model (turn 1)")
-	if err := playwright.NewPlaywrightAssertions().Locator(b.GetByText("Calls submit_recipe")).ToHaveCount(0); err != nil {
+	if err := playwright.NewPlaywrightAssertions().Locator(b.GetByText("The model asks Dandori")).ToHaveCount(0); err != nil {
 		t.Fatal(err)
 	}
 
 	close(submit)
-	b.Sees(t, "Calls submit_recipe")
-	b.Sees(t, "submit_recipe answers")
+	b.Sees(t, "The model asks Dandori")
+	b.Sees(t, "Dandori answers")
 	b.Shot(t, "run-live")
 
 	close(reply)

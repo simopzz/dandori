@@ -293,8 +293,9 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 // save saves the Recipe posted, with its new Ingredients, over the Recipe id, or as a new
 // one if id is 0, accepting the Recipe Draft draftID unless that is 0. A form that adds a
-// row, for a browser without htmx, comes back with one more and saves nothing. One the
-// form refuses comes back as typed with why, a row of an unknown name opened to confirm.
+// row, for a browser without htmx, comes back with one more and saves nothing; one that
+// removes a row comes back without it. One the form refuses comes back as typed with
+// why, a row of an unknown name opened to confirm.
 func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64) {
 	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
@@ -315,7 +316,8 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), withStep(f)))
 		return
 	}
-	if picking(r.PostForm) {
+	if picking(r.PostForm) || r.PostForm.Has("remove") {
+		w.Header().Set("HX-Push-Url", "false") // the form is still on its own page, not the one it posts to
 		httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), unrefused(f)))
 		return
 	}

@@ -219,7 +219,7 @@ func TestBrowserKeepsThePageLangInStepWithTheLanguage(t *testing.T) {
 		t.Fatalf("the page isn't English to begin with: %v", err)
 	}
 
-	b.ChooseLanguage(t, "Italiano", "Save")
+	b.ChooseLanguage(t, "Italiano", "Save Language")
 	b.Sees(t, "Profilo")
 	if err := expect.Locator(b.Locator("html")).ToHaveAttribute("lang", "it"); err != nil {
 		t.Errorf("the page stays English after the swap: %v", err)

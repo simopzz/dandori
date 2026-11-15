@@ -1,6 +1,7 @@
 package recipes
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"maps"
@@ -183,9 +184,9 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 }
 
 // readForm reads a posted form for the Recipe id, 0 for a new one, checked from the
-// Recipe Draft draftID unless that is 0, matching its rows to known. It is the Recipe,
-// the form to show back, and whether the Recipe can be saved: it is valid and the User
-// has seen every new Ingredient's fields.
+// Recipe Draft draftID unless that is 0, matching its rows to known and leaving out the
+// one whose Remove was pressed. It is the Recipe, the form to show back, and whether the
+// Recipe can be saved: it is valid and the User has seen every new Ingredient's fields.
 func readForm(ctx context.Context, form url.Values, id, draftID int64, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
 	l := web.LanguageOf(ctx)
 	get := func(field string) string { return strings.TrimSpace(form.Get(field)) }
@@ -213,9 +214,12 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 	names := byName(l, known)
 	var rows []IngredientRow
 	for i := 0; form.Has(rowField("name", i)); i++ {
+		if form.Get("remove") == strconv.Itoa(i) {
+			continue
+		}
 		ing, row, settled := readRow(ctx, form, i, names)
 		if row.Name == "" && row.Quantity == "" {
-			continue // a blank row, or one cleared to remove it
+			continue // a blank row
 		}
 		f.Confirm = f.Confirm || !settled
 		unit := ing.Unit
@@ -252,6 +256,28 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 		ok = false
 	}
 	return rec, f, ok && len(f.Errs) == 0 && !f.Confirm
+}
+
+// refusals are the fields f refused, in the order the form shows them: what its
+// ErrorSummary lists.
+func (f RecipeForm) refusals(ctx context.Context) []web.Refusal {
+	var refusals []web.Refusal
+	refuse := func(id string, label web.Message, err string) {
+		if err != "" {
+			refusals = append(refusals, web.Refusal{ID: id, Label: web.T(ctx, label), Err: err})
+		}
+	}
+	refuse("name", msgName, f.Errs["name"])
+	refuse("portions", msgPortions, f.Errs["portions"])
+	refuse("active", msgActive, f.Errs["active"])
+	refuse("total", msgTotal, f.Errs["total"])
+	refuse("slots", msgSlots, f.Errs["slots"])
+	for i, row := range f.Ingredients {
+		refuse(rowField("name", i), msgIngredient, row.Errs["name"])
+		refuse(rowField("quantity", i), msgQuantity, cmp.Or(row.UnitChanged, row.Errs["quantity"]))
+		refusals = append(refusals, ingredients.Refusals(ctx, func(field string) string { return rowField(field, i) }, row.Errs)...)
+	}
+	return refusals
 }
 
 // rowProblem says why field of a row is refused.

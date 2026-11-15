@@ -18,7 +18,6 @@ func TestTodayShowsTheSlotNowOrNext(t *testing.T) {
 	s.Open("/")
 	s.Sees("Monday, November 2")
 	s.Sees("Next: breakfast at 8:00 am")
-	s.Sees("No Cycle yet.")
 
 	s.At("Mon 08:00")
 	s.Open("/")
@@ -103,9 +102,30 @@ func TestTodaySpeaksTheUsersLanguage(t *testing.T) {
 	s.Open("/")
 	s.Sees("Ora: pranzo alle 13:00")
 	s.Sees("Più tardi oggi spuntino 17:00 cena 20:00")
-	s.Sees("Ancora nessun Ciclo.")
+	s.Sees("Il tuo Piano compare qui quando Dandori pianifica cosa mangi. Per pianificarlo, deve conoscere la tua cucina, le tue Ricette e i tuoi Obiettivi. Conta la tua cucina Aggiungi Ricette Imposta i tuoi Obiettivi")
 
 	s.At("Mon 22:00")
 	s.Open("/")
 	s.Sees("A seguire: colazione domani alle 08:00")
+}
+
+// Until Dandori plans, a new User's Today says their Plan shows there once it does, and
+// links each thing planning needs, named for what the User does there.
+func TestANewUsersTodaySaysWhatPlanningNeedsAndLinksIt(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+
+	s.Open("/")
+	s.Sees("Your Plan shows here once Dandori plans what you eat. To plan it, it needs to know your kitchen, your Recipes and your Targets. Count your kitchen Add Recipes Set your Targets")
+	for _, link := range []struct{ text, at string }{
+		{"Count your kitchen", "/kitchen/count"},
+		{"Add Recipes", "/recipes"},
+		{"Set your Targets", "/profile"},
+	} {
+		s.Open("/")
+		s.Follows(link.text)
+		s.IsAt(link.at)
+	}
 }

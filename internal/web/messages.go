@@ -8,6 +8,7 @@ import (
 
 // The shell's and the shared components' Messages.
 var (
+	msgToday          = Message{En: "Today", It: "Oggi"}
 	msgRecipes        = Message{En: "Recipes", It: "Ricette"}
 	msgKitchen        = Message{En: "Kitchen", It: "Cucina"}
 	msgProfile        = Message{En: "Profile", It: "Profilo"}
@@ -18,6 +19,7 @@ var (
 	msgChooseAdd      = Message{En: "Choose what to add", It: "Scegli cosa aggiungere"}
 	msgClose          = Message{En: "Close", It: "Chiudi"}
 	msgCloseNotice    = Message{En: "Close notice", It: "Chiudi avviso"}
+	msgErrorSummary   = Message{En: "Some fields need fixing:", It: "Alcuni campi sono da correggere:"}
 )
 
 // problems say why a typed value is refused, the same for every field.

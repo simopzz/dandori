@@ -200,7 +200,7 @@ func (h Handlers) ShowPortions(w http.ResponseWriter, r *http.Request) {
 
 // ShowPortionsSheet is the Add Portions sheet's body.
 func (h Handlers) ShowPortionsSheet(w http.ResponseWriter, r *http.Request) {
-	httpx.Render(w, r, h.Log, http.StatusOK, portionsForm(PortionsForm{}))
+	httpx.Render(w, r, h.Log, http.StatusOK, portionsForm(PortionsForm{}, true))
 }
 
 // AddPortions adds the Portions posted, at the moment they arrive. Posted from the sheet
@@ -218,7 +218,7 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 	if len(problems) > 0 {
 		f := refusedPortionsForm(ctx, typed, problems)
 		httpx.Refused(r, refusedPortions, f.Errs)
-		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f)}.Write(w, r, h.Log)
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f, true)}.Write(w, r, h.Log)
 		return
 	}
 	web.Answer{
