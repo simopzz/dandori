@@ -415,19 +415,22 @@ templ portionsPage(now time.Time, f PortionsForm) {
 	}
 }
 
-// portionsForm adds Portions no Prep Session produced, swapping the sheet's body when
-// htmx posts it. Its Storage Location starts unchosen, so nothing lands in the wrong
-// place by default. inSheet focuses its name as the sheet opens; a page focuses nothing,
-// so a phone's keyboard doesn't cover it.
+// portionsForm adds Portions no Prep Session produced, in the sheet swapping its body;
+// on a page, boosted, a refusal comes back as the page, its error summary first. Its
+// Storage Location starts unchosen, so nothing lands in the wrong place by default.
+// inSheet focuses its name as the sheet opens; a page focuses nothing, so a phone's
+// keyboard doesn't cover it.
 templ portionsForm(f PortionsForm, inSheet bool) {
 	<form
 		novalidate
 		id="portions-form"
 		method="post"
 		action="/kitchen/portions"
-		hx-post="/kitchen/portions"
-		hx-target={ "#" + web.SideSheetBody(portionsSheetID) }
-		hx-swap="innerHTML"
+		if inSheet {
+			hx-post="/kitchen/portions"
+			hx-target={ "#" + web.SideSheetBody(portionsSheetID) }
+			hx-swap="innerHTML"
+		}
 	>
 		<div class="stack">
 			@web.Field(web.T(ctx, msgPortionName), "", f.Errs["name"]) {
@@ -522,7 +525,7 @@ templ portionCountForm(f PortionLotForm) {
 	>
 		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
 		<input type="hidden" name="location" value={ string(f.Lot.Location) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[f.Lot.Location]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[f.Lot.Location])), "") {
 			<div class="stack">
 				@web.Hint() {
 					{ web.Tf(ctx, msgLotHolds, f.Lot.Count()) }
@@ -584,7 +587,7 @@ templ portionMoveForm(f PortionLotForm) {
 	>
 		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
 		<input type="hidden" name="location" value={ string(f.Lot.Location) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[f.Lot.Location]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[f.Lot.Location])), "") {
 			<div class="stack">
 				@wholeNumberField(web.T(ctx, msgMovePortionsQuantity), "quantity", "1", f.Typed, f.Errs["quantity"])
 				@web.Segmented(web.T(ctx, msgPortionWhere), "to", portionLocations(ctx, f.Lot.Location), f.To, f.Errs["to"])
@@ -626,7 +629,7 @@ templ moveForm(f MoveForm) {
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
 		<input type="hidden" name="location" value={ string(f.From) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Ingredient.Name), web.T(ctx, ingredients.StorageLocationNames[f.From]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Ingredient.Name), web.T(ctx, ingredients.StorageLocationNames[f.From])), "") {
 			<div class="stack">
 				@web.Field(web.T(ctx, msgMoveQuantity), "", f.Errs["quantity"]) {
 					<input

@@ -173,7 +173,7 @@ func TestAModelFailureWorthRetryingShowsInTheTraceAndTheRunSucceeds(t *testing.T
 	)
 	s.PastesRecipe(pastedLasagne)
 	s.Sees("Reading a Recipe Succeeded")
-	s.Sees("Asking the model again (1 of 3) overloaded (529) 1 ms")
+	s.Sees("Asking the model again (1 of 3) overloaded (529) Waiting 1 ms")
 	s.Sees("Ended: Succeeded")
 }
 
@@ -517,6 +517,26 @@ func pastesInTheSheet(t *testing.T, b *apptest.Browser, text string) {
 		t.Fatalf("paste: %v", err)
 	}
 	b.Click(t, "Read it")
+}
+
+// A paste refused in the sheet stays in it, saying why with its field focused, over the
+// Recipe Library.
+func TestBrowserAPasteRefusedInTheSheetStaysInIt(t *testing.T) {
+	b := signedUpBrowser(t)
+	pastesInTheSheet(t, b, "   ")
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Paste a recipe"})
+	field := sheet.GetByLabel("Paste a recipe")
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(field).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("the refused paste isn't marked aria-invalid: %v", err)
+	}
+	if err := expect.Locator(field).ToBeFocused(); err != nil {
+		t.Errorf("the refused paste isn't focused: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Paste a recipe to read."); err != nil {
+		t.Errorf("the sheet doesn't say why: %v", err)
+	}
+	b.IsAt(t, "/recipes")
 }
 
 // A Run's page folds what the User gave it, the paste, at its top, and its Trace reads as

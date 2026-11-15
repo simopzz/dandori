@@ -412,8 +412,14 @@ func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
 	}
 
 	b.Open(t, "/kitchen")
-	tall("Count", b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice", Exact: playwright.Bool(true)}))
-	tall("Move", b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move rice in the pantry", Exact: playwright.Bool(true)}))
+	count := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice", Exact: playwright.Bool(true)})
+	move := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move rice in the pantry", Exact: playwright.Bool(true)})
+	tall("Count", count)
+	tall("Move", move)
+	// Side by side, each keeps a target of its own.
+	if c, m := box(t, "Count", count), box(t, "Move", move); c.X+c.Width > m.X {
+		t.Errorf("Count ends at %.1fpx, over Move, which starts at %.1fpx", c.X+c.Width, m.X)
+	}
 	b.Open(t, run)
 	tall("a Trace line that opens", b.Locator(".fold > summary").First())
 }

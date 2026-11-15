@@ -459,7 +459,7 @@ var nutrientNames = map[string]web.Message{
 // nutrientHints give each nutritional value's unit, and say which may be left blank.
 var nutrientHints = map[string]web.Message{
 	"kcal": msgKcalUnit, "protein": msgGramsUnit, "carbs": msgGramsUnit, "fat": msgGramsUnit,
-	"fibre": msgFibreHint, "sugar": msgSugarHint,
+	"fibre": FibreHint, "sugar": SugarHint,
 }
 
 // Invalid marks a control aria-invalid when err says why its value was refused.

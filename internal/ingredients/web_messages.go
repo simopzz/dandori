@@ -23,16 +23,18 @@ var (
 		En: "Per 100 g, per 100 ml or per piece, to match the unit, as on the label.",
 		It: "Per 100 g, per 100 ml o per pezzo, secondo l'unità, come in etichetta.",
 	}
-	msgKcal         = web.Message{En: "Calories", It: "Calorie"}
-	msgProtein      = web.Message{En: "Protein", It: "Proteine"}
-	msgCarbs        = web.Message{En: "Carbs", It: "Carboidrati"}
-	msgFat          = web.Message{En: "Fat", It: "Grassi"}
-	msgFibre        = web.Message{En: "Fibre", It: "Fibre"}
-	msgSugar        = web.Message{En: "Sugar", It: "Zuccheri"}
-	msgKcalUnit     = web.Message{En: "kcal", It: "kcal"}
-	msgGramsUnit    = web.Message{En: "g", It: "g"}
-	msgFibreHint    = web.Message{En: "g, optional", It: "g, facoltative"}
-	msgSugarHint    = web.Message{En: "g, optional", It: "g, facoltativi"}
+	msgKcal      = web.Message{En: "Calories", It: "Calorie"}
+	msgProtein   = web.Message{En: "Protein", It: "Proteine"}
+	msgCarbs     = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat       = web.Message{En: "Fat", It: "Grassi"}
+	msgFibre     = web.Message{En: "Fibre", It: "Fibre"}
+	msgSugar     = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgKcalUnit  = web.Message{En: "kcal", It: "kcal"}
+	msgGramsUnit = web.Message{En: "g", It: "g"}
+	// FibreHint and SugarHint are fibre's and sugar's units, saying they may be left
+	// blank, wherever they are typed.
+	FibreHint       = web.Message{En: "g, optional", It: "g, facoltative"}
+	SugarHint       = web.Message{En: "g, optional", It: "g, facoltativi"}
 	msgValuesPer    = web.Message{En: "%s, as on the label.", It: "%s, come in etichetta."}
 	msgStaple       = web.Message{En: "Staple", It: "Base"}
 	msgStapleHint   = web.Message{En: "always there, never counted", It: "sempre in casa, mai contata"}

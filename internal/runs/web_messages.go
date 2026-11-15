@@ -26,6 +26,7 @@ var (
 	msgAnswered   = web.Message{En: "Dandori answers", It: "Dandori risponde"}
 	msgRefused    = web.Message{En: "Dandori sends it back", It: "Dandori lo rimanda indietro"}
 	msgRetrying   = web.Message{En: "Asking the model again (%d of %d)", It: "Chiedo di nuovo al modello (%d di %d)"}
+	msgWaiting    = web.Message{En: "Waiting %d ms", It: "Attendo %d ms"}
 	msgUsed       = web.Message{En: "The model used %d tokens", It: "Il modello ha usato %d token"}
 	msgTokens     = web.Message{
 		En: "%d tokens in, %d out, %d of them thinking; %d read from the cache, %d written to it",

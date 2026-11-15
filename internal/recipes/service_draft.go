@@ -46,27 +46,27 @@ func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 }
 
 // FindDraft is the signed-in User's Recipe Draft id, for them speaking l, each
-// Ingredient resolved by name to theirs. It is ErrNoDraft unless its Run has succeeded,
-// and when there is no such Recipe Draft.
-func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (domain.Recipe, error) {
+// Ingredient resolved by name to theirs, with the text its Run read, as Pasted. It is
+// ErrNoDraft unless its Run has succeeded, and when there is no such Recipe Draft.
+func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (rec domain.Recipe, pasted string, err error) {
 	var doc []byte
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
-		doc, _, err = loadDraft(ctx, tx, id)
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		doc, pasted, err = loadDraft(ctx, tx, id)
 		return err
 	})
 	if err != nil {
-		return domain.Recipe{}, err
+		return domain.Recipe{}, "", err
 	}
 	var p parsedRecipe
 	if err := json.Unmarshal(doc, &p); err != nil {
-		return domain.Recipe{}, err
+		return domain.Recipe{}, "", err
 	}
 	known, err := s.ingredients.List(ctx)
 	if err != nil {
-		return domain.Recipe{}, err
+		return domain.Recipe{}, "", err
 	}
-	rec, _ := p.recipe(l, known)
-	return rec, nil
+	rec, _ = p.recipe(l, known)
+	return rec, pasted, nil
 }
 
 // Pasted is the text the Run of the signed-in User's Recipe Draft id read, to check the

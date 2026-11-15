@@ -236,7 +236,7 @@ elements themselves.
 | `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
 | `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small navy square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
-| `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
+| `FieldGroup(num, legend, hint)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. `hint` follows the legend in brackets, as a `Field`'s does: `optional` for a group that may be left empty (a Recipe's Steps). |
 | `FieldGroupAction(id, num, legend, action)` | A `FieldGroup` with a secondary action beside its legend, for one that changes what the legend names (the Count form's `Choose another`); on a long legend it drops to the next line, at the far end. `id` is the legend text's, which alone names the group. |
 | `Hint()` | A quiet paragraph explaining what follows. |
 | `Empty()` | What a list or a page says when it has nothing in it: it says what would be here, why it isn't, and links the one action that fills it. Today, before it has a Plan, names each thing planning needs instead, each a link named for its action. |
@@ -254,13 +254,13 @@ elements themselves.
 | `DateField(label, name, value, err)` | A `Field` for a day, shown in the Language's order (`domain.FormatDate`); never a native `type="date"`. |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
-| `Checks(legend, name, choices, ticked, err)` | Ticking any of a fixed list of kinds (the kinds of Slot or of appliance a Recipe takes): one `Check` per `Choice`, in as many columns as the width allows, each with its icon when the `Choice` names one, as every kind does. `web.SlotKindChoices` and `web.ApplianceKindChoices` give the lists. |
+| `Checks(legend, hint, name, choices, ticked, err)` | Ticking any of a fixed list of kinds (the kinds of Slot or of appliance a Recipe takes): one `Check` per `Choice`, in as many columns as the width allows, each with its icon when the `Choice` names one, as every kind does. `web.SlotKindChoices` and `web.ApplianceKindChoices` give the lists. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. Their controls line up even when one label wraps onto two lines. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. On a page of forms each saved on its own, as the Profile's sections are, each says what it saves ("Save Targets"), so none reads as saving the page. |
-| `TextButton(attrs)` | A secondary action, underlined text. Its target is wider than its text, which still lines up with the column. |
+| `TextButton(attrs)` | A secondary action, underlined text. Its target is wider than its text, which, alone, still lines up with the column; beside another, the two keep their targets apart. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. Deleting or discarding what the User wrote asks once, naming what will go; nothing is removed by a single tap. Its Delete or Discard is a `RemoveLink` to a `RemoveStep`, whose own `DestructiveButton` does it. Cancelling a Run stays one tap: the User didn't write it. |
 | `RemoveLink(id, href, src)` | A `DestructiveButton`'s look on a `SideSheetLink`: opens the `SideSheet` `id` on the `RemoveStep` at `src`, or without htmx goes to `href`, the step as a page of its own. |
@@ -282,6 +282,7 @@ elements themselves.
 | `SideSheetLinkWith(id, href, src, attrs)` | A `SideSheetLink` with more attributes, such as an `hx-include` adding to `src` what the page around it says at that moment. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
+| `Verbatim(text)` | Text shown exactly as it was, its lines kept, on the surface: what the User pasted (on a Run and its Recipe Draft), a Trace Event's data. |
 | `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |
 
 Two layout classes go on elements a component can't wrap, such as a
