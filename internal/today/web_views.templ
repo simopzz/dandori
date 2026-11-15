@@ -15,7 +15,7 @@ templ page(now time.Time, d Day) {
 		@web.PageHeader("今日", web.T(ctx, msgToday), now)
 		@web.Section(1, firstText(ctx, now, d))
 		if len(d.Slots.Later) > 0 {
-			@web.Disclosure(web.T(ctx, msgLaterToday)) {
+			@web.Disclosure(web.T(ctx, msgLaterToday), false) {
 				@web.Rows() {
 					for _, s := range d.Slots.Later {
 						@web.Row() {

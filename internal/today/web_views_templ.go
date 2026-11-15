@@ -142,7 +142,7 @@ func page(now time.Time, d Day) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = web.Disclosure(web.T(ctx, msgLaterToday)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.Disclosure(web.T(ctx, msgLaterToday), false).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

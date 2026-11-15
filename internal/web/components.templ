@@ -81,9 +81,9 @@ templ Empty() {
 }
 
 // Disclosure is a group of a page's content a click away, under summary: closed until the
-// User opens it.
-templ Disclosure(summary string) {
-	<details class="disclosure section">
+// User opens it, unless open says it holds what they are at, such as a refused form.
+templ Disclosure(summary string, open bool) {
+	<details class="disclosure section" open?={ open }>
 		<summary>
 			<span>{ summary }</span>
 			@Icon("chevron-down")
@@ -709,10 +709,11 @@ templ SectionBody(id string) {
 func SideSheetBody(id string) string { return id + "-body" }
 
 // SideSheetLink opens the sheet id with its SheetBody loaded from src, a fragment, and
-// focuses its field marked autofocus, or else its first. Without htmx it is a plain link
-// to href, a page of the same content. htmx tells the swap to the link, so the link opens
-// the sheet; a form in the body, swapped away, has htmx tell the body instead. The link
-// is the sheet's source, so one inside another sheet opens over it and leaves it open.
+// focuses its field marked autofocus, or else its first shown, not in a closed
+// Disclosure. Without htmx it is a plain link to href, a page of the same content. htmx
+// tells the swap to the link, so the link opens the sheet; a form in the body, swapped
+// away, has htmx tell the body instead. The link is the sheet's source, so one inside
+// another sheet opens over it and leaves it open.
 templ SideSheetLink(id string, href, src templ.SafeURL) {
 	@SideSheetLinkWith(id, href, src, nil) {
 		{ children... }
@@ -736,7 +737,7 @@ templ sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attribute
 		hx-target={ "#" + SideSheetBody(id) }
 		hx-swap="innerHTML"
 		data-sheet={ id }
-		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.open) s.showModal(); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea'))?.focus()"
+		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.open) s.showModal(); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body :is(input:not([type=hidden]), select, textarea):not(details:not([open]) *)'))?.focus()"
 		{ attrs... }
 	>
 		{ children... }

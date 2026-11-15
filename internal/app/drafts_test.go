@@ -262,11 +262,11 @@ func TestBrowserDiscardsARecipeDraftWithoutJS(t *testing.T) {
 	h.Invite("ada@example.com")
 	b := h.BrowserWithoutJS(t)
 	b.SignUp(t, "ada@example.com")
-	b.Open(t, "/ingredients")
+	b.Open(t, "/ingredients/new")
 	fillsIngredient(t, b.Locator("main"), "rice")
 	b.IsConfirmed(t, "Added rice.")
 	h.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Done."))
-	b.Open(t, "/recipes")
+	b.Open(t, "/recipes/paste")
 	if err := b.Locator(`#paste-form [name="text"]`).Fill(pastedLasagne); err != nil {
 		t.Fatalf("paste: %v", err)
 	}

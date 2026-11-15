@@ -250,7 +250,7 @@ func TestBrowserATapOnTheVeilKeepsAChangedForm(t *testing.T) {
 		if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).First().Click(); err != nil {
 			t.Fatalf("open the Ingredients: %v", err)
 		}
-		if err := expect.Locator(name).ToBeVisible(); err != nil {
+		if err := expect.Locator(sheet.GetByRole("searchbox")).ToBeVisible(); err != nil {
 			t.Fatalf("the Ingredients sheet doesn't open: %v", err)
 		}
 	}
@@ -284,6 +284,7 @@ func TestBrowserATapOnTheVeilKeepsAChangedForm(t *testing.T) {
 	closes("a tap on the veil, with only a search typed,")
 
 	opens()
+	opensAddForm(t, sheet)
 	types(name, "rice")
 	tapsTheVeil()
 	if err := expect.Locator(name).ToHaveValue("rice"); err != nil {
@@ -295,6 +296,7 @@ func TestBrowserATapOnTheVeilKeepsAChangedForm(t *testing.T) {
 	closes("Esc, with something typed,")
 
 	opens()
+	opensAddForm(t, sheet)
 	types(name, "rice")
 	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("press Close: %v", err)

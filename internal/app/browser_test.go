@@ -111,10 +111,10 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 	}
 }
 
-// The Ingredients side sheet opens from the Kitchen page, over it, focused on its first
-// field, and adds an Ingredient there: the sheet stays open, the Ingredient listed and
-// the form cleared. An add refused shows why with focus on the field, the sheet still
-// open and the page under it the same.
+// The Ingredients side sheet opens from the Kitchen page, over it, focused on its search,
+// its add form closed under "Add an Ingredient", and adds an Ingredient there: the sheet
+// stays open, the Ingredient listed and the form cleared. An add refused shows why with
+// focus on the field, the sheet still open and the page under it the same.
 func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -127,8 +127,11 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Fatalf("the Ingredients sheet doesn't open: %v", err)
 	}
-	if err := expect.Locator(add.GetByLabel("Name")).ToBeFocused(); err != nil {
-		t.Errorf("opening the sheet doesn't focus its first field: %v", err)
+	if err := expect.Locator(sheet.Locator(`#ingredient-search input[name="q"]`)).ToBeFocused(); err != nil {
+		t.Errorf("opening the sheet doesn't focus its search: %v", err)
+	}
+	if err := expect.Locator(add).ToBeHidden(); err != nil {
+		t.Errorf("opening the sheet shows its add form: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 
@@ -146,6 +149,7 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	}
 	addEgg := func() {
 		t.Helper()
+		opensAddForm(t, sheet)
 		fill("Name", "egg")
 		choose("Unit", "piece")
 		choose("Usually kept in", "fridge")
@@ -209,6 +213,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 	leavesName := func(value string) {
 		t.Helper()
+		opensAddForm(t, sheet)
 		if err := name.Fill(value); err != nil {
 			t.Fatalf("fill the name: %v", err)
 		}
@@ -218,6 +223,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 	fills := func(value string) {
 		t.Helper()
+		opensAddForm(t, sheet)
 		for label, value := range map[string]string{"Calories (kcal)": "70", "Protein (g)": "6.3", "Carbs (g)": "0.4", "Fat (g)": "4.8"} {
 			if err := add.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
 				t.Fatalf("fill %s: %v", label, err)
