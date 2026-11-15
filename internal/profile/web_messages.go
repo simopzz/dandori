@@ -17,6 +17,7 @@ var (
 		En: "You can change it on your Profile until you write your first food in it: an Ingredient, Recipe, Recipe Draft or Portion, or an exclusion or allergy.",
 		It: "Puoi cambiarla nel tuo Profilo finché non ci scrivi il tuo primo alimento: un Ingrediente, una Ricetta, una Bozza di Ricetta o una Porzione, oppure un'esclusione o un'allergia.",
 	}
+	msgOpenRuns      = web.Message{En: "See your Runs", It: "Vedi le tue Run"}
 	msgLanguage      = web.Message{En: "Language", It: "Lingua"}
 	msgContinue      = web.Message{En: "Continue", It: "Continua"}
 	msgChooseOne     = web.Message{En: "Choose English or Italiano.", It: "Scegli English o Italiano."}
