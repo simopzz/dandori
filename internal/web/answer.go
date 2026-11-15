@@ -28,7 +28,8 @@ func (a Answer) Redirects(r *http.Request) bool {
 }
 
 // partial reports whether r is htmx's to swap part of a page, not a boosted one's
-// swapping the whole body.
+// swapping the whole body. htmx 4 also marks a request that uses hx-select "full", so
+// that one gets the whole page to select from, even with an hx-target.
 func partial(r *http.Request) bool {
 	return httpx.IsHTMX(r) && r.Header.Get("HX-Request-Type") != "full"
 }
