@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -517,14 +518,21 @@ func TestRenamingARecipeToAnotherIsRefusedWithALinkToIt(t *testing.T) {
 	s.Sees("RISOTTO")
 }
 
-// Deleting a Recipe removes it and frees its Ingredients for deleting or changing unit.
+// Deleting a Recipe asks once, naming it, then removes it and frees its Ingredients for
+// deleting or changing unit. The edit form has no Delete that posts at once.
 func TestDeletingARecipeRemovesItAndFreesItsIngredients(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.WritesRecipe(riceBowl())
 	page := s.Page().Path
 
 	s.Follows("Edit")
-	s.Submits("recipe-remove")
+	if strings.Contains(s.Page().Body, `action="`+page+`/delete"`) {
+		t.Errorf("the edit form deletes the Recipe in one post:\n%s", s.Page().Body)
+	}
+	s.Follows("Delete")
+	s.IsAt(page + "/delete")
+	s.Sees("Delete the Recipe Rice bowl?")
+	s.Submits("remove-step")
 	s.IsConfirmed("Deleted Rice bowl.")
 	s.IsAt("/recipes")
 	s.Sees("No Recipes yet.")
@@ -559,6 +567,26 @@ func TestAnIngredientTakenOffARecipeIsFreed(t *testing.T) {
 	s.IsConfirmed("Deleted tofu.")
 }
 
+// The sheet a Recipe's Delete opens asks in the User's Language, and its form posted as
+// htmx lands on the Library confirming it, as a plain post does.
+func TestARecipeIsDeletedFromItsSheet(t *testing.T) {
+	s := kitchenIn(t, "Italiano", rice)
+	s.WritesRecipe(riceBowl())
+	s.Open(s.Page().Path + "/edit")
+	sheet := s.HTMXGet(t, apptest.SheetSource(t, s.Page().Body, "Elimina"))
+	if shown := apptest.Text(sheet.Body); sheet.StatusCode != http.StatusOK || strings.Contains(sheet.Body, "<html") || !strings.Contains(shown, "Eliminare la Ricetta Rice bowl?") {
+		t.Fatalf("the sheet answered %d:\n%s", sheet.StatusCode, sheet.Body)
+	}
+	step := apptest.Form(t, sheet.Body, "remove-step")
+	got := s.HTMXPostForm(t, step.Action, step.Values)
+	if got.Path != "/recipes" {
+		t.Errorf("deleting from the sheet landed on %s", got.Path)
+	}
+	if notices := apptest.Notices(t, got.Body); !slices.Equal(notices, []string{"Eliminata: Rice bowl."}) {
+		t.Errorf("deleting from the sheet confirms %q", notices)
+	}
+}
+
 // Another User's Recipe can be neither edited nor deleted, even by address.
 func TestAnotherUsersRecipeCanNeitherBeEditedNorDeleted(t *testing.T) {
 	s := kitchenWith(t, rice)
@@ -577,6 +605,11 @@ func TestAnotherUsersRecipeCanNeitherBeEditedNorDeleted(t *testing.T) {
 	s.AddsIngredient(rice)
 	if got := s.PostForm(t, form.Action, form.Values); got.StatusCode != http.StatusNotFound {
 		t.Errorf("editing another User's Recipe answered %d", got.StatusCode)
+	}
+	for _, step := range []string{page + "/delete", page + "/delete/sheet"} {
+		if got := s.Get(t, step); got.StatusCode != http.StatusNotFound {
+			t.Errorf("the step deleting another User's Recipe, %s, answered %d", step, got.StatusCode)
+		}
 	}
 	if got := s.PostForm(t, page+"/delete", nil); got.StatusCode != http.StatusNotFound {
 		t.Errorf("deleting another User's Recipe answered %d", got.StatusCode)
@@ -623,7 +656,8 @@ func TestTheRecipeLibrarysSearchFindsARecipeThroughATypo(t *testing.T) {
 }
 
 // In a browser, the Library's search swaps the list as the User types, keeping focus, and
-// the edit form's Delete, a button of the form beside it, lands on the Library.
+// the edit form's Delete opens a sheet asking first: closed, it leaves the Recipe, and
+// confirmed, it lands on the Library saying so.
 func TestBrowserSearchesTheLibraryAndDeletesARecipe(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/recipes/new")
@@ -673,7 +707,32 @@ func TestBrowserSearchesTheLibraryAndDeletesARecipe(t *testing.T) {
 	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Edit"}).Click(); err != nil {
 		t.Fatalf("open the edit form: %v", err)
 	}
-	b.Click(t, "Delete")
-	b.Sees(t, "No Recipes yet.")
+	b.Sees(t, "Edit a Recipe")
+	edit := b.URL()
+	deleteLink := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Delete", Exact: playwright.Bool(true)})
+	sheet := b.Locator("#recipe-remove")
+	if err := deleteLink.Click(); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if err := playwright.NewPlaywrightAssertions().Locator(sheet).ToContainText("Delete the Recipe Lentil soup?"); err != nil {
+		t.Fatalf("the sheet asking first never showed: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+		t.Fatalf("close the sheet: %v", err)
+	}
+	if err := playwright.NewPlaywrightAssertions().Locator(sheet).Not().ToBeVisible(); err != nil {
+		t.Errorf("the sheet stayed open: %v", err)
+	}
+	if got := b.URL(); got != edit {
+		t.Errorf("closing the sheet left the edit form for %s", got)
+	}
+	if err := deleteLink.Click(); err != nil {
+		t.Fatalf("delete again: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
 	b.IsAt(t, "/recipes")
+	b.IsConfirmed(t, "Deleted Lentil soup.")
+	b.Sees(t, "No Recipes yet.")
 }

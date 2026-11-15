@@ -166,9 +166,30 @@ templ formPage(now time.Time, f RecipeForm) {
 // knownIngredients is the id of the list of names a row's name offers as the User types.
 const knownIngredients = "known-ingredients"
 
-// removeFormID is the id of the form deleting the Recipe being edited or discarding the
-// Recipe Draft, beside the Recipe form since forms don't nest, so Enter still saves.
-const removeFormID = "recipe-remove"
+// removeSheetID is the id of the sheet asking before deleting the Recipe being edited or
+// discarding the Recipe Draft, beside the Recipe form since forms don't nest.
+const removeSheetID = "recipe-remove"
+
+// removal is what the step asking before deleting a Recipe or discarding a Recipe Draft
+// shows: its Title, the Question naming it, the button Remove posting to Action, and the
+// page Back it leaves for.
+type removal struct {
+	Title, Remove          web.Message
+	Question, Action, Back string
+}
+
+// removePage is the step r as a page of its own, for a browser without htmx.
+templ removePage(now time.Time, r removal) {
+	@web.Layout(web.Tf(ctx, msgRecipeTitle, web.T(ctx, r.Title)), web.RecipesTab) {
+		@web.PageHeader("レシピ", web.T(ctx, r.Title), now)
+		@removeStep(r, templ.SafeURL(r.Back))
+	}
+}
+
+// removeStep is the step r, with a link back unless back is "", as in its sheet.
+templ removeStep(r removal, back templ.SafeURL) {
+	@web.RemoveStep(r.Question, web.T(ctx, r.Remove), templ.SafeURL(r.Action), back, nil)
+}
 
 // recipeForm is the one form every Recipe is written with. Its add buttons ask htmx for
 // one more row, and without htmx post the form back with one.
@@ -231,10 +252,10 @@ templ recipeForm(f RecipeForm) {
 		<div class="section">
 			@web.Checks(web.T(ctx, msgAppliances), "appliances", web.ApplianceKindChoices(ctx), f.Appliances, "")
 		</div>
-		if f.RemoveAction != "" {
+		if f.RemoveStep != "" {
 			@web.ActionsApart() {
 				@saveButton(f)
-				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": removeFormID}) {
+				@web.RemoveLink(removeSheetID, templ.SafeURL(f.RemoveStep), templ.SafeURL(f.RemoveStep+"/sheet")) {
 					{ web.T(ctx, f.Remove) }
 				}
 			}
@@ -244,8 +265,8 @@ templ recipeForm(f RecipeForm) {
 			}
 		}
 	</form>
-	if f.RemoveAction != "" {
-		<form id={ removeFormID } method="post" action={ templ.SafeURL(f.RemoveAction) }></form>
+	if f.RemoveStep != "" {
+		@web.SideSheet(removeSheetID, web.T(ctx, f.RemoveTitle))
 	}
 	<script src="/static/recipe-form.js"></script>
 }

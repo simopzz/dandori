@@ -171,10 +171,23 @@ func EditForm(t testing.TB, page, name string) FormData {
 	return Form(t, page, "ingredient-edit-"+editedID(t, page, name))
 }
 
-// DeleteForm reads the form deleting the Ingredient whose edit form holds the name name.
-func DeleteForm(t testing.TB, page, name string) FormData {
+// DeleteLink is where the Delete of the Ingredient whose edit form holds the name name
+// leads: href, the step asking before deleting it as a page, and src, the same step as
+// the body of the sheet htmx opens.
+func DeleteLink(t testing.TB, page, name string) (href, src string) {
 	t.Helper()
-	return Form(t, page, "ingredient-delete-"+editedID(t, page, name))
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	step := "/ingredients/" + editedID(t, page, name) + "/delete"
+	for n := range doc.Descendants() {
+		if n.Type == html.ElementNode && n.Data == "a" && strings.HasPrefix(attr(n, "href"), step) {
+			return attr(n, "href"), attr(n, "hx-get")
+		}
+	}
+	t.Fatalf("page has no link to %s, the step deleting %q", step, name)
+	return "", ""
 }
 
 // editedID is the id of the Ingredient whose edit form on page holds the name name.

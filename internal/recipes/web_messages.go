@@ -23,6 +23,8 @@ var (
 	msgEditTitle    = web.Message{En: "Edit a Recipe · Dandori", It: "Modifica una Ricetta · Dandori"}
 	msgDelete       = web.Message{En: "Delete", It: "Elimina"}
 	msgDeleted      = web.Message{En: "Deleted %s.", It: "Eliminata: %s."}
+	msgDeleteRecipe = web.Message{En: "Delete the Recipe", It: "Elimina la Ricetta"}
+	msgDeleteAsk    = web.Message{En: "Delete the Recipe %s?", It: "Eliminare la Ricetta %s?"}
 
 	msgPaste         = web.Message{En: "Paste a recipe", It: "Incolla una ricetta"}
 	msgPasteHint     = web.Message{En: "in any language", It: "in qualsiasi lingua"}
@@ -36,6 +38,8 @@ var (
 	msgAccept        = web.Message{En: "Add to the Recipe Library", It: "Aggiungi al Ricettario"}
 	msgDiscard       = web.Message{En: "Discard", It: "Scarta"}
 	msgDiscarded     = web.Message{En: "Discarded the Recipe Draft %s.", It: "Bozza di Ricetta scartata: %s."}
+	msgDiscardDraft  = web.Message{En: "Discard the Recipe Draft", It: "Scarta la Bozza di Ricetta"}
+	msgDiscardAsk    = web.Message{En: "Discard the Recipe Draft %s?", It: "Scartare la Bozza di Ricetta %s?"}
 	msgDraftsToCheck = web.Message{En: "Recipe Drafts to check", It: "Bozze di Ricetta da controllare"}
 	msgParsedOn      = web.Message{En: "read %s", It: "letta %s"}
 

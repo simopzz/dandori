@@ -17,6 +17,7 @@ var (
 	msgChange         = Message{En: "Change", It: "Modifica"}
 	msgChooseAdd      = Message{En: "Choose what to add", It: "Scegli cosa aggiungere"}
 	msgClose          = Message{En: "Close", It: "Chiudi"}
+	msgBack           = Message{En: "Back", It: "Indietro"}
 	msgCloseNotice    = Message{En: "Close notice", It: "Chiudi avviso"}
 )
 

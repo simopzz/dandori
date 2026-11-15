@@ -364,6 +364,39 @@ templ DestructiveButton(attrs templ.Attributes) {
 	</button>
 }
 
+// RemoveLink is a DestructiveButton that asks first: it opens the SideSheet id on the
+// RemoveStep loaded from src, a fragment, or without htmx goes to href, the step's page.
+templ RemoveLink(id string, href, src templ.SafeURL) {
+	@sheetLink("btn-text btn-danger", id, href, src, nil) {
+		{ children... }
+	}
+}
+
+// RemoveStepID is the id of a RemoveStep's form.
+const RemoveStepID = "remove-step"
+
+// RemoveStep asks once before deleting or discarding what the User wrote, question
+// naming what will go: a form posting to action, whose DestructiveButton says remove,
+// attrs adding such as the swap of a sheet's body, and the children its hidden fields.
+// back, unless "", is a TextLink back, for the step as a page of its own; in a sheet,
+// the sheet's Close is the way back.
+templ RemoveStep(question, remove string, action, back templ.SafeURL, attrs templ.Attributes) {
+	<form id={ RemoveStepID } class="stack" method="post" action={ action } { attrs... }>
+		<p>{ question }</p>
+		{ children... }
+		@Actions() {
+			@DestructiveButton(templ.Attributes{"type": "submit"}) {
+				{ remove }
+			}
+			if back != "" {
+				@TextLink(templ.Attributes{"href": back}) {
+					{ T(ctx, msgBack) }
+				}
+			}
+		}
+	</form>
+}
+
 // Choice is one option of a Segmented choice or of Checks. Icon, if any, names the icon
 // Checks shows before the label.
 type Choice struct {

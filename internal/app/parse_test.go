@@ -457,13 +457,16 @@ func TestTwoUsersNeverSeeEachOthersRunsOrRecipeDrafts(t *testing.T) {
 
 	s.SwitchesTo("bob@example.com")
 	s.ChoosesLanguage("English")
-	for _, path := range []string{run, run + "/events", draft} {
+	for _, path := range []string{run, run + "/events", draft, draft + "/discard", draft + "/discard/sheet"} {
 		if res := s.Get(t, path); res.StatusCode != http.StatusNotFound {
 			t.Errorf("another User opening %s got %d, want 404", path, res.StatusCode)
 		}
 	}
 	if res := s.PostForm(t, run+"/cancel", nil); res.StatusCode != http.StatusNotFound {
 		t.Errorf("another User cancelling %s got %d, want 404", run, res.StatusCode)
+	}
+	if res := s.PostForm(t, draft+"/discard", nil); res.StatusCode != http.StatusNotFound {
+		t.Errorf("another User discarding %s got %d, want 404", draft, res.StatusCode)
 	}
 	s.Open("/runs")
 	if shown := apptest.Text(s.Page().Body); strings.Contains(shown, "Reading a Recipe") {

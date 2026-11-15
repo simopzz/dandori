@@ -39,10 +39,10 @@ type RecipeForm struct {
 	ID, DraftID            int64
 	Action                 string
 	Title, Heading, Submit web.Message
-	// RemoveAction deletes the Recipe or discards the Recipe Draft, with the button
-	// Remove, or is "" for a new Recipe.
-	RemoveAction                  string
-	Remove                        web.Message
+	// RemoveStep is the page of the step that asks before deleting the Recipe or
+	// discarding the Recipe Draft, with the link Remove, or is "" for a new Recipe.
+	RemoveStep                    string
+	Remove, RemoveTitle           web.Message
 	Name, Portions, Active, Total string
 	// Slots and Appliances are the codes of the kinds ticked.
 	Slots, Appliances []string
@@ -98,10 +98,10 @@ func newForm(f RecipeForm) RecipeForm {
 	switch {
 	case f.ID != 0:
 		f.Action, f.Title, f.Heading = recipeURL(f.ID), msgEditTitle, msgEditHeading
-		f.RemoveAction, f.Remove = recipeURL(f.ID)+"/delete", msgDelete
+		f.RemoveStep, f.Remove, f.RemoveTitle = recipeURL(f.ID)+"/delete", msgDelete, msgDeleteRecipe
 	case f.DraftID != 0:
 		f.Action, f.Title, f.Heading, f.Submit = draftURL(f.DraftID), msgDraftTitle, DraftName, msgAccept
-		f.RemoveAction, f.Remove = draftURL(f.DraftID)+"/discard", msgDiscard
+		f.RemoveStep, f.Remove, f.RemoveTitle = draftURL(f.DraftID)+"/discard", msgDiscard, msgDiscardDraft
 	}
 	if len(f.Ingredients) == 0 {
 		f.Ingredients = []IngredientRow{{}}

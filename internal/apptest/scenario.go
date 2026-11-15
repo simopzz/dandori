@@ -280,11 +280,12 @@ func (s *Scenario) EditsIngredient(name string, ing Ingredient) {
 	s.record(fmt.Sprintf("edits the Ingredient %q to %q: %d %s", name, ing.Name, s.page.StatusCode, s.page.Path))
 }
 
-// DeletesIngredient deletes the Ingredient named name with its delete form on the page
-// open, posted as a browser without htmx.
+// DeletesIngredient deletes the Ingredient named name from the page open, following its
+// Delete to the step that asks first and confirming there, as a browser without htmx.
 func (s *Scenario) DeletesIngredient(name string) {
 	s.t.Helper()
-	form := DeleteForm(s.t, s.page.Body, name)
+	href, _ := DeleteLink(s.t, s.page.Body, name)
+	form := Form(s.t, s.Get(s.t, href).Body, "remove-step")
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("deletes the Ingredient %q: %d %s", name, s.page.StatusCode, s.page.Path))
 }

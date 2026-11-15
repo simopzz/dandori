@@ -18,6 +18,46 @@ const SheetID = "ingredients"
 // page that shows a SheetLink renders it once.
 templ Sheet() {
 	@web.SideSheet(SheetID, web.T(ctx, msgIngredients))
+	@deleteSheet()
+}
+
+// deleteSheetID is the id of the sheet asking before deleting an Ingredient, which opens
+// over the Ingredients.
+const deleteSheetID = "ingredient-delete"
+
+// deleteSheet is the sheet asking before deleting an Ingredient, empty until a row's
+// Delete opens it.
+templ deleteSheet() {
+	@web.SideSheet(deleteSheetID, web.T(ctx, msgDeleteIngredient))
+}
+
+// deletePage is the step asking before deleting ing, searched for q, as a page of its
+// own for a browser without htmx: confirmed, it lands on the Ingredients page.
+templ deletePage(today time.Time, ing domain.Ingredient, q string) {
+	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
+		@web.PageHeader("食材", web.T(ctx, msgDeleteIngredient), today)
+		@web.RemoveStep(web.Tf(ctx, msgDeleteAsk, ing.Name), web.T(ctx, msgDelete), templ.SafeURL(ingredientURL(ing.ID, "/delete")), templ.SafeURL(searched(q)), nil) {
+			<input type="hidden" name="q" value={ q }/>
+		}
+	}
+}
+
+// deleteBody is the step asking before deleting ing, searched for q, as its sheet's
+// body: confirmed, it swaps the Ingredients' body under it and closes.
+templ deleteBody(ing domain.Ingredient, q string) {
+	@web.RemoveStep(web.Tf(ctx, msgDeleteAsk, ing.Name), web.T(ctx, msgDelete), templ.SafeURL(ingredientURL(ing.ID, "/delete")), "", deleteSwap(ing.ID)) {
+		<input type="hidden" name="q" value={ q }/>
+	}
+}
+
+// deleteSwap posts the deletion of the Ingredient id by htmx, swapping the Ingredients'
+// body under the sheet that asked.
+func deleteSwap(id int64) templ.Attributes {
+	return templ.Attributes{
+		"hx-post":   ingredientURL(id, "/delete"),
+		"hx-target": "#" + web.SideSheetBody(SheetID),
+		"hx-swap":   "innerHTML",
+	}
 }
 
 // SheetLink opens the Ingredients side sheet; without htmx it goes to the
@@ -49,6 +89,7 @@ templ page(today time.Time, ings []domain.Ingredient, view sheetView) {
 		<div id={ web.SideSheetBody(SheetID) }>
 			@sheetBody(ings, view)
 		</div>
+		@deleteSheet()
 	}
 }
 
@@ -125,8 +166,8 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 }
 
 // editForm edits ing, posted from its row, swapping the side sheet's body when htmx posts
-// it, searched for q as it was. Its Delete belongs to the delete form beside it, as forms
-// don't nest, so Enter still saves. When some Movement refers to it, withMovements, a
+// it, searched for q as it was. Its Delete opens the step asking first, a link, so Enter
+// still saves. When some Movement refers to it, withMovements, a
 // link opens its Movements in its usual Storage Location, which reach the other two: the
 // only way to them for a Staple, which no Stock Item holds.
 templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) {
@@ -166,23 +207,22 @@ templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) 
 				@web.Button(templ.Attributes{"type": "submit"}) {
 					{ web.T(ctx, msgSave) }
 				}
-				@web.DestructiveButton(templ.Attributes{"type": "submit", "form": deleteFormID(ing.ID)}) {
+				@web.RemoveLink(deleteSheetID, templ.SafeURL(deleteURL(ing.ID, "", q)), templ.SafeURL(deleteURL(ing.ID, "/sheet", q))) {
 					{ web.T(ctx, msgDelete) }
 				}
 			}
 			@web.FieldError(f.DeleteErr)
 		</div>
 	</form>
-	<form
-		id={ deleteFormID(ing.ID) }
-		method="post"
-		action={ templ.SafeURL(ingredientURL(ing.ID, "/delete")) }
-		hx-post={ ingredientURL(ing.ID, "/delete") }
-		hx-target={ "#" + web.SideSheetBody(SheetID) }
-		hx-swap="innerHTML"
-	>
-		<input type="hidden" name="q" value={ q }/>
-	</form>
+}
+
+// deleteURL is the step asking before deleting the Ingredient id, searched for q, then
+// rest: "" for its page, "/sheet" for its sheet's body.
+func deleteURL(id int64, rest, q string) string {
+	if q == "" {
+		return ingredientURL(id, "/delete"+rest)
+	}
+	return ingredientURL(id, "/delete"+rest) + "?q=" + url.QueryEscape(q)
 }
 
 // stapleCheck marks an Ingredient a Staple, checked when staple says it is one.
@@ -205,9 +245,6 @@ func ingredientURL(id int64, rest string) string {
 
 // editFormID is the id of the form editing the Ingredient id.
 func editFormID(id int64) string { return "ingredient-edit-" + strconv.FormatInt(id, 10) }
-
-// deleteFormID is the id of the form deleting the Ingredient id.
-func deleteFormID(id int64) string { return "ingredient-delete-" + strconv.FormatInt(id, 10) }
 
 // addForm adds an Ingredient, swapping the side sheet's body when htmx posts it. Added to
 // count, the answer swaps the sheet under this one instead, leaving this form in place
