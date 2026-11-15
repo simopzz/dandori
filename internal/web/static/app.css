@@ -55,7 +55,7 @@
   /* shape and size */
   --radius: 0;
   --tap: 2.75rem;                 /* smallest touch target, 44px */
-  --focus-ring: 2px solid var(--color-accent);
+  --focus-ring: 3px solid var(--color-rule-strong); /* navy, 12:1 on paper: vermilion would read as refused */
   --rail-width: 13rem;
   --tabs-height: 3.75rem;
   --fab-size: 3.5rem;
@@ -165,7 +165,7 @@ legend { padding: 0; }
 pre,
 code { font-family: var(--font-mono); font-size: 0.875rem; }
 
-:focus-visible { outline: var(--focus-ring); outline-offset: 3px; }
+:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -301,8 +301,8 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
   color: var(--color-on-shell-soft);
 }
 
-/* Vermilion is about 2:1 on navy, so a focused tab is ringed in the marker's salmon. */
-.tabs { --focus-ring: 2px solid var(--color-shell-marker); }
+/* Navy is lost on navy, so a focused tab is ringed in the marker's salmon. */
+.tabs { --focus-ring: 3px solid var(--color-shell-marker); }
 
 .tab[aria-current="page"] { color: var(--color-on-shell); }
 
@@ -379,8 +379,8 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
 .lang-switch a[aria-current] { color: var(--color-text); font-weight: 700; text-decoration: none; }
 
-/* sections: a numbered heading over the banner's underline, a short vermilion
-   stroke under the number, then navy */
+/* sections: a numbered heading over the banner's underline, a short navy
+   stroke under the number, a gap, then navy */
 
 .section { margin: 0 0 var(--space-6); }
 
@@ -401,7 +401,7 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
   position: absolute;
   inset: auto 0 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-accent) 0 2.25rem, transparent 2.25rem 2.6rem, var(--color-rule-strong) 2.6rem);
+  background: linear-gradient(90deg, var(--color-rule-strong) 0 2.25rem, transparent 2.25rem 2.6rem, var(--color-rule-strong) 2.6rem);
 }
 
 .section-heading:has(.heading-action) { flex-wrap: wrap; }
@@ -412,10 +412,10 @@ legend.section-heading { float: left; }
 
 legend.section-heading + * { clear: both; }
 
-.num { font: 400 0.875rem var(--font-body); letter-spacing: normal; color: var(--color-accent); }
+.num { font: 400 0.875rem var(--font-body); letter-spacing: normal; color: var(--color-rule-strong); }
 
 /* mark: an unnumbered Section's square seal, in the number's place */
-.mark { flex: none; width: calc(3 * var(--pixel)); height: calc(3 * var(--pixel)); background: var(--color-accent); }
+.mark { flex: none; width: calc(3 * var(--pixel)); height: calc(3 * var(--pixel)); background: var(--color-rule-strong); }
 
 .hint { color: var(--color-text-soft); font-size: 0.9rem; }
 
@@ -743,7 +743,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .notice {
   --notice-time: 5s;
-  --focus-ring: 2px solid var(--color-shell-marker); /* vermilion is about 2:1 on navy */
+  --focus-ring: 3px solid var(--color-shell-marker); /* navy is lost on navy */
   position: relative;
   display: flex;
   align-items: center;
