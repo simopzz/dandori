@@ -67,7 +67,7 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 	s.Sees("Parsed the lasagne.")
 
 	s.Follows("Recipe Draft")
-	s.Sees("Recipe Draft Name Portions")
+	s.Sees("Recipe Draft What you pasted")
 	draftHolds(t, s, map[string]string{
 		"name": "Lasagne", "portions": "4", "active": "30", "total": "70", "slots": "lunch\ndinner", "appliances": "oven\nhob",
 		"ing_name_4": "rice", "ing_quantity_4": "100", "ing_kcal_4": "",
@@ -76,7 +76,7 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 		"ing_name_1": "lasagne sheets", "ing_fat_1": "1.5", "ing_fibre_1": "", "ing_sugar_1": "", "ing_usual_1": "pantry",
 		"ing_name_3": "olive oil", "ing_quantity_3": "10", "ing_unit_3": "ml", "ing_kcal_3": "820", "ing_staple_3": "on",
 	})
-	s.Sees("Measured in g")
+	s.Sees("Quantity (g)")
 	s.Sees("Brown the mince. Layer with the sheets and tomatoes. Bake 40 minutes.")
 }
 
@@ -173,7 +173,7 @@ func TestAModelFailureWorthRetryingShowsInTheTraceAndTheRunSucceeds(t *testing.T
 	)
 	s.PastesRecipe(pastedLasagne)
 	s.Sees("Reading a Recipe Succeeded")
-	s.Sees("Retry 1 of 3 in 1 ms overloaded (529)")
+	s.Sees("Asking the model again (1 of 3) overloaded (529) Waiting 1 ms")
 	s.Sees("Ended: Succeeded")
 }
 
@@ -218,8 +218,8 @@ func TestSubmitRecipesProblemsGoBackToTheModelWhichFixesThem(t *testing.T) {
 	)
 
 	s.PastesRecipe(pastedLasagne)
-	s.Sees("submit_recipe refuses")
-	s.Sees("submit_recipe answers")
+	s.Sees("Dandori sends it back submit_recipe")
+	s.Sees("Dandori answers submit_recipe")
 	s.Follows("Recipe Draft")
 	draftHolds(t, s, map[string]string{"ing_name_4": "rice", "ing_quantity_4": "100", "ing_name_0": "beef mince", "ing_kcal_0": "250"})
 }
@@ -249,7 +249,7 @@ func TestUnknownKindsGoBackToTheModelAllAtOnce(t *testing.T) {
 	)
 
 	s.PastesRecipe(pastedLasagne)
-	s.Sees("submit_recipe refuses")
+	s.Sees("Dandori sends it back submit_recipe")
 	s.Follows("Recipe Draft")
 	draftHolds(t, s, map[string]string{"appliances": "oven\nhob"})
 }
@@ -382,17 +382,20 @@ func TestSubmitRecipesSchemaStatesTheRulesItChecks(t *testing.T) {
 	}
 }
 
-// A Trace's fixed lines are in the User's Language, whichever it is when they look, and
-// what the model said is as it said it.
+// A Trace's fixed lines are plain words in the User's Language, whichever it is when they
+// look, timed to the minute, each folding its data, the model's and the tool's names
+// included; what the model said is as it said it.
 func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testing.T) {
 	s := kitchenWith(t)
 	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Parsed *the* lasagne."))
 	s.PastesRecipe(pastedLasagne)
 	run := s.Page().Path
 	s.Sees("Reading a Recipe Failed")
-	s.Sees("Started with " + runs.DefaultModel)
+	s.Sees("Started at 12:00 am")
+	s.DoesNotSee("12:00:00 am")
+	s.Sees("Started " + runs.DefaultModel)
 	s.Sees("Asking the model (turn 1)")
-	s.Sees("Calls submit_recipe")
+	s.Sees("The model asks Dandori submit_recipe")
 	s.Sees("The model says Parsed the lasagne.")
 	s.Sees("The model ended without a Recipe Draft.")
 	s.Sees("Ended: Failed")
@@ -404,9 +407,9 @@ func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testi
 	s.ChangesLanguage("Italiano")
 	s.Open(run)
 	s.Sees("Lettura di una Ricetta Fallita")
-	s.Sees("Iniziata con " + runs.DefaultModel)
+	s.Sees("Iniziata " + runs.DefaultModel)
 	s.Sees("Chiedo al modello (turno 1)")
-	s.Sees("Chiama submit_recipe")
+	s.Sees("Il modello chiede a Dandori submit_recipe")
 	s.Sees("Il modello dice Parsed the lasagne.")
 	s.Sees("Il modello ha finito senza una Bozza di Ricetta.")
 	s.Sees("Finita: Fallita")
@@ -429,7 +432,7 @@ func TestSeveralParseRunsGoAtOnceEachMakingItsOwnRecipeDraft(t *testing.T) {
 
 	var runs []string
 	for _, text := range []string{pastedLasagne, "Moussaka for 4\n" + pastedLasagne} {
-		form := apptest.Form(t, s.Get(t, "/recipes").Body, "paste-form")
+		form := apptest.Form(t, s.Get(t, "/recipes/paste").Body, "paste-form")
 		form.Values.Set("text", text)
 		runs = append(runs, s.PostForm(t, form.Action, form.Values).Path)
 	}
@@ -457,13 +460,16 @@ func TestTwoUsersNeverSeeEachOthersRunsOrRecipeDrafts(t *testing.T) {
 
 	s.SwitchesTo("bob@example.com")
 	s.ChoosesLanguage("English")
-	for _, path := range []string{run, run + "/events", draft} {
+	for _, path := range []string{run, run + "/events", draft, draft + "/discard", draft + "/discard/sheet"} {
 		if res := s.Get(t, path); res.StatusCode != http.StatusNotFound {
 			t.Errorf("another User opening %s got %d, want 404", path, res.StatusCode)
 		}
 	}
 	if res := s.PostForm(t, run+"/cancel", nil); res.StatusCode != http.StatusNotFound {
 		t.Errorf("another User cancelling %s got %d, want 404", run, res.StatusCode)
+	}
+	if res := s.PostForm(t, draft+"/discard", nil); res.StatusCode != http.StatusNotFound {
+		t.Errorf("another User discarding %s got %d, want 404", draft, res.StatusCode)
 	}
 	s.Open("/runs")
 	if shown := apptest.Text(s.Page().Body); strings.Contains(shown, "Reading a Recipe") {
@@ -477,7 +483,7 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	s := kitchenWith(t, rice)
 	release := make(chan struct{})
 	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Done.").After(release))
-	form := apptest.Form(t, s.Get(t, "/recipes").Body, "paste-form")
+	form := apptest.Form(t, s.Get(t, "/recipes/paste").Body, "paste-form")
 	form.Values.Set("text", pastedLasagne)
 	s.PostForm(t, form.Action, form.Values)
 	var id int64
@@ -493,6 +499,44 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	s.Settle()
 	s.Open(draft)
 	draftHolds(t, s, map[string]string{"ing_name_0": "beef mince", "ing_quantity_0": "500"})
+}
+
+// pastesInTheSheet pastes text in the sheet the Recipe Library's + opens, focused on its
+// field, and reads it.
+func pastesInTheSheet(t *testing.T, b *apptest.Browser, text string) {
+	t.Helper()
+	b.Open(t, "/recipes")
+	if err := b.Locator(`a.fab[aria-label="Paste a recipe"]`).Click(); err != nil {
+		t.Fatalf("press the +: %v", err)
+	}
+	field := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Paste a recipe"}).GetByLabel("Paste a recipe")
+	if err := playwright.NewPlaywrightAssertions().Locator(field).ToBeFocused(); err != nil {
+		t.Errorf("the paste sheet doesn't focus its field: %v", err)
+	}
+	if err := field.Fill(text); err != nil {
+		t.Fatalf("paste: %v", err)
+	}
+	b.Click(t, "Read it")
+}
+
+// A paste refused in the sheet stays in it, saying why with its field focused, over the
+// Recipe Library.
+func TestBrowserAPasteRefusedInTheSheetStaysInIt(t *testing.T) {
+	b := signedUpBrowser(t)
+	pastesInTheSheet(t, b, "   ")
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Paste a recipe"})
+	field := sheet.GetByLabel("Paste a recipe")
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(field).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("the refused paste isn't marked aria-invalid: %v", err)
+	}
+	if err := expect.Locator(field).ToBeFocused(); err != nil {
+		t.Errorf("the refused paste isn't focused: %v", err)
+	}
+	if err := expect.Locator(sheet).ToContainText("Paste a recipe to read."); err != nil {
+		t.Errorf("the sheet doesn't say why: %v", err)
+	}
+	b.IsAt(t, "/recipes")
 }
 
 // A Run's page folds what the User gave it, the paste, at its top, and its Trace reads as
@@ -511,11 +555,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
 	h.Model.Script(fakellm.CallTool("submit_recipe", r), fakellm.Reply("Parsed the lasagne."))
 
-	b.Open(t, "/recipes")
-	if err := b.GetByLabel("Paste a recipe").Fill(pastedLasagne); err != nil {
-		t.Fatal(err)
-	}
-	b.Click(t, "Read it")
+	pastesInTheSheet(t, b, pastedLasagne)
 	b.FollowsRun(t)
 	expect := playwright.NewPlaywrightAssertions()
 	paste := b.Locator("pre", playwright.PageLocatorOptions{HasText: "Lasagne for 4"}).First()
@@ -528,7 +568,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	}
 	b.Shot(t, "run-closed")
 
-	for _, line := range []string{"Pasted recipe", "Asking the model (turn 1)", "Calls submit_recipe"} {
+	for _, line := range []string{"Pasted recipe", "Asking the model (turn 1)", "The model asks Dandori"} {
 		if err := b.GetByText(line, playwright.PageGetByTextOptions{Exact: playwright.Bool(true)}).Click(); err != nil {
 			t.Fatal(err)
 		}
@@ -562,8 +602,8 @@ func TestTheDemoLLMReadsAnyPasteIntoARecipeDraft(t *testing.T) {
 	s.AddsIngredient(apptest.Ingredient{Name: "Olive oil", Unit: "g", Usual: "pantry", Kcal: "900", Protein: "0", Carbs: "0", Fat: "100"})
 
 	s.PastesRecipe("  Nonna's ragù\nSlow-cooked for hours.")
-	s.Sees("Started with a demo model")
-	s.Sees("Calls submit_recipe")
+	s.Sees("Started a demo model")
+	s.Sees("The model asks Dandori submit_recipe")
 	s.Follows("Recipe Draft")
 	draftHolds(t, s, map[string]string{
 		"name": "Nonna's ragù", "ing_name_2": "Olive oil", "ing_quantity_2": "10", "ing_kcal_2": "",

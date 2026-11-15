@@ -34,7 +34,7 @@ func TestARunsPageWithoutJavaScriptShowsItsTraceSoFarAndALink(t *testing.T) {
 	<-asked
 	s.Open(run)
 	s.Sees("Reading a Recipe Going")
-	s.Sees("Calls submit_recipe")
+	s.Sees("The model asks Dandori submit_recipe")
 	s.Follows("See how it's going")
 	if s.Page().Path != run {
 		t.Errorf("the link to see the Run further along leads to %s, want %s", s.Page().Path, run)
@@ -111,7 +111,7 @@ func TestARunACrashLeftGoingIsFailedOnceDandoriStarts(t *testing.T) {
 		s.Follows("Lasagne for 4")
 		run := s.Page().Path
 		s.Sees("Reading a Recipe Failed")
-		s.Sees("Started with claude-opus-5-5")
+		s.Sees("Started claude-opus-5-5")
 		s.Sees("Dandori stopped while it was going.")
 		s.Sees("Ended: Failed")
 		if strings.Contains(s.Page().Body, `id="cancel-run"`) {
@@ -138,12 +138,12 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 
 	s.Open("/")
 	s.Follows("Runs")
-	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue, Nov 3 10:30 am Two eggs, boiled. Failed Reading a Recipe Tue, Nov 3 9:15 am")
+	s.Sees("Runs Lasagne for 4 Going Reading a Recipe Tue, Nov 3 · 10:30 am Two eggs, boiled. Failed Reading a Recipe Tue, Nov 3 · 9:15 am")
 	s.Follows("Lasagne for 4")
 	if s.Page().Path != going {
 		t.Errorf("the newest Run opens %s, want %s", s.Page().Path, going)
 	}
-	s.Sees("Started with")
+	s.Sees("Started")
 
 	s.Open("/runs")
 	s.Follows("Two eggs, boiled.")
@@ -152,6 +152,16 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 	}
 	s.Sees("Failed")
 	s.Sees("The model says Not a recipe.")
+}
+
+// In Italian, the Runs page says in Italian when each Run started, date and time apart.
+func TestTheRunsPageInItalian(t *testing.T) {
+	s := kitchenIn(t, "Italiano")
+	s.Exec(t, `
+		INSERT INTO run (user_id, kind, asked, started_at)
+		SELECT id, 'parse', 'Lasagne per 4', '2026-11-03 10:30+01' FROM "user"`)
+	s.Open("/runs")
+	s.Sees("Lasagne per 4 In corso Lettura di una Ricetta Mar 3 Nov · 10:30")
 }
 
 // The Runs page names a Run by the first line of what it was given that isn't blank, cut
@@ -179,22 +189,18 @@ func TestBrowserARunsTraceStreamsLiveAndThePageGoesToItsRecipeDraft(t *testing.T
 	r["ingredients"] = r["ingredients"].([]map[string]any)[:4] // Ada has no rice
 	h.Model.Script(fakellm.CallTool("submit_recipe", r).After(submit), fakellm.Reply("Parsed the lasagne.").After(reply))
 
-	b.Open(t, "/recipes")
-	if err := b.GetByLabel("Paste a recipe").Fill(pastedLasagne); err != nil {
-		t.Fatal(err)
-	}
-	b.Click(t, "Read it")
+	pastesInTheSheet(t, b, pastedLasagne)
 	if err := b.WaitForURL("**/runs/*"); err != nil {
 		t.Fatalf("pasting does not land on the Run's page: %v", err)
 	}
 	b.Sees(t, "Asking the model (turn 1)")
-	if err := playwright.NewPlaywrightAssertions().Locator(b.GetByText("Calls submit_recipe")).ToHaveCount(0); err != nil {
+	if err := playwright.NewPlaywrightAssertions().Locator(b.GetByText("The model asks Dandori")).ToHaveCount(0); err != nil {
 		t.Fatal(err)
 	}
 
 	close(submit)
-	b.Sees(t, "Calls submit_recipe")
-	b.Sees(t, "submit_recipe answers")
+	b.Sees(t, "The model asks Dandori")
+	b.Sees(t, "Dandori answers")
 	b.Shot(t, "run-live")
 
 	close(reply)

@@ -16,26 +16,26 @@ import (
 // Tab is the shell tab a page belongs to, marked as current.
 type Tab string
 
-// NoTab is a page outside every tab, such as Today. SignedOut is a page before the User
-// is signed in and has chosen their Language, whose shell has no tabs to lead anywhere
-// yet. Each feature adds its tab here, and to the shell in Layout, as it lands.
+// SignedOut is a page before the User is signed in and has chosen their Language, whose
+// shell has no tabs to lead anywhere yet. Each feature adds its tab here, and to the
+// shell in Layout, as it lands.
 const (
-	NoTab      Tab = ""
 	SignedOut  Tab = "signed-out"
+	TodayTab   Tab = "/"
 	RecipesTab Tab = "/recipes"
 	KitchenTab Tab = "/kitchen"
 	ProfileTab Tab = "/profile"
 	RunsTab    Tab = "/runs"
 )
 
-// Layout is the page shell every page renders inside: the head, the masthead (the
-// dusk sky on a phone), the navigation (bottom tabs on a phone, a rail under the sky
-// on desktop) with the page's tab marked, and the page's content. Every link and
-// form is boosted, with a form's buttons disabled while its request is in flight;
-// ADR 0009 says why a rejection keeps its address and why settling is off. A request
-// slower than 300 ms shows the busy bar along the top, and its pressed button busy.
-// With a Faro url, the page loads Faro first (static/faro.js), and its shell carries the
-// signed-in User's id for it.
+// Layout is the page shell every page renders inside: the head, the masthead (the dusk
+// sky on a phone, a slim strip of it but on Today), the navigation (bottom tabs on a
+// phone, a rail under the sky on desktop) with the page's tab marked, and the page's
+// content. Every link and form is boosted, with a form's buttons disabled while its
+// request is in flight; ADR 0009 says why a rejection keeps its address and why settling
+// is off. A request slower than 300 ms shows the busy bar along the top, and its pressed
+// button busy. With a Faro url, the page loads Faro first (static/faro.js), and its
+// shell carries the signed-in User's id for it.
 func Layout(title string, current Tab) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -184,7 +184,25 @@ func Layout(title string, current Tab) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<header class=\"masthead\">")
+		var templ_7745c5c3_Var9 = []any{"masthead", templ.KV("masthead-slim", current != TodayTab)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var9...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<header class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var9).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -196,20 +214,20 @@ func Layout(title string, current Tab) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</header><nav class=\"shell\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</header><nav class=\"shell\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(T(ctx, msgMainNav))
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(T(ctx, msgMainNav))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 78, Col: 53}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -218,7 +236,11 @@ func Layout(title string, current Tab) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if current != SignedOut {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"tabs\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"tabs\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = tab(TodayTab, current, "calendar-day", T(ctx, msgToday), false).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -238,12 +260,12 @@ func Layout(title string, current Tab) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</nav><main class=\"page\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</nav><main class=\"page\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -251,7 +273,7 @@ func Layout(title string, current Tab) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -259,7 +281,7 @@ func Layout(title string, current Tab) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -287,12 +309,12 @@ func busyButton() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
+		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var12 == nil {
+			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<script>\n\t\tdocument.addEventListener(\"htmx:before:request\", (e) => {\n\t\t\tconst ctx = e.detail.ctx, source = ctx.sourceElement;\n\t\t\tconst button = ctx.sourceEvent?.submitter || (source.matches(\"button\") ? source : null);\n\t\t\tif (!button) return;\n\t\t\tconst timer = setTimeout(() => button.setAttribute(\"aria-busy\", \"true\"), 300);\n\t\t\tsource.addEventListener(\"htmx:finally:request\", () => {\n\t\t\t\tclearTimeout(timer);\n\t\t\t\tbutton.removeAttribute(\"aria-busy\");\n\t\t\t}, { once: true });\n\t\t});\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<script>\n\t\tdocument.addEventListener(\"htmx:before:request\", (e) => {\n\t\t\tconst ctx = e.detail.ctx, source = ctx.sourceElement;\n\t\t\tconst button = ctx.sourceEvent?.submitter || (source.matches(\"button\") ? source : null);\n\t\t\tif (!button) return;\n\t\t\tconst timer = setTimeout(() => button.setAttribute(\"aria-busy\", \"true\"), 300);\n\t\t\tsource.addEventListener(\"htmx:finally:request\", () => {\n\t\t\t\tclearTimeout(timer);\n\t\t\t\tbutton.removeAttribute(\"aria-busy\");\n\t\t\t}, { once: true });\n\t\t});\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -324,12 +346,12 @@ func showNotices() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var11 == nil {
-			templ_7745c5c3_Var11 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<script>\n\t\t(() => {\n\t\t\tconst top = () => document.activeElement?.closest(\"dialog:modal\") ?? [...document.querySelectorAll(\"dialog:modal\")].pop();\n\t\t\t// place puts the Notices in host, the top sheet or body, keeping their time.\n\t\t\tconst place = (host = top() ?? document.body) => {\n\t\t\t\tconst box = document.getElementById(\"notices\");\n\t\t\t\tif (!box || box.parentElement === host) return box;\n\t\t\t\tconst times = box.getAnimations({ subtree: true }).map((a) => [a.effect.target, a.animationName, a.currentTime]);\n\t\t\t\thost.append(box);\n\t\t\t\tfor (const a of box.getAnimations({ subtree: true })) {\n\t\t\t\t\tconst kept = times.find(([target, name]) => target === a.effect.target && name === a.animationName);\n\t\t\t\t\tif (kept) a.currentTime = kept[2];\n\t\t\t\t}\n\t\t\t\treturn box;\n\t\t\t};\n\t\t\tconst raise = () => {\n\t\t\t\tconst box = place();\n\t\t\t\tif (!box) return;\n\t\t\t\tif (box.matches(\":popover-open\")) box.hidePopover();\n\t\t\t\tif (box.children.length) box.showPopover();\n\t\t\t};\n\t\t\tconst dismiss = (notice) => {\n\t\t\t\tconst focused = notice.contains(document.activeElement);\n\t\t\t\tnotice.remove();\n\t\t\t\traise();\n\t\t\t\tif (focused) top()?.querySelector(\"[autofocus], input, select, textarea, button\")?.focus();\n\t\t\t};\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", raise);\n\t\t\t// Called bare, so the event isn't taken for the host.\n\t\t\tdocument.addEventListener(\"htmx:before:swap\", () => place());\n\t\t\tdocument.addEventListener(\"htmx:after:swap\", raise);\n\t\t\t// A closed sheet takes their time with it: they leave as it starts to close.\n\t\t\tdocument.addEventListener(\"beforetoggle\", (e) => {\n\t\t\t\tconst sheet = e.target;\n\t\t\t\tif (e.newState !== \"closed\" || !(sheet instanceof HTMLDialogElement) || !sheet.contains(document.getElementById(\"notices\"))) return;\n\t\t\t\tconst box = place([...document.querySelectorAll(\"dialog:modal\")].filter((d) => d !== sheet).pop() ?? document.body);\n\t\t\t\tif (box.children.length) box.showPopover();\n\t\t\t}, true);\n\t\t\tdocument.addEventListener(\"close\", (e) => { if (e.target.contains(document.getElementById(\"notices\"))) raise(); }, true);\n\t\t\tdocument.addEventListener(\"animationend\", (e) => {\n\t\t\t\tif (e.target.matches(\".notice\") && (e.animationName === \"notice-time\" || e.animationName === \"notice-wait\")) dismiss(e.target);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst close = e.target.closest(\".notice-close\");\n\t\t\t\tif (close) dismiss(close.closest(\".notice\"));\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<script>\n\t\t(() => {\n\t\t\tconst top = () => document.activeElement?.closest(\"dialog:modal\") ?? [...document.querySelectorAll(\"dialog:modal\")].pop();\n\t\t\t// place puts the Notices in host, the top sheet or body, keeping their time.\n\t\t\tconst place = (host = top() ?? document.body) => {\n\t\t\t\tconst box = document.getElementById(\"notices\");\n\t\t\t\tif (!box || box.parentElement === host) return box;\n\t\t\t\tconst times = box.getAnimations({ subtree: true }).map((a) => [a.effect.target, a.animationName, a.currentTime]);\n\t\t\t\thost.append(box);\n\t\t\t\tfor (const a of box.getAnimations({ subtree: true })) {\n\t\t\t\t\tconst kept = times.find(([target, name]) => target === a.effect.target && name === a.animationName);\n\t\t\t\t\tif (kept) a.currentTime = kept[2];\n\t\t\t\t}\n\t\t\t\treturn box;\n\t\t\t};\n\t\t\tconst raise = () => {\n\t\t\t\tconst box = place();\n\t\t\t\tif (!box) return;\n\t\t\t\tif (box.matches(\":popover-open\")) box.hidePopover();\n\t\t\t\tif (box.children.length) box.showPopover();\n\t\t\t};\n\t\t\tconst dismiss = (notice) => {\n\t\t\t\tconst focused = notice.contains(document.activeElement);\n\t\t\t\tnotice.remove();\n\t\t\t\traise();\n\t\t\t\tif (focused) top()?.querySelector(\"[autofocus], input, select, textarea, button\")?.focus();\n\t\t\t};\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", raise);\n\t\t\t// Called bare, so the event isn't taken for the host.\n\t\t\tdocument.addEventListener(\"htmx:before:swap\", () => place());\n\t\t\tdocument.addEventListener(\"htmx:after:swap\", raise);\n\t\t\t// A closed sheet takes their time with it: they leave as it starts to close.\n\t\t\tdocument.addEventListener(\"beforetoggle\", (e) => {\n\t\t\t\tconst sheet = e.target;\n\t\t\t\tif (e.newState !== \"closed\" || !(sheet instanceof HTMLDialogElement) || !sheet.contains(document.getElementById(\"notices\"))) return;\n\t\t\t\tconst box = place([...document.querySelectorAll(\"dialog:modal\")].filter((d) => d !== sheet).pop() ?? document.body);\n\t\t\t\tif (box.children.length) box.showPopover();\n\t\t\t}, true);\n\t\t\tdocument.addEventListener(\"close\", (e) => { if (e.target.contains(document.getElementById(\"notices\"))) raise(); }, true);\n\t\t\tdocument.addEventListener(\"animationend\", (e) => {\n\t\t\t\tif (e.target.matches(\".notice\") && (e.animationName === \"notice-time\" || e.animationName === \"notice-wait\")) dismiss(e.target);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst close = e.target.closest(\".notice-close\");\n\t\t\t\tif (close) dismiss(close.closest(\".notice\"));\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -356,30 +378,30 @@ func sky(class string, colours []string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var12 == nil {
-			templ_7745c5c3_Var12 = templ.NopComponent
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var13 = []any{"sky", class}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var13...)
+		var templ_7745c5c3_Var15 = []any{"sky", class}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var15...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var14 string
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var13).String())
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var15).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -387,7 +409,7 @@ func sky(class string, colours []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"sky-sun\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span class=\"sky-sun\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -395,7 +417,7 @@ func sky(class string, colours []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</span> <span class=\"sky-fuji\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <span class=\"sky-fuji\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -403,7 +425,7 @@ func sky(class string, colours []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <a class=\"wordmark\" href=\"/\"><span class=\"wordmark-ja\" lang=\"ja\">段取り</span><span class=\"wordmark-latin\">Dandori</span></a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span> <a class=\"wordmark\" href=\"/\"><span class=\"wordmark-ja\" lang=\"ja\">段取り</span><span class=\"wordmark-latin\">Dandori</span></a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -428,40 +450,40 @@ func ramp(colours []string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var15 == nil {
-			templ_7745c5c3_Var15 = templ.NopComponent
+		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var17 == nil {
+			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div class=\"ramp\" aria-hidden=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"ramp\" aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, step := range ditherSteps(colours) {
-			var templ_7745c5c3_Var16 = []any{step}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
+			var templ_7745c5c3_Var18 = []any{step}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var17 string
-			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var16).String())
+			var templ_7745c5c3_Var19 string
+			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var18).String())
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 1, Col: 0}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -469,7 +491,8 @@ func ramp(colours []string) templ.Component {
 	})
 }
 
-// tab is one link of the shell; aux ones sit apart, at the rail's foot.
+// tab is one link of the shell; aux ones sit apart, at the rail's foot, and leave the
+// bottom tabs on a phone for a link on the Profile.
 func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -486,53 +509,53 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var18 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var18 == nil {
-			templ_7745c5c3_Var18 = templ.NopComponent
+		templ_7745c5c3_Var20 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var20 == nil {
+			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var19 = []any{"tab", templ.KV("tab-aux", aux)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
+		var templ_7745c5c3_Var21 = []any{"tab", templ.KV("tab-aux", aux)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<a class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<a class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var20 string
-		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var19).String())
+		var templ_7745c5c3_Var22 string
+		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var21).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var21 templ.SafeURL
-		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t))
+		var templ_7745c5c3_Var23 templ.SafeURL
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 204, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 206, Col: 25}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if t == current {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, " aria-current=\"page\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, " aria-current=\"page\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, ">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, ">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -540,20 +563,20 @@ func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var22 string
-		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+		var templ_7745c5c3_Var24 string
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 210, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 212, Col: 15}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

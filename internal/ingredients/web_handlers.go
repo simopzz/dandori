@@ -42,11 +42,10 @@ type Handlers struct {
 const Saved = "ingredient-saved"
 
 // Show is the Ingredients page, searched for its query q, or for the Ingredient just
-// picked, confirming it. Its query name starts the add form,
-// and counting says it is to count what is added.
+// picked, confirming it.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	f, q := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != "", Picked: query.Get("picked")}, query.Get("q")
+	f, q := AddForm{Picked: query.Get("picked")}, query.Get("q")
 	if f.Picked != "" {
 		q = f.Picked
 	}
@@ -56,6 +55,14 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		}
 		httpx.Render(w, r, h.Log, http.StatusOK, a.Page)
 	}
+}
+
+// ShowNew is the add page. Its query name starts the add form, and counting says it is
+// to count what is added.
+func (h Handlers) ShowNew(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	f := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != ""}
+	httpx.Render(w, r, h.Log, http.StatusOK, addPage(h.Clock.Now(), f))
 }
 
 // ShowSheet is the side sheet's body, searched for the Ingredient just picked, if any.
@@ -99,15 +106,16 @@ func (h Handlers) ShowSuggestion(w http.ResponseWriter, r *http.Request) {
 
 // Add adds an Ingredient. Posted from the side sheet by htmx, it answers with the sheet's
 // body, so the page under it stays: the add form cleared once it is added, or as typed
-// with why it was refused. A plain post lands on the Ingredients page. A name close to an
-// Ingredient's is refused with that one suggested, unless the suggestion was already
-// shown for this name, which confirms it: pressing Add past one means the name typed. One
-// added to count, unless it is a Staple, which is never counted, goes on to its Count.
+// with why it was refused. A plain post lands on the Ingredients page, or refused on the
+// add page. A name close to an Ingredient's is refused with that one suggested, unless
+// the suggestion was already shown for this name, which confirms it: pressing Add past
+// one means the name typed. One added to count, unless it is a Staple, which is never
+// counted, goes on to its Count.
 func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	ing, f := parseAddForm(r)
 	if len(f.Errs) > 0 {
 		httpx.Refused(r, refusedIngredient, f.Errs)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
+		h.refuseAdd(w, r, f)
 		return
 	}
 	confirmed := r.PostFormValue("confirm") == f.Name
@@ -115,13 +123,13 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	if taken, ok := errors.AsType[*NameTakenError](err); ok {
 		f.Errs["name"] = web.Tf(r.Context(), msgNameTaken, taken.Existing)
 		httpx.Refused(r, refusedNameTaken, nil)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
+		h.refuseAdd(w, r, f)
 		return
 	}
 	if suggested, ok := errors.AsType[*SuggestedError](err); ok {
 		f.Suggested = suggested.Closest
 		httpx.Refused(r, refusedCloseName, nil)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, sheetView{Add: f})
+		h.refuseAdd(w, r, f)
 		return
 	}
 	if err != nil {
@@ -133,6 +141,14 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.answerWrite(w, r, web.Answer{Notice: web.Tf(r.Context(), msgAdded, ing.Name), RedirectTo: "/ingredients"}, sheetView{})
+}
+
+// refuseAdd answers an add refused, f as typed with why: as the sheet's body, or as the
+// add page.
+func (h Handlers) refuseAdd(w http.ResponseWriter, r *http.Request, f AddForm) {
+	if shown, ok := h.answer(w, r, sheetView{Add: f}); ok {
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: addPage(h.Clock.Now(), f), Fragment: shown.Fragment}.Write(w, r, h.Log)
+	}
 }
 
 // Edit edits the Ingredient id. Posted from the side sheet by htmx, it answers with the
@@ -211,8 +227,38 @@ func stapleNotice(ctx context.Context, ing domain.Ingredient, counted []domain.M
 	return web.Tf(ctx, msgStapleCounted, listed)
 }
 
-// Delete deletes the Ingredient id, answering as Edit does. One Movements refer to is
-// refused, its row open with why.
+// ShowDelete is the page asking once before deleting the Ingredient id, searched for q.
+func (h Handlers) ShowDelete(w http.ResponseWriter, r *http.Request) { h.showDelete(w, r, false) }
+
+// ShowDeleteSheet is ShowDelete as the body of the sheet over the Ingredients.
+func (h Handlers) ShowDeleteSheet(w http.ResponseWriter, r *http.Request) { h.showDelete(w, r, true) }
+
+// showDelete answers with the step asking before deleting the Ingredient id: as its
+// sheet's body when sheet, else as a page.
+func (h Handlers) showDelete(w http.ResponseWriter, r *http.Request, sheet bool) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ing, ok, err := h.Service.Find(r.Context(), id)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the Ingredient", err)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	q := r.URL.Query().Get("q")
+	if sheet {
+		httpx.Render(w, r, h.Log, http.StatusOK, deleteBody(ing, q))
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, deletePage(h.Clock.Now(), ing, q))
+}
+
+// Delete deletes the Ingredient id, answering as Edit does, and closes the sheet that
+// asked first. One Movements refer to is refused, its row open with why.
 func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -224,13 +270,13 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, ErrHasMovements) {
 		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.T(ctx, msgHasMovements)}, Q: q}
 		httpx.Refused(r, refusedHasMovements, nil)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
+		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity, Trigger: web.CloseSheet}, view)
 		return
 	}
 	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
 		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.Tf(ctx, msgDeleteInRecipe, recipesNamed(ctx, inRecipe))}, Q: q}
 		httpx.Refused(r, refusedInRecipe, nil)
-		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
+		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity, Trigger: web.CloseSheet}, view)
 		return
 	}
 	if errors.Is(err, ErrNoIngredient) {
@@ -241,7 +287,7 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "delete an Ingredient", err)
 		return
 	}
-	h.answerWrite(w, r, web.Answer{Notice: web.Tf(ctx, msgDeleted, name), RedirectTo: searched(q)}, sheetView{Q: q})
+	h.answerWrite(w, r, web.Answer{Notice: web.Tf(ctx, msgDeleted, name), Trigger: web.CloseSheet, RedirectTo: searched(q)}, sheetView{Q: q})
 }
 
 // recipesNamed names the Recipes e says list an Ingredient: the first, and how many more.

@@ -12,8 +12,8 @@ import (
 // Answer is the answer to a write, as ADR-0009 has it. To htmx, it is Fragment followed
 // by Notice in a floating Notice, with Trigger in HX-Trigger. To a plain browser, it is
 // a redirect to RedirectTo, whose page says Notice, when that is set, or else Page,
-// saying Notice. One with neither Fragment nor Trigger answers a boosted form, so htmx
-// gets what a plain browser does.
+// saying Notice. A boosted form, which swaps the whole body, and one with neither
+// Fragment nor Trigger, get what a plain browser does.
 type Answer struct {
 	// Status is the status of a fragment or page, 200 when unset.
 	Status                      int
@@ -24,7 +24,7 @@ type Answer struct {
 // Redirects reports whether a answers r with its redirect whatever its Page and Fragment,
 // so a write needn't load what they show.
 func (a Answer) Redirects(r *http.Request) bool {
-	return a.RedirectTo != "" && !httpx.IsHTMX(r)
+	return a.RedirectTo != "" && !httpx.IsPartial(r)
 }
 
 // Write answers r with a.
@@ -33,7 +33,7 @@ func (a Answer) Write(w http.ResponseWriter, r *http.Request, log *slog.Logger) 
 	if status == 0 {
 		status = http.StatusOK
 	}
-	if httpx.IsHTMX(r) && (a.Fragment != nil || a.Trigger != "") {
+	if httpx.IsPartial(r) && (a.Fragment != nil || a.Trigger != "") {
 		if a.Trigger != "" {
 			w.Header().Set("HX-Trigger", a.Trigger)
 		}

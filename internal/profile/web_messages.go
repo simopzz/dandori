@@ -17,6 +17,7 @@ var (
 		En: "You can change it on your Profile until you write your first food in it: an Ingredient, Recipe, Recipe Draft or Portion, or an exclusion or allergy.",
 		It: "Puoi cambiarla nel tuo Profilo finché non ci scrivi il tuo primo alimento: un Ingrediente, una Ricetta, una Bozza di Ricetta o una Porzione, oppure un'esclusione o un'allergia.",
 	}
+	msgOpenRuns      = web.Message{En: "See your Runs", It: "Vedi le tue Run"}
 	msgLanguage      = web.Message{En: "Language", It: "Lingua"}
 	msgContinue      = web.Message{En: "Continue", It: "Continua"}
 	msgChooseOne     = web.Message{En: "Choose English or Italiano.", It: "Scegli English o Italiano."}
@@ -28,10 +29,17 @@ var (
 		En: "A recipe is being read in this Language, so it stays until that ends.",
 		It: "Una ricetta è in lettura in questa lingua, quindi resta questa finché non finisce.",
 	}
-	msgProfile       = web.Message{En: "Profile", It: "Profilo"}
-	msgProfileTitle  = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
+	msgProfile      = web.Message{En: "Profile", It: "Profilo"}
+	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
+	msgSaved        = web.Message{En: "Profile saved.", It: "Profilo salvato."}
+	// Each section's Save names it: each is saved on its own.
 	msgSave          = web.Message{En: "Save", It: "Salva"}
-	msgSaved         = web.Message{En: "Profile saved.", It: "Profilo salvato."}
+	msgSaveLanguage  = web.Message{En: "Save Language", It: "Salva la Lingua"}
+	msgSaveTimes     = web.Message{En: "Save the times of day", It: "Salva gli orari"}
+	msgSaveTargets   = web.Message{En: "Save Targets", It: "Salva gli Obiettivi"}
+	msgSaveMealOut   = web.Message{En: "Save the Meal Out estimate", It: "Salva la stima di un Pasto Fuori"}
+	msgSaveFoods     = web.Message{En: "Save exclusions and allergies", It: "Salva esclusioni e allergie"}
+	msgSaveBrief     = web.Message{En: "Save the Planning Brief", It: "Salva le indicazioni per la pianificazione"}
 	msgTargets       = web.Message{En: "Targets", It: "Obiettivi"}
 	msgTargetsNeeded = web.Message{
 		En: "Planning needs your Targets.",
@@ -54,15 +62,19 @@ var (
 	msgAfter         = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
 	msgMealOut       = web.Message{En: "Meal Out estimate", It: "Stima di un Pasto Fuori"}
 	msgMealOutHint   = web.Message{
-		En: "What a Meal Out counts toward your Targets, unless you give it its own. Fibre and sugar may be left blank.",
-		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua. Fibre e zuccheri si possono lasciare vuoti.",
+		En: "What a Meal Out counts toward your Targets, unless you give it its own.",
+		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua.",
 	}
-	msgCarbs     = web.Message{En: "Carbs", It: "Carboidrati"}
-	msgFat       = web.Message{En: "Fat", It: "Grassi"}
-	msgKcalUnit  = web.Message{En: "kcal", It: "kcal"}
-	msgGrams     = web.Message{En: "g", It: "g"}
-	msgFoods     = web.Message{En: "Exclusions and allergies", It: "Esclusioni e allergie"}
-	msgFoodsHint = web.Message{
+	msgCarbs    = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat      = web.Message{En: "Fat", It: "Grassi"}
+	msgKcalUnit = web.Message{En: "kcal", It: "kcal"}
+	msgGrams    = web.Message{En: "g", It: "g"}
+	// Each "optional" agrees with its field's label in Italian.
+	msgExclusionsHint = web.Message{En: "optional", It: "facoltativo"}
+	msgAllergiesHint  = web.Message{En: "optional", It: "facoltative"}
+	msgWishesHint     = web.Message{En: "optional", It: "facoltativi"}
+	msgFoods          = web.Message{En: "Exclusions and allergies", It: "Esclusioni e allergie"}
+	msgFoodsHint      = web.Message{
 		En: "One food per line, or separated by commas or semicolons. Every planning Run is told to leave them out.",
 		It: "Un alimento per riga, o separati da virgole o punti e virgola. Ogni Run di pianificazione è tenuto a escluderli.",
 	}

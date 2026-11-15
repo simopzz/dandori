@@ -25,11 +25,13 @@ func shows(text string) templ.Component {
 
 // An Answer gives htmx the fragment with its Notice and Trigger, and a plain browser
 // the redirect, or else the page with its Notice; one with no fragment and no Trigger
-// answers htmx as it does a plain browser, as a boosted form expects.
+// answers htmx as it does a plain browser, as a boosted form expects, and so does a form
+// boosted to swap the whole body, as a sheet's form on a page of its own is.
 func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		htmx     bool
+		boosted  bool
 		answer   Answer
 		status   int
 		has      []string
@@ -55,6 +57,12 @@ func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 		{name: "htmx, refused, from a boosted form", htmx: true,
 			answer: Answer{Status: http.StatusUnprocessableEntity, Page: shows("page")},
 			status: http.StatusUnprocessableEntity, has: []string{"page"}},
+		{name: "htmx, refused, a sheet's form boosted on its page", htmx: true, boosted: true,
+			answer: Answer{Status: http.StatusUnprocessableEntity, Page: shows("page"), Fragment: shows("fragment")},
+			status: http.StatusUnprocessableEntity, has: []string{"page"}, lacks: []string{"fragment"}},
+		{name: "htmx, saved, a sheet's form boosted on its page", htmx: true, boosted: true,
+			answer: Answer{Page: shows("page"), Fragment: shows("fragment"), Notice: "Saved.", Trigger: "saved", RedirectTo: "/done"},
+			status: http.StatusSeeOther, location: "/done"},
 		{name: "plain, saved", answer: Answer{Page: shows("page"), Fragment: shows("fragment"), Notice: "Saved.", Trigger: "saved", RedirectTo: "/done"},
 			status: http.StatusSeeOther, location: "/done"},
 		{name: "plain, refused", answer: Answer{Status: http.StatusUnprocessableEntity, Page: shows("page"), Fragment: shows("fragment")},
@@ -66,6 +74,9 @@ func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, "/form", nil)
 			if tc.htmx {
 				r.Header.Set("HX-Request", "true")
+			}
+			if tc.boosted {
+				r.Header.Set("HX-Request-Type", "full")
 			}
 			w := httptest.NewRecorder()
 			tc.answer.Write(w, r, slog.New(slog.DiscardHandler))
@@ -89,7 +100,7 @@ func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 			if got := w.Header().Get("Location"); got != tc.location {
 				t.Errorf("Location %q, want %q", got, tc.location)
 			}
-			if got, want := tc.answer.Redirects(r), tc.location != "" && !tc.htmx; got != want {
+			if got, want := tc.answer.Redirects(r), tc.location != "" && (!tc.htmx || tc.boosted); got != want {
 				t.Errorf("Redirects is %v, want %v", got, want)
 			}
 			if tc.location != "" && !strings.Contains(w.Header().Get("Set-Cookie"), noticeCookie+"=") {

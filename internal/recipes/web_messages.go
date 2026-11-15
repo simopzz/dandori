@@ -23,8 +23,11 @@ var (
 	msgEditTitle    = web.Message{En: "Edit a Recipe · Dandori", It: "Modifica una Ricetta · Dandori"}
 	msgDelete       = web.Message{En: "Delete", It: "Elimina"}
 	msgDeleted      = web.Message{En: "Deleted %s.", It: "Eliminata: %s."}
+	msgDeleteRecipe = web.Message{En: "Delete the Recipe", It: "Elimina la Ricetta"}
+	msgDeleteAsk    = web.Message{En: "Delete the Recipe %s?", It: "Eliminare la Ricetta %s?"}
 
 	msgPaste         = web.Message{En: "Paste a recipe", It: "Incolla una ricetta"}
+	msgPasteTitle    = web.Message{En: "Paste a recipe · Dandori", It: "Incolla una ricetta · Dandori"}
 	msgPasteHint     = web.Message{En: "in any language", It: "in qualsiasi lingua"}
 	msgRead          = web.Message{En: "Read it", It: "Leggila"}
 	msgPasteRequired = web.Message{En: "Paste a recipe to read.", It: "Incolla una ricetta da leggere."}
@@ -33,32 +36,35 @@ var (
 	PastedName       = web.Message{En: "Pasted recipe", It: "Ricetta incollata"}
 	DraftName        = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
 	msgDraftTitle    = web.Message{En: "Recipe Draft · Dandori", It: "Bozza di Ricetta · Dandori"}
+	msgWhatYouPasted = web.Message{En: "What you pasted", It: "Cosa hai incollato"}
 	msgAccept        = web.Message{En: "Add to the Recipe Library", It: "Aggiungi al Ricettario"}
 	msgDiscard       = web.Message{En: "Discard", It: "Scarta"}
 	msgDiscarded     = web.Message{En: "Discarded the Recipe Draft %s.", It: "Bozza di Ricetta scartata: %s."}
+	msgDiscardDraft  = web.Message{En: "Discard the Recipe Draft", It: "Scarta la Bozza di Ricetta"}
+	msgDiscardAsk    = web.Message{En: "Discard the Recipe Draft %s?", It: "Scartare la Bozza di Ricetta %s?"}
 	msgDraftsToCheck = web.Message{En: "Recipe Drafts to check", It: "Bozze di Ricetta da controllare"}
 	msgParsedOn      = web.Message{En: "read %s", It: "letta %s"}
 
-	msgName       = web.Message{En: "Name", It: "Nome"}
-	msgPortions   = web.Message{En: "Portions", It: "Porzioni"}
-	msgActive     = web.Message{En: "Active minutes", It: "Minuti attivi"}
-	msgTotal      = web.Message{En: "Total minutes", It: "Minuti totali"}
-	msgSlots      = web.Message{En: "Eaten at", It: "Si mangia a"}
-	msgAppliances = web.Message{En: "Appliances", It: "Elettrodomestici"}
-	msgIngredient = web.Message{En: "Ingredient", It: "Ingrediente"}
-	msgQuantity   = web.Message{En: "Quantity", It: "Quantità"}
-	msgStep       = web.Message{En: "Step", It: "Passaggio"}
+	msgName        = web.Message{En: "Name", It: "Nome"}
+	msgPortions    = web.Message{En: "Portions", It: "Porzioni"}
+	msgActive      = web.Message{En: "Active time", It: "Tempo attivo"}
+	msgTotal       = web.Message{En: "Total time", It: "Tempo totale"}
+	msgMinutesUnit = web.Message{En: "minutes", It: "minuti"}
+	msgSlots       = web.Message{En: "Eaten at", It: "Si mangia a"}
+	msgAppliances  = web.Message{En: "Appliances", It: "Elettrodomestici"}
+	msgIngredient  = web.Message{En: "Ingredient", It: "Ingrediente"}
+	msgQuantity    = web.Message{En: "Quantity", It: "Quantità"}
+	msgStep        = web.Message{En: "Step", It: "Passaggio"}
+	// msgOptional agrees in Italian with Steps and Appliances, the groups it hints.
+	msgOptional = web.Message{En: "optional", It: "facoltativi"}
 
 	msgIngredients   = web.Message{En: "Ingredients", It: "Ingredienti"}
 	msgSteps         = web.Message{En: "Steps", It: "Passaggi"}
 	msgPerPortion    = web.Message{En: "Per Portion", It: "Per Porzione"}
 	msgAddIngredient = web.Message{En: "Add an Ingredient", It: "Aggiungi un Ingrediente"}
 	msgAddStep       = web.Message{En: "Add a step", It: "Aggiungi un passaggio"}
-	msgRowsHint      = web.Message{
-		En: "Clear a row's name and quantity to remove it.",
-		It: "Svuota nome e quantità di una riga per toglierla.",
-	}
-	msgMeasuredIn  = web.Message{En: "Measured in %s", It: "Si misura in %s"}
+	msgRemoveRow     = web.Message{En: "Remove", It: "Togli"}
+
 	msgNew         = web.Message{En: "New", It: "Nuovo"}
 	msgDidYouMean  = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
 	msgPick        = web.Message{En: "Use %s", It: "Usa %s"}

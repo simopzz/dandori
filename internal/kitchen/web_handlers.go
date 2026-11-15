@@ -200,7 +200,7 @@ func (h Handlers) ShowPortions(w http.ResponseWriter, r *http.Request) {
 
 // ShowPortionsSheet is the Add Portions sheet's body.
 func (h Handlers) ShowPortionsSheet(w http.ResponseWriter, r *http.Request) {
-	httpx.Render(w, r, h.Log, http.StatusOK, portionsForm(PortionsForm{}))
+	httpx.Render(w, r, h.Log, http.StatusOK, portionsForm(PortionsForm{}, true))
 }
 
 // AddPortions adds the Portions posted, at the moment they arrive. Posted from the sheet
@@ -218,7 +218,7 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 	if len(problems) > 0 {
 		f := refusedPortionsForm(ctx, typed, problems)
 		httpx.Refused(r, refusedPortions, f.Errs)
-		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f)}.Write(w, r, h.Log)
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: portionsPage(now, f), Fragment: portionsForm(f, true)}.Write(w, r, h.Log)
 		return
 	}
 	web.Answer{
@@ -480,7 +480,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 // the sheet under the Ingredients sheet when htmx sent the add, else on the Count page.
 func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	chosen := url.Values{"ingredient": {strconv.FormatInt(id, 10)}}
-	if !httpx.IsHTMX(r) {
+	if !httpx.IsPartial(r) {
 		http.Redirect(w, r, "/kitchen/count?"+chosen.Encode(), http.StatusSeeOther)
 		return
 	}

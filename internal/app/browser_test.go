@@ -73,7 +73,7 @@ func TestBrowserChoosesALanguage(t *testing.T) {
 	b.Sees(t, "lunedì 2 novembre")
 
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "English", "Salva")
+	b.ChooseLanguage(t, "English", "Salva la Lingua")
 	b.IsAt(t, "/profile")
 	b.IsConfirmed(t, "Profile saved.")
 }
@@ -111,17 +111,13 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 	}
 }
 
-// The Ingredients side sheet opens from the Kitchen page, over it, focused on its first
-// field, and adds an Ingredient there: the sheet stays open, the Ingredient listed and
-// the form cleared. An add refused shows why with focus on the field, the sheet still
-// open and the page under it the same.
+// The Ingredients side sheet opens from the Kitchen page, over it, focused on its search,
+// its add form closed under "Add an Ingredient", and adds an Ingredient there: the sheet
+// stays open, the Ingredient listed and the form cleared. An add refused shows why with
+// focus on the field, the sheet still open and the page under it the same.
 func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
-	b.Open(t, "/")
-	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Open your kitchen"}).Click(); err != nil {
-		t.Fatalf("follow the link to the kitchen: %v", err)
-	}
-	b.IsAt(t, "/kitchen")
+	b.Open(t, "/kitchen")
 	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).Click(); err != nil {
 		t.Fatalf("open the Ingredients: %v", err)
 	}
@@ -131,8 +127,11 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Fatalf("the Ingredients sheet doesn't open: %v", err)
 	}
-	if err := expect.Locator(add.GetByLabel("Name")).ToBeFocused(); err != nil {
-		t.Errorf("opening the sheet doesn't focus its first field: %v", err)
+	if err := expect.Locator(sheet.Locator(`#ingredient-search input[name="q"]`)).ToBeFocused(); err != nil {
+		t.Errorf("opening the sheet doesn't focus its search: %v", err)
+	}
+	if err := expect.Locator(add).ToBeHidden(); err != nil {
+		t.Errorf("opening the sheet shows its add form: %v", err)
 	}
 	b.IsAt(t, "/kitchen")
 
@@ -150,13 +149,14 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	}
 	addEgg := func() {
 		t.Helper()
+		opensAddForm(t, sheet)
 		fill("Name", "egg")
 		choose("Unit", "piece")
-		choose("Usually kept in", "fridge")
-		fill("Calories", "70")
-		fill("Protein", "6.3")
-		fill("Carbs", "0.4")
-		fill("Fat", "4.8")
+		choose("Usually kept in", "Fridge")
+		fill("Calories (kcal)", "70")
+		fill("Protein (g)", "6.3")
+		fill("Carbs (g)", "0.4")
+		fill("Fat (g)", "4.8")
 		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"}).Click(); err != nil {
 			t.Fatalf("add egg: %v", err)
 		}
@@ -213,6 +213,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 	leavesName := func(value string) {
 		t.Helper()
+		opensAddForm(t, sheet)
 		if err := name.Fill(value); err != nil {
 			t.Fatalf("fill the name: %v", err)
 		}
@@ -222,12 +223,13 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	}
 	fills := func(value string) {
 		t.Helper()
-		for label, value := range map[string]string{"Calories": "70", "Protein": "6.3", "Carbs": "0.4", "Fat": "4.8"} {
+		opensAddForm(t, sheet)
+		for label, value := range map[string]string{"Calories (kcal)": "70", "Protein (g)": "6.3", "Carbs (g)": "0.4", "Fat (g)": "4.8"} {
 			if err := add.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
 				t.Fatalf("fill %s: %v", label, err)
 			}
 		}
-		for label, option := range map[string]string{"Unit": "piece", "Usually kept in": "fridge"} {
+		for label, option := range map[string]string{"Unit": "piece", "Usually kept in": "Fridge"} {
 			if _, err := add.GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
 				t.Fatalf("choose %s: %v", label, err)
 			}
@@ -347,7 +349,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "Italiano", "Save")
+	b.ChooseLanguage(t, "Italiano", "Save Language")
 	b.Sees(t, "Profilo")  // the Language saved, before the page is opened again
 	b.Open(t, "/profile") // without the Language's Notice, which also says "Profilo salvato."
 	b.Sees(t, "Orari")
@@ -367,7 +369,7 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	if err := lunch.Fill("7:00"); err != nil {
 		t.Fatalf("fill lunch: %v", err)
 	}
-	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva"})
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva gli orari"})
 	if err := save.Click(); err != nil {
 		t.Fatalf("save the times of day: %v", err)
 	}
@@ -391,4 +393,33 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 		t.Errorf("the saved lunch isn't shown: %v", err)
 	}
 	b.Shot(t, "times-of-day")
+}
+
+// A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line
+// of a Run's Trace that opens.
+func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
+	s := draftedLasagne(t)
+	run := s.Page().Path
+	s.Counts("rice", "", "700", "")
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.IsAt(t, "/")
+	tall := func(what string, l playwright.Locator) {
+		t.Helper()
+		if h := box(t, what, l).Height; h < 44 {
+			t.Errorf("%s is %.1fpx tall, want at least 44", what, h)
+		}
+	}
+
+	b.Open(t, "/kitchen")
+	count := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice", Exact: playwright.Bool(true)})
+	move := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move rice in the pantry", Exact: playwright.Bool(true)})
+	tall("Count", count)
+	tall("Move", move)
+	// Side by side, each keeps a target of its own.
+	if c, m := box(t, "Count", count), box(t, "Move", move); c.X+c.Width > m.X {
+		t.Errorf("Count ends at %.1fpx, over Move, which starts at %.1fpx", c.X+c.Width, m.X)
+	}
+	b.Open(t, run)
+	tall("a Trace line that opens", b.Locator(".fold > summary").First())
 }

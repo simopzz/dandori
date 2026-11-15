@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -37,7 +38,7 @@ func TestAddingPortionsRefusesAMissingValueOnItsField(t *testing.T) {
 
 	s.AddsPortions(p)
 	s.IsRefused()
-	s.Sees("Calories Required. Protein Required. Carbs Required. Fat Required.")
+	s.Sees("Calories (kcal) Required. Protein (g) Required. Carbs (g) Required. Fat (g) Required.")
 	if got := apptest.Form(t, s.Page().Body, "portions-form").Get("name"); got != "lasagne" {
 		t.Errorf("the refused form holds the name %q", got)
 	}
@@ -45,7 +46,8 @@ func TestAddingPortionsRefusesAMissingValueOnItsField(t *testing.T) {
 	s.Sees("Nothing in your kitchen yet.")
 }
 
-// A name and a Storage Location are refused on their fields too.
+// A name and a Storage Location are refused on their fields too, and the page, longer
+// than a screen, opens with a summary linking to each.
 func TestAddingPortionsRefusesNoNameAndNoStorageLocation(t *testing.T) {
 	s := kitchenWith(t)
 	p := lasagne
@@ -53,6 +55,12 @@ func TestAddingPortionsRefusesNoNameAndNoStorageLocation(t *testing.T) {
 
 	s.AddsPortions(p)
 	s.IsRefused()
+	s.Sees("Some fields need fixing: Name: Give it a name. Where: Choose where it is kept.")
+	for link, want := range map[string]string{"Name: Give it a name.": "#name", "Where: Choose where it is kept.": "#location"} {
+		if got := apptest.Link(t, s.Page().Body, link); got != want {
+			t.Errorf("the summary links %q to %q, want %q", link, got, want)
+		}
+	}
 	s.Sees("Give it a name.")
 	s.Sees("Choose where it is kept.")
 }
@@ -401,7 +409,7 @@ func TestALotsMovementsTellWhyItHoldsWhatItDoes(t *testing.T) {
 
 	s.Open("/kitchen/portions/movements?" + s.LinkQuery(countLasagne))
 	s.Sees("lasagne · Freezer")
-	s.Sees("Moved to the fridge 2 → 1 Mon, Nov 2 12:00 pm to thaw Counted 3 → 2 Mon, Nov 2 11:00 am ate one Added 0 → 3 Mon, Nov 2 10:00 am")
+	s.Sees("Moved to the fridge 2 → 1 Mon, Nov 2 · 12:00 pm to thaw Counted 3 → 2 Mon, Nov 2 · 11:00 am ate one Added 0 → 3 Mon, Nov 2 · 10:00 am")
 	if got := strings.Count(apptest.Text(s.Page().Body), "Counted"); got != 1 {
 		t.Errorf("the Count shows as %d Movements, want one", got)
 	}
@@ -451,7 +459,7 @@ func TestALotsMovementsInItalian(t *testing.T) {
 	s.Follows("lasagne")
 	s.Sees("Movimenti")
 	s.Sees("lasagne · Congelatore")
-	s.Sees("Contato 3 → 2 Lun 2 Nov 14:05 mangiata una Aggiunte 0 → 3")
+	s.Sees("Contato 3 → 2 Lun 2 Nov · 14:05 mangiata una Aggiunte 0 → 3")
 
 	s.Moves("Sposta lasagne nel congelatore", "1", "fridge", "")
 	s.Open("/kitchen/portions/movements?" + s.LinkQuery("Sposta lasagne nel congelatore"))
@@ -605,4 +613,48 @@ func TestAStaleCountToNothingConfirmsNothing(t *testing.T) {
 	}
 	s.Open("/kitchen")
 	s.Sees("Nothing in your kitchen yet.")
+}
+
+// autofocused is the start of each element of a page marked autofocus.
+var autofocused = regexp.MustCompile(`<[a-z]+[^<>]*\sautofocus[\s/>=]`)
+
+// The Add Portions page opens with no field focused, so a phone's keyboard doesn't cover
+// it; each sheet, as it opens, focuses its first field, as the Count page its search.
+func TestOnlyASheetOrTheCountSearchFocusesAFieldAsItOpens(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.Counts("rice", "", "700", "")
+	s.AddsPortions(lasagne)
+	if got := autofocused.FindAllString(s.Get(t, "/kitchen/portions").Body, -1); len(got) != 0 {
+		t.Errorf("the Add Portions page focuses %q", got)
+	}
+	s.Open("/kitchen")
+	// sheetOf is the sheet the Kitchen's link showing text opens.
+	sheetOf := func(text string) string {
+		return strings.Replace(apptest.Link(t, s.Page().Body, text), "?", "/sheet?", 1)
+	}
+	for _, c := range []struct{ what, path, field string }{
+		{"the Count page", "/kitchen/count", "q"},
+		{"the Count sheet", "/kitchen/count/sheet", "q"},
+		{"the Add Portions sheet", "/kitchen/portions/sheet", "name"},
+		{"rice's Count sheet", sheetOf("Count rice"), "stated"},
+		{"rice's Move sheet", sheetOf("Move rice in the pantry"), "quantity"},
+		{"lasagne's Count sheet", sheetOf(countLasagne), "stated"},
+		{"lasagne's Move sheet", sheetOf(moveLasagne), "quantity"},
+	} {
+		if got := autofocused.FindAllString(s.HTMXGet(t, c.path).Body, -1); len(got) != 1 || !strings.Contains(got[0], `name="`+c.field+`"`) {
+			t.Errorf("%s focuses %q, want its %s", c.what, got, c.field)
+		}
+	}
+}
+
+// With htmx, the Add Portions page refused opens on its error summary, as without, and
+// stays at its address.
+func TestBrowserTheAddPortionsPageRefusedOpensOnItsErrorSummary(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen/portions")
+	b.Click(t, "Add")
+	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(".error-summary")).ToBeFocused(); err != nil {
+		t.Fatalf("the error summary isn't focused: %v", err)
+	}
+	b.IsAt(t, "/kitchen/portions")
 }

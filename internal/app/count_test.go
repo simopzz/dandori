@@ -22,10 +22,16 @@ var (
 // kitchenWith signs a new User in, in English, with these Ingredients.
 func kitchenWith(t *testing.T, ings ...apptest.Ingredient) *apptest.Scenario {
 	t.Helper()
+	return kitchenIn(t, "English", ings...)
+}
+
+// kitchenIn signs a new User in, in the Language named language, with these Ingredients.
+func kitchenIn(t *testing.T, language string, ings ...apptest.Ingredient) *apptest.Scenario {
+	t.Helper()
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
-	s.ChoosesLanguage("English")
+	s.ChoosesLanguage(language)
 	s.Open("/ingredients")
 	for _, ing := range ings {
 		s.AddsIngredient(ing)
@@ -66,9 +72,9 @@ func TestACountShowsWhatDandoriBelieves(t *testing.T) {
 
 	s.Open("/kitchen/count")
 	s.Follows("rice")
-	s.Sees("pantry 200 g")
-	s.Sees("fridge 0 g")
-	s.Sees("freezer 0 g")
+	s.Sees("Pantry 200 g")
+	s.Sees("Fridge 0 g")
+	s.Sees("Freezer 0 g")
 	if got := apptest.Form(t, s.Page().Body, "count-form").Get("location"); got != "pantry" {
 		t.Errorf("the Count form holds Storage Location %q, want the usual pantry", got)
 	}
@@ -94,7 +100,7 @@ func TestAStockItemHasItsOwnCount(t *testing.T) {
 	if form.Get("location") != "freezer" || form.Get("stated") != "" {
 		t.Errorf("the Stock Item's Count holds Storage Location %q and quantity %q, want freezer and none", form.Get("location"), form.Get("stated"))
 	}
-	s.Sees("freezer 300 g")
+	s.Sees("Freezer 300 g")
 }
 
 // A Count to nothing takes the Stock Item off the Kitchen page, and one that changes
@@ -109,7 +115,7 @@ func TestCountingToNothing(t *testing.T) {
 	s.Open("/kitchen")
 	s.DoesNotSee("rice 700 g")
 	s.DoesNotSee("Count rice")
-	s.DoesNotSee("Pantry")
+	s.DoesNotSee("01 Pantry")
 	s.Sees("01 Fridge egg 6 pieces")
 }
 
@@ -123,7 +129,7 @@ func TestEveryCountHappensWhenItIsSaved(t *testing.T) {
 	s.Counts("egg", "", "6", "")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Mon, Nov 2 2:05 pm")
+	s.Sees("rice 700 g counted on Mon, Nov 2 · 2:05 pm")
 	s.Sees("egg 6 pieces counted at 9:30 am")
 
 	s.At("Tue 10:45")
@@ -141,7 +147,7 @@ func TestAStockItemCountedLastYearShowsTheYear(t *testing.T) {
 	s.At("2027-01-04 10:00")
 
 	s.Open("/kitchen")
-	s.Sees("rice 700 g counted on Mon, Nov 2, 2026 2:05 pm")
+	s.Sees("rice 700 g counted on Mon, Nov 2, 2026 · 2:05 pm")
 }
 
 // A Count below 0 or finer than its unit is refused on the field, keeping what was typed
@@ -163,6 +169,7 @@ func TestARefusedCount(t *testing.T) {
 			s.Counts(c.ingredient, "", c.stated, "a note")
 			s.IsRefused()
 			s.Sees(c.why)
+			s.DoesNotSee("Some fields need fixing")
 			form := apptest.Form(t, s.Page().Body, "count-form")
 			if form.Get("stated") != c.stated || form.Get("note") != "a note" {
 				t.Errorf("the refused Count holds %q and note %q, want what was typed", form.Get("stated"), form.Get("note"))
@@ -279,7 +286,7 @@ func TestACountSearchFindingNothingOffersANewIngredient(t *testing.T) {
 	s.Open("/kitchen/count?q=salmon")
 	s.Sees("No Ingredient is like salmon.")
 	s.Follows("Add salmon as a new Ingredient")
-	s.IsAt("/ingredients")
+	s.IsAt("/ingredients/new")
 	if got := apptest.Form(t, s.Page().Body, "ingredient-add").Get("name"); got != "salmon" {
 		t.Errorf("the add form holds name %q, want salmon", got)
 	}
@@ -355,7 +362,7 @@ func TestCountingWithNoIngredients(t *testing.T) {
 	s.Open("/kitchen/count")
 	s.Sees("No Ingredients to count yet.")
 	s.Follows("Add an Ingredient")
-	s.IsAt("/ingredients")
+	s.IsAt("/ingredients/new")
 }
 
 // As htmx posts them, the Count sheet's pieces answer with fragments: saved, its body
@@ -367,7 +374,7 @@ func TestTheCountSheetWorksInPlace(t *testing.T) {
 	if shown := apptest.Text(found.Body); found.StatusCode != http.StatusOK || strings.Contains(found.Body, "<html") || strings.Contains(found.Body, "count-search") || !strings.Contains(shown, "rice") {
 		t.Fatalf("searching with htmx answered %d, want the list alone:\n%s", found.StatusCode, found.Body)
 	}
-	if shown := apptest.Text(s.HTMXGet(t, "/kitchen/count/list?q=salt").Body); strings.Contains(shown, "salt pantry") {
+	if shown := apptest.Text(s.HTMXGet(t, "/kitchen/count/list?q=salt").Body); strings.Contains(shown, "salt Pantry") {
 		t.Errorf("searching with htmx offers a Staple: %s", shown)
 	}
 
@@ -483,10 +490,26 @@ func addsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 	}
 }
 
+// opensAddForm opens the add form in sheet, under "Add an Ingredient", if it is closed.
+func opensAddForm(t *testing.T, sheet playwright.Locator) {
+	t.Helper()
+	if err := sheet.Locator("#ingredient-add").WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateAttached}); err != nil {
+		t.Fatalf("the sheet has no add form: %v", err)
+	}
+	closed := sheet.Locator("details:not([open]):has(#ingredient-add) > summary")
+	if n, err := closed.Count(); err != nil || n == 0 {
+		return
+	}
+	if err := closed.Click(); err != nil {
+		t.Fatalf("open Add an Ingredient: %v", err)
+	}
+}
+
 // fillsIngredient fills the add form in sheet for a food in grams kept in the pantry,
 // named name, and adds it.
 func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	t.Helper()
+	opensAddForm(t, sheet)
 	add := sheet.Locator("#ingredient-add")
 	field := func(label string) playwright.Locator {
 		return add.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
@@ -497,10 +520,10 @@ func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	if _, err := add.GetByLabel("Unit").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"g"}}); err != nil {
 		t.Fatalf("choose the unit: %v", err)
 	}
-	if _, err := add.GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"pantry"}}); err != nil {
+	if _, err := add.GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"Pantry"}}); err != nil {
 		t.Fatalf("choose where it is kept: %v", err)
 	}
-	for _, label := range []string{"Calories", "Protein", "Carbs", "Fat"} {
+	for _, label := range []string{"Calories (kcal)", "Protein (g)", "Carbs (g)", "Fat (g)"} {
 		if err := field(label).Fill("1"); err != nil {
 			t.Fatalf("fill %s: %v", label, err)
 		}
@@ -801,9 +824,9 @@ func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("rice 30 g")
 	s.Follows("rice")
-	s.Sees("Counted 100 g → 30 g Mon, Nov 2 10:00 am " +
-		"Counted 100 g → 100 g Mon, Nov 2 10:00 am " +
-		"Counted 0 g → 100 g Mon, Nov 2 10:00 am")
+	s.Sees("Counted 100 g → 30 g Mon, Nov 2 · 10:00 am " +
+		"Counted 100 g → 100 g Mon, Nov 2 · 10:00 am " +
+		"Counted 0 g → 100 g Mon, Nov 2 · 10:00 am")
 }
 
 // recordedAtTheLatest checks the last want Movements share the ledger's latest time,
@@ -814,5 +837,54 @@ func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {
 	s.Scan(t, &n, `SELECT count(*) FROM movement WHERE happened_at = (SELECT max(happened_at) FROM movement)`)
 	if n != want {
 		t.Errorf("%d Movements are at the latest time, want %d", n, want)
+	}
+}
+
+// Focus is a navy ring, so the Count sheet's search, focused as it opens, doesn't look
+// refused; a refused quantity, focused as it comes back, is marked by its vermilion box
+// and aria-invalid, in the same navy ring.
+func TestBrowserFocusIsNavyAndARefusalVermilion(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	addsRiceInTheBrowser(t, b)
+	expect := playwright.NewPlaywrightAssertions()
+	const navy, vermilion = "rgb(45, 51, 82)", "rgb(184, 50, 27)"
+
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Count"}).First().Click(); err != nil {
+		t.Fatalf("open the Count sheet: %v", err)
+	}
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
+	search := sheet.GetByRole("searchbox")
+	if err := expect.Locator(search).ToBeFocused(); err != nil {
+		t.Fatalf("the Count sheet doesn't open on its search: %v", err)
+	}
+	if err := expect.Locator(search).ToHaveCSS("outline-color", navy); err != nil {
+		t.Errorf("the focused search isn't ringed in navy: %v", err)
+	}
+	if err := expect.Locator(search).ToHaveCSS("outline-width", "3px"); err != nil {
+		t.Errorf("the focus ring isn't 3px: %v", err)
+	}
+
+	if err := sheet.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "rice"}).Click(); err != nil {
+		t.Fatalf("choose rice: %v", err)
+	}
+	stated := sheet.GetByLabel("How much is there")
+	if err := stated.Fill("-1"); err != nil {
+		t.Fatalf("state the quantity: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
+		t.Fatalf("save the Count: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveAttribute("aria-invalid", "true"); err != nil {
+		t.Fatalf("the refused quantity isn't marked aria-invalid: %v", err)
+	}
+	if err := expect.Locator(stated).ToBeFocused(); err != nil {
+		t.Errorf("the refused quantity isn't focused: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveCSS("border-bottom-color", vermilion); err != nil {
+		t.Errorf("the refused quantity isn't boxed in vermilion: %v", err)
+	}
+	if err := expect.Locator(stated).ToHaveCSS("outline-color", navy); err != nil {
+		t.Errorf("the refused quantity's focus ring isn't navy: %v", err)
 	}
 }

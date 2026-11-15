@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -17,7 +18,9 @@ import (
 templ PageHeader(ja, title string, today time.Time) {
 	<header class="page-header">
 		<p class="eyebrow"><span lang="ja">{ ja }</span> · { Date(ctx, today) }</p>
-		<h1>{ title }</h1>
+		<h1>
+			@titleText(title)
+		</h1>
 		{ children... }
 	</header>
 }
@@ -28,18 +31,22 @@ templ Section(num int, title string) {
 	<section class="section">
 		<h2 class="section-heading">
 			@number(num)
-			{ title }
+			@titleText(title)
 		</h2>
 		{ children... }
 	</section>
 }
 
-// FieldGroup is a Section of a form: its fields under a numbered legend.
-templ FieldGroup(num int, legend string) {
+// FieldGroup is a Section of a form: its fields under a numbered legend, followed by hint
+// in brackets, as a Field's, when set.
+templ FieldGroup(num int, legend, hint string) {
 	<fieldset class="section">
 		<legend class="section-heading">
 			@number(num)
-			{ legend }
+			@titleText(legend)
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
 		</legend>
 		{ children... }
 	</fieldset>
@@ -52,7 +59,9 @@ templ FieldGroupAction(id string, num int, legend string, action templ.Component
 	<fieldset class="section" aria-labelledby={ id }>
 		<legend class="section-heading">
 			@number(num)
-			<span id={ id }>{ legend }</span>
+			<span id={ id }>
+				@titleText(legend)
+			</span>
 			<span class="heading-action">
 				@action
 			</span>
@@ -70,6 +79,49 @@ templ number(n int) {
 	}
 }
 
+// Data marks s, in a title, as data: a time, a quantity or User text, which the title
+// sets in the body face, as the pixel face makes l, I and 1 hard to tell apart. Only
+// PageHeader's, Section's and FieldGroup's titles read the mark.
+func Data(s string) string { return dataStart + s + dataEnd }
+
+// dataStart and dataEnd mark Data: characters of Unicode's private use, which no text
+// a User reads holds.
+const dataStart, dataEnd = "\uE000", "\uE001"
+
+// titlePart is a run of a title, Data or not.
+type titlePart struct {
+	text string
+	data bool
+}
+
+// titleParts splits title into its runs of Data and the rest.
+func titleParts(title string) []titlePart {
+	var parts []titlePart
+	for {
+		before, rest, found := strings.Cut(title, dataStart)
+		if before != "" {
+			parts = append(parts, titlePart{text: before})
+		}
+		if !found {
+			return parts
+		}
+		data, after, _ := strings.Cut(rest, dataEnd)
+		parts = append(parts, titlePart{text: data, data: true})
+		title = after
+	}
+}
+
+// titleText is title, its Data in the body face.
+templ titleText(title string) {
+	for _, p := range titleParts(title) {
+		if p.data {
+			<span class="data">{ p.text }</span>
+		} else {
+			{ p.text }
+		}
+	}
+}
+
 // Hint is a quiet paragraph explaining what follows.
 templ Hint() {
 	<p class="hint">{ children... }</p>
@@ -80,10 +132,16 @@ templ Empty() {
 	<p class="empty">{ children... }</p>
 }
 
+// Verbatim is text shown exactly as it was, such as a paste or a Trace Event's data: its
+// lines kept, wrapping, on the surface.
+templ Verbatim(text string) {
+	<pre class="verbatim">{ text }</pre>
+}
+
 // Disclosure is a group of a page's content a click away, under summary: closed until the
-// User opens it.
-templ Disclosure(summary string) {
-	<details class="disclosure section">
+// User opens it, unless open says it holds what they are at, such as a refused form.
+templ Disclosure(summary string, open bool) {
+	<details class="disclosure section" open?={ open }>
 		<summary>
 			<span>{ summary }</span>
 			@Icon("chevron-down")
@@ -205,6 +263,7 @@ templ SearchField(label string) {
 // opens action searched. The children are the input of its SearchField, named by label.
 templ ListSearch(id, action, listURL, listID, label string) {
 	<form
+		novalidate
 		id={ id }
 		role="search"
 		method="get"
@@ -270,14 +329,20 @@ templ Check(label, hint string) {
 	</label>
 }
 
-// Checks is a group of checkboxes named name under legend, one per choice, those whose
-// Values are in ticked ticked, in as many columns as the width allows. err marks each
-// and shows under them.
-templ Checks(legend, name string, choices []Choice, ticked []string, err string) {
+// Checks is a group of checkboxes named name under legend, hint in brackets after it as a
+// Field's, one per choice, those whose Values are in ticked ticked, in as many columns as
+// the width allows. err marks each and shows under them, the first taking name as its id,
+// for an ErrorSummary to link to.
+templ Checks(legend, hint, name string, choices []Choice, ticked []string, err string) {
 	<fieldset class="stack">
-		<legend class="field-label">{ legend }</legend>
+		<legend class="field-label">
+			{ legend }
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
+		</legend>
 		<div class="check-grid">
-			for _, c := range choices {
+			for i, c := range choices {
 				<label class="check">
 					<input
 						type="checkbox"
@@ -286,6 +351,9 @@ templ Checks(legend, name string, choices []Choice, ticked []string, err string)
 						checked?={ slices.Contains(ticked, c.Value) }
 						if err != "" {
 							aria-invalid="true"
+						}
+						if err != "" && i == 0 {
+							id={ name }
 						}
 					/>
 					if c.Icon != "" {
@@ -335,13 +403,6 @@ templ Button(attrs templ.Attributes) {
 	</button>
 }
 
-// ButtonLink is a link that looks like a Button.
-templ ButtonLink(href templ.SafeURL) {
-	<a class="btn" href={ href }>
-		{ children... }
-	</a>
-}
-
 // TextButton is a secondary action. attrs must give its type.
 templ TextButton(attrs templ.Attributes) {
 	<button class="btn-text" { attrs... }>
@@ -364,6 +425,39 @@ templ DestructiveButton(attrs templ.Attributes) {
 	</button>
 }
 
+// RemoveLink is a DestructiveButton that asks first: it opens the SideSheet id on the
+// RemoveStep loaded from src, a fragment, or without htmx goes to href, the step's page.
+templ RemoveLink(id string, href, src templ.SafeURL) {
+	@sheetLink("btn-text btn-danger", id, href, src, nil) {
+		{ children... }
+	}
+}
+
+// RemoveStepID is the id of a RemoveStep's form.
+const RemoveStepID = "remove-step"
+
+// RemoveStep asks once before deleting or discarding what the User wrote, question
+// naming what will go: a form posting to action, whose DestructiveButton says remove,
+// attrs adding such as the swap of a sheet's body, and the children its hidden fields.
+// back, unless "", is a TextLink back, for the step as a page of its own; in a sheet,
+// the sheet's Close is the way back.
+templ RemoveStep(question, remove string, action, back templ.SafeURL, attrs templ.Attributes) {
+	<form novalidate id={ RemoveStepID } class="stack" method="post" action={ action } { attrs... }>
+		<p>{ question }</p>
+		{ children... }
+		@Actions() {
+			@DestructiveButton(templ.Attributes{"type": "submit"}) {
+				{ remove }
+			}
+			if back != "" {
+				@TextLink(templ.Attributes{"href": back}) {
+					{ T(ctx, msgBack) }
+				}
+			}
+		}
+	</form>
+}
+
 // Choice is one option of a Segmented choice or of Checks. Icon, if any, names the icon
 // Checks shows before the label.
 type Choice struct {
@@ -372,22 +466,37 @@ type Choice struct {
 	Icon  string
 }
 
-// Segmented chooses one of a few options with square toggles. selected
-// is the chosen Value; err is why a choice was rejected.
+// Segmented chooses one of a few options with square toggles, under legend, shown as a
+// Field's label: none when the group around it already names it. selected is the chosen
+// Value; err is why a choice was rejected, marking each option, the first then taking
+// name as its id, for an ErrorSummary to link to.
 templ Segmented(legend, name string, choices []Choice, selected, err string) {
-	<fieldset
-		class="seg"
-		if err != "" {
-			aria-invalid="true"
-			tabindex="-1"
+	<fieldset class="field">
+		if legend != "" {
+			<legend class="field-label">{ legend }</legend>
 		}
-	>
-		<legend class="sr-only">{ legend }</legend>
-		for _, c := range choices {
-			<label><input type="radio" name={ name } value={ c.Value } required checked?={ selected == c.Value }/><span>{ c.Label }</span></label>
-		}
+		<div class="seg">
+			for i, c := range choices {
+				<label>
+					<input
+						type="radio"
+						name={ name }
+						value={ c.Value }
+						required
+						checked?={ selected == c.Value }
+						if err != "" {
+							aria-invalid="true"
+						}
+						if err != "" && i == 0 {
+							id={ name }
+						}
+					/>
+					<span>{ c.Label }</span>
+				</label>
+			}
+		</div>
+		@FieldError(err)
 	</fieldset>
-	@FieldError(err)
 }
 
 // SegmentedLinks is Segmented for options that each open something rather than fill in a
@@ -415,6 +524,25 @@ templ Alert() {
 	<div class="alert" role="alert">
 		{ children... }
 	</div>
+}
+
+// Refusal is a field a form refused: the id of its control, its label and why.
+type Refusal struct{ ID, Label, Err string }
+
+// ErrorSummary opens a rejected form longer than a screen: an Alert listing each of
+// refusals, in the form's order, as a link to its field, taking focus as the page loads.
+// It is nothing when there are none.
+templ ErrorSummary(refusals []Refusal) {
+	if len(refusals) > 0 {
+		<div class="alert error-summary" role="alert" tabindex="-1" autofocus>
+			<p>{ T(ctx, msgErrorSummary) }</p>
+			<ul>
+				for _, r := range refusals {
+					<li><a href={ templ.SafeURL("#" + r.ID) }>{ r.Label }: { r.Err }</a></li>
+				}
+			</ul>
+		</div>
+	}
 }
 
 // notices is where floating Notices show, at the top of the screen: text, when set, is
@@ -553,7 +681,8 @@ templ SideSheet(id, title string) {
 // behind it is inert, and a tap on the veil or Esc closes it, the top one of several.
 // closedby="any" closes it on the veil where the browser knows it; where it doesn't, a
 // press that both starts and ends on the veil does, so dragging out of a field doesn't
-// close it. open marks it to open as the page loads.
+// close it. Once its form is changed the veil no longer closes it (see keepsChanges).
+// open marks it to open as the page loads.
 templ sheet(id, class, title string, open bool) {
 	<dialog
 		id={ id }
@@ -563,6 +692,7 @@ templ sheet(id, class, title string, open bool) {
 		data-open?={ open }
 		{ veilCloses... }
 		{ closesOnDone... }
+		{ keepsChanges... }
 	>
 		<div class="sheet-head">
 			<h2 id={ id + "-title" }>{ title }</h2>
@@ -575,8 +705,22 @@ templ sheet(id, class, title string, open bool) {
 // veilCloses closes a sheet on a press that starts and ends on its veil, for a browser
 // that doesn't know closedby.
 var veilCloses = templ.Attributes{
-	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && " + onVeil,
+	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && !this.changed && " + onVeil,
 	"hx-on:click":       "if (this.veilPressed && " + onVeil + ") this.close()",
+}
+
+// keepsChanges keeps a sheet open on the veil once the User types or chooses in its form,
+// a search aside, until it closes or a form in it saves: Esc and Close still close it.
+// It sets the attribute: setting closedBy would add the property veilCloses checks.
+var keepsChanges = templ.Attributes{
+	"hx-on:input":              "if (!event.target.closest('[role=search]')) " + sheetChanged(true),
+	"hx-on:close":              sheetChanged(false),
+	"hx-on:htmx:after:request": "if (event.detail.ctx.request.method === 'POST' && event.detail.ctx.response?.status < 400) " + sheetChanged(false),
+}
+
+// sheetChanged is the script that marks a sheet's form changed, or not.
+func sheetChanged(changed bool) string {
+	return "{ this.changed = " + fmt.Sprint(changed) + "; this.setAttribute('closedby', this.changed ? 'closerequest' : 'any') }"
 }
 
 // CloseSheet is the event an answer to a form in a sheet triggers, with HX-Trigger, to
@@ -623,10 +767,11 @@ templ SectionBody(id string) {
 func SideSheetBody(id string) string { return id + "-body" }
 
 // SideSheetLink opens the sheet id with its SheetBody loaded from src, a fragment, and
-// focuses its field marked autofocus, or else its first. Without htmx it is a plain link
-// to href, a page of the same content. htmx tells the swap to the link, so the link opens
-// the sheet; a form in the body, swapped away, has htmx tell the body instead. The link
-// is the sheet's source, so one inside another sheet opens over it and leaves it open.
+// focuses its field marked autofocus, or else its first shown, not in a closed
+// Disclosure. Without htmx it is a plain link to href, a page of the same content. htmx
+// tells the swap to the link, so the link opens the sheet; a form in the body, swapped
+// away, has htmx tell the body instead. The link is the sheet's source, so one inside
+// another sheet opens over it and leaves it open.
 templ SideSheetLink(id string, href, src templ.SafeURL) {
 	@SideSheetLinkWith(id, href, src, nil) {
 		{ children... }
@@ -650,7 +795,7 @@ templ sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attribute
 		hx-target={ "#" + SideSheetBody(id) }
 		hx-swap="innerHTML"
 		data-sheet={ id }
-		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.open) s.showModal(); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body input, .sheet-body select, .sheet-body textarea'))?.focus()"
+		hx-on:htmx:after:swap="const s = document.getElementById(this.dataset.sheet); if (!s.open) s.showModal(); (s.querySelector('.sheet-body [autofocus]') ?? s.querySelector('.sheet-body :is(input:not([type=hidden]), select, textarea):not(details:not([open]) *)'))?.focus()"
 		{ attrs... }
 	>
 		{ children... }

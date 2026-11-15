@@ -9,24 +9,26 @@ import (
 var (
 	msgRunTitle = web.Message{En: "%s · Dandori", It: "%s · Dandori"}
 	msgStarted  = web.Message{En: "Started at %s", It: "Iniziata alle %s"}
-	// msgStartedOn is a Run's day and time on the Runs page.
-	msgStartedOn = web.Message{En: "%s %s", It: "%s %s"}
-	msgTrace     = web.Message{En: "Trace", It: "Traccia"}
-	msgRuns      = web.Message{En: "Runs", It: "Run"}
-	msgNoRuns    = web.Message{En: "No Runs yet.", It: "Ancora nessuna Run."}
-	msgCancel    = web.Message{En: "Cancel", It: "Annulla"}
-	msgTryAgain  = web.Message{En: "Try again", It: "Riprova"}
+	msgTrace    = web.Message{En: "Trace", It: "Traccia"}
+	msgRuns     = web.Message{En: "Runs", It: "Run"}
+	msgNoRuns   = web.Message{En: "No Runs yet.", It: "Ancora nessuna Run."}
+	msgCancel   = web.Message{En: "Cancel", It: "Annulla"}
+	msgTryAgain = web.Message{En: "Try again", It: "Riprova"}
 	// msgSeeFurther opens a Run's page again, further along, without JavaScript.
 	msgSeeFurther = web.Message{En: "See how it's going", It: "Guarda a che punto è"}
 
-	msgStartedWith = web.Message{En: "Started with %s", It: "Iniziata con %s"}
-	msgAsked       = web.Message{En: "Asking the model (turn %d)", It: "Chiedo al modello (turno %d)"}
-	msgSaid        = web.Message{En: "The model says", It: "Il modello dice"}
-	msgCalled      = web.Message{En: "Calls %s", It: "Chiama %s"}
-	msgAnswered    = web.Message{En: "%s answers", It: "%s risponde"}
-	msgRefused     = web.Message{En: "%s refuses", It: "%s rifiuta"}
-	msgRetrying    = web.Message{En: "Retry %d of %d in %d ms", It: "Nuovo tentativo %d di %d tra %d ms"}
-	msgTokens      = web.Message{
+	// A Trace Event's line says what happened in plain words; the model's and the tools'
+	// names, and their data, are in its Fold.
+	msgStartedRun = web.Message{En: "Started", It: "Iniziata"}
+	msgAsked      = web.Message{En: "Asking the model (turn %d)", It: "Chiedo al modello (turno %d)"}
+	msgSaid       = web.Message{En: "The model says", It: "Il modello dice"}
+	msgCalled     = web.Message{En: "The model asks Dandori", It: "Il modello chiede a Dandori"}
+	msgAnswered   = web.Message{En: "Dandori answers", It: "Dandori risponde"}
+	msgRefused    = web.Message{En: "Dandori sends it back", It: "Dandori lo rimanda indietro"}
+	msgRetrying   = web.Message{En: "Asking the model again (%d of %d)", It: "Chiedo di nuovo al modello (%d di %d)"}
+	msgWaiting    = web.Message{En: "Waiting %d ms", It: "Attendo %d ms"}
+	msgUsed       = web.Message{En: "The model used %d tokens", It: "Il modello ha usato %d token"}
+	msgTokens     = web.Message{
 		En: "%d tokens in, %d out, %d of them thinking; %d read from the cache, %d written to it",
 		It: "%d token in entrata, %d in uscita, di cui %d di ragionamento; %d letti dalla cache, %d scritti",
 	}

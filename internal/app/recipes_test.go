@@ -2,11 +2,14 @@ package app_test
 
 import (
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/mxschmitt/playwright-go"
 
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -91,7 +94,7 @@ func TestANewIngredientsMissingValuesAreRefusedOnTheirFields(t *testing.T) {
 
 	s.WritesRecipe(r)
 	s.IsRefused()
-	s.Sees("Calories Required.")
+	s.Sees("Calories (kcal) Required.")
 	s.Sees("Choose where it is usually kept.")
 	s.Open("/ingredients")
 	s.DoesNotSee("tofu")
@@ -202,7 +205,7 @@ func TestARecipesKindsOfApplianceAreShownInTheUsersLanguage(t *testing.T) {
 	s.Sees("Richiede forno, friggitrice ad aria")
 	s.Follows("Modifica")
 	draftHolds(t, s, map[string]string{"appliances": "oven\nair_fryer"})
-	s.Sees("Elettrodomestici forno piano cottura microonde friggitrice ad aria")
+	s.Sees("Elettrodomestici (facoltativi) forno piano cottura microonde friggitrice ad aria")
 }
 
 // An Ingredient a Recipe lists refuses deletion and a change of unit, naming the Recipe.
@@ -263,7 +266,7 @@ func TestARowsNameShowsTheKnownUnitOrTheNewIngredientsFields(t *testing.T) {
 	s := kitchenWith(t, rice)
 
 	known := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=Rice")
-	if shown := apptest.Text(known.Body); !strings.Contains(shown, "Measured in g") {
+	if shown := apptest.Text(known.Body); !strings.Contains(shown, "Quantity (g)") {
 		t.Errorf("a known name shows %q", shown)
 	}
 	unknown := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=tofu&ing_kcal_2=120")
@@ -276,6 +279,51 @@ func TestARowsNameShowsTheKnownUnitOrTheNewIngredientsFields(t *testing.T) {
 	}
 	if !strings.Contains(unknown.Body, `name="ing_kcal_2"`) || !strings.Contains(unknown.Body, `value="120"`) {
 		t.Errorf("the fields aren't numbered for the row or lost what was typed: %s", unknown.Body)
+	}
+	unit := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=tofu&ing_new_2=true&ing_unit_2=piece")
+	if shown := apptest.Text(unit.Body); !strings.Contains(shown, "Quantity (pieces)") || !strings.Contains(shown, "Per piece, as on the label.") {
+		t.Errorf("a new Ingredient's unit chosen shows %q", shown)
+	}
+}
+
+// In a browser, a row follows its name and a new Ingredient's unit in place: the field
+// the User moved to keeps the focus, the quantity is given in the unit chosen, and the
+// row says what the values are per.
+func TestBrowserARowFollowsItsNewIngredientsUnit(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	b.Open(t, "/recipes/new")
+
+	if err := b.Locator(`[name="ing_name_0"]`).Fill("tofu"); err != nil {
+		t.Fatalf("name the row: %v", err)
+	}
+	if err := b.Locator(`[name="ing_name_0"]`).Press("Tab"); err != nil {
+		t.Fatalf("leave the name: %v", err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	unit := b.Locator(`[name="ing_unit_0"]`)
+	if err := unit.WaitFor(); err != nil {
+		t.Fatalf("the new Ingredient's fields never showed: %v", err)
+	}
+	if err := expect.Locator(b.Locator(`[name="ing_quantity_0"]`)).ToBeFocused(); err != nil {
+		t.Errorf("the quantity lost the focus: %v", err)
+	}
+	if err := unit.Focus(); err != nil {
+		t.Fatalf("focus the unit: %v", err)
+	}
+	if _, err := unit.SelectOption(playwright.SelectOptionValues{Values: &[]string{"ml"}}); err != nil {
+		t.Fatalf("choose ml: %v", err)
+	}
+	if err := expect.Locator(b.Locator(".ingredient-row").First()).ToContainText("Per 100 ml, as on the label."); err != nil {
+		t.Errorf("the row doesn't say what its values are per: %v", err)
+	}
+	if err := expect.Locator(b.Locator(`label:has([name="ing_quantity_0"])`)).ToContainText("Quantity (ml)"); err != nil {
+		t.Errorf("the quantity isn't given in ml: %v", err)
+	}
+	if err := expect.Locator(unit).ToBeFocused(); err != nil {
+		t.Errorf("the unit lost the focus: %v", err)
 	}
 }
 
@@ -309,6 +357,62 @@ func TestAddingARowWithoutHTMXKeepsWhatWasTyped(t *testing.T) {
 	if strings.Contains(apptest.Text(page.Body), "Give it") {
 		t.Errorf("adding a row refused something: %s", apptest.Text(page.Body))
 	}
+}
+
+// removesRow posts form with its row at index pressed Remove, as htmx and as a plain
+// post, checking each comes back as want, saving nothing and refusing nothing.
+func removesRow(t *testing.T, s *apptest.Scenario, form apptest.FormData, index string, want map[string]string, gone string) {
+	t.Helper()
+	form.Values.Set("remove", index)
+	for _, post := range []struct {
+		how string
+		do  func(testing.TB, string, url.Values) apptest.Response
+	}{{"as htmx", s.HTMXPostForm}, {"as a plain post", s.PostForm}} {
+		page := post.do(t, form.Action, form.Values)
+		if page.StatusCode != http.StatusOK {
+			t.Fatalf("removing a row %s answered %d", post.how, page.StatusCode)
+		}
+		got := apptest.Form(t, page.Body, "recipe-form")
+		for field, v := range want {
+			if got.Get(field) != v {
+				t.Errorf("removing a row %s left %s %q, want %q", post.how, field, got.Get(field), v)
+			}
+		}
+		if got.Values.Has(gone) {
+			t.Errorf("removing a row %s still has %s: %v", post.how, gone, got.Values)
+		}
+		if text := apptest.Text(page.Body); strings.Contains(text, "Give it") || strings.Contains(text, "Required") {
+			t.Errorf("removing a row %s refused something: %s", post.how, text)
+		}
+	}
+}
+
+// A row's Remove posts the Recipe form back without that row, the rest as typed and
+// numbered on from 0, saving nothing.
+func TestRemovingARowKeepsTheRestAsTyped(t *testing.T) {
+	s := kitchenWith(t, rice, egg)
+	s.Open("/recipes/new")
+	form := apptest.Form(t, s.Page().Body, "recipe-form")
+	r := riceBowl()
+	r.Ingredients = append(r.Ingredients, apptest.RecipeRow{Ingredient: apptest.Ingredient{Name: "egg"}, Quantity: "3"})
+	r.Fill(form)
+
+	removesRow(t, s, form, "0", map[string]string{"name": "Rice bowl", "portions": "2", "ing_name_0": "egg", "ing_quantity_0": "3"}, "ing_name_1")
+	s.Open("/recipes")
+	s.Sees("No Recipes yet.")
+}
+
+// A Recipe Draft's row is removed as a Recipe form's is, a new Ingredient's values
+// moving up with its row.
+func TestRemovingARecipeDraftsRowKeepsTheRestAsTyped(t *testing.T) {
+	s := draftedLasagne(t)
+	s.Follows("Recipe Draft")
+	form := apptest.Form(t, s.Page().Body, "recipe-form")
+	form.Values.Set("ing_quantity_1", "300")
+
+	removesRow(t, s, form, "0", map[string]string{
+		"name": "Lasagne", "ing_name_0": "lasagne sheets", "ing_quantity_0": "300", "ing_kcal_0": "350", "ing_name_3": "rice",
+	}, "ing_name_4")
 }
 
 // In a browser, adding a row gives one more, numbered, whose name asks what it is.
@@ -355,22 +459,94 @@ func TestBrowserEachAddGivesANumberedRowAndFocusesIt(t *testing.T) {
 	focused(`#steps li:nth-child(2) textarea`)
 }
 
-// In a browser, the Library's floating + opens the Recipe form.
+// In a browser, a row's Remove takes it off the form, the next row moving up as typed,
+// and the address stays the form's.
+func TestBrowserRemovesARow(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/recipes/new")
+	b.Click(t, "Add an Ingredient")
+	if err := b.Locator(`[name="ing_name_1"]`).Fill("tofu"); err != nil {
+		t.Fatalf("name the second row: %v", err)
+	}
+
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Remove"}).First().Click(); err != nil {
+		t.Fatalf("remove the first row: %v", err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(b.Locator(`[name="ing_name_0"]`)).ToHaveValue("tofu"); err != nil {
+		t.Errorf("the second row didn't move up: %v", err)
+	}
+	if err := expect.Locator(b.Locator(`[name="ing_name_1"]`)).ToHaveCount(0); err != nil {
+		t.Errorf("the removed row is still there: %v", err)
+	}
+	b.IsAt(t, "/recipes/new")
+}
+
+// In a browser, the Library's floating + pastes a recipe first, and, Write chosen, opens
+// the Recipe form.
 func TestBrowserTheFloatingPlusOpensTheRecipeForm(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
 	b.SignUp(t, "ada@example.com")
 	b.Open(t, "/recipes")
+	expect := playwright.NewPlaywrightAssertions()
 
+	if err := expect.Locator(b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Paste a recipe"})).ToBeVisible(); err != nil {
+		t.Errorf("the + doesn't start on Paste: %v", err)
+	}
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Choose what to add"}).Click(); err != nil {
+		t.Fatalf("open what to add: %v", err)
+	}
+	if err := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: "Write a Recipe"}).Click(); err != nil {
+		t.Fatalf("choose Write: %v", err)
+	}
 	if err := b.Locator(`a.fab[aria-label="Write a Recipe"]`).Click(); err != nil {
 		t.Fatalf("press the +: %v", err)
 	}
 	b.IsAt(t, "/recipes/new")
 }
 
-// In a browser, a rejected form comes back with focus on the invalid field.
-func TestBrowserARejectedRecipeFocusesItsInvalidField(t *testing.T) {
+// In a browser, an empty Recipe form is refused by the app, not the browser: its errors
+// are in the User's Language, Italian on an English browser, each refused field marked.
+func TestBrowserAnEmptyRecipeShowsTheAppsErrorsInTheUsersLanguage(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.ChooseLanguage(t, "Italiano", "Continue")
+	b.IsAt(t, "/")
+	b.Open(t, "/recipes/new")
+
+	b.Click(t, "Salva la Ricetta")
+	b.Sees(t, "Dalle un nome.")
+	b.Sees(t, "Scegli almeno un tipo di Pasto.")
+	for _, field := range []string{"name", "portions", "active", "total", "slots", "ing_name_0"} {
+		if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="`+field+`"]`).First()).ToHaveAttribute("aria-invalid", "true"); err != nil {
+			t.Errorf("the refused %s isn't marked: %v", field, err)
+		}
+	}
+}
+
+// The Recipe form says its Steps and Appliances may be left blank, in each Language.
+func TestTheRecipeFormSaysWhatIsOptional(t *testing.T) {
+	for language, want := range map[string][]string{
+		"English":  {"Steps (optional)", "Appliances (optional)"},
+		"Italiano": {"Passaggi (facoltativi)", "Elettrodomestici (facoltativi)"},
+	} {
+		t.Run(language, func(t *testing.T) {
+			s := kitchenIn(t, language)
+			s.Open("/recipes/new")
+			for _, w := range want {
+				s.Sees(w)
+			}
+		})
+	}
+}
+
+// In a browser, a rejected Recipe form opens on its error summary, whose first link
+// takes focus to its field, the first refused.
+func TestBrowserARejectedRecipeOpensOnItsErrorSummary(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
@@ -383,14 +559,24 @@ func TestBrowserARejectedRecipeFocusesItsInvalidField(t *testing.T) {
 		}
 	}
 	b.Click(t, "Save Recipe")
-	b.Sees(t, "Can't be more than the total minutes.")
+	summary := b.Locator(".error-summary")
+	if err := playwright.NewPlaywrightAssertions().Locator(summary).ToBeFocused(); err != nil {
+		t.Fatalf("the error summary isn't focused: %v", err)
+	}
+	first := summary.GetByRole("link").First()
+	if err := playwright.NewPlaywrightAssertions().Locator(first).ToHaveText("Active time: Can't be more than the total minutes."); err != nil {
+		t.Errorf("the summary's first link: %v", err)
+	}
+	if err := first.Click(); err != nil {
+		t.Fatalf("follow the summary's first link: %v", err)
+	}
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="active"]`)).ToBeFocused(); err != nil {
-		t.Errorf("the invalid field isn't focused: %v", err)
+		t.Errorf("the link doesn't focus its field: %v", err)
 	}
 }
 
-// In a browser, a Recipe with no Ingredient comes back focused on the first row.
-func TestBrowserARecipeWithNoIngredientFocusesTheFirstRow(t *testing.T) {
+// In a browser, a Recipe with no Ingredient is summed up by a link to the first row.
+func TestBrowserARecipeWithNoIngredientLinksToTheFirstRow(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
@@ -406,7 +592,9 @@ func TestBrowserARecipeWithNoIngredientFocusesTheFirstRow(t *testing.T) {
 		t.Fatalf("choose lunch: %v", err)
 	}
 	b.Click(t, "Save Recipe")
-	b.Sees(t, "List at least one Ingredient.")
+	if err := b.Locator(".error-summary").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredient: List at least one Ingredient."}).Click(); err != nil {
+		t.Fatalf("follow the summary's link: %v", err)
+	}
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="ing_name_0"]`)).ToBeFocused(); err != nil {
 		t.Errorf("the first row isn't focused: %v", err)
 	}
@@ -517,14 +705,21 @@ func TestRenamingARecipeToAnotherIsRefusedWithALinkToIt(t *testing.T) {
 	s.Sees("RISOTTO")
 }
 
-// Deleting a Recipe removes it and frees its Ingredients for deleting or changing unit.
+// Deleting a Recipe asks once, naming it, then removes it and frees its Ingredients for
+// deleting or changing unit. The edit form has no Delete that posts at once.
 func TestDeletingARecipeRemovesItAndFreesItsIngredients(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.WritesRecipe(riceBowl())
 	page := s.Page().Path
 
 	s.Follows("Edit")
-	s.Submits("recipe-remove")
+	if strings.Contains(s.Page().Body, `action="`+page+`/delete"`) {
+		t.Errorf("the edit form deletes the Recipe in one post:\n%s", s.Page().Body)
+	}
+	s.Follows("Delete")
+	s.IsAt(page + "/delete")
+	s.Sees("Delete the Recipe Rice bowl?")
+	s.Submits("remove-step")
 	s.IsConfirmed("Deleted Rice bowl.")
 	s.IsAt("/recipes")
 	s.Sees("No Recipes yet.")
@@ -559,6 +754,26 @@ func TestAnIngredientTakenOffARecipeIsFreed(t *testing.T) {
 	s.IsConfirmed("Deleted tofu.")
 }
 
+// The sheet a Recipe's Delete opens asks in the User's Language, and its form posted as
+// htmx lands on the Library confirming it, as a plain post does.
+func TestARecipeIsDeletedFromItsSheet(t *testing.T) {
+	s := kitchenIn(t, "Italiano", rice)
+	s.WritesRecipe(riceBowl())
+	s.Open(s.Page().Path + "/edit")
+	sheet := s.HTMXGet(t, apptest.SheetSource(t, s.Page().Body, "Elimina"))
+	if shown := apptest.Text(sheet.Body); sheet.StatusCode != http.StatusOK || strings.Contains(sheet.Body, "<html") || !strings.Contains(shown, "Eliminare la Ricetta Rice bowl?") {
+		t.Fatalf("the sheet answered %d:\n%s", sheet.StatusCode, sheet.Body)
+	}
+	step := apptest.Form(t, sheet.Body, "remove-step")
+	got := s.HTMXPostForm(t, step.Action, step.Values)
+	if got.Path != "/recipes" {
+		t.Errorf("deleting from the sheet landed on %s", got.Path)
+	}
+	if notices := apptest.Notices(t, got.Body); !slices.Equal(notices, []string{"Eliminata: Rice bowl."}) {
+		t.Errorf("deleting from the sheet confirms %q", notices)
+	}
+}
+
 // Another User's Recipe can be neither edited nor deleted, even by address.
 func TestAnotherUsersRecipeCanNeitherBeEditedNorDeleted(t *testing.T) {
 	s := kitchenWith(t, rice)
@@ -577,6 +792,11 @@ func TestAnotherUsersRecipeCanNeitherBeEditedNorDeleted(t *testing.T) {
 	s.AddsIngredient(rice)
 	if got := s.PostForm(t, form.Action, form.Values); got.StatusCode != http.StatusNotFound {
 		t.Errorf("editing another User's Recipe answered %d", got.StatusCode)
+	}
+	for _, step := range []string{page + "/delete", page + "/delete/sheet"} {
+		if got := s.Get(t, step); got.StatusCode != http.StatusNotFound {
+			t.Errorf("the step deleting another User's Recipe, %s, answered %d", step, got.StatusCode)
+		}
 	}
 	if got := s.PostForm(t, page+"/delete", nil); got.StatusCode != http.StatusNotFound {
 		t.Errorf("deleting another User's Recipe answered %d", got.StatusCode)
@@ -623,7 +843,8 @@ func TestTheRecipeLibrarysSearchFindsARecipeThroughATypo(t *testing.T) {
 }
 
 // In a browser, the Library's search swaps the list as the User types, keeping focus, and
-// the edit form's Delete, a button of the form beside it, lands on the Library.
+// the edit form's Delete opens a sheet asking first: closed, it leaves the Recipe, and
+// confirmed, it lands on the Library saying so.
 func TestBrowserSearchesTheLibraryAndDeletesARecipe(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/recipes/new")
@@ -673,7 +894,119 @@ func TestBrowserSearchesTheLibraryAndDeletesARecipe(t *testing.T) {
 	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Edit"}).Click(); err != nil {
 		t.Fatalf("open the edit form: %v", err)
 	}
-	b.Click(t, "Delete")
-	b.Sees(t, "No Recipes yet.")
+	b.Sees(t, "Edit a Recipe")
+	edit := b.URL()
+	deleteLink := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Delete", Exact: playwright.Bool(true)})
+	sheet := b.Locator("#recipe-remove")
+	if err := deleteLink.Click(); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if err := playwright.NewPlaywrightAssertions().Locator(sheet).ToContainText("Delete the Recipe Lentil soup?"); err != nil {
+		t.Fatalf("the sheet asking first never showed: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close"}).Click(); err != nil {
+		t.Fatalf("close the sheet: %v", err)
+	}
+	if err := playwright.NewPlaywrightAssertions().Locator(sheet).Not().ToBeVisible(); err != nil {
+		t.Errorf("the sheet stayed open: %v", err)
+	}
+	if got := b.URL(); got != edit {
+		t.Errorf("closing the sheet left the edit form for %s", got)
+	}
+	if err := deleteLink.Click(); err != nil {
+		t.Fatalf("delete again: %v", err)
+	}
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Delete"}).Click(); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
 	b.IsAt(t, "/recipes")
+	b.IsConfirmed(t, "Deleted Lentil soup.")
+	b.Sees(t, "No Recipes yet.")
+}
+
+// The Recipe Library comes before any form: the page holds no paste form, and its + opens
+// one in a sheet, or without htmx the paste page. Pasted from either, a recipe starts a
+// Run; a paste refused lands on the paste page, with why.
+func TestTheRecipeLibraryComesBeforeThePasteForm(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.WritesRecipe(riceBowl())
+	s.Open("/recipes")
+	s.Sees("Rice bowl")
+	library := s.Page().Body
+	for _, form := range []string{`id="paste-form"`, `id="recipe-form"`} {
+		if strings.Contains(library, form) {
+			t.Errorf("the Recipe Library holds the form %s", form)
+		}
+	}
+	for _, href := range []string{`href="/recipes/paste"`, `href="/recipes/new"`} {
+		if !strings.Contains(library, href) {
+			t.Errorf("the Recipe Library's + has no link %s", href)
+		}
+	}
+
+	s.Model.Script(fakellm.Reply("Not a recipe."), fakellm.Reply("Not a recipe."))
+	sheet := s.HTMXGet(t, "/recipes/paste/sheet")
+	if sheet.StatusCode != http.StatusOK || strings.Contains(sheet.Body, "<html") {
+		t.Fatalf("the paste sheet's body answered %d, want 200 and a fragment:\n%s", sheet.StatusCode, sheet.Body)
+	}
+	form := apptest.Form(t, sheet.Body, "paste-form")
+	form.Values.Set("text", "Two eggs, boiled.")
+	if ran := s.PostForm(t, form.Action, form.Values); !strings.HasPrefix(ran.Path, "/runs/") {
+		t.Errorf("pasting from the sheet lands on %s, want its Run", ran.Path)
+	}
+
+	s.StartsParse("Two eggs, fried.")
+	if !strings.HasPrefix(s.Page().Path, "/runs/") {
+		t.Errorf("pasting from the paste page lands on %s, want its Run", s.Page().Path)
+	}
+
+	s.StartsParse("  ")
+	s.IsRefused()
+	s.Sees("Paste a recipe to read.")
+	apptest.Form(t, s.Page().Body, "paste-form")
+}
+
+// On a phone, the first Recipe in the Recipe Library shows without scrolling.
+func TestBrowserTheFirstRecipeShowsOnAPhoneWithoutScrolling(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.WritesRecipe(riceBowl())
+	b := s.Browser(t)
+	if err := b.SetViewportSize(360, 640); err != nil {
+		t.Fatalf("size a phone: %v", err)
+	}
+	b.SignIn(t, "ada@example.com")
+	b.IsAt(t, "/")
+	b.Open(t, "/recipes")
+	first := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Rice bowl"})
+	if err := playwright.NewPlaywrightAssertions().Locator(first).ToBeInViewport(); err != nil {
+		t.Errorf("the first Recipe is below the fold on a phone: %v", err)
+	}
+}
+
+// Without JS, the Recipe Library's + reaches the paste form, and the Ingredients page's
+// the add form, each on a page of its own.
+func TestBrowserTheAddButtonsReachTheirFormsWithoutJS(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.BrowserWithoutJS(t)
+	b.SignUp(t, "ada@example.com")
+	expect := playwright.NewPlaywrightAssertions()
+
+	b.Open(t, "/recipes")
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Paste a recipe"}).Click(); err != nil {
+		t.Fatalf("press Paste: %v", err)
+	}
+	b.IsAt(t, "/recipes/paste")
+	if err := expect.Locator(b.GetByLabel("Paste a recipe")).ToBeVisible(); err != nil {
+		t.Errorf("Paste doesn't reach the paste form: %v", err)
+	}
+
+	b.Open(t, "/ingredients")
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Add an Ingredient"}).Click(); err != nil {
+		t.Fatalf("press Add: %v", err)
+	}
+	b.IsAt(t, "/ingredients/new")
+	if err := expect.Locator(b.Locator("#ingredient-add").GetByLabel("Name")).ToBeVisible(); err != nil {
+		t.Errorf("Add doesn't reach the add form: %v", err)
+	}
 }

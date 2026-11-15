@@ -240,10 +240,13 @@ func (ing Ingredient) Fill(f FormData) {
 	}
 }
 
-// AddsIngredient adds ing with the add form on the page open, posted as a browser
-// without htmx.
+// AddsIngredient adds ing with the add form on the page open, or else on the add page the
+// Ingredients page's + goes to, posted as a browser without htmx.
 func (s *Scenario) AddsIngredient(ing Ingredient) {
 	s.t.Helper()
+	if !strings.Contains(s.page.Body, `id="ingredient-add"`) {
+		s.Open("/ingredients/new")
+	}
 	form := Form(s.t, s.page.Body, "ingredient-add")
 	ing.Fill(form)
 	s.page = s.PostForm(s.t, form.Action, form.Values)
@@ -280,11 +283,12 @@ func (s *Scenario) EditsIngredient(name string, ing Ingredient) {
 	s.record(fmt.Sprintf("edits the Ingredient %q to %q: %d %s", name, ing.Name, s.page.StatusCode, s.page.Path))
 }
 
-// DeletesIngredient deletes the Ingredient named name with its delete form on the page
-// open, posted as a browser without htmx.
+// DeletesIngredient deletes the Ingredient named name from the page open, following its
+// Delete to the step that asks first and confirming there, as a browser without htmx.
 func (s *Scenario) DeletesIngredient(name string) {
 	s.t.Helper()
-	form := DeleteForm(s.t, s.page.Body, name)
+	href, _ := DeleteLink(s.t, s.page.Body, name)
+	form := Form(s.t, s.Get(s.t, href).Body, "remove-step")
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("deletes the Ingredient %q: %d %s", name, s.page.StatusCode, s.page.Path))
 }
@@ -467,7 +471,7 @@ func (s *Scenario) PostsRecipeForm(r Recipe) {
 	s.record(fmt.Sprintf("writes the Recipe %q: %d %s", r.Name, s.page.StatusCode, s.page.Path))
 }
 
-// PastesRecipe pastes text on the Recipe Library page, lands on its Run's page, and
+// PastesRecipe pastes text on the paste page, lands on its Run's page, and
 // reloads it once the Run has ended.
 func (s *Scenario) PastesRecipe(text string) {
 	s.t.Helper()
@@ -476,11 +480,11 @@ func (s *Scenario) PastesRecipe(text string) {
 	s.Open(s.page.Path)
 }
 
-// StartsParse pastes text on the Recipe Library page and lands on its Run's page, the
-// Run going.
+// StartsParse pastes text on the paste page, the Recipe Library's + without htmx, and
+// lands on its Run's page, the Run going.
 func (s *Scenario) StartsParse(text string) {
 	s.t.Helper()
-	s.Open("/recipes")
+	s.Open("/recipes/paste")
 	form := Form(s.t, s.page.Body, "paste-form")
 	form.Values.Set("text", text)
 	s.page = s.PostForm(s.t, form.Action, form.Values)

@@ -61,7 +61,7 @@ func TestARefusedMealOutValueIsRefusedOnItsField(t *testing.T) {
 	}{
 		{"missing", func(m *apptest.MealOut) { m.Protein = "" }, "Protein (g) Required."},
 		{"negative", func(m *apptest.MealOut) { m.Kcal = "-100" }, "Calories (kcal) Can't be below 0."},
-		{"negative fibre", func(m *apptest.MealOut) { m.Fibre = "-1" }, "Fibre (g) Can't be below 0."},
+		{"negative fibre", func(m *apptest.MealOut) { m.Fibre = "-1" }, "Fibre (g, optional) Can't be below 0."},
 		{"not whole", func(m *apptest.MealOut) { m.Fat = "40.5" }, "Fat (g) Type a whole number."},
 		{"too large", func(m *apptest.MealOut) { m.Carbs = "10000" }, "Carbs (g) Must be below 10000."},
 	}

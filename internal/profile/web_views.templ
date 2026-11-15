@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -36,7 +37,7 @@ templ choicePage(today time.Time, f LanguageForm) {
 		@web.PageHeader("言語", web.T(ctx, msgChooseLanguage), today) {
 			<p class="lede">{ web.T(ctx, msgChooseLede) }</p>
 		}
-		<form id="language" class="stack" method="post" action="/language">
+		<form novalidate id="language" class="stack" method="post" action="/language">
 			@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(f.Language), web.T(ctx, f.Err))
 			@web.Hint() {
 				{ web.T(ctx, msgChooseHint) }
@@ -86,11 +87,15 @@ type FoodsForm struct {
 }
 
 // section is a section of the Profile page that is saved on its own: its number on the
-// page, its legend, and its id, which also names its form and the route it posts to.
+// page, its legend, its button's accessible name, and its id, which also names its form
+// and the route it posts to. One that reloads posts as the page's boosted forms do, the
+// page it answers with replacing it, where the others swap their SectionBody.
 type section struct {
 	id     string
 	num    int
 	legend web.Message
+	save   web.Message
+	reload bool
 }
 
 // route is where the section's form posts.
@@ -98,17 +103,16 @@ func (s section) route() string { return "/profile/" + s.id }
 
 // The Profile page's sections, numbered in the order the page shows them: the Language
 // first, and signing in last.
-const (
-	languageNum  = 1
-	signingInNum = 7
-)
+const signingInNum = 7
 
 var (
-	timesSection   = section{id: "times", num: 2, legend: msgTimesOfDay}
-	targetsSection = section{id: "targets", num: 3, legend: msgTargets}
-	mealOutSection = section{id: "meal-out", num: 4, legend: msgMealOut}
-	foodsSection   = section{id: "foods", num: 5, legend: msgFoods}
-	briefSection   = section{id: "brief", num: 6, legend: msgBrief}
+	// The Language changes every word on the page, so its section reloads it.
+	languageSection = section{id: "language", num: 1, legend: msgLanguage, save: msgSaveLanguage, reload: true}
+	timesSection    = section{id: "times", num: 2, legend: msgTimesOfDay, save: msgSaveTimes}
+	targetsSection  = section{id: "targets", num: 3, legend: msgTargets, save: msgSaveTargets}
+	mealOutSection  = section{id: "meal-out", num: 4, legend: msgMealOut, save: msgSaveMealOut}
+	foodsSection    = section{id: "foods", num: 5, legend: msgFoods, save: msgSaveFoods}
+	briefSection    = section{id: "brief", num: 6, legend: msgBrief, save: msgSaveBrief}
 )
 
 // profilePage is the User's Profile: their Language, the time of day of each kind of
@@ -117,19 +121,12 @@ var (
 templ profilePage(today time.Time, email string, forms profileForms) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
-		<form id="profile-language" method="post" action="/profile/language">
-			@web.FieldGroup(languageNum, web.T(ctx, msgLanguage)) {
-				@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
-				@web.Hint() {
-					{ web.T(ctx, msgChooseHint) }
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgSave) }
-					}
-				}
+		@sectionForm(languageSection) {
+			@web.Segmented("", "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
+			@web.Hint() {
+				{ web.T(ctx, msgChooseHint) }
 			}
-		</form>
+		}
 		@web.SectionBody(timesSection.id) {
 			@timesForm(forms.Times)
 		}
@@ -146,7 +143,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 			@briefForm(forms.Brief)
 		}
 		@web.Section(signingInNum, web.T(ctx, msgSigningIn)) {
-			<form id="sign-out" method="post" action="/sign-out">
+			<form novalidate id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
 					@web.TextButton(templ.Attributes{"type": "submit"}) {
@@ -155,25 +152,33 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 				}
 			</form>
 		}
+		// Runs is no bottom tab on a phone, so the Profile links it.
+		<p class="section"><a href="/runs">{ web.T(ctx, msgOpenRuns) }</a></p>
 	}
 }
 
 // sectionForm is the section s, its fields and hints the children, followed by the button
-// that saves it: a form posting to its own route, which htmx swaps in its SectionBody.
+// that saves it: a form posting to its own route, which htmx swaps in its SectionBody
+// unless s reloads the page. The button shows Save, and its accessible name names the
+// section, so six Saves don't read as one saving the page and a screen reader tells
+// them apart.
 templ sectionForm(s section) {
 	<form
+		novalidate
 		id={ "profile-" + s.id }
 		method="post"
 		action={ templ.SafeURL(s.route()) }
-		hx-post={ s.route() }
-		hx-target={ "#" + s.id }
-		hx-swap="innerHTML"
+		if !s.reload {
+			hx-post={ s.route() }
+			hx-target={ "#" + s.id }
+			hx-swap="innerHTML"
+		}
 	>
-		@web.FieldGroup(s.num, web.T(ctx, s.legend)) {
+		@web.FieldGroup(s.num, web.T(ctx, s.legend), "") {
 			<div class="stack">
 				{ children... }
 				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
+					@web.Button(templ.Attributes{"type": "submit", "aria-label": web.T(ctx, s.save)}) {
 						{ web.T(ctx, msgSave) }
 					}
 				}
@@ -249,16 +254,16 @@ templ mealOutForm(f MealOutForm) {
 		}
 		@web.FieldRow() {
 			@mealOutField(msgFat, msgGrams, domain.MealOutFat, f)
-			@mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f)
-			@mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f)
+			@mealOutField(msgFibre, ingredients.FibreHint, domain.MealOutFibre, f)
+			@mealOutField(msgSugar, ingredients.SugarHint, domain.MealOutSugar, f)
 		}
 	}
 }
 
 // mealOutField is the Meal Out estimate's value named field, a whole number from 0,
-// labelled label with its unit; fibre and sugar may be left blank.
-templ mealOutField(label, unit web.Message, field string, f MealOutForm) {
-	@web.Field(web.T(ctx, label), web.T(ctx, unit), f.Errs[field]) {
+// labelled label with its unit in hint, which says so when it may be left blank.
+templ mealOutField(label, hint web.Message, field string, f MealOutForm) {
+	@web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]) {
 		<input
 			type="number"
 			inputmode="numeric"
@@ -281,10 +286,10 @@ templ foodsForm(f FoodsForm) {
 		@web.Hint() {
 			{ web.T(ctx, msgFoodsHint) }
 		}
-		@web.Field(web.T(ctx, msgExclusions), "", "") {
+		@web.Field(web.T(ctx, msgExclusions), web.T(ctx, msgExclusionsHint), "") {
 			<textarea name="exclusions" rows="4">{ strings.Join(f.Exclusions, "\n") }</textarea>
 		}
-		@web.Field(web.T(ctx, msgAllergies), "", "") {
+		@web.Field(web.T(ctx, msgAllergies), web.T(ctx, msgAllergiesHint), "") {
 			<textarea name="allergies" rows="4">{ strings.Join(f.Allergies, "\n") }</textarea>
 		}
 	}
@@ -297,7 +302,7 @@ templ briefForm(brief string) {
 		@web.Hint() {
 			{ web.T(ctx, msgBriefHint) }
 		}
-		@web.Field(web.T(ctx, msgWishes), "", "") {
+		@web.Field(web.T(ctx, msgWishes), web.T(ctx, msgWishesHint), "") {
 			<textarea name="brief" rows="5" placeholder={ web.T(ctx, msgBriefPlaceholder) }>{ brief }</textarea>
 		}
 	}

@@ -45,7 +45,7 @@ func TestAcceptingASuggestionInTheSameUnitUsesTheKnownIngredient(t *testing.T) {
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
 
 	row := s.HTMXGet(t, "/recipes/ingredient-row?ing_pick_1=lasagna+sheets&ing_name_1=lasagne+sheets&ing_quantity_1=250&ing_unit_1=g&ing_new_1=true")
-	if got := apptest.Text(row.Body); got != "Ingredient Quantity Measured in g" {
+	if got := apptest.Text(row.Body); got != "Ingredient Quantity (g) Remove lasagna sheets" {
 		t.Errorf("the picked row shows %q", got)
 	}
 	if got := apptest.Form(t, "<form id=r>"+row.Body+"</form>", "r"); got.Get("ing_name_1") != "lasagna sheets" || got.Get("ing_quantity_1") != "250" {
@@ -76,7 +76,7 @@ func TestAcceptingASuggestionInTheSameUnitUsesTheKnownIngredient(t *testing.T) {
 	s.Sees("lasagna sheets 250 g")
 	s.Open("/ingredients")
 	s.DoesNotSee("lasagne sheets")
-	s.Sees("lasagna sheets pantry per 100 g: 360 kcal")
+	s.Sees("lasagna sheets Pantry per 100 g: 360 kcal")
 }
 
 // Accepting a suggestion measured in another unit switches the row to it and clears the
@@ -88,7 +88,7 @@ func TestAcceptingASuggestionInAnotherUnitAsksForTheQuantity(t *testing.T) {
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
 
 	row := s.HTMXGet(t, "/recipes/ingredient-row?ing_pick_1=lasagna+sheets&ing_name_1=lasagne+sheets&ing_quantity_1=250&ing_unit_1=g&ing_new_1=true")
-	if got := apptest.Text(row.Body); got != "Ingredient Quantity Give it in pieces: Dandori doesn't convert. Measured in piece" {
+	if got := apptest.Text(row.Body); got != "Ingredient Quantity (pieces) Give it in pieces: Dandori doesn't convert. Remove lasagna sheets" {
 		t.Errorf("the picked row shows %q", got)
 	}
 
@@ -139,7 +139,7 @@ func TestARecipeDraftUsesAnIngredientAddedSince(t *testing.T) {
 	s.Sees("Beef mince 500 g")
 	s.Sees("chopped tomatoes 2 pieces")
 	s.Open("/ingredients")
-	s.Sees("Beef mince freezer per 100 g: 200 kcal")
+	s.Sees("Beef mince Freezer per 100 g: 200 kcal")
 }
 
 // A row whose known Ingredient the User has since deleted asks for its values like a
@@ -201,10 +201,10 @@ func TestBrowserPicksASuggestionInPlace(t *testing.T) {
 	b.Shot(t, "suggestion-picked")
 }
 
-// browserHasLasagnaSheets adds lasagna sheets, measured in pieces, in the browser.
+// browserHasLasagnaSheets adds lasagna sheets, measured in pieces, on the add page.
 func browserHasLasagnaSheets(t *testing.T, b *apptest.Browser) {
 	t.Helper()
-	b.Open(t, "/ingredients")
+	b.Open(t, "/ingredients/new")
 	form := b.Locator("#ingredient-add")
 	for field, v := range map[string]string{"name": "lasagna sheets", "kcal": "360", "protein": "13", "carbs": "72", "fat": "1.5"} {
 		if err := form.Locator(`[name="` + field + `"]`).Fill(v); err != nil {

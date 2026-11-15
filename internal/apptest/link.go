@@ -24,6 +24,23 @@ func Link(t testing.TB, page, text string) string {
 	return ""
 }
 
+// SheetSource returns the fragment the first link on page whose text contains text loads
+// into its sheet, as htmx follows it: a SideSheetLink's src.
+func SheetSource(t testing.TB, page, text string) string {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	for n := range doc.Descendants() {
+		if n.Type == html.ElementNode && n.Data == "a" && hasAttr(n, "hx-get") && strings.Contains(shownText(n), text) {
+			return attr(n, "hx-get")
+		}
+	}
+	t.Fatalf("page has no link opening a sheet showing %q", text)
+	return ""
+}
+
 // CurrentLink is the text of the link on page marked aria-current="true", the one shown
 // of those a page switches between. A tab, marked "page", isn't one.
 func CurrentLink(t testing.TB, page string) string {

@@ -26,7 +26,7 @@ func TestMarkingAStapleCountsItsStockToNothing(t *testing.T) {
 	s.EditsIngredient("rice", asStaple(rice))
 	s.IsAt("/ingredients")
 	s.IsConfirmed("700 g of rice in the pantry and 200 g in the freezer counted to nothing: it's a Staple now.")
-	s.Sees("rice Staple pantry")
+	s.Sees("rice Staple Pantry")
 
 	s.Open("/kitchen")
 	s.DoesNotSee("rice")
@@ -35,9 +35,9 @@ func TestMarkingAStapleCountsItsStockToNothing(t *testing.T) {
 	s.Follows("Movements")
 	s.IsAt("/kitchen/movements")
 	s.Sees("rice · Pantry")
-	s.Sees("Marked a Staple 700 g → 0 g Mon, Nov 2 11:00 am Moved to the freezer")
+	s.Sees("Marked a Staple 700 g → 0 g Mon, Nov 2 · 11:00 am Moved to the freezer")
 	s.Follows("Freezer")
-	s.Sees("Marked a Staple 200 g → 0 g Mon, Nov 2 11:00 am Moved from the pantry")
+	s.Sees("Marked a Staple 200 g → 0 g Mon, Nov 2 · 11:00 am Moved from the pantry")
 }
 
 // asStaple is ing marked a Staple.
@@ -61,14 +61,14 @@ func TestMarkingAStapleWithNoStockRecordsNoMovement(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.EditsIngredient("rice", asStaple(rice))
 	s.IsConfirmed("Saved rice.")
-	s.Sees("rice Staple pantry")
+	s.Sees("rice Staple Pantry")
 	s.DoesNotSee("Movements")
 
 	inPieces := asStaple(rice)
 	inPieces.Unit = "piece"
 	s.EditsIngredient("rice", inPieces)
 	s.IsConfirmed("Saved rice.")
-	s.Sees("rice Staple pantry per piece")
+	s.Sees("rice Staple Pantry per piece")
 }
 
 // A Staple counted to nothing and still a Staple is never counted again, nor moved by a
@@ -104,7 +104,7 @@ func TestUnmarkingAStapleStartsItFromNothing(t *testing.T) {
 	s.Open("/kitchen")
 	s.Sees("Pantry rice 300 g")
 	s.Follows("rice")
-	s.Sees("Counted 0 g → 300 g Mon, Nov 2 11:00 am Marked a Staple 700 g → 0 g Mon, Nov 2 10:00 am Counted 0 g → 700 g")
+	s.Sees("Counted 0 g → 300 g Mon, Nov 2 · 11:00 am Marked a Staple 700 g → 0 g Mon, Nov 2 · 10:00 am Counted 0 g → 700 g")
 }
 
 // Posted from the side sheet by htmx, marking a Staple answers with the sheet's body,

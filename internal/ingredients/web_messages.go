@@ -10,6 +10,7 @@ var (
 	msgIngredients      = web.Message{En: "Ingredients", It: "Ingredienti"}
 	msgIngredientsTitle = web.Message{En: "Ingredients · Dandori", It: "Ingredienti · Dandori"}
 	msgAddIngredient    = web.Message{En: "Add an Ingredient", It: "Aggiungi un Ingrediente"}
+	msgAddTitle         = web.Message{En: "Add an Ingredient · Dandori", It: "Aggiungi un Ingrediente · Dandori"}
 	msgYourIngredients  = web.Message{En: "Your Ingredients", It: "I tuoi Ingredienti"}
 	msgNoIngredients    = web.Message{En: "No Ingredients yet.", It: "Ancora nessun Ingrediente."}
 	msgAdded            = web.Message{En: "Added %s.", It: "Aggiunto: %s."}
@@ -19,15 +20,22 @@ var (
 	msgUsual            = web.Message{En: "Usually kept in", It: "Di solito in"}
 	msgChoose           = web.Message{En: "Choose…", It: "Scegli…"}
 	msgNutritionHint    = web.Message{
-		En: "Per 100 g, per 100 ml or per piece, to match the unit, as on the label: calories in kcal, the rest in grams. Fibre and sugar may be left blank.",
-		It: "Per 100 g, per 100 ml o per pezzo, secondo l'unità, come in etichetta: calorie in kcal, il resto in grammi. Fibre e zuccheri si possono lasciare vuoti.",
+		En: "Per 100 g, per 100 ml or per piece, to match the unit, as on the label.",
+		It: "Per 100 g, per 100 ml o per pezzo, secondo l'unità, come in etichetta.",
 	}
-	msgKcal         = web.Message{En: "Calories", It: "Calorie"}
-	msgProtein      = web.Message{En: "Protein", It: "Proteine"}
-	msgCarbs        = web.Message{En: "Carbs", It: "Carboidrati"}
-	msgFat          = web.Message{En: "Fat", It: "Grassi"}
-	msgFibre        = web.Message{En: "Fibre", It: "Fibre"}
-	msgSugar        = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgKcal      = web.Message{En: "Calories", It: "Calorie"}
+	msgProtein   = web.Message{En: "Protein", It: "Proteine"}
+	msgCarbs     = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat       = web.Message{En: "Fat", It: "Grassi"}
+	msgFibre     = web.Message{En: "Fibre", It: "Fibre"}
+	msgSugar     = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgKcalUnit  = web.Message{En: "kcal", It: "kcal"}
+	msgGramsUnit = web.Message{En: "g", It: "g"}
+	// FibreHint and SugarHint are fibre's and sugar's units, saying they may be left
+	// blank, wherever they are typed.
+	FibreHint       = web.Message{En: "g, optional", It: "g, facoltative"}
+	SugarHint       = web.Message{En: "g, optional", It: "g, facoltativi"}
+	msgValuesPer    = web.Message{En: "%s, as on the label.", It: "%s, come in etichetta."}
 	msgStaple       = web.Message{En: "Staple", It: "Base"}
 	msgStapleHint   = web.Message{En: "always there, never counted", It: "sempre in casa, mai contata"}
 	msgKcalValue    = web.Message{En: "%s kcal", It: "%s kcal"}
@@ -39,20 +47,22 @@ var (
 	msgGrams        = web.Message{En: "%s g", It: "%s g"}
 	msgUnknown      = web.Message{En: "unknown", It: "non noto"}
 
-	msgNameRequired  = web.Message{En: "Give it a name.", It: "Dagli un nome."}
-	msgUnitRequired  = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}
-	msgUsualRequired = web.Message{En: "Choose where it is usually kept.", It: "Scegli dove si tiene di solito."}
-	msgDidYouMean    = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
-	msgPick          = web.Message{En: "Use %s", It: "Usa %s"}
-	msgPicked        = web.Message{En: "%s is already one of your Ingredients.", It: "%s è già tra i tuoi Ingredienti."}
-	msgSearch        = web.Message{En: "Search", It: "Cerca"}
-	msgNoMatch       = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
-	msgAddNamed      = web.Message{En: "Add %s as a new Ingredient", It: "Aggiungi %s come nuovo Ingrediente"}
-	msgSave          = web.Message{En: "Save", It: "Salva"}
-	msgSaved         = web.Message{En: "Saved %s.", It: "Salvato: %s."}
-	msgDelete        = web.Message{En: "Delete", It: "Elimina"}
-	msgDeleted       = web.Message{En: "Deleted %s.", It: "Eliminato: %s."}
-	msgUnitFixed     = web.Message{
+	msgNameRequired     = web.Message{En: "Give it a name.", It: "Dagli un nome."}
+	msgUnitRequired     = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}
+	msgUsualRequired    = web.Message{En: "Choose where it is usually kept.", It: "Scegli dove si tiene di solito."}
+	msgDidYouMean       = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
+	msgPick             = web.Message{En: "Use %s", It: "Usa %s"}
+	msgPicked           = web.Message{En: "%s is already one of your Ingredients.", It: "%s è già tra i tuoi Ingredienti."}
+	msgSearch           = web.Message{En: "Search", It: "Cerca"}
+	msgNoMatch          = web.Message{En: "No Ingredient is like %s.", It: "Nessun Ingrediente somiglia a %s."}
+	msgAddNamed         = web.Message{En: "Add %s as a new Ingredient", It: "Aggiungi %s come nuovo Ingrediente"}
+	msgSave             = web.Message{En: "Save", It: "Salva"}
+	msgSaved            = web.Message{En: "Saved %s.", It: "Salvato: %s."}
+	msgDelete           = web.Message{En: "Delete", It: "Elimina"}
+	msgDeleted          = web.Message{En: "Deleted %s.", It: "Eliminato: %s."}
+	msgDeleteIngredient = web.Message{En: "Delete the Ingredient", It: "Elimina l'Ingrediente"}
+	msgDeleteAsk        = web.Message{En: "Delete the Ingredient %s?", It: "Eliminare l'Ingrediente %s?"}
+	msgUnitFixed        = web.Message{
 		En: "Its Movements are recorded in %s, so its unit stays, even counted to nothing.",
 		It: "I suoi Movimenti sono registrati in %s, quindi l'unità resta, anche contato a zero.",
 	}
@@ -105,9 +115,10 @@ var (
 	}
 )
 
-// StorageLocationNames name each Storage Location.
+// StorageLocationNames name each Storage Location, written the same everywhere it
+// stands alone: a heading, an option, a row's details.
 var StorageLocationNames = map[domain.StorageLocation]web.Message{
-	domain.Pantry:  {En: "pantry", It: "dispensa"},
-	domain.Fridge:  {En: "fridge", It: "frigo"},
-	domain.Freezer: {En: "freezer", It: "congelatore"},
+	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
+	domain.Fridge:  {En: "Fridge", It: "Frigo"},
+	domain.Freezer: {En: "Freezer", It: "Congelatore"},
 }

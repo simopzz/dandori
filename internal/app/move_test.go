@@ -30,7 +30,7 @@ func TestMovingStockBetweenStorageLocations(t *testing.T) {
 	s.At("Mon 11:00")
 	s.Moves("Move rice in the pantry", "", "freezer", "")
 	s.IsConfirmed("Moved 500 g of rice to the freezer.")
-	s.DoesNotSee("Pantry")
+	s.DoesNotSee("01 Pantry")
 
 	s.Open("/kitchen")
 	s.IsNotConfirmed()
@@ -38,16 +38,16 @@ func TestMovingStockBetweenStorageLocations(t *testing.T) {
 
 	s.Follows("rice")
 	s.Sees("rice · Freezer")
-	s.Sees("Moved from the pantry 300 g → 800 g Mon, Nov 2 11:00 am " +
-		"Moved from the pantry 0 g → 300 g Mon, Nov 2 10:00 am for next week")
+	s.Sees("Moved from the pantry 300 g → 800 g Mon, Nov 2 · 11:00 am " +
+		"Moved from the pantry 0 g → 300 g Mon, Nov 2 · 10:00 am for next week")
 
 	s.Open("/kitchen/count")
 	s.Follows("rice")
 	s.Follows("Movements")
 	s.Sees("rice · Pantry")
-	s.Sees("Moved to the freezer 500 g → 0 g Mon, Nov 2 11:00 am " +
-		"Moved to the freezer 800 g → 500 g Mon, Nov 2 10:00 am for next week " +
-		"Counted 0 g → 800 g Mon, Nov 2 9:00 am")
+	s.Sees("Moved to the freezer 500 g → 0 g Mon, Nov 2 · 11:00 am " +
+		"Moved to the freezer 800 g → 500 g Mon, Nov 2 · 10:00 am for next week " +
+		"Counted 0 g → 800 g Mon, Nov 2 · 9:00 am")
 }
 
 // The form starts from all of the Stock Item, in its unit, and leaves the target to the
@@ -61,9 +61,9 @@ func TestAMoveStartsFromAllOfTheStockItem(t *testing.T) {
 	s.Follows("Move egg in the fridge")
 	s.IsAt("/kitchen/move")
 	s.Sees("egg · Fridge")
-	s.Sees("pantry 0 pieces")
-	s.Sees("freezer 4 pieces")
-	s.DoesNotSee("fridge 1.5 pieces")
+	s.Sees("Pantry 0 pieces")
+	s.Sees("Freezer 4 pieces")
+	s.DoesNotSee("Fridge 1.5 pieces")
 	form := apptest.Form(t, s.Page().Body, "move-form")
 	if got := form.Get("quantity"); got != "1.5" {
 		t.Errorf("the quantity starts at %q, want all of it", got)
@@ -75,7 +75,7 @@ func TestAMoveStartsFromAllOfTheStockItem(t *testing.T) {
 	s.Moves("Move egg in the fridge", "", "pantry", "")
 	s.Sees("Pantry egg 1.5 pieces")
 	s.Sees("Freezer egg 4 pieces")
-	s.DoesNotSee("Fridge")
+	s.DoesNotSee("02 Fridge")
 }
 
 // A quantity follows its unit's rules: pieces have one decimal place.
@@ -406,11 +406,11 @@ func TestAMoveHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 
 	s.At("Mon 10:01")
 	s.Open("/kitchen")
-	s.DoesNotSee("Pantry")
+	s.DoesNotSee("01 Pantry")
 	s.Sees("Fridge rice 100 g")
 	s.Follows("rice")
 	s.Follows("Pantry")
-	s.Sees("Moved to the fridge 100 g → 0 g Mon, Nov 2 10:00 am " +
-		"Counted 100 g → 100 g Mon, Nov 2 10:00 am " +
-		"Counted 0 g → 100 g Mon, Nov 2 10:00 am")
+	s.Sees("Moved to the fridge 100 g → 0 g Mon, Nov 2 · 10:00 am " +
+		"Counted 100 g → 100 g Mon, Nov 2 · 10:00 am " +
+		"Counted 0 g → 100 g Mon, Nov 2 · 10:00 am")
 }

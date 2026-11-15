@@ -2,7 +2,7 @@
 
 Dandori's look is **Pixel ledger**, the README banner's dusk brought to a
 quiet ledger: sumi ink on near-white paper, with one vermilion seal for what
-needs attention, framed by the banner's navy, its dithered sunset sky and its
+is wrong, urgent or irreversible, framed by the banner's navy, its dithered sunset sky and its
 pixel art. Space does the work that boxes and colour would do elsewhere; the
 pixels stay at the edges (the shell, titles, controls), and what is read stays
 flat paper.
@@ -28,11 +28,11 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-text` | `#1a1a18` sumi ink | text |
 | `--color-text-soft` | `#5c5a54` soft ink | labels, hints, metadata |
 | `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
-| `--color-rule-strong` | `#2d3352` navy | section rules, input underlines, borders of controls |
+| `--color-rule-strong` | `#2d3352` navy | section numbers, strokes and rules, field boxes, borders of controls, the focus ring |
 | `--color-fill` | navy | primary buttons, the chosen segment, a floating Notice |
-| `--color-fill-dither` | `#4b5582` slate | dithered over the fill: the chosen segment, a button's hover |
+| `--color-fill-dither` | `#4b5582` slate | dithered over the fill: a button's hover, a busy button |
 | `--color-on-fill` | paper | text on a fill or on the accent |
-| `--color-accent` | `#b8321b` vermilion seal | attention only (see below) |
+| `--color-accent` | `#b8321b` vermilion seal | wrong, urgent or irreversible only (see below) |
 | `--color-accent-wash` | `#fbe5dc` salmon wash | behind alerts |
 | `--color-tag` | `#f7e4c6` cream | behind a `Tag` |
 | `--color-veil` | navy | dithered over the page behind an open sheet |
@@ -41,17 +41,18 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-shell-marker` | `#eba083` salmon | the bar on the current tab |
 | `--color-sky-*` | paper, cream `#f7e4c6`, peach `#f2c29c`, salmon `#eba083`, deep `#252840`, slate, snow `#f3eee4`, navy, sun (vermilion) | the sky and the pixel art only |
 
-**The accent is reserved** for what needs attention: errors, things to use
-soon, a page's primary add action (the `+`), section numbers and the stroke
-under them, the seal on an urgent row, and destructive actions. The one
-exception is the sun in the sky, as in the banner, which the seal echoes. Never use it
-for decoration or emphasis. It is not the current tab's marker: vermilion on
-navy is about 2:1, below the 3:1 a non-text indicator needs, so the marker is
-salmon.
+**The accent means wrong, urgent or irreversible**, and nothing else: errors
+and a refused field's box, an urgent row's seal and its accent `Tag`,
+and destructive actions. It also stays on the `+`, which is the seal, and on
+the sun in the sky, as in the banner, which the seal echoes. Never use it for
+decoration, emphasis or structure: a page where everything is vermilion has
+nothing left for an error to stand out against. It is not the current tab's
+marker: vermilion on navy is about 2:1, below the 3:1 a non-text indicator
+needs, so the marker is salmon.
 
 **Navy is structure**, not attention: it fills primary buttons, the chosen
-segment and a floating Notice, draws section rules and input underlines, and is
-the shell. The
+segment and a floating Notice, draws section numbers, the stroke under them,
+section rules, field boxes and the focus ring, and is the shell. The
 banner's other colours (slate, cream, peach, salmon, snow) are only in the
 sky and the pixel art, with three exceptions named above: slate in a
 control's dither, cream behind a tag, salmon on the current tab and in the
@@ -65,7 +66,20 @@ so a title in Japanese falls back to the system's face. `--font-body` is Zen
 Kaku Gothic New (400, 700, latin subset) for everything else, `h3` in bold;
 Japanese text falls back to the system's Gothic.
 
+A title's data, its times, quantities and User text (Today's `1:00 pm`, a
+Recipe's or an Ingredient's name), is set in the body face, where the pixel
+face makes l, I and 1 hard to tell apart: wrap it in `web.Data` where the
+title is made (`web.Tf(ctx, msgNextAt, kind, web.Data(at))`), and
+`PageHeader`, `Section` and `FieldGroup` set it so.
+
 `--font-mono` is for code and trace details.
+
+Nothing a User reads to act is under 0.875rem: field labels, errors, tab
+names, tags, a row's details, table and grid heads. Only the eyebrow and the
+wordmark are smaller. Segment labels are 1rem. Labels stay soft ink, 6.7:1 at
+0.875rem. Letter-spacing is for the eyebrow, the wordmark and the titles in
+the pixel face (0.04em); labels, buttons, tabs, tags and running text keep
+the body's, as tracking breaks up a word's shape. `type_test.go` checks both.
 
 Space: `--space-1` … `--space-7` (0.25rem to 4rem). Shape: `--radius` is 0, so
 every control, tag and the `+` is plainly square, with no stepped edges;
@@ -86,12 +100,11 @@ square pixels of two colours, built in CSS from tokens, at four densities
 `--dither-under`, and `--dither-pixel` the size of a pixel. A ramp steps from
 one colour to the next through all four.
 
-It may go in five places only:
+It may go in four places only:
 
 - **the sky**: the masthead's dusk on a phone, cream to peach to salmon, then
   deep navy dithering down into the paper; the rail's, paper to salmon;
 - **the veil** behind an open sheet: a navy checker over the page;
-- **the chosen segment**: navy and slate;
 - **a primary button's hover**: navy and slate;
 - **a busy primary button**: navy and slate (see [Busy](#busy)).
 
@@ -117,21 +130,30 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
   section. No cards, no shadows, no boxes around content.
 - **The shell** (`Layout`) is navy. On a phone, bottom tabs, each a pixel
   icon and a label in paper, with a salmon bar over the current one, and above
-  the page the masthead: the dithered sky with the horizontal 段取り DANDORI
-  wordmark linking Home, the pixel sun and Fuji, dithering down into the
-  paper. From 900px, a left rail whose top is the same sky with the vertical
+  the page the masthead: on Today, the full sky, the dithered dusk with the
+  horizontal 段取り DANDORI wordmark linking Home, the pixel sun and Fuji,
+  dithering down into the paper; on every other page a slim strip of it,
+  about 48px, with the wordmark alone, so the page's content starts high. From 900px, a left rail whose top is the same sky with the vertical
   wordmark, then the tabs, and Runs at the rail's foot. Before the Language is
   chosen there are no tabs: a phone shows no bar, desktop the rail's sky alone.
-  Tabs are Plan, Recipes, Kitchen, Catalog and Profile; Runs is secondary. A page passes its
-  `Tab` to `Layout`, which marks it `aria-current="page"`.
+  Tabs are Today, Recipes, Kitchen and Profile; later steps add Plan and Catalog.
+  Runs is secondary: at the rail's foot on desktop, and on a phone not a tab but
+  a link on the Profile. A page passes its `Tab` to `Layout`, which marks it
+  `aria-current="page"`.
 - **Every page opens with a `PageHeader`**: a letter-spaced eyebrow with the
   page's Japanese name and today's date (`在庫 · Sunday, October 25`) and a large
   pixel title, which is the page's only `h1`.
 - **Content is grouped into numbered `Section`s** (`01 Stock Items`): a pixel
-  heading over the banner's underline, a short vermilion stroke under the
-  number, then navy. In a form, use `FieldGroup`, its fieldset twin.
+  heading over the banner's underline, the number and a short stroke under
+  it in navy, a gap, then the navy rule. In a form, use `FieldGroup`, its
+  fieldset twin. A page numbers all its own groups, in order; the square in
+  the number's place is for a side sheet's.
 - **Lists are `Rows`**: lines separated by hairlines, the name first,
   quantities in tabular numbers.
+- **How a row says it opens**, the same everywhere: a name that goes
+  somewhere is underlined, as a link, whether to a page or a sheet (a sheet
+  has a page of its own without JS); what opens inside the row (`EditRow`,
+  `Disclosure`, `Fold`) has a chevron instead.
 
 ## Busy
 
@@ -189,6 +211,21 @@ wrong: a refusal stays on its field, and a failure is an `Alert`.
 - **Closing a sheet with it**: an answer to a form in a sheet that is done, as a
   move is, triggers `web.CloseSheet` with `HX-Trigger`, and that sheet closes.
 
+## Refusals
+
+- **The server's refusal is the only error a User sees.** Every `<form>` has
+  `novalidate` (a guardrail checks), so the browser never stops a post with its
+  own bubble, unstyled and in the browser's language rather than the User's.
+  Controls keep `required` for what it tells a screen reader. The post is
+  refused with a 422, each refused field marked `aria-invalid` with why under
+  it, in the User's Language.
+- **A rejected form longer than a screen opens with an `ErrorSummary`**: an
+  `Alert` listing each refusal, in the form's order, as a link to its field,
+  focused as the page loads (the GOV.UK error summary). Only the full-page
+  forms have one: the Recipe form, written, edited or checked from a Recipe
+  Draft, and the Add Portions page. A form in a sheet, or a short one (a
+  Count, a Move, an Ingredient), focuses its first refused field instead.
+
 ## Components
 
 All in package `web`. Feature pages compose these; they don't style base
@@ -198,50 +235,54 @@ elements themselves.
 | --- | --- |
 | `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
-| `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small vermilion square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
-| `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
+| `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small navy square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
+| `FieldGroup(num, legend, hint)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. `hint` follows the legend in brackets, as a `Field`'s does: `optional` for a group that may be left empty (a Recipe's Steps). |
 | `FieldGroupAction(id, num, legend, action)` | A `FieldGroup` with a secondary action beside its legend, for one that changes what the legend names (the Count form's `Choose another`); on a long legend it drops to the next line, at the far end. `id` is the legend text's, which alone names the group. |
 | `Hint()` | A quiet paragraph explaining what follows. |
-| `Empty()` | What a list says when it has nothing in it. |
-| `Disclosure(summary)` | A group of a page's content a click away (the day's later Slots on Today): a quiet summary line with a chevron, closed until opened. |
+| `Empty()` | What a list or a page says when it has nothing in it: it says what would be here, why it isn't, and links the one action that fills it. Today, before it has a Plan, names each thing planning needs instead, each a link named for its action. |
+| `Disclosure(summary, open)` | A group of a page's content a click away (the day's later Slots on Today, the add form above the Ingredients side sheet's list): a quiet summary line with a chevron, closed until opened, or open when it holds what the User is at, such as a refused form. |
 | `Fold(summary, holds)` | A line that opens in place to show what it holds (a Trace Event's data): a chevron at its start points right while closed and down while open, and it starts closed. Without `holds` it is the line alone, aligned with its neighbours. |
 | `Rows()` | A list of `Row`s or `EditRow`s. |
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
 | `Seal()` | The pixel sun before an urgent `Row`'s `row-title`. Decorative: the row's text (an accent `Tag`) says why it is urgent. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
 | `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
-| `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
+| `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. A field that may be left blank says `optional`, and a value's unit (`g`, `kcal`, `minutes`) is always in the hint, never in the label or a paragraph; a paragraph says only what a group of values is per (`Per Portion.`). The label sits 4px (`--space-1`) above its own field. |
 | `SearchField(label)` | The search box over a list, the input the child: a square box with the magnifying glass inside, so it doesn't read as one of the rows. `label` is for a screen reader; the input's placeholder says it on screen. |
 | `ListSearch(id, action, listURL, listID, label)` | A `SearchField` in a form that swaps the list as the User types and opens `action` searched without htmx, the input the child. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window), typed in either 24- or 12-hour form and shown in the Language's (`web.TimeOfDay`); never a native `type="time"`, which follows the browser's locale. |
 | `DateField(label, name, value, err)` | A `Field` for a day, shown in the Language's order (`domain.FormatDate`); never a native `type="date"`. |
 | `CellField(label, err)` | A `Field` in a grid whose column heads name it; the label shows only on a phone. |
 | `Check(label, hint)` | A checkbox, the child, before its label (marking an Ingredient a Staple); the whole line is its target. |
-| `Checks(legend, name, choices, ticked, err)` | Ticking any of a fixed list of kinds (the kinds of Slot or of appliance a Recipe takes): one `Check` per `Choice`, in as many columns as the width allows, each with its icon when the `Choice` names one, as every kind does. `web.SlotKindChoices` and `web.ApplianceKindChoices` give the lists. |
+| `Checks(legend, hint, name, choices, ticked, err)` | Ticking any of a fixed list of kinds (the kinds of Slot or of appliance a Recipe takes): one `Check` per `Choice`, in as many columns as the width allows, each with its icon when the `Choice` names one, as every kind does. `web.SlotKindChoices` and `web.ApplianceKindChoices` give the lists. |
 | `FieldError(err)` | An error outside a `Field`, e.g. for a whole list. |
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. Their controls line up even when one label wraps onto two lines. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
-| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
-| `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
-| `TextButton(attrs)` | A secondary action, underlined text. |
-| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
-| `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
-| `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
+| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. On a page of forms each saved on its own, as the Profile's sections are, each shows Save and has an accessible name that says what it saves (`aria-label="Save Targets"`), so none reads as saving the page and a screen reader tells them apart. The name starts with what the button shows, so voice control's "click Save" still finds it. |
+| `TextButton(attrs)` | A secondary action, underlined text. Its target is wider than its text, which, alone, still lines up with the column; beside another, the two keep their targets apart. |
+| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
+| `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. Deleting or discarding what the User wrote asks once, naming what will go; nothing is removed by a single tap. Its Delete or Discard is a `RemoveLink` to a `RemoveStep`, whose own `DestructiveButton` does it. Cancelling a Run stays one tap: the User didn't write it. |
+| `RemoveLink(id, href, src)` | A `DestructiveButton`'s look on a `SideSheetLink`: opens the `SideSheet` `id` on the `RemoveStep` at `src`, or without htmx goes to `href`, the step as a page of its own. |
+| `RemoveStep(question, remove, action, back, attrs)` | The step that asks once: `question` names what will go ("Delete the Recipe Rice bowl?"), and its form posts to `action` with a `DestructiveButton` saying `remove`; children are its hidden fields, `attrs` the htmx swap of a sheet's body if any. In a sheet, the sheet's Close is the way back; as a page, `back` gives a `TextLink`. |
+| `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion), the chosen one solid navy. `legend` shows over them as a `Field`'s label; leave it empty when the group around it already names them (the Profile's Language). For more, or in a long form, use a `<select>`. |
 | `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
+| `ErrorSummary(refusals)` | The top of a rejected form longer than a screen (see [Refusals](#refusals)): an `Alert` linking to each `web.Refusal`'s control by its id, taking focus as the page loads. A refused `Checks` or `Segmented` gives its first box its `name` as id to link to. |
 | Floating Notice | Something happened as asked ("Profile saved."), floating at the top of the screen: `web.RedirectWithNotice` for a plain post, `web.FragmentWithNotice` for an htmx answer, `web.WithNotice` for a page. `Layout` shows it; see [Notices](#notices). There is no in-flow notice: one in the page or sheet it confirms pushed the form down, and the list changing behind a sheet may be off-screen. |
-| `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
-| `AddButton(choices)` | A page's primary add action, one per page: a square vermilion `+` opening the sheet of the first `AddChoice`. One choice is a plain `+`. With more, the `+` shows the icon of what it adds, and a chevron joined to it opens a menu (a native popover of radios, so it needs no JS) that chooses another: choosing changes what the `+` adds and opens nothing, so the `+` always says what it will do. The first choice is the most frequent, and a new page starts on it again. An `AddChoice` whose sheet doesn't hold its body gives `Src` and `Href`, as a `SideSheetLink` does. One with only `Href` is a link to a page, for a form too long for a sheet. |
-| `AddSheet(id, title, open)` | The sheet of an add form: from the bottom on a phone, centred on desktop, over a navy dithered veil. Every add form is one, whichever choice of the `AddButton` opens it. Every sheet is modal, a `<dialog>` opened with `showModal()`: the page behind it is inert and holds still, Tab stays in it, and a tap on the veil or Esc closes it, the top one where one sheet is open over another. A sheet taller than the screen scrolls itself, and only itself. A tap outside discards a half-filled form, without asking. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. |
-| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil, and modal as every sheet is (see `AddSheet`). Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
+| `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it is wrong or urgent (a failed Run, an urgent row): vermilion with paper text. |
+| `AddButton(choices)` | A page's primary add action, one per page: a square vermilion `+` opening the sheet of the first `AddChoice`. One choice is a plain `+`. With more, the `+` shows the icon of what it adds, and a chevron joined to it opens a menu (a native popover of radios, so it needs no JS) that chooses another: choosing changes what the `+` adds and opens nothing, so the `+` always says what it will do. The first choice is the most frequent, and a new page starts on it again. An `AddChoice` whose sheet doesn't hold its body gives `Src` and `Href`, as a `SideSheetLink` does. One with only `Href` is a link to a page, for a form too long for a sheet. A page leads with what the User comes to find, its list; its add forms open from the `+` (paste and write on the Recipe Library), not above it. |
+| `AddSheet(id, title, open)` | The sheet of an add form: from the bottom on a phone, centred on desktop, over a navy dithered veil. Every add form is one, whichever choice of the `AddButton` opens it. Every sheet is modal, a `<dialog>` opened with `showModal()`: the page behind it is inert and holds still, Tab stays in it, and a tap on the veil or Esc closes it, the top one where one sheet is open over another. A sheet taller than the screen scrolls itself, and only itself. Once the User has typed or chosen in its form since it opened, or since its last save for a sheet that keeps working (the Count), a tap on the veil leaves it open with what they typed; typing in a search box doesn't count. Esc and Close still close it, discarding the changes. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. |
+| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil, and modal as every sheet is, keeping a changed form on a tap on the veil (see `AddSheet`). Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
 | `SheetBody(id)` | The body of a sheet whose content swaps in place: every `SideSheet`'s, and an `AddSheet`'s that keeps working through several saves, as the Kitchen's Count does, or that loads as it opens, as Add Portions does. A form in it swaps it (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, or else the one marked `autofocus`, the sheet staying open. A swap into part of the body, such as a search's results, leaves the focus where it is. |
+| `autofocus` | Only for a sheet's first field as the sheet opens, or a page whose one job is that field: the Count page's search, a Count's or a Move's quantity. A page of a longer form, such as Add Portions without htmx, focuses nothing: on a phone the keyboard would cover half the page, and a screen reader would start past the `h1`. |
 | `SectionBody(id)` | A section of a page whose form swaps it in place, the form the children: each of the Profile's sections, saved on its own. The form targets `#id` with `innerHTML`; a rejected one comes back with focus on its first field marked `aria-invalid`. |
 | `SideSheetLink(id, href, src)` | Opens the sheet `id`, loading its `SheetBody` from `src`, a fragment, and focuses its field marked `autofocus`, or else its first. Without htmx it is a plain link to `href`, a page of the same content. Placed inside another sheet, it opens over that sheet, which stays open beneath it. |
 | `SideSheetLinkWith(id, href, src, attrs)` | A `SideSheetLink` with more attributes, such as an `hx-include` adding to `src` what the page around it says at that moment. |
 | `LanguageSwitch(u)` | The pages before a User has chosen their Language (sign-in, the Language choice): a link to each Language, named in itself, staying at `u`. The choice is remembered in this browser. |
 | `Markdown(text)` | Text an agent wrote in Markdown, such as a Run's notes. Raw HTML in it is left out. |
+| `Verbatim(text)` | Text shown exactly as it was, its lines kept, on the surface: what the User pasted (on a Run and its Recipe Draft), a Trace Event's data. |
 | `Icon(name)` | A 10×10 pixel icon, inline SVG in the text colour. Draw new ones in `icons.go`; an unknown name fails the render. |
 
 Two layout classes go on elements a component can't wrap, such as a
@@ -249,8 +290,10 @@ Two layout classes go on elements a component can't wrap, such as a
 alert), and `section` gives an unnumbered group a `Section`'s spacing.
 
 Base elements (`input`, `select`, `textarea`, `table`, `dl`, `h1`–`h3`, lists)
-are styled once in `app.css`: underline-only inputs, square bordered
-textareas, tables ruled like rows, `dl` as a two-column list of facts.
+are styled once in `app.css`: every text input, select and textarea a square
+1px navy box (`--radius` 0), a refused one's box thicker and vermilion, the
+dense grids' cells included; tables ruled like rows, `dl` as a two-column list
+of facts.
 
 Three feature-shaped components live in `app.css` because nothing else needs
 them yet: the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), the
@@ -267,18 +310,20 @@ and closing.
   Paper on accent 5.8:1, accent on its salmon wash 4.9:1, ink on a cream tag
   14:1.
 - Non-text indicators reach 3:1: the current tab's salmon bar is 5.8:1 on
-  navy, a section rule and an input underline 12:1 on paper.
+  navy, a section rule, a section's stroke, a field's box and the focus
+  ring 12:1 on paper, and a salmon focus ring 5.8:1 on navy.
 - Touch targets are at least `--tap` (44px).
-- Focus is always visible: a 2px vermilion ring on every control, inputs
-  included, so a focused field stands out from an invalid one. On the navy
-  tabs and a floating Notice the ring is salmon (5.8:1), as vermilion there is
-  about 2:1.
+- Focus is always visible: a 3px navy ring with a 2px gap of paper on every
+  control, inputs included, so a field focused as a sheet opens doesn't look
+  refused, and a focused field stands out from an invalid one, which keeps its
+  thicker vermilion box and `aria-invalid`. On the navy tabs
+  and a floating Notice the ring is salmon (5.8:1), as navy is lost there.
 - `prefers-reduced-motion` turns off transitions and animations: the busy
   bar's blocks and a busy button's dither stand still.
   The bar still waits its 300 ms. A floating Notice appears and goes with no
   transition, its line still and whole, and still goes when its time runs out.
 - Meaning is never carried by colour alone: an error says what is wrong and
-  is marked `!`, an invalid field has a thicker underline and
+  is marked `!`, an invalid field has a thicker box and
   `aria-invalid`, an urgent row has the pixel seal *and* text, the current tab
   has a bar, paper text and `aria-current`.
 - Icons, the seal and the pixel art are `aria-hidden`; what they mean is said
@@ -290,17 +335,18 @@ and closing.
   `internal/web` when a piece will recur, and catalogue it here.
 - **Do** use tokens for every colour, space and radius.
 - **Do** let space separate things: hairlines and section rules, not boxes.
-- **Do** keep dithering to the sky, the veil, the chosen segment, a
-  button's hover and a busy button, and the banner's colours other than
-  navy to the sky and the pixel art.
+- **Do** keep dithering to the sky, the veil, a button's hover and a busy
+  button, and the banner's colours other than navy to the sky and the pixel
+  art.
 - **Do** give every form one primary `Button`; everything else is a
   `TextButton` or `DestructiveButton`.
 - **Don't** write a colour value outside the token block, or in a template.
 - **Don't** restyle base elements for one feature (`.profile input`,
   `.stock-form select`): change the base style or add a component.
-- **Don't** use the accent for anything that doesn't need attention.
+- **Don't** use the accent for anything that isn't wrong, urgent or
+  irreversible.
 - **Don't** add rounded corners, stepped corners, shadows, smooth gradients or
   a second accent.
 - **Don't** add an icon font, a stroke icon or runtime JS for presentation
   (the busy button's and the floating Notices' scripts are the exceptions).
-- **Don't** set body text, labels or rows in the pixel face.
+- **Don't** set body text, labels, rows or a title's data in the pixel face.

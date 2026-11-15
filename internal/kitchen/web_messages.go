@@ -50,7 +50,6 @@ var (
 	msgNoMovements    = web.Message{En: "No Movements here yet.", It: "Ancora nessun Movimento qui."}
 	msgHeldIn         = web.Message{En: "%s · %s", It: "%s · %s"}
 	msgBeforeAfter    = web.Message{En: "%s → %s", It: "%s → %s"}
-	msgHappened       = web.Message{En: "%s %s", It: "%s %s"}
 
 	msgAddPortions         = web.Message{En: "Add Portions", It: "Aggiungi Porzioni"}
 	msgAddPortionsTitle    = web.Message{En: "Add Portions · Dandori", It: "Aggiungi Porzioni · Dandori"}
@@ -60,8 +59,8 @@ var (
 	msgHowMany             = web.Message{En: "How many", It: "Quante"}
 	msgPortionWhere        = web.Message{En: "Where", It: "Dove"}
 	msgPortionValuesHint   = web.Message{
-		En: "Per Portion: calories in kcal, the rest in grams. Fibre and sugar may be left blank.",
-		It: "Per Porzione: calorie in kcal, il resto in grammi. Fibre e zuccheri si possono lasciare vuoti.",
+		En: "Per Portion.",
+		It: "Per Porzione.",
 	}
 	msgAdd        = web.Message{En: "Add", It: "Aggiungi"}
 	msgPerPortion = web.Message{En: "per Portion", It: "per Porzione"}
@@ -120,13 +119,6 @@ var portionMoveProblemMessages = map[domain.Problem]web.Message{
 	domain.NotWhole:     {En: "Must be a whole number.", It: "Deve essere un numero intero."},
 	domain.TooLarge:     {En: "Must be below 1000000.", It: "Deve essere sotto 1000000."},
 	domain.TooManyAlike: {En: "That would make more than 99 alike here.", It: "Così sarebbero più di 99 uguali qui."},
-}
-
-// locationHeadings head each Storage Location's Stock Items.
-var locationHeadings = map[domain.StorageLocation]web.Message{
-	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
-	domain.Fridge:  {En: "Fridge", It: "Frigo"},
-	domain.Freezer: {En: "Freezer", It: "Congelatore"},
 }
 
 // movedToLocations and movedFromLocations tell a move's cause on the Stock Item it left

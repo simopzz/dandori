@@ -66,7 +66,7 @@ templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
 							}
 							<span class="row-meta">
 								<span>{ web.T(ctx, kinds[r.Kind]) }</span>
-								<span>{ startedOn(ctx, now, r.StartedAt.In(now.Location())) }</span>
+								<span>{ web.DateTime(ctx, now, r.StartedAt.In(now.Location())) }</span>
 							</span>
 						}
 					}
@@ -102,7 +102,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 				@web.Tag(r.Status == Failed, "") {
 					{ web.T(ctx, statusNames[r.Status]) }
 				}
-				{ " " + web.Tf(ctx, msgStarted, web.TimeWithSeconds(ctx, r.StartedAt.In(now.Location()))) }
+				{ " " + web.Tf(ctx, msgStarted, web.Time(ctx, r.StartedAt.In(now.Location()))) }
 				if again != "" {
 					{ " · " }
 					@web.TextButton(templ.Attributes{"type": "submit", "form": "try-again"}) {
@@ -119,7 +119,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 			}
 			if again != "" {
 				// Its button sits in the line above: a form can't go inside a <p>.
-				<form id="try-again" method="post" action={ templ.SafeURL(again) }>
+				<form novalidate id="try-again" method="post" action={ templ.SafeURL(again) }>
 					<input type="hidden" name="text" value={ r.Asked }/>
 				</form>
 			}
@@ -131,7 +131,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 						}
 					</p>
 				</noscript>
-				<form id="cancel-run" method="post" action={ templ.SafeURL(runURL(r.ID) + "/cancel") }>
+				<form novalidate id="cancel-run" method="post" action={ templ.SafeURL(runURL(r.ID) + "/cancel") }>
 					@web.DestructiveButton(templ.Attributes{"type": "submit"}) {
 						{ web.T(ctx, msgCancel) }
 					}
@@ -141,11 +141,11 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 		if r.Asked != "" && askedName != "" {
 			<div class="section">
 				@web.Fold(label(askedName), true) {
-					<pre class="trace-detail">{ r.Asked }</pre>
+					@web.Verbatim(r.Asked)
 				}
 			</div>
 		}
-		@web.Section(0, web.T(ctx, msgTrace)) {
+		@web.Section(1, web.T(ctx, msgTrace)) {
 			<div
 				if r.Status == Going {
 					hx-get={ runURL(r.ID) + "?ended" }
@@ -171,21 +171,23 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 }
 
 // traceEvent is one Trace Event, a line of when and its fixed line in the User's
-// Language, folding what the model was sent or what it or a tool said, verbatim.
+// Language, folding its data: what the model was sent or what it or a tool said,
+// verbatim, under the model's or the tool's name.
 templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
+	{{ d := detail(ctx, ev.TraceEvent) }}
 	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
-		@web.Fold(traceLine(ev, zone), ev.Text != "" && ev.Kind != agent.Failed) {
+		@web.Fold(traceLine(ev, zone), d != "") {
 			if ev.Kind == agent.Said {
 				@web.Markdown(ev.Text)
 			} else {
-				<pre class="trace-detail">{ indented(ev.TraceEvent) }</pre>
+				@web.Verbatim(d)
 			}
 		}
 	</li>
 }
 
 templ traceLine(ev StoredTraceEvent, zone *time.Location) {
-	<time datetime={ ev.At.Format(time.RFC3339) }>{ web.TimeWithSeconds(ctx, ev.At.In(zone)) }</time>
+	<time datetime={ ev.At.Format(time.RFC3339) }>{ web.Time(ctx, ev.At.In(zone)) }</time>
 	<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
 }
 
@@ -193,44 +195,49 @@ templ label(text string) {
 	<span class="trace-kind">{ text }</span>
 }
 
-// startedOn is when a Run started at, as of now: the day, with its year unless it is
-// now's, and the time.
-func startedOn(ctx context.Context, now, at time.Time) string {
-	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
-	}
-	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), web.Time(ctx, at))
-}
-
-// indented is ev's text, a tool's input indented to read.
-func indented(ev agent.TraceEvent) string {
+// detail is what ev's Fold holds, its data verbatim: the model's name, or a tool's over
+// what it was sent, indented to read, or what it said; a retry's wait; a turn's tokens.
+func detail(ctx context.Context, ev agent.TraceEvent) string {
+	text := ev.Text
 	var b bytes.Buffer
-	if ev.Kind != agent.Called || json.Indent(&b, []byte(ev.Text), "", "  ") != nil {
-		return ev.Text
+	if ev.Kind == agent.Called && json.Indent(&b, []byte(text), "", "  ") == nil {
+		text = b.String()
 	}
-	return b.String()
+	switch ev.Kind {
+	case agent.Started:
+		return ev.Model
+	case agent.Called, agent.Answered, agent.Refused:
+		return strings.TrimSpace(ev.Tool + "\n\n" + text)
+	case agent.Retrying:
+		return text + "\n\n" + web.Tf(ctx, msgWaiting, ev.WaitMillis)
+	case agent.Tokens:
+		u := ev.Usage
+		return web.Tf(ctx, msgTokens, u.Input, u.Output, u.Thinking, u.CacheRead, u.CacheWrite)
+	case agent.Failed, agent.Ended:
+		return ""
+	}
+	return text
 }
 
 // line is ev's fixed line in the Language of ctx.
 func line(ctx context.Context, ev agent.TraceEvent) string {
 	switch ev.Kind {
 	case agent.Started:
-		return web.Tf(ctx, msgStartedWith, ev.Model)
+		return web.T(ctx, msgStartedRun)
 	case agent.Asked:
 		return web.Tf(ctx, msgAsked, ev.Turn)
 	case agent.Said:
 		return web.T(ctx, msgSaid)
 	case agent.Called:
-		return web.Tf(ctx, msgCalled, ev.Tool)
+		return web.T(ctx, msgCalled)
 	case agent.Answered:
-		return web.Tf(ctx, msgAnswered, ev.Tool)
+		return web.T(ctx, msgAnswered)
 	case agent.Refused:
-		return web.Tf(ctx, msgRefused, ev.Tool)
+		return web.T(ctx, msgRefused)
 	case agent.Retrying:
-		return web.Tf(ctx, msgRetrying, ev.Attempt, ev.Retries, ev.WaitMillis)
+		return web.Tf(ctx, msgRetrying, ev.Attempt, ev.Retries)
 	case agent.Tokens:
-		u := ev.Usage
-		return web.Tf(ctx, msgTokens, u.Input, u.Output, u.Thinking, u.CacheRead, u.CacheWrite)
+		return web.Tf(ctx, msgUsed, ev.Usage.Input+ev.Usage.Output)
 	case agent.Failed:
 		reason := web.T(ctx, reasonNames[ev.Reason])
 		if strings.Contains(reason, "%s") {
