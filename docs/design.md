@@ -252,7 +252,9 @@ elements themselves.
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
-| `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
+| `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. Deleting or discarding what the User wrote asks once, naming what will go; nothing is removed by a single tap. Its Delete or Discard is a `RemoveLink` to a `RemoveStep`, whose own `DestructiveButton` does it. Cancelling a Run stays one tap: the User didn't write it. |
+| `RemoveLink(id, href, src)` | A `DestructiveButton`'s look on a `SideSheetLink`: opens the `SideSheet` `id` on the `RemoveStep` at `src`, or without htmx goes to `href`, the step as a page of its own. |
+| `RemoveStep(question, remove, action, back, attrs)` | The step that asks once: `question` names what will go ("Delete the Recipe Rice bowl?"), and its form posts to `action` with a `DestructiveButton` saying `remove`; children are its hidden fields, `attrs` the htmx swap of a sheet's body if any. In a sheet, the sheet's Close is the way back; as a page, `back` gives a `TextLink`. |
 | `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
 | `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |

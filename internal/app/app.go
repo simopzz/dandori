@@ -174,6 +174,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /recipes/paste", signedIn(recs.Paste))
 	mux.Handle("GET /recipe-drafts/{id}", signedIn(recs.ShowDraft))
 	mux.Handle("POST /recipe-drafts/{id}", signedIn(recs.Accept))
+	mux.Handle("GET /recipe-drafts/{id}/discard", signedIn(recs.ShowDiscard))
+	mux.Handle("GET /recipe-drafts/{id}/discard/sheet", signedIn(recs.ShowDiscardSheet))
 	mux.Handle("POST /recipe-drafts/{id}/discard", signedIn(recs.Discard))
 	mux.Handle("GET /runs", signedIn(run.List))
 	mux.Handle("GET /runs/{id}", signedIn(run.Show))
@@ -187,6 +189,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /recipes/{id}", signedIn(recs.Show))
 	mux.Handle("POST /recipes/{id}", signedIn(recs.Edit))
 	mux.Handle("GET /recipes/{id}/edit", signedIn(recs.ShowEdit))
+	mux.Handle("GET /recipes/{id}/delete", signedIn(recs.ShowDelete))
+	mux.Handle("GET /recipes/{id}/delete/sheet", signedIn(recs.ShowDeleteSheet))
 	mux.Handle("POST /recipes/{id}/delete", signedIn(recs.Delete))
 	mux.Handle("GET /kitchen", signedIn(kit.Show))
 	mux.Handle("GET /kitchen/stock", signedIn(kit.ShowContents))
@@ -216,6 +220,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /ingredients/suggestion", signedIn(ings.ShowSuggestion))
 	mux.Handle("POST /ingredients", signedIn(ings.Add))
 	mux.Handle("POST /ingredients/{id}", signedIn(ings.Edit))
+	mux.Handle("GET /ingredients/{id}/delete", signedIn(ings.ShowDelete))
+	mux.Handle("GET /ingredients/{id}/delete/sheet", signedIn(ings.ShowDeleteSheet))
 	mux.Handle("POST /ingredients/{id}/delete", signedIn(ings.Delete))
 	return otelhttp.NewHandler(described(web.Faro(a.faroURL, web.Languages(web.Notices(named(mux))))), "request",
 		otelhttp.WithTracerProvider(a.spans),
