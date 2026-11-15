@@ -234,9 +234,9 @@ templ recipeForm(f RecipeForm) {
 				}
 			</div>
 			@web.FieldRow() {
-				@numberField(msgPortions, "portions", f.Portions, f.Errs["portions"])
-				@numberField(msgActive, "active", f.Active, f.Errs["active"])
-				@numberField(msgTotal, "total", f.Total, f.Errs["total"])
+				@numberField(msgPortions, "", "portions", f.Portions, f.Errs["portions"])
+				@numberField(msgActive, web.T(ctx, msgMinutesUnit), "active", f.Active, f.Errs["active"])
+				@numberField(msgTotal, web.T(ctx, msgMinutesUnit), "total", f.Total, f.Errs["total"])
 			}
 			@web.Checks(web.T(ctx, msgSlots), "slots", web.SlotKindChoices(ctx), f.Slots, f.Errs["slots"])
 		</div>
@@ -320,9 +320,9 @@ func pickButton(i int, name string) templ.Attributes {
 	}
 }
 
-// numberField is a Field for a whole number, its name its id.
-templ numberField(label web.Message, name, value, err string) {
-	@web.Field(web.T(ctx, label), "", err) {
+// numberField is a Field for a whole number, its unit in hint, its name its id.
+templ numberField(label web.Message, hint, name, value, err string) {
+	@web.Field(web.T(ctx, label), hint, err) {
 		<input type="number" inputmode="numeric" id={ name } name={ name } value={ value } required { ingredients.Invalid(err)... }/>
 	}
 }
@@ -330,6 +330,23 @@ templ numberField(label web.Message, name, value, err string) {
 // stepRow is one step of the form, taking focus as it arrives when focus says so.
 templ stepRow(step string, focus bool) {
 	<li><textarea name="steps" rows="2" aria-label={ web.T(ctx, msgStep) } autofocus?={ focus }>{ step }</textarea></li>
+}
+
+// followRow asks for the whole row again as its name or a new Ingredient's unit changes,
+// morphed in place so the field the User moved to keeps the focus and what they typed.
+func followRow() templ.Attributes {
+	return templ.Attributes{
+		"hx-get": "/recipes/ingredient-row", "hx-trigger": "change", "hx-target": "closest .ingredient-row",
+		"hx-swap": "outerMorph", "hx-include": "closest .ingredient-row",
+	}
+}
+
+// quantityUnit is the unit row's quantity is in, once its Ingredient has one.
+func quantityUnit(ctx context.Context, row IngredientRow) string {
+	if unit, ok := ingredients.RecordedIn[domain.Unit(row.Unit)]; ok {
+		return web.T(ctx, unit)
+	}
+	return ""
 }
 
 // ingredientRow is the row at index i: its name, which says what it is as the User leaves
@@ -345,15 +362,11 @@ templ ingredientRow(i int, row IngredientRow) {
 				list={ knownIngredients }
 				autocomplete="off"
 				autofocus?={ row.Focus }
-				hx-get="/recipes/ingredient-row"
-				hx-trigger="change"
-				hx-target="next .ingredient-details"
-				hx-swap="innerHTML"
-				hx-include="closest .ingredient-row"
+				{ followRow()... }
 				{ ingredients.Invalid(row.Errs["name"])... }
 			/>
 		}
-		@web.Field(web.T(ctx, msgQuantity), "", cmp.Or(row.UnitChanged, row.Errs["quantity"])) {
+		@web.Field(web.T(ctx, msgQuantity), quantityUnit(ctx, row), cmp.Or(row.UnitChanged, row.Errs["quantity"])) {
 			<input id={ rowField("quantity", i) } name={ rowField("quantity", i) } value={ row.Quantity } inputmode="decimal" autocomplete="off" { ingredients.Invalid(cmp.Or(row.UnitChanged, row.Errs["quantity"]))... }/>
 		}
 		<div class="ingredient-details">
@@ -368,8 +381,8 @@ templ ingredientRow(i int, row IngredientRow) {
 	</div>
 }
 
-// rowDetails is what the row at index i shows beneath its name: nothing while it has
-// none, the unit of a known Ingredient, or the fields that confirm a new one.
+// rowDetails is what the row at index i shows beneath its name: the fields that confirm
+// a new Ingredient, or nothing.
 templ rowDetails(i int, row IngredientRow) {
 	if row.Name != "" {
 		<input type="hidden" name={ rowField("new", i) } value={ strconv.FormatBool(row.New) }/>
@@ -386,8 +399,6 @@ templ rowDetails(i int, row IngredientRow) {
 				</p>
 			}
 			@ingredients.NewIngredientFields(func(field string) string { return rowField(field, i) }, row.typed())
-		} else {
-			<span class="field-hint">{ web.Tf(ctx, msgMeasuredIn, web.T(ctx, ingredients.UnitNames[domain.Unit(row.Unit)])) }</span>
 		}
 	}
 }

@@ -295,6 +295,7 @@ func rowProblem(ctx context.Context, field string, problem domain.Problem) strin
 func (row IngredientRow) typed() ingredients.TypedIngredient {
 	return ingredients.TypedIngredient{
 		Unit: row.Unit, Usual: row.Usual, Staple: row.Staple, Values: row.Values, Errs: row.Errs, Focus: row.Confirming,
+		UnitAttrs: followRow(),
 	}
 }
 

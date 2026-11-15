@@ -153,10 +153,10 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 		fill("Name", "egg")
 		choose("Unit", "piece")
 		choose("Usually kept in", "Fridge")
-		fill("Calories", "70")
-		fill("Protein", "6.3")
-		fill("Carbs", "0.4")
-		fill("Fat", "4.8")
+		fill("Calories (kcal)", "70")
+		fill("Protein (g)", "6.3")
+		fill("Carbs (g)", "0.4")
+		fill("Fat (g)", "4.8")
 		if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Add"}).Click(); err != nil {
 			t.Fatalf("add egg: %v", err)
 		}
@@ -224,7 +224,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 	fills := func(value string) {
 		t.Helper()
 		opensAddForm(t, sheet)
-		for label, value := range map[string]string{"Calories": "70", "Protein": "6.3", "Carbs": "0.4", "Fat": "4.8"} {
+		for label, value := range map[string]string{"Calories (kcal)": "70", "Protein (g)": "6.3", "Carbs (g)": "0.4", "Fat (g)": "4.8"} {
 			if err := add.GetByLabel(label, playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)}).Fill(value); err != nil {
 				t.Fatalf("fill %s: %v", label, err)
 			}

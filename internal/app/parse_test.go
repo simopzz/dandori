@@ -76,7 +76,7 @@ func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 		"ing_name_1": "lasagne sheets", "ing_fat_1": "1.5", "ing_fibre_1": "", "ing_sugar_1": "", "ing_usual_1": "pantry",
 		"ing_name_3": "olive oil", "ing_quantity_3": "10", "ing_unit_3": "ml", "ing_kcal_3": "820", "ing_staple_3": "on",
 	})
-	s.Sees("Measured in g")
+	s.Sees("Quantity (g)")
 	s.Sees("Brown the mince. Layer with the sheets and tomatoes. Bake 40 minutes.")
 }
 

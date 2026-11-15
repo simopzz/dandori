@@ -10,7 +10,7 @@
   --color-text: #1a1a18;          /* sumi ink, 17:1 on bg */
   --color-text-soft: #5c5a54;     /* soft ink, 6.7:1 on bg */
   --color-rule: #ecdfd2;          /* warm peach-grey hairline between rows */
-  --color-rule-strong: #2d3352;   /* navy: section rules, input underlines, 12:1 on bg */
+  --color-rule-strong: #2d3352;   /* navy: section rules, field boxes, 12:1 on bg */
   --color-fill: #2d3352;          /* navy: primary buttons, chosen segment */
   --color-fill-dither: #4b5582;   /* slate, dithered over the fill on hover */
   --color-on-fill: #fdfcfa;       /* paper on fill (12:1), slate (7:1) or accent (5.8:1) */
@@ -132,27 +132,20 @@ textarea {
   font: inherit;
   color: var(--color-text);
   background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--color-rule-strong);
+  border: 1px solid var(--color-rule-strong);
   border-radius: var(--radius);
-  padding: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
   min-height: var(--tap);
   width: 100%;
 }
 
-textarea {
-  border: 1px solid var(--color-rule-strong);
-  padding: var(--space-2) var(--space-3);
-  resize: vertical;
-}
+textarea { resize: vertical; }
 
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
-[aria-invalid="true"] { border-bottom: 2px solid var(--color-accent); }
-
-textarea[aria-invalid="true"] { border: 2px solid var(--color-accent); }
+[aria-invalid="true"] { border: 2px solid var(--color-accent); }
 
 button { font: inherit; color: inherit; }
 
@@ -561,7 +554,7 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
   .row-static:has(> .row-action) .row-action { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 }
 
-/* forms: underline fields, square buttons */
+/* forms: boxed fields, square buttons */
 
 .stack { display: grid; gap: var(--space-4); }
 
@@ -584,7 +577,6 @@ legend.field-label { margin-bottom: var(--space-1); }
 
 .search-field input {
   background: var(--color-surface);
-  border: 1px solid var(--color-rule-strong);
   padding-inline: calc(var(--space-3) * 2 + 20px) var(--space-3);
 }
 

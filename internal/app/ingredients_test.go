@@ -58,6 +58,18 @@ func TestAddingIngredients(t *testing.T) {
 	}
 }
 
+// Each nutritional value's label gives its unit, and fibre's and sugar's say they may be
+// left blank.
+func TestAnIngredientsLabelsGiveUnitsAndSayWhatIsOptional(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients/new")
+
+	s.Sees("Calories (kcal) Protein (g) Carbs (g) Fat (g) Fibre (g, optional) Sugar (g, optional)")
+}
+
 // Calories, protein, carbs and fat are required, and a value is a number not below 0, to
 // one decimal place; a refused add keeps what was typed, with why on each field.
 func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {

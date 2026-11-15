@@ -125,7 +125,7 @@ func TestAKnownIngredientKeepsItsValuesAndUnitOnARecipeDraft(t *testing.T) {
 	s.PastesRecipe(pastedLasagne)
 	s.Follows("Recipe Draft")
 
-	s.Sees("Measured in g")
+	s.Sees("Quantity (g)")
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
 	if got := form.Get("ing_kcal_4"); got != "" {
 		t.Errorf("the known rice shows the proposed %q kcal", got)
@@ -134,6 +134,21 @@ func TestAKnownIngredientKeepsItsValuesAndUnitOnARecipeDraft(t *testing.T) {
 	s.IsConfirmed("Added Lasagne to the Recipe Library.")
 	s.Open("/ingredients")
 	s.Sees("rice Pantry per 100 g: 350 kcal protein 7 g")
+}
+
+// Each row of a Recipe Draft gives its quantity's unit, and a new Ingredient's values
+// say what they are per.
+func TestARecipeDraftRowGivesItsUnitAndWhatItsValuesArePer(t *testing.T) {
+	s := draftedLasagne(t)
+	s.Follows("Recipe Draft")
+
+	s.Sees("Quantity (ml) New")
+	s.Sees("Per 100 ml, as on the label.")
+	s.Sees("Per 100 g, as on the label.")
+	// beef mince, lasagne sheets, chopped tomatoes and the known rice
+	if n := strings.Count(apptest.Text(s.Page().Body), "Quantity (g)"); n != 4 {
+		t.Errorf("%d rows give their quantity in g, want 4", n)
+	}
 }
 
 // The sheet a Recipe Draft's Discard opens asks in the User's Language, and its form

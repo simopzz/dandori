@@ -28,7 +28,7 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-text` | `#1a1a18` sumi ink | text |
 | `--color-text-soft` | `#5c5a54` soft ink | labels, hints, metadata |
 | `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
-| `--color-rule-strong` | `#2d3352` navy | section numbers, strokes and rules, input underlines, borders of controls, the focus ring |
+| `--color-rule-strong` | `#2d3352` navy | section numbers, strokes and rules, field boxes, borders of controls, the focus ring |
 | `--color-fill` | navy | primary buttons, the chosen segment, a floating Notice |
 | `--color-fill-dither` | `#4b5582` slate | dithered over the fill: a button's hover, a busy button |
 | `--color-on-fill` | paper | text on a fill or on the accent |
@@ -42,7 +42,7 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-sky-*` | paper, cream `#f7e4c6`, peach `#f2c29c`, salmon `#eba083`, deep `#252840`, slate, snow `#f3eee4`, navy, sun (vermilion) | the sky and the pixel art only |
 
 **The accent means wrong, urgent or irreversible**, and nothing else: errors
-and a refused field's underline, an urgent row's seal and its accent `Tag`,
+and a refused field's box, an urgent row's seal and its accent `Tag`,
 and destructive actions. It also stays on the `+`, which is the seal, and on
 the sun in the sky, as in the banner, which the seal echoes. Never use it for
 decoration, emphasis or structure: a page where everything is vermilion has
@@ -52,7 +52,7 @@ needs, so the marker is salmon.
 
 **Navy is structure**, not attention: it fills primary buttons, the chosen
 segment and a floating Notice, draws section numbers, the stroke under them,
-section rules, input underlines and the focus ring, and is the shell. The
+section rules, field boxes and the focus ring, and is the shell. The
 banner's other colours (slate, cream, peach, salmon, snow) are only in the
 sky and the pixel art, with three exceptions named above: slate in a
 control's dither, cream behind a tag, salmon on the current tab and in the
@@ -247,7 +247,7 @@ elements themselves.
 | `Seal()` | The pixel sun before an urgent `Row`'s `row-title`. Decorative: the row's text (an accent `Tag`) says why it is urgent. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
 | `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
-| `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. |
+| `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. A field that may be left blank says `optional`, and a value's unit (`g`, `kcal`, `minutes`) is always in the hint, never in the label or a paragraph; a paragraph says only what a group of values is per (`Per Portion.`). The label sits 4px (`--space-1`) above its own field. |
 | `SearchField(label)` | The search box over a list, the input the child: a square box with the magnifying glass inside, so it doesn't read as one of the rows. `label` is for a screen reader; the input's placeholder says it on screen. |
 | `ListSearch(id, action, listURL, listID, label)` | A `SearchField` in a form that swaps the list as the User types and opens `action` searched without htmx, the input the child. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window), typed in either 24- or 12-hour form and shown in the Language's (`web.TimeOfDay`); never a native `type="time"`, which follows the browser's locale. |
@@ -289,8 +289,10 @@ Two layout classes go on elements a component can't wrap, such as a
 alert), and `section` gives an unnumbered group a `Section`'s spacing.
 
 Base elements (`input`, `select`, `textarea`, `table`, `dl`, `h1`–`h3`, lists)
-are styled once in `app.css`: underline-only inputs, square bordered
-textareas, tables ruled like rows, `dl` as a two-column list of facts.
+are styled once in `app.css`: every text input, select and textarea a square
+1px navy box (`--radius` 0), a refused one's box thicker and vermilion, the
+dense grids' cells included; tables ruled like rows, `dl` as a two-column list
+of facts.
 
 Three feature-shaped components live in `app.css` because nothing else needs
 them yet: the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), the
@@ -307,20 +309,20 @@ and closing.
   Paper on accent 5.8:1, accent on its salmon wash 4.9:1, ink on a cream tag
   14:1.
 - Non-text indicators reach 3:1: the current tab's salmon bar is 5.8:1 on
-  navy, a section rule, a section's stroke, an input underline and the focus
+  navy, a section rule, a section's stroke, a field's box and the focus
   ring 12:1 on paper, and a salmon focus ring 5.8:1 on navy.
 - Touch targets are at least `--tap` (44px).
 - Focus is always visible: a 3px navy ring with a 2px gap of paper on every
   control, inputs included, so a field focused as a sheet opens doesn't look
   refused, and a focused field stands out from an invalid one, which keeps its
-  thicker vermilion underline (or box) and `aria-invalid`. On the navy tabs
+  thicker vermilion box and `aria-invalid`. On the navy tabs
   and a floating Notice the ring is salmon (5.8:1), as navy is lost there.
 - `prefers-reduced-motion` turns off transitions and animations: the busy
   bar's blocks and a busy button's dither stand still.
   The bar still waits its 300 ms. A floating Notice appears and goes with no
   transition, its line still and whole, and still goes when its time runs out.
 - Meaning is never carried by colour alone: an error says what is wrong and
-  is marked `!`, an invalid field has a thicker underline and
+  is marked `!`, an invalid field has a thicker box and
   `aria-invalid`, an urgent row has the pixel seal *and* text, the current tab
   has a bar, paper text and `aria-current`.
 - Icons, the seal and the pixel art are `aria-hidden`; what they mean is said

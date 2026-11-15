@@ -251,16 +251,16 @@ templ mealOutForm(f MealOutForm) {
 		}
 		@web.FieldRow() {
 			@mealOutField(msgFat, msgGrams, domain.MealOutFat, f)
-			@mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f)
-			@mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f)
+			@mealOutField(msgFibre, msgFibreHint, domain.MealOutFibre, f)
+			@mealOutField(msgSugar, msgSugarHint, domain.MealOutSugar, f)
 		}
 	}
 }
 
 // mealOutField is the Meal Out estimate's value named field, a whole number from 0,
-// labelled label with its unit; fibre and sugar may be left blank.
-templ mealOutField(label, unit web.Message, field string, f MealOutForm) {
-	@web.Field(web.T(ctx, label), web.T(ctx, unit), f.Errs[field]) {
+// labelled label with its unit in hint, which says so when it may be left blank.
+templ mealOutField(label, hint web.Message, field string, f MealOutForm) {
+	@web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]) {
 		<input
 			type="number"
 			inputmode="numeric"
@@ -283,10 +283,10 @@ templ foodsForm(f FoodsForm) {
 		@web.Hint() {
 			{ web.T(ctx, msgFoodsHint) }
 		}
-		@web.Field(web.T(ctx, msgExclusions), "", "") {
+		@web.Field(web.T(ctx, msgExclusions), web.T(ctx, msgExclusionsHint), "") {
 			<textarea name="exclusions" rows="4">{ strings.Join(f.Exclusions, "\n") }</textarea>
 		}
-		@web.Field(web.T(ctx, msgAllergies), "", "") {
+		@web.Field(web.T(ctx, msgAllergies), web.T(ctx, msgAllergiesHint), "") {
 			<textarea name="allergies" rows="4">{ strings.Join(f.Allergies, "\n") }</textarea>
 		}
 	}
@@ -299,7 +299,7 @@ templ briefForm(brief string) {
 		@web.Hint() {
 			{ web.T(ctx, msgBriefHint) }
 		}
-		@web.Field(web.T(ctx, msgWishes), "", "") {
+		@web.Field(web.T(ctx, msgWishes), web.T(ctx, msgWishesHint), "") {
 			<textarea name="brief" rows="5" placeholder={ web.T(ctx, msgBriefPlaceholder) }>{ brief }</textarea>
 		}
 	}
