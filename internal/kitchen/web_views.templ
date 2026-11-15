@@ -415,15 +415,16 @@ templ portionsPage(now time.Time, f PortionsForm) {
 		@web.PageHeader("台所", web.T(ctx, msgAddPortions), now)
 		@web.ErrorSummary(f.refusals(ctx))
 		<div id={ web.SideSheetBody(portionsSheetID) }>
-			@portionsForm(f)
+			@portionsForm(f, false)
 		</div>
 	}
 }
 
 // portionsForm adds Portions no Prep Session produced, swapping the sheet's body when
 // htmx posts it. Its Storage Location starts unchosen, so nothing lands in the wrong
-// place by default.
-templ portionsForm(f PortionsForm) {
+// place by default. inSheet focuses its name as the sheet opens; a page focuses nothing,
+// so a phone's keyboard doesn't cover it.
+templ portionsForm(f PortionsForm, inSheet bool) {
 	<form
 		novalidate
 		id="portions-form"
@@ -435,7 +436,7 @@ templ portionsForm(f PortionsForm) {
 	>
 		<div class="stack">
 			@web.Field(web.T(ctx, msgPortionName), "", f.Errs["name"]) {
-				<input id="name" name="name" value={ f.Name } required autocomplete="off" autofocus { ingredients.Invalid(f.Errs["name"])... }/>
+				<input id="name" name="name" value={ f.Name } required autocomplete="off" autofocus?={ inSheet } { ingredients.Invalid(f.Errs["name"])... }/>
 			}
 			@web.Field(web.T(ctx, msgHowMany), "", f.Errs["how_many"]) {
 				<input

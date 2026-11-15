@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -612,4 +613,22 @@ func TestAStaleCountToNothingConfirmsNothing(t *testing.T) {
 	}
 	s.Open("/kitchen")
 	s.Sees("Nothing in your kitchen yet.")
+}
+
+// autofocused is the start of each element of a page marked autofocus.
+var autofocused = regexp.MustCompile(`<[a-z]+[^<>]*\sautofocus[\s/>=]`)
+
+// The Add Portions page opens with no field focused, so a phone's keyboard doesn't cover
+// it; the sheet, as it opens, focuses its first field, as the Count page does its search.
+func TestOnlyASheetOrTheCountSearchFocusesAFieldAsItOpens(t *testing.T) {
+	s := kitchenWith(t)
+	if got := autofocused.FindAllString(s.Get(t, "/kitchen/portions").Body, -1); len(got) != 0 {
+		t.Errorf("the Add Portions page focuses %q", got)
+	}
+	if got := autofocused.FindAllString(s.HTMXGet(t, "/kitchen/portions/sheet").Body, -1); len(got) != 1 || !strings.Contains(got[0], `name="name"`) {
+		t.Errorf("the Add Portions sheet focuses %q, want its name", got)
+	}
+	if got := autofocused.FindAllString(s.Get(t, "/kitchen/count").Body, -1); len(got) != 1 || !strings.Contains(got[0], `name="q"`) {
+		t.Errorf("the Count page focuses %q, want its search", got)
+	}
 }

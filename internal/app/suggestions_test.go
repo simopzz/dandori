@@ -45,7 +45,7 @@ func TestAcceptingASuggestionInTheSameUnitUsesTheKnownIngredient(t *testing.T) {
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
 
 	row := s.HTMXGet(t, "/recipes/ingredient-row?ing_pick_1=lasagna+sheets&ing_name_1=lasagne+sheets&ing_quantity_1=250&ing_unit_1=g&ing_new_1=true")
-	if got := apptest.Text(row.Body); got != "Ingredient Quantity Measured in g" {
+	if got := apptest.Text(row.Body); got != "Ingredient Quantity Measured in g Remove lasagna sheets" {
 		t.Errorf("the picked row shows %q", got)
 	}
 	if got := apptest.Form(t, "<form id=r>"+row.Body+"</form>", "r"); got.Get("ing_name_1") != "lasagna sheets" || got.Get("ing_quantity_1") != "250" {
@@ -88,7 +88,7 @@ func TestAcceptingASuggestionInAnotherUnitAsksForTheQuantity(t *testing.T) {
 	form := apptest.Form(t, s.Page().Body, "recipe-form")
 
 	row := s.HTMXGet(t, "/recipes/ingredient-row?ing_pick_1=lasagna+sheets&ing_name_1=lasagne+sheets&ing_quantity_1=250&ing_unit_1=g&ing_new_1=true")
-	if got := apptest.Text(row.Body); got != "Ingredient Quantity Give it in pieces: Dandori doesn't convert. Measured in piece" {
+	if got := apptest.Text(row.Body); got != "Ingredient Quantity Give it in pieces: Dandori doesn't convert. Measured in piece Remove lasagna sheets" {
 		t.Errorf("the picked row shows %q", got)
 	}
 

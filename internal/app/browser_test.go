@@ -388,3 +388,25 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	}
 	b.Shot(t, "times-of-day")
 }
+
+// A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line
+// of a Run's Trace that opens.
+func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
+	s := draftedLasagne(t)
+	run := s.Page().Path
+	s.Counts("rice", "", "700", "")
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	tall := func(what string, l playwright.Locator) {
+		t.Helper()
+		if h := box(t, what, l).Height; h < 44 {
+			t.Errorf("%s is %.1fpx tall, want at least 44", what, h)
+		}
+	}
+
+	b.Open(t, "/kitchen")
+	tall("Count", b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice", Exact: playwright.Bool(true)}))
+	tall("Move", b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move rice in the pantry", Exact: playwright.Bool(true)}))
+	b.Open(t, run)
+	tall("a Trace line that opens", b.Locator(".fold > summary").First())
+}
