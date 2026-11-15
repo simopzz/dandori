@@ -122,13 +122,6 @@ var portionMoveProblemMessages = map[domain.Problem]web.Message{
 	domain.TooManyAlike: {En: "That would make more than 99 alike here.", It: "Così sarebbero più di 99 uguali qui."},
 }
 
-// locationHeadings head each Storage Location's Stock Items.
-var locationHeadings = map[domain.StorageLocation]web.Message{
-	domain.Pantry:  {En: "Pantry", It: "Dispensa"},
-	domain.Fridge:  {En: "Fridge", It: "Frigo"},
-	domain.Freezer: {En: "Freezer", It: "Congelatore"},
-}
-
 // movedToLocations and movedFromLocations tell a move's cause on the Stock Item it left
 // and the one it reached, and toLocations where a move went, as Italian takes each
 // Storage Location with its own preposition.

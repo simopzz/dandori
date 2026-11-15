@@ -300,7 +300,7 @@ func (h Handlers) answer(w http.ResponseWriter, r *http.Request, view sheetView)
 	if !slices.ContainsFunc(ings, func(ing domain.Ingredient) bool { return ing.Name == f.Picked }) {
 		f.Picked = ""
 	}
-	a := web.Answer{Page: page(h.Clock.Now(), ings, view), Fragment: sheetBody(ings, view)}
+	a := web.Answer{Page: page(h.Clock.Now(), ings, view), Fragment: sheetBody(ings, view, false)}
 	if f.Picked != "" {
 		a.Notice = web.Tf(r.Context(), msgPicked, f.Picked)
 	}

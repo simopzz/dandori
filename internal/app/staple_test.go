@@ -26,7 +26,7 @@ func TestMarkingAStapleCountsItsStockToNothing(t *testing.T) {
 	s.EditsIngredient("rice", asStaple(rice))
 	s.IsAt("/ingredients")
 	s.IsConfirmed("700 g of rice in the pantry and 200 g in the freezer counted to nothing: it's a Staple now.")
-	s.Sees("rice Staple pantry")
+	s.Sees("rice Staple Pantry")
 
 	s.Open("/kitchen")
 	s.DoesNotSee("rice")
@@ -61,14 +61,14 @@ func TestMarkingAStapleWithNoStockRecordsNoMovement(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.EditsIngredient("rice", asStaple(rice))
 	s.IsConfirmed("Saved rice.")
-	s.Sees("rice Staple pantry")
+	s.Sees("rice Staple Pantry")
 	s.DoesNotSee("Movements")
 
 	inPieces := asStaple(rice)
 	inPieces.Unit = "piece"
 	s.EditsIngredient("rice", inPieces)
 	s.IsConfirmed("Saved rice.")
-	s.Sees("rice Staple pantry per piece")
+	s.Sees("rice Staple Pantry per piece")
 }
 
 // A Staple counted to nothing and still a Staple is never counted again, nor moved by a

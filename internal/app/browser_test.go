@@ -152,7 +152,7 @@ func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 		t.Helper()
 		fill("Name", "egg")
 		choose("Unit", "piece")
-		choose("Usually kept in", "fridge")
+		choose("Usually kept in", "Fridge")
 		fill("Calories", "70")
 		fill("Protein", "6.3")
 		fill("Carbs", "0.4")
@@ -227,7 +227,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 				t.Fatalf("fill %s: %v", label, err)
 			}
 		}
-		for label, option := range map[string]string{"Unit": "piece", "Usually kept in": "fridge"} {
+		for label, option := range map[string]string{"Unit": "piece", "Usually kept in": "Fridge"} {
 			if _, err := add.GetByLabel(label).SelectOption(playwright.SelectOptionValues{Labels: &[]string{option}}); err != nil {
 				t.Fatalf("choose %s: %v", label, err)
 			}

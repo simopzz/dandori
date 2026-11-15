@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -17,7 +18,9 @@ import (
 templ PageHeader(ja, title string, today time.Time) {
 	<header class="page-header">
 		<p class="eyebrow"><span lang="ja">{ ja }</span> · { Date(ctx, today) }</p>
-		<h1>{ title }</h1>
+		<h1>
+			@titleText(title)
+		</h1>
 		{ children... }
 	</header>
 }
@@ -28,7 +31,7 @@ templ Section(num int, title string) {
 	<section class="section">
 		<h2 class="section-heading">
 			@number(num)
-			{ title }
+			@titleText(title)
 		</h2>
 		{ children... }
 	</section>
@@ -39,7 +42,7 @@ templ FieldGroup(num int, legend string) {
 	<fieldset class="section">
 		<legend class="section-heading">
 			@number(num)
-			{ legend }
+			@titleText(legend)
 		</legend>
 		{ children... }
 	</fieldset>
@@ -52,7 +55,9 @@ templ FieldGroupAction(id string, num int, legend string, action templ.Component
 	<fieldset class="section" aria-labelledby={ id }>
 		<legend class="section-heading">
 			@number(num)
-			<span id={ id }>{ legend }</span>
+			<span id={ id }>
+				@titleText(legend)
+			</span>
 			<span class="heading-action">
 				@action
 			</span>
@@ -67,6 +72,49 @@ templ number(n int) {
 		<span class="mark" aria-hidden="true"></span>
 	} else {
 		<span class="num">{ fmt.Sprintf("%02d", n) }</span>
+	}
+}
+
+// Data marks s, in a title, as data: a time, a quantity or User text, which the title
+// sets in the body face, as the pixel face makes l, I and 1 hard to tell apart. Only
+// PageHeader's, Section's and FieldGroup's titles read the mark.
+func Data(s string) string { return dataStart + s + dataEnd }
+
+// dataStart and dataEnd mark Data: characters of Unicode's private use, which no text
+// a User reads holds.
+const dataStart, dataEnd = "\uE000", "\uE001"
+
+// titlePart is a run of a title, Data or not.
+type titlePart struct {
+	text string
+	data bool
+}
+
+// titleParts splits title into its runs of Data and the rest.
+func titleParts(title string) []titlePart {
+	var parts []titlePart
+	for {
+		before, rest, found := strings.Cut(title, dataStart)
+		if before != "" {
+			parts = append(parts, titlePart{text: before})
+		}
+		if !found {
+			return parts
+		}
+		data, after, _ := strings.Cut(rest, dataEnd)
+		parts = append(parts, titlePart{text: data, data: true})
+		title = after
+	}
+}
+
+// titleText is title, its Data in the body face.
+templ titleText(title string) {
+	for _, p := range titleParts(title) {
+		if p.data {
+			<span class="data">{ p.text }</span>
+		} else {
+			{ p.text }
+		}
 	}
 }
 
@@ -335,13 +383,6 @@ templ Button(attrs templ.Attributes) {
 	</button>
 }
 
-// ButtonLink is a link that looks like a Button.
-templ ButtonLink(href templ.SafeURL) {
-	<a class="btn" href={ href }>
-		{ children... }
-	</a>
-}
-
 // TextButton is a secondary action. attrs must give its type.
 templ TextButton(attrs templ.Attributes) {
 	<button class="btn-text" { attrs... }>
@@ -372,22 +413,33 @@ type Choice struct {
 	Icon  string
 }
 
-// Segmented chooses one of a few options with square toggles. selected
-// is the chosen Value; err is why a choice was rejected.
+// Segmented chooses one of a few options with square toggles, under legend, shown as a
+// Field's label: none when the group around it already names it. selected is the chosen
+// Value; err is why a choice was rejected, marking each option.
 templ Segmented(legend, name string, choices []Choice, selected, err string) {
-	<fieldset
-		class="seg"
-		if err != "" {
-			aria-invalid="true"
-			tabindex="-1"
+	<fieldset class="field">
+		if legend != "" {
+			<legend class="field-label">{ legend }</legend>
 		}
-	>
-		<legend class="sr-only">{ legend }</legend>
-		for _, c := range choices {
-			<label><input type="radio" name={ name } value={ c.Value } required checked?={ selected == c.Value }/><span>{ c.Label }</span></label>
-		}
+		<div class="seg">
+			for _, c := range choices {
+				<label>
+					<input
+						type="radio"
+						name={ name }
+						value={ c.Value }
+						required
+						checked?={ selected == c.Value }
+						if err != "" {
+							aria-invalid="true"
+						}
+					/>
+					<span>{ c.Label }</span>
+				</label>
+			}
+		</div>
+		@FieldError(err)
 	</fieldset>
-	@FieldError(err)
 }
 
 // SegmentedLinks is Segmented for options that each open something rather than fill in a

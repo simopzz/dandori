@@ -321,7 +321,7 @@ func profilePage(today time.Time, email string, forms profileForms) templ.Compon
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.Segmented("", "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

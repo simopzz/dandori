@@ -88,7 +88,7 @@ templ contentsList(now time.Time, contents Contents) {
 		}
 	}
 	for i, group := range byLocation(contents) {
-		@web.Section(i+1, web.T(ctx, locationHeadings[group.location])) {
+		@web.Section(i+1, web.T(ctx, ingredients.StorageLocationNames[group.location])) {
 			@web.Rows() {
 				for _, p := range group.portions {
 					@web.Row() {
@@ -193,11 +193,11 @@ templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
 	@web.SegmentedLinks(web.T(ctx, msgLocations)) {
 		for _, l := range domain.StorageLocations {
 			@web.SegmentLink(l == item.Location, movementsLink(item, l, inSheet)) {
-				{ web.T(ctx, locationHeadings[l]) }
+				{ web.T(ctx, ingredients.StorageLocationNames[l]) }
 			}
 		}
 	}
-	@web.Section(0, web.Tf(ctx, msgHeldIn, item.Ingredient.Name, web.T(ctx, locationHeadings[item.Location]))) {
+	@web.Section(0, web.Tf(ctx, msgHeldIn, web.Data(item.Ingredient.Name), web.T(ctx, ingredients.StorageLocationNames[item.Location]))) {
 		@movementRows(now, item.Movements, item.Location, item.Ingredient.Unit)
 	}
 }
@@ -339,14 +339,9 @@ templ countForm(f CountForm) {
 		hx-swap="innerHTML"
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
-		@web.FieldGroupAction("count-ingredient", 0, f.Ingredient.Name, chooseAnother()) {
+		@web.FieldGroupAction("count-ingredient", 0, web.Data(f.Ingredient.Name), chooseAnother()) {
 			<div class="stack">
-				<div>
-					@web.Hint() {
-						{ web.T(ctx, msgWhere) }
-					}
-					@web.Segmented(web.T(ctx, msgWhere), "location", locationChoices(ctx, f), string(f.Location), f.Errs["location"])
-				</div>
+				@web.Segmented(web.T(ctx, msgWhere), "location", locationChoices(ctx, f), string(f.Location), f.Errs["location"])
 				@web.Field(web.T(ctx, msgStated), "", f.Errs["stated"]) {
 					<input
 						type="number"
@@ -456,12 +451,7 @@ templ portionsForm(f PortionsForm) {
 					{ ingredients.Invalid(f.Errs["how_many"])... }
 				/>
 			}
-			<div>
-				@web.Hint() {
-					{ web.T(ctx, msgPortionWhere) }
-				}
-				@web.Segmented(web.T(ctx, msgPortionWhere), "location", portionLocations(ctx, ""), string(f.Location), f.Errs["location"])
-			</div>
+			@web.Segmented(web.T(ctx, msgPortionWhere), "location", portionLocations(ctx, ""), string(f.Location), f.Errs["location"])
 			@web.Hint() {
 				{ web.T(ctx, msgPortionValuesHint) }
 			}
@@ -507,7 +497,7 @@ templ lotMovementsPage(now time.Time, item LotMovements) {
 // lotMovementsBody is a Lot's Movements, newest first, to read: a mistake in one is
 // corrected by another Count, never here.
 templ lotMovementsBody(now time.Time, item LotMovements) {
-	@web.Section(0, web.Tf(ctx, msgHeldIn, item.Lot.Name, web.T(ctx, locationHeadings[item.Lot.Location]))) {
+	@web.Section(0, web.Tf(ctx, msgHeldIn, web.Data(item.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[item.Lot.Location]))) {
 		@movementRows(now, item.Movements, item.Lot.Location, domain.PortionUnit)
 	}
 }
@@ -535,7 +525,7 @@ templ portionCountForm(f PortionLotForm) {
 	>
 		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
 		<input type="hidden" name="location" value={ string(f.Lot.Location) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, f.Lot.Name, web.T(ctx, locationHeadings[f.Lot.Location]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[f.Lot.Location]))) {
 			<div class="stack">
 				@web.Hint() {
 					{ web.Tf(ctx, msgLotHolds, f.Lot.Count()) }
@@ -596,15 +586,10 @@ templ portionMoveForm(f PortionLotForm) {
 	>
 		<input type="hidden" name="portion" value={ strconv.FormatInt(f.Portion, 10) }/>
 		<input type="hidden" name="location" value={ string(f.Lot.Location) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, f.Lot.Name, web.T(ctx, locationHeadings[f.Lot.Location]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Lot.Name), web.T(ctx, ingredients.StorageLocationNames[f.Lot.Location]))) {
 			<div class="stack">
 				@wholeNumberField(web.T(ctx, msgMovePortionsQuantity), "quantity", "1", f.Typed, f.Errs["quantity"])
-				<div>
-					@web.Hint() {
-						{ web.T(ctx, msgPortionWhere) }
-					}
-					@web.Segmented(web.T(ctx, msgPortionWhere), "to", portionLocations(ctx, f.Lot.Location), f.To, f.Errs["to"])
-				</div>
+				@web.Segmented(web.T(ctx, msgPortionWhere), "to", portionLocations(ctx, f.Lot.Location), f.To, f.Errs["to"])
 				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
 					<input name="note" value={ f.Note } autocomplete="off"/>
 				}
@@ -642,7 +627,7 @@ templ moveForm(f MoveForm) {
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
 		<input type="hidden" name="location" value={ string(f.From) }/>
-		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, f.Ingredient.Name, web.T(ctx, locationHeadings[f.From]))) {
+		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Ingredient.Name), web.T(ctx, ingredients.StorageLocationNames[f.From]))) {
 			<div class="stack">
 				@web.Field(web.T(ctx, msgMoveQuantity), "", f.Errs["quantity"]) {
 					<input
@@ -658,12 +643,7 @@ templ moveForm(f MoveForm) {
 						{ ingredients.Invalid(f.Errs["quantity"])... }
 					/>
 				}
-				<div>
-					@web.Hint() {
-						{ web.T(ctx, msgMoveWhere) }
-					}
-					@web.Segmented(web.T(ctx, msgMoveWhere), "to", targetChoices(ctx, f), string(f.To), f.Errs["to"])
-				</div>
+				@web.Segmented(web.T(ctx, msgMoveWhere), "to", targetChoices(ctx, f), string(f.To), f.Errs["to"])
 				@web.Field(web.T(ctx, msgNote), web.T(ctx, msgOptional), "") {
 					<input name="note" value={ f.Note } autocomplete="off"/>
 				}

@@ -76,7 +76,7 @@ func TestAcceptingASuggestionInTheSameUnitUsesTheKnownIngredient(t *testing.T) {
 	s.Sees("lasagna sheets 250 g")
 	s.Open("/ingredients")
 	s.DoesNotSee("lasagne sheets")
-	s.Sees("lasagna sheets pantry per 100 g: 360 kcal")
+	s.Sees("lasagna sheets Pantry per 100 g: 360 kcal")
 }
 
 // Accepting a suggestion measured in another unit switches the row to it and clears the
@@ -139,7 +139,7 @@ func TestARecipeDraftUsesAnIngredientAddedSince(t *testing.T) {
 	s.Sees("Beef mince 500 g")
 	s.Sees("chopped tomatoes 2 pieces")
 	s.Open("/ingredients")
-	s.Sees("Beef mince freezer per 100 g: 200 kcal")
+	s.Sees("Beef mince Freezer per 100 g: 200 kcal")
 }
 
 // A row whose known Ingredient the User has since deleted asks for its values like a

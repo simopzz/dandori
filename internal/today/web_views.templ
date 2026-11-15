@@ -34,11 +34,11 @@ templ page(now time.Time, d Day) {
 	}
 }
 
-// firstText says which Slot is now, or next, and its time of day: tomorrow's, once the
-// day's last is past.
+// firstText says which Slot is now, or next, and its time of day, as Data: tomorrow's,
+// once the day's last is past.
 func firstText(ctx context.Context, now time.Time, d Day) string {
 	first := d.Slots.First
-	kind, at := web.T(ctx, web.SlotKindNames[first.Kind]), web.TimeOfDay(ctx, d.Times[first.Kind])
+	kind, at := web.T(ctx, web.SlotKindNames[first.Kind]), web.Data(web.TimeOfDay(ctx, d.Times[first.Kind]))
 	switch {
 	case d.Slots.Now:
 		return web.Tf(ctx, msgNowAt, kind, at)

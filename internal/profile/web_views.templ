@@ -119,7 +119,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		<form id="profile-language" method="post" action="/profile/language">
 			@web.FieldGroup(languageNum, web.T(ctx, msgLanguage)) {
-				@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
+				@web.Segmented("", "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
 				@web.Hint() {
 					{ web.T(ctx, msgChooseHint) }
 				}
