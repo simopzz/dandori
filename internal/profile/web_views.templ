@@ -50,6 +50,17 @@ templ choicePage(today time.Time, f LanguageForm) {
 	}
 }
 
+// profileForms are the Profile page's sections as shown: each as saved, but for one
+// refused, shown as typed.
+type profileForms struct {
+	Language LanguageForm
+	Times    TimesForm
+	Targets  TargetsForm
+	MealOut  MealOutForm
+	Foods    FoodsForm
+	Brief    string
+}
+
 // TargetsForm is the Targets as shown, by field: as saved or as typed, with why each
 // field was refused. Set is whether the User has saved theirs.
 type TargetsForm struct {
@@ -57,17 +68,11 @@ type TargetsForm struct {
 	Set          bool
 }
 
-// targetsSectionID is the element the Targets form swaps when htmx posts it.
-const targetsSectionID = "targets"
-
 // TimesForm is the time of day of each kind of Slot as shown, by SlotKind: as saved or as
 // typed, with why each field was refused.
 type TimesForm struct {
 	Values, Errs map[string]string
 }
-
-// timesSectionID is the element the times-of-day form swaps when htmx posts it.
-const timesSectionID = "times"
 
 // MealOutForm is the Meal Out estimate as shown, by field: as saved or as typed, with
 // why each field was refused. An unknown fibre or sugar is blank, never 0.
@@ -75,24 +80,46 @@ type MealOutForm struct {
 	Values, Errs map[string]string
 }
 
-// mealOutSectionID is the element the Meal Out form swaps when htmx posts it.
-const mealOutSectionID = "meal-out"
+// FoodsForm is the exclusions and allergies as saved, each normalised.
+type FoodsForm struct {
+	Exclusions, Allergies []string
+}
 
-// foodsSectionID is the element the exclusions and allergies form swaps on an htmx post.
-const foodsSectionID = "foods"
+// section is a section of the Profile page that is saved on its own: its number on the
+// page, its legend, and its id, which also names its form and the route it posts to.
+type section struct {
+	id     string
+	num    int
+	legend web.Message
+}
 
-// briefSectionID is the element the Planning Brief's form swaps when htmx posts it.
-const briefSectionID = "brief"
+// route is where the section's form posts.
+func (s section) route() string { return "/profile/" + s.id }
+
+// The Profile page's sections, numbered in the order the page shows them: the Language
+// first, and signing in last.
+const (
+	languageNum  = 1
+	signingInNum = 7
+)
+
+var (
+	timesSection   = section{id: "times", num: 2, legend: msgTimesOfDay}
+	targetsSection = section{id: "targets", num: 3, legend: msgTargets}
+	mealOutSection = section{id: "meal-out", num: 4, legend: msgMealOut}
+	foodsSection   = section{id: "foods", num: 5, legend: msgFoods}
+	briefSection   = section{id: "brief", num: 6, legend: msgBrief}
+)
 
 // profilePage is the User's Profile: their Language, the time of day of each kind of
 // Slot, their Targets, their Meal Out estimate, their exclusions and allergies, their
 // Planning Brief, and who is signed in.
-templ profilePage(today time.Time, email string, f LanguageForm, targets TargetsForm, times TimesForm, mealOut MealOutForm, exclusions, allergies []string, brief string) {
+templ profilePage(today time.Time, email string, forms profileForms) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
 		<form id="profile-language" method="post" action="/profile/language">
-			@web.FieldGroup(1, web.T(ctx, msgLanguage)) {
-				@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(f.Language), web.T(ctx, f.Err))
+			@web.FieldGroup(languageNum, web.T(ctx, msgLanguage)) {
+				@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
 				@web.Hint() {
 					{ web.T(ctx, msgChooseHint) }
 				}
@@ -103,22 +130,22 @@ templ profilePage(today time.Time, email string, f LanguageForm, targets Targets
 				}
 			}
 		</form>
-		@web.SectionBody(timesSectionID) {
-			@timesForm(times)
+		@web.SectionBody(timesSection.id) {
+			@timesForm(forms.Times)
 		}
-		@web.SectionBody(targetsSectionID) {
-			@targetsForm(targets)
+		@web.SectionBody(targetsSection.id) {
+			@targetsForm(forms.Targets)
 		}
-		@web.SectionBody(mealOutSectionID) {
-			@mealOutForm(mealOut)
+		@web.SectionBody(mealOutSection.id) {
+			@mealOutForm(forms.MealOut)
 		}
-		@web.SectionBody(foodsSectionID) {
-			@foodsForm(exclusions, allergies)
+		@web.SectionBody(foodsSection.id) {
+			@foodsForm(forms.Foods)
 		}
-		@web.SectionBody(briefSectionID) {
-			@briefForm(brief)
+		@web.SectionBody(briefSection.id) {
+			@briefForm(forms.Brief)
 		}
-		@web.Section(7, web.T(ctx, msgSigningIn)) {
+		@web.Section(signingInNum, web.T(ctx, msgSigningIn)) {
 			<form id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
@@ -131,36 +158,20 @@ templ profilePage(today time.Time, email string, f LanguageForm, targets Targets
 	}
 }
 
-// targetsForm is the Targets section, swapping itself when htmx posts it. Until the User
-// has saved their Targets, it says planning needs them.
-templ targetsForm(f TargetsForm) {
+// sectionForm is the section s, its fields and hints the children, followed by the button
+// that saves it: a form posting to its own route, which htmx swaps in its SectionBody.
+templ sectionForm(s section) {
 	<form
-		id="profile-targets"
+		id={ "profile-" + s.id }
 		method="post"
-		action="/profile/targets"
-		hx-post="/profile/targets"
-		hx-target={ "#" + targetsSectionID }
+		action={ templ.SafeURL(s.route()) }
+		hx-post={ s.route() }
+		hx-target={ "#" + s.id }
 		hx-swap="innerHTML"
 	>
-		@web.FieldGroup(3, web.T(ctx, msgTargets)) {
+		@web.FieldGroup(s.num, web.T(ctx, s.legend)) {
 			<div class="stack">
-				if !f.Set {
-					@web.Hint() {
-						{ web.T(ctx, msgTargetsNeeded) }
-					}
-				}
-				@web.FieldRow() {
-					@targetField(msgKcal, msgKcalHint, domain.TargetKcal, f)
-					@targetField(msgTolerance, msgToleranceHint, domain.TargetTolerance, f)
-				}
-				@web.FieldRow() {
-					@targetField(msgProtein, msgFloorHint, domain.TargetProtein, f)
-					@targetField(msgFibre, msgFloorHint, domain.TargetFibre, f)
-					@targetField(msgSugar, msgCeilingHint, domain.TargetSugar, f)
-				}
-				@web.Hint() {
-					{ web.T(ctx, msgCarbsAndFat) }
-				}
+				{ children... }
 				@web.Actions() {
 					@web.Button(templ.Attributes{"type": "submit"}) {
 						{ web.T(ctx, msgSave) }
@@ -169,6 +180,30 @@ templ targetsForm(f TargetsForm) {
 			</div>
 		}
 	</form>
+}
+
+// targetsForm is the Targets section. Until the User has saved their Targets, it says
+// planning needs them.
+templ targetsForm(f TargetsForm) {
+	@sectionForm(targetsSection) {
+		if !f.Set {
+			@web.Hint() {
+				{ web.T(ctx, msgTargetsNeeded) }
+			}
+		}
+		@web.FieldRow() {
+			@targetField(msgKcal, msgKcalHint, domain.TargetKcal, f)
+			@targetField(msgTolerance, msgToleranceHint, domain.TargetTolerance, f)
+		}
+		@web.FieldRow() {
+			@targetField(msgProtein, msgFloorHint, domain.TargetProtein, f)
+			@targetField(msgFibre, msgFloorHint, domain.TargetFibre, f)
+			@targetField(msgSugar, msgCeilingHint, domain.TargetSugar, f)
+		}
+		@web.Hint() {
+			{ web.T(ctx, msgCarbsAndFat) }
+		}
+	}
 }
 
 // targetField is the Target named field, a whole number, labelled label with its unit
@@ -190,66 +225,34 @@ templ targetField(label, hint web.Message, field string, f TargetsForm) {
 	}
 }
 
-// timesForm is the times-of-day section, swapping itself when htmx posts it.
+// timesForm is the times-of-day section.
 templ timesForm(f TimesForm) {
-	<form
-		id="profile-times"
-		method="post"
-		action="/profile/times"
-		hx-post="/profile/times"
-		hx-target={ "#" + timesSectionID }
-		hx-swap="innerHTML"
-	>
-		@web.FieldGroup(2, web.T(ctx, msgTimesOfDay)) {
-			<div class="stack">
-				@web.FieldRow() {
-					for _, k := range domain.SlotKinds {
-						@web.TimeField(web.Capitalised(web.T(ctx, web.SlotKindNames[k])), string(k), f.Values[string(k)], f.Errs[string(k)])
-					}
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgSave) }
-					}
-				}
-			</div>
+	@sectionForm(timesSection) {
+		@web.FieldRow() {
+			for _, k := range domain.SlotKinds {
+				@web.TimeField(web.Capitalised(web.T(ctx, web.SlotKindNames[k])), string(k), f.Values[string(k)], f.Errs[string(k)])
+			}
 		}
-	</form>
+	}
 }
 
-// mealOutForm is the Meal Out estimate's section, swapping itself when htmx posts it.
+// mealOutForm is the Meal Out estimate's section.
 templ mealOutForm(f MealOutForm) {
-	<form
-		id="profile-meal-out"
-		method="post"
-		action="/profile/meal-out"
-		hx-post="/profile/meal-out"
-		hx-target={ "#" + mealOutSectionID }
-		hx-swap="innerHTML"
-	>
-		@web.FieldGroup(4, web.T(ctx, msgMealOut)) {
-			<div class="stack">
-				@web.Hint() {
-					{ web.T(ctx, msgMealOutHint) }
-				}
-				@web.FieldRow() {
-					@mealOutField(msgKcal, msgKcalUnit, domain.MealOutKcal, f)
-					@mealOutField(msgProtein, msgGrams, domain.MealOutProtein, f)
-					@mealOutField(msgCarbs, msgGrams, domain.MealOutCarbs, f)
-				}
-				@web.FieldRow() {
-					@mealOutField(msgFat, msgGrams, domain.MealOutFat, f)
-					@mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f)
-					@mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f)
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgSave) }
-					}
-				}
-			</div>
+	@sectionForm(mealOutSection) {
+		@web.Hint() {
+			{ web.T(ctx, msgMealOutHint) }
 		}
-	</form>
+		@web.FieldRow() {
+			@mealOutField(msgKcal, msgKcalUnit, domain.MealOutKcal, f)
+			@mealOutField(msgProtein, msgGrams, domain.MealOutProtein, f)
+			@mealOutField(msgCarbs, msgGrams, domain.MealOutCarbs, f)
+		}
+		@web.FieldRow() {
+			@mealOutField(msgFat, msgGrams, domain.MealOutFat, f)
+			@mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f)
+			@mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f)
+		}
+	}
 }
 
 // mealOutField is the Meal Out estimate's value named field, a whole number from 0,
@@ -272,63 +275,30 @@ templ mealOutField(label, unit web.Message, field string, f MealOutForm) {
 	}
 }
 
-// foodsForm is the exclusions-and-allergies section, each list shown one food per line,
-// swapping itself when htmx posts it.
-templ foodsForm(exclusions, allergies []string) {
-	<form
-		id="profile-foods"
-		method="post"
-		action="/profile/foods"
-		hx-post="/profile/foods"
-		hx-target={ "#" + foodsSectionID }
-		hx-swap="innerHTML"
-	>
-		@web.FieldGroup(5, web.T(ctx, msgFoods)) {
-			<div class="stack">
-				@web.Hint() {
-					{ web.T(ctx, msgFoodsHint) }
-				}
-				@web.Field(web.T(ctx, msgExclusions), "", "") {
-					<textarea name="exclusions" rows="4">{ strings.Join(exclusions, "\n") }</textarea>
-				}
-				@web.Field(web.T(ctx, msgAllergies), "", "") {
-					<textarea name="allergies" rows="4">{ strings.Join(allergies, "\n") }</textarea>
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgSave) }
-					}
-				}
-			</div>
+// foodsForm is the exclusions-and-allergies section, each list shown one food per line.
+templ foodsForm(f FoodsForm) {
+	@sectionForm(foodsSection) {
+		@web.Hint() {
+			{ web.T(ctx, msgFoodsHint) }
 		}
-	</form>
+		@web.Field(web.T(ctx, msgExclusions), "", "") {
+			<textarea name="exclusions" rows="4">{ strings.Join(f.Exclusions, "\n") }</textarea>
+		}
+		@web.Field(web.T(ctx, msgAllergies), "", "") {
+			<textarea name="allergies" rows="4">{ strings.Join(f.Allergies, "\n") }</textarea>
+		}
+	}
 }
 
 // briefForm is the Planning Brief's section, its example only a placeholder the planner
-// never reads, swapping itself when htmx posts it.
+// never reads.
 templ briefForm(brief string) {
-	<form
-		id="profile-brief"
-		method="post"
-		action="/profile/brief"
-		hx-post="/profile/brief"
-		hx-target={ "#" + briefSectionID }
-		hx-swap="innerHTML"
-	>
-		@web.FieldGroup(6, web.T(ctx, msgBrief)) {
-			<div class="stack">
-				@web.Hint() {
-					{ web.T(ctx, msgBriefHint) }
-				}
-				@web.Field(web.T(ctx, msgWishes), "", "") {
-					<textarea name="brief" rows="5" placeholder={ web.T(ctx, msgBriefPlaceholder) }>{ brief }</textarea>
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgSave) }
-					}
-				}
-			</div>
+	@sectionForm(briefSection) {
+		@web.Hint() {
+			{ web.T(ctx, msgBriefHint) }
 		}
-	</form>
+		@web.Field(web.T(ctx, msgWishes), "", "") {
+			<textarea name="brief" rows="5" placeholder={ web.T(ctx, msgBriefPlaceholder) }>{ brief }</textarea>
+		}
+	}
 }

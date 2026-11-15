@@ -6,9 +6,15 @@ Rules code review checks against. Each says what it protects.
 
 - **Pages are built from the shared templ components** in `internal/web`
   (`Layout`, `PageHeader`, `Section`, `Rows`, `Field`, `Button`, … catalogued
-  in [`docs/design.md`](../design.md)). A recurring piece of UI becomes a
-  component there, not a copy in each feature. *Protects: one look across
-  pages, and new pages built in it.*
+  in [`docs/design.md`](../design.md)). *Protects: one look across pages, and
+  new pages built in it.*
+- **The third copy of a piece of UI is a component.** Markup repeated with
+  only its content changing, across features or within one, becomes one
+  component before a third copy lands: in `internal/web`, catalogued in
+  `docs/design.md`, when another feature could use it, or in the feature's
+  `web_` file otherwise, as the Profile's `sectionForm` is. *Protects: how a
+  piece looks and behaves changes in one place, and a new copy can't drift
+  from its siblings.*
 - **Colours, spaces and radii are tokens.** No raw colour value (hex,
   `rgb()`) in a `.templ` file or in `app.css` outside its `:root` token block;
   `internal/web/colours_test.go` enforces it in CI. Spaces and radii use

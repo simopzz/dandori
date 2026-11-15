@@ -80,14 +80,23 @@ func (h Handlers) Choose(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
-	h.renderProfile(w, r, http.StatusOK, LanguageForm{Language: web.LanguageOf(r.Context())})
+	forms, err := h.asSaved(r.Context())
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
+		return
+	}
+	page, err := h.page(r.Context(), forms)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, page)
 }
 
 func (h Handlers) ChangeLanguage(w http.ResponseWriter, r *http.Request) {
 	l, ok := domain.ParseLanguage(r.PostFormValue("language"))
 	if !ok {
-		httpx.Refused(r, refusedNoLanguage, nil)
-		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgChooseOne})
+		h.refuseLanguage(w, r, refusedNoLanguage, msgChooseOne)
 		return
 	}
 	if !h.setLanguage(w, r, l) {
@@ -115,13 +124,11 @@ func (h Handlers) goneToTodayIfChosen(w http.ResponseWriter, r *http.Request) bo
 func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) bool {
 	err := h.Service.SetLanguage(r.Context(), l)
 	if errors.Is(err, ErrLanguageStays) {
-		httpx.Refused(r, refusedLanguageStays, nil)
-		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgLanguageStays})
+		h.refuseLanguage(w, r, refusedLanguageStays, msgLanguageStays)
 		return false
 	}
 	if errors.Is(err, ErrParsing) {
-		httpx.Refused(r, refusedParsing, nil)
-		h.renderProfile(w, r, http.StatusUnprocessableEntity, LanguageForm{Language: web.LanguageOf(r.Context()), Err: msgParsing})
+		h.refuseLanguage(w, r, refusedParsing, msgParsing)
 		return false
 	}
 	if err != nil {
@@ -132,53 +139,69 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 	return true
 }
 
-func (h Handlers) renderProfile(w http.ResponseWriter, r *http.Request, status int, f LanguageForm) {
-	page, err := h.page(r, f, nil, nil, nil)
+// refuseLanguage refuses a change of Language, keeping the User's, and says why.
+func (h Handlers) refuseLanguage(w http.ResponseWriter, r *http.Request, why httpx.Refusal, msg web.Message) {
+	h.answerRefused(w, r, why, nil, func(f *profileForms) templ.Component {
+		f.Language.Err = msg
+		return nil
+	})
+}
+
+// asSaved is each section of the Profile page as saved, in the Language of the page.
+func (h Handlers) asSaved(ctx context.Context) (f profileForms, err error) {
+	f.Language = LanguageForm{Language: web.LanguageOf(ctx)}
+	times, err := h.Service.SlotTimes(ctx)
+	if err != nil {
+		return f, err
+	}
+	f.Times = shownTimes(ctx, times)
+	targets, set, err := h.Service.Targets(ctx)
+	if err != nil {
+		return f, err
+	}
+	f.Targets = shownTargets(targets, set)
+	mealOut, err := h.Service.MealOut(ctx)
+	if err != nil {
+		return f, err
+	}
+	f.MealOut = MealOutForm{Values: ingredients.ValuesOf(mealOut)}
+	if f.Foods.Exclusions, f.Foods.Allergies, err = h.Service.Foods(ctx); err != nil {
+		return f, err
+	}
+	f.Brief, err = h.Service.Brief(ctx)
+	return f, err
+}
+
+// page is the Profile page showing forms.
+func (h Handlers) page(ctx context.Context, forms profileForms) (templ.Component, error) {
+	email, err := h.Email(ctx)
+	return profilePage(h.Clock.Now(), email, forms), err
+}
+
+// answerSaved answers a section saved, with a Notice: as htmx the section, shown as
+// saved, and as a plain post the Profile page it lands on.
+func (h Handlers) answerSaved(w http.ResponseWriter, r *http.Request, section templ.Component) {
+	web.Answer{RedirectTo: "/profile", Notice: web.T(r.Context(), msgSaved), Fragment: section}.Write(w, r, h.Log)
+}
+
+// answerRefused answers a section refused, which saved nothing, with 422 and why, by
+// field in errs: the Profile page with each section as saved but the one show sets as
+// typed, or as htmx the section show returns. The Language has no section of its own to
+// swap, so a refused one answers with the page.
+func (h Handlers) answerRefused(w http.ResponseWriter, r *http.Request, why httpx.Refusal, errs map[string]string, show func(*profileForms) templ.Component) {
+	httpx.Refused(r, why, errs)
+	forms, err := h.asSaved(r.Context())
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, status, page)
-}
-
-// page is the Profile page with its Language section f, and its Targets, times-of-day
-// and Meal Out sections as given, or as saved when not. Its exclusions and allergies and
-// its Planning Brief, never refused, are as saved.
-func (h Handlers) page(r *http.Request, f LanguageForm, targets *TargetsForm, times *TimesForm, mealOut *MealOutForm) (templ.Component, error) {
-	ctx := r.Context()
-	if targets == nil {
-		t, set, err := h.Service.Targets(ctx)
-		if err != nil {
-			return nil, err
-		}
-		saved := shownTargets(t, set)
-		targets = &saved
-	}
-	if times == nil {
-		t, err := h.Service.SlotTimes(ctx)
-		if err != nil {
-			return nil, err
-		}
-		saved := shownTimes(ctx, t)
-		times = &saved
-	}
-	if mealOut == nil {
-		n, err := h.Service.MealOut(ctx)
-		if err != nil {
-			return nil, err
-		}
-		mealOut = &MealOutForm{Values: ingredients.ValuesOf(n)}
-	}
-	exclusions, allergies, err := h.Service.Foods(ctx)
+	section := show(&forms)
+	page, err := h.page(r.Context(), forms)
 	if err != nil {
-		return nil, err
+		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
+		return
 	}
-	brief, err := h.Service.Brief(ctx)
-	if err != nil {
-		return nil, err
-	}
-	email, err := h.Email(ctx)
-	return profilePage(h.Clock.Now(), email, f, *targets, *times, *mealOut, exclusions, allergies, brief), err
+	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: section}.Write(w, r, h.Log)
 }
 
 // shownTargets is t as the Targets form shows it, only its tolerance until it is set.
@@ -206,25 +229,17 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(problems) == 0 {
-		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: targetsForm(shownTargets(t, true))}.Write(w, r, h.Log)
+		h.answerSaved(w, r, targetsForm(shownTargets(t, true)))
 		return
 	}
-	_, set, err := h.Service.Targets(ctx)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's Targets", err)
-		return
-	}
-	f := TargetsForm{Values: typed, Errs: map[string]string{}, Set: set}
+	errs := map[string]string{}
 	for field, problem := range problems {
-		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, numberProblems))
+		errs[field] = web.T(ctx, web.ProblemMessage(problem, numberProblems))
 	}
-	httpx.Refused(r, refusedTargets, f.Errs)
-	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, &f, nil, nil)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
-		return
-	}
-	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: targetsForm(f)}.Write(w, r, h.Log)
+	h.answerRefused(w, r, refusedTargets, errs, func(f *profileForms) templ.Component {
+		f.Targets = TargetsForm{Values: typed, Errs: errs, Set: f.Targets.Set}
+		return targetsForm(f.Targets)
+	})
 }
 
 // shownTimes is t as the times-of-day form shows it, as the Language writes a time.
@@ -250,23 +265,20 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(problems) == 0 {
-		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: timesForm(shownTimes(ctx, t))}.Write(w, r, h.Log)
+		h.answerSaved(w, r, timesForm(shownTimes(ctx, t)))
 		return
 	}
-	f := TimesForm{Values: typed, Errs: map[string]string{}}
+	errs := map[string]string{}
 	for field, problem := range problems {
-		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, nil))
+		errs[field] = web.T(ctx, web.ProblemMessage(problem, nil))
 		if problem == domain.NotAfterTheOneBefore {
-			f.Errs[field] = web.Tf(ctx, msgAfter, web.T(ctx, web.SlotKindNames[domain.SlotKind(field).Before()]))
+			errs[field] = web.Tf(ctx, msgAfter, web.T(ctx, web.SlotKindNames[domain.SlotKind(field).Before()]))
 		}
 	}
-	httpx.Refused(r, refusedTimes, f.Errs)
-	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, nil, &f, nil)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
-		return
-	}
-	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: timesForm(f)}.Write(w, r, h.Log)
+	h.answerRefused(w, r, refusedTimes, errs, func(f *profileForms) templ.Component {
+		f.Times = TimesForm{Values: typed, Errs: errs}
+		return timesForm(f.Times)
+	})
 }
 
 // SaveMealOut saves the Meal Out estimate posted, answering with the Meal Out section
@@ -280,20 +292,17 @@ func (h Handlers) SaveMealOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(problems) == 0 {
-		web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: mealOutForm(MealOutForm{Values: ingredients.ValuesOf(n)})}.Write(w, r, h.Log)
+		h.answerSaved(w, r, mealOutForm(MealOutForm{Values: ingredients.ValuesOf(n)}))
 		return
 	}
-	f := MealOutForm{Values: typed, Errs: map[string]string{}}
+	errs := map[string]string{}
 	for field, problem := range problems {
-		f.Errs[field] = web.T(ctx, web.ProblemMessage(problem, numberProblems))
+		errs[field] = web.T(ctx, web.ProblemMessage(problem, numberProblems))
 	}
-	httpx.Refused(r, refusedMealOut, f.Errs)
-	page, err := h.page(r, LanguageForm{Language: web.LanguageOf(ctx)}, nil, nil, &f)
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the User's Profile", err)
-		return
-	}
-	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: mealOutForm(f)}.Write(w, r, h.Log)
+	h.answerRefused(w, r, refusedMealOut, errs, func(f *profileForms) templ.Component {
+		f.MealOut = MealOutForm{Values: typed, Errs: errs}
+		return mealOutForm(f.MealOut)
+	})
 }
 
 // SaveFoods saves the exclusions and allergies posted, answering with their section as
@@ -305,7 +314,7 @@ func (h Handlers) SaveFoods(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "save the User's exclusions and allergies", err)
 		return
 	}
-	web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: foodsForm(exclusions, allergies)}.Write(w, r, h.Log)
+	h.answerSaved(w, r, foodsForm(FoodsForm{Exclusions: exclusions, Allergies: allergies}))
 }
 
 // SaveBrief saves the Planning Brief posted, answering with its section as saved; a plain
@@ -317,5 +326,5 @@ func (h Handlers) SaveBrief(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "save the User's Planning Brief", err)
 		return
 	}
-	web.Answer{RedirectTo: "/profile", Notice: web.T(ctx, msgSaved), Fragment: briefForm(brief)}.Write(w, r, h.Log)
+	h.answerSaved(w, r, briefForm(brief))
 }
