@@ -195,9 +195,9 @@ func (h Handlers) ShowNew(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, formPage(h.Clock.Now(), blankForm(known)))
 }
 
-// ShowRow is what a row of the form shows beneath its name as the User leaves it: the
-// unit of a known Ingredient, or the fields confirming a new one, keeping what was typed.
-// A row picking the Ingredient suggested for it is shown whole, its name changed.
+// ShowRow is a row of the form as the User leaves its name or a new Ingredient's unit:
+// the unit of its quantity, and the fields confirming a new Ingredient, keeping what was
+// typed. A row picking the Ingredient suggested for it takes that one's name.
 func (h Handlers) ShowRow(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	i, ok := rowIndex(query)
@@ -212,11 +212,7 @@ func (h Handlers) ShowRow(w http.ResponseWriter, r *http.Request) {
 	}
 	_, row, _ := readRow(r.Context(), query, i, byName(web.LanguageOf(r.Context()), known))
 	row.Confirming, row.Errs = false, nil // nothing is refused before a save
-	if picking(query) {                   // the name changed, so the whole row
-		httpx.Render(w, r, h.Log, http.StatusOK, ingredientRow(i, row))
-		return
-	}
-	httpx.Render(w, r, h.Log, http.StatusOK, rowDetails(i, row))
+	httpx.Render(w, r, h.Log, http.StatusOK, ingredientRow(i, row))
 }
 
 // ShowBlankRow is one more empty Ingredient row, numbered after the ones it is told of.

@@ -92,7 +92,7 @@ func TestANewIngredientsMissingValuesAreRefusedOnTheirFields(t *testing.T) {
 
 	s.WritesRecipe(r)
 	s.IsRefused()
-	s.Sees("Calories Required.")
+	s.Sees("Calories (kcal) Required.")
 	s.Sees("Choose where it is usually kept.")
 	s.Open("/ingredients")
 	s.DoesNotSee("tofu")
@@ -264,7 +264,7 @@ func TestARowsNameShowsTheKnownUnitOrTheNewIngredientsFields(t *testing.T) {
 	s := kitchenWith(t, rice)
 
 	known := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=Rice")
-	if shown := apptest.Text(known.Body); !strings.Contains(shown, "Measured in g") {
+	if shown := apptest.Text(known.Body); !strings.Contains(shown, "Quantity (g)") {
 		t.Errorf("a known name shows %q", shown)
 	}
 	unknown := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=tofu&ing_kcal_2=120")
@@ -277,6 +277,51 @@ func TestARowsNameShowsTheKnownUnitOrTheNewIngredientsFields(t *testing.T) {
 	}
 	if !strings.Contains(unknown.Body, `name="ing_kcal_2"`) || !strings.Contains(unknown.Body, `value="120"`) {
 		t.Errorf("the fields aren't numbered for the row or lost what was typed: %s", unknown.Body)
+	}
+	unit := s.HTMXGet(t, "/recipes/ingredient-row?ing_name_2=tofu&ing_new_2=true&ing_unit_2=piece")
+	if shown := apptest.Text(unit.Body); !strings.Contains(shown, "Quantity (pieces)") || !strings.Contains(shown, "Per piece, as on the label.") {
+		t.Errorf("a new Ingredient's unit chosen shows %q", shown)
+	}
+}
+
+// In a browser, a row follows its name and a new Ingredient's unit in place: the field
+// the User moved to keeps the focus, the quantity is given in the unit chosen, and the
+// row says what the values are per.
+func TestBrowserARowFollowsItsNewIngredientsUnit(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignUp(t, "ada@example.com")
+	b.Open(t, "/recipes/new")
+
+	if err := b.Locator(`[name="ing_name_0"]`).Fill("tofu"); err != nil {
+		t.Fatalf("name the row: %v", err)
+	}
+	if err := b.Locator(`[name="ing_name_0"]`).Press("Tab"); err != nil {
+		t.Fatalf("leave the name: %v", err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	unit := b.Locator(`[name="ing_unit_0"]`)
+	if err := unit.WaitFor(); err != nil {
+		t.Fatalf("the new Ingredient's fields never showed: %v", err)
+	}
+	if err := expect.Locator(b.Locator(`[name="ing_quantity_0"]`)).ToBeFocused(); err != nil {
+		t.Errorf("the quantity lost the focus: %v", err)
+	}
+	if err := unit.Focus(); err != nil {
+		t.Fatalf("focus the unit: %v", err)
+	}
+	if _, err := unit.SelectOption(playwright.SelectOptionValues{Values: &[]string{"ml"}}); err != nil {
+		t.Fatalf("choose ml: %v", err)
+	}
+	if err := expect.Locator(b.Locator(".ingredient-row").First()).ToContainText("Per 100 ml, as on the label."); err != nil {
+		t.Errorf("the row doesn't say what its values are per: %v", err)
+	}
+	if err := expect.Locator(b.Locator(`label:has([name="ing_quantity_0"])`)).ToContainText("Quantity (ml)"); err != nil {
+		t.Errorf("the quantity isn't given in ml: %v", err)
+	}
+	if err := expect.Locator(unit).ToBeFocused(); err != nil {
+		t.Errorf("the unit lost the focus: %v", err)
 	}
 }
 
@@ -490,7 +535,7 @@ func TestBrowserARejectedRecipeOpensOnItsErrorSummary(t *testing.T) {
 		t.Fatalf("the error summary isn't focused: %v", err)
 	}
 	first := summary.GetByRole("link").First()
-	if err := playwright.NewPlaywrightAssertions().Locator(first).ToHaveText("Active minutes: Can't be more than the total minutes."); err != nil {
+	if err := playwright.NewPlaywrightAssertions().Locator(first).ToHaveText("Active time: Can't be more than the total minutes."); err != nil {
 		t.Errorf("the summary's first link: %v", err)
 	}
 	if err := first.Click(); err != nil {

@@ -39,15 +39,16 @@ var (
 	msgDraftsToCheck = web.Message{En: "Recipe Drafts to check", It: "Bozze di Ricetta da controllare"}
 	msgParsedOn      = web.Message{En: "read %s", It: "letta %s"}
 
-	msgName       = web.Message{En: "Name", It: "Nome"}
-	msgPortions   = web.Message{En: "Portions", It: "Porzioni"}
-	msgActive     = web.Message{En: "Active minutes", It: "Minuti attivi"}
-	msgTotal      = web.Message{En: "Total minutes", It: "Minuti totali"}
-	msgSlots      = web.Message{En: "Eaten at", It: "Si mangia a"}
-	msgAppliances = web.Message{En: "Appliances", It: "Elettrodomestici"}
-	msgIngredient = web.Message{En: "Ingredient", It: "Ingrediente"}
-	msgQuantity   = web.Message{En: "Quantity", It: "Quantità"}
-	msgStep       = web.Message{En: "Step", It: "Passaggio"}
+	msgName        = web.Message{En: "Name", It: "Nome"}
+	msgPortions    = web.Message{En: "Portions", It: "Porzioni"}
+	msgActive      = web.Message{En: "Active time", It: "Tempo attivo"}
+	msgTotal       = web.Message{En: "Total time", It: "Tempo totale"}
+	msgMinutesUnit = web.Message{En: "minutes", It: "minuti"}
+	msgSlots       = web.Message{En: "Eaten at", It: "Si mangia a"}
+	msgAppliances  = web.Message{En: "Appliances", It: "Elettrodomestici"}
+	msgIngredient  = web.Message{En: "Ingredient", It: "Ingrediente"}
+	msgQuantity    = web.Message{En: "Quantity", It: "Quantità"}
+	msgStep        = web.Message{En: "Step", It: "Passaggio"}
 
 	msgIngredients   = web.Message{En: "Ingredients", It: "Ingredienti"}
 	msgSteps         = web.Message{En: "Steps", It: "Passaggi"}
@@ -56,7 +57,6 @@ var (
 	msgAddStep       = web.Message{En: "Add a step", It: "Aggiungi un passaggio"}
 	msgRemoveRow     = web.Message{En: "Remove", It: "Togli"}
 
-	msgMeasuredIn  = web.Message{En: "Measured in %s", It: "Si misura in %s"}
 	msgNew         = web.Message{En: "New", It: "Nuovo"}
 	msgDidYouMean  = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}
 	msgPick        = web.Message{En: "Use %s", It: "Usa %s"}

@@ -38,7 +38,7 @@ func TestAddingPortionsRefusesAMissingValueOnItsField(t *testing.T) {
 
 	s.AddsPortions(p)
 	s.IsRefused()
-	s.Sees("Calories Required. Protein Required. Carbs Required. Fat Required.")
+	s.Sees("Calories (kcal) Required. Protein (g) Required. Carbs (g) Required. Fat (g) Required.")
 	if got := apptest.Form(t, s.Page().Body, "portions-form").Get("name"); got != "lasagne" {
 		t.Errorf("the refused form holds the name %q", got)
 	}

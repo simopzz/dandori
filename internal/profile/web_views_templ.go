@@ -1172,11 +1172,11 @@ func mealOutForm(f MealOutForm) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = mealOutField(msgFibre, msgGrams, domain.MealOutFibre, f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgFibre, msgFibreHint, domain.MealOutFibre, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = mealOutField(msgSugar, msgGrams, domain.MealOutSugar, f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = mealOutField(msgSugar, msgSugarHint, domain.MealOutSugar, f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1197,8 +1197,8 @@ func mealOutForm(f MealOutForm) templ.Component {
 }
 
 // mealOutField is the Meal Out estimate's value named field, a whole number from 0,
-// labelled label with its unit; fibre and sugar may be left blank.
-func mealOutField(label, unit web.Message, field string, f MealOutForm) templ.Component {
+// labelled label with its unit in hint, which says so when it may be left blank.
+func mealOutField(label, hint web.Message, field string, f MealOutForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1283,7 +1283,7 @@ func mealOutField(label, unit web.Message, field string, f MealOutForm) templ.Co
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = web.Field(web.T(ctx, label), web.T(ctx, unit), f.Errs[field]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var57), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var57), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1383,7 +1383,7 @@ func foodsForm(f FoodsForm) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Field(web.T(ctx, msgExclusions), "", "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var64), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Field(web.T(ctx, msgExclusions), web.T(ctx, msgExclusionsHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var64), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1418,7 +1418,7 @@ func foodsForm(f FoodsForm) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Field(web.T(ctx, msgAllergies), "", "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var66), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Field(web.T(ctx, msgAllergies), web.T(ctx, msgAllergiesHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var66), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1538,7 +1538,7 @@ func briefForm(brief string) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Field(web.T(ctx, msgWishes), "", "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var72), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Field(web.T(ctx, msgWishes), web.T(ctx, msgWishesHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var72), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

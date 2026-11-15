@@ -501,7 +501,7 @@ func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	if _, err := add.GetByLabel("Usually kept in").SelectOption(playwright.SelectOptionValues{Labels: &[]string{"pantry"}}); err != nil {
 		t.Fatalf("choose where it is kept: %v", err)
 	}
-	for _, label := range []string{"Calories", "Protein", "Carbs", "Fat"} {
+	for _, label := range []string{"Calories (kcal)", "Protein (g)", "Carbs (g)", "Fat (g)"} {
 		if err := field(label).Fill("1"); err != nil {
 			t.Fatalf("fill %s: %v", label, err)
 		}

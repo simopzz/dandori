@@ -61,15 +61,21 @@ var (
 	msgAfter         = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
 	msgMealOut       = web.Message{En: "Meal Out estimate", It: "Stima di un Pasto Fuori"}
 	msgMealOutHint   = web.Message{
-		En: "What a Meal Out counts toward your Targets, unless you give it its own. Fibre and sugar may be left blank.",
-		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua. Fibre e zuccheri si possono lasciare vuoti.",
+		En: "What a Meal Out counts toward your Targets, unless you give it its own.",
+		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua.",
 	}
 	msgCarbs     = web.Message{En: "Carbs", It: "Carboidrati"}
 	msgFat       = web.Message{En: "Fat", It: "Grassi"}
 	msgKcalUnit  = web.Message{En: "kcal", It: "kcal"}
 	msgGrams     = web.Message{En: "g", It: "g"}
-	msgFoods     = web.Message{En: "Exclusions and allergies", It: "Esclusioni e allergie"}
-	msgFoodsHint = web.Message{
+	msgFibreHint = web.Message{En: "g, optional", It: "g, facoltative"}
+	msgSugarHint = web.Message{En: "g, optional", It: "g, facoltativi"}
+	// Each "optional" agrees with its field's label in Italian.
+	msgExclusionsHint = web.Message{En: "optional", It: "facoltativo"}
+	msgAllergiesHint  = web.Message{En: "optional", It: "facoltative"}
+	msgWishesHint     = web.Message{En: "optional", It: "facoltativi"}
+	msgFoods          = web.Message{En: "Exclusions and allergies", It: "Esclusioni e allergie"}
+	msgFoodsHint      = web.Message{
 		En: "One food per line, or separated by commas or semicolons. Every planning Run is told to leave them out.",
 		It: "Un alimento per riga, o separati da virgole o punti e virgola. Ogni Run di pianificazione è tenuto a escluderli.",
 	}

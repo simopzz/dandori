@@ -306,15 +306,17 @@ type TypedIngredient struct {
 	Staple      bool
 	Errs        map[string]string
 	Focus       bool
+	// UnitAttrs go on the unit's control, for the form to follow the unit chosen.
+	UnitAttrs templ.Attributes
 }
 
 // NewIngredientFields confirm a new Ingredient inside another form, whose field names
 // are named gives them, as are their ids: its unit, usual Storage Location, Staple flag
-// and values.
+// and values, and what the values are per, for the unit chosen.
 templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 	@web.FieldRow() {
 		@web.Field(web.T(ctx, msgUnit), "", ing.Errs["unit"]) {
-			<select id={ named("unit") } name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... }>
+			<select id={ named("unit") } name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... } { ing.UnitAttrs... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, u := range domain.Units {
 					<option value={ string(u) } selected?={ ing.Unit == string(u) }>{ web.T(ctx, UnitNames[u]) }</option>
@@ -330,6 +332,13 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 			</select>
 		}
 	}
+	@web.Hint() {
+		if per, ok := perUnit[domain.Unit(ing.Unit)]; ok {
+			{ web.Tf(ctx, msgValuesPer, web.Capitalised(web.T(ctx, per))) }
+		} else {
+			{ web.T(ctx, msgNutritionHint) }
+		}
+	}
 	@nutritionFields(named, true, ing.Values, ing.Errs)
 	@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
 		<input type="checkbox" name={ named("staple") } value="on" checked?={ ing.Staple }/>
@@ -341,7 +350,7 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 templ nutritionFields(named func(string) string, ids bool, values, errs map[string]string) {
 	@web.FieldRow() {
 		for _, n := range nutrients {
-			@web.Field(web.T(ctx, nutrientNames[n]), "", errs[n]) {
+			@web.Field(web.T(ctx, nutrientNames[n]), web.T(ctx, nutrientHints[n]), errs[n]) {
 				<input
 					type="number"
 					inputmode="decimal"
@@ -391,6 +400,12 @@ func pickLink(name string) templ.Attributes {
 // nutrientNames name the add form's nutritional value fields.
 var nutrientNames = map[string]web.Message{
 	"kcal": msgKcal, "protein": msgProtein, "carbs": msgCarbs, "fat": msgFat, "fibre": msgFibre, "sugar": msgSugar,
+}
+
+// nutrientHints give each nutritional value's unit, and say which may be left blank.
+var nutrientHints = map[string]web.Message{
+	"kcal": msgKcalUnit, "protein": msgGramsUnit, "carbs": msgGramsUnit, "fat": msgGramsUnit,
+	"fibre": msgFibreHint, "sugar": msgSugarHint,
 }
 
 // Invalid marks a control aria-invalid when err says why its value was refused.
