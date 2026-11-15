@@ -55,7 +55,7 @@
   /* shape and size */
   --radius: 0;
   --tap: 2.75rem;                 /* smallest touch target, 44px */
-  --focus-ring: 2px solid var(--color-accent);
+  --focus-ring: 3px solid var(--color-rule-strong); /* navy, 12:1 on paper: vermilion would read as refused */
   --rail-width: 13rem;
   --tabs-height: 3.75rem;
   --fab-size: 3.5rem;
@@ -107,7 +107,7 @@ dl {
   margin: 0 0 var(--space-4);
 }
 
-dt { color: var(--color-text-soft); font-size: 0.85rem; letter-spacing: 0.08em; }
+dt { color: var(--color-text-soft); font-size: 0.875rem; }
 
 dd { margin: 0; font-variant-numeric: tabular-nums; }
 
@@ -116,8 +116,7 @@ table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nu
 th {
   text-align: left;
   font-weight: 400;
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
+  font-size: 0.875rem;
   color: var(--color-text-soft);
   border-bottom: 1px solid var(--color-rule-strong);
   padding: var(--space-2) var(--space-3) var(--space-2) 0;
@@ -164,9 +163,9 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 legend { padding: 0; }
 
 pre,
-code { font-family: var(--font-mono); font-size: 0.85rem; }
+code { font-family: var(--font-mono); font-size: 0.875rem; }
 
-:focus-visible { outline: var(--focus-ring); outline-offset: 3px; }
+:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -298,13 +297,15 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
   gap: var(--space-1);
   min-height: var(--tabs-height);
   text-decoration: none;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  font-size: 0.875rem;
   color: var(--color-on-shell-soft);
 }
 
-/* Vermilion is about 2:1 on navy, so a focused tab is ringed in the marker's salmon. */
-.tabs { --focus-ring: 2px solid var(--color-shell-marker); }
+/* Runs is secondary: on a phone the Profile links it instead. */
+.tab-aux { display: none; }
+
+/* Navy is lost on navy, so a focused tab is ringed in the marker's salmon. */
+.tabs { --focus-ring: 3px solid var(--color-shell-marker); }
 
 .tab[aria-current="page"] { color: var(--color-on-shell); }
 
@@ -353,7 +354,7 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
 
   .tab[aria-current="page"]::before { top: auto; left: calc(-1 * var(--space-5)); width: 3px; height: 1.5rem; }
 
-  .tab-aux { margin-top: auto; font-size: 0.8rem; }
+  .tab-aux { display: flex; margin-top: auto; font-size: 0.875rem; }
 
   .page { margin-left: var(--rail-width); max-width: calc(var(--measure) + 10rem); padding: var(--space-7) var(--space-7) var(--space-7) 6rem; }
 }
@@ -373,7 +374,7 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
   justify-content: flex-end;
   align-items: center;
   gap: var(--space-2);
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--color-text-soft);
 }
 
@@ -381,8 +382,8 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
 
 .lang-switch a[aria-current] { color: var(--color-text); font-weight: 700; text-decoration: none; }
 
-/* sections: a numbered heading over the banner's underline, a short vermilion
-   stroke under the number, then navy */
+/* sections: a numbered heading over the banner's underline, a short navy
+   stroke under the number, a gap, then navy */
 
 .section { margin: 0 0 var(--space-6); }
 
@@ -403,7 +404,7 @@ code { font-family: var(--font-mono); font-size: 0.85rem; }
   position: absolute;
   inset: auto 0 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-accent) 0 2.25rem, transparent 2.25rem 2.6rem, var(--color-rule-strong) 2.6rem);
+  background: linear-gradient(90deg, var(--color-rule-strong) 0 2.25rem, transparent 2.25rem 2.6rem, var(--color-rule-strong) 2.6rem);
 }
 
 .section-heading:has(.heading-action) { flex-wrap: wrap; }
@@ -414,10 +415,10 @@ legend.section-heading { float: left; }
 
 legend.section-heading + * { clear: both; }
 
-.num { font: 400 0.8rem var(--font-body); letter-spacing: 0.1em; color: var(--color-accent); }
+.num { font: 400 0.875rem var(--font-body); letter-spacing: normal; color: var(--color-rule-strong); }
 
 /* mark: an unnumbered Section's square seal, in the number's place */
-.mark { flex: none; width: calc(3 * var(--pixel)); height: calc(3 * var(--pixel)); background: var(--color-accent); }
+.mark { flex: none; width: calc(3 * var(--pixel)); height: calc(3 * var(--pixel)); background: var(--color-rule-strong); }
 
 .hint { color: var(--color-text-soft); font-size: 0.9rem; }
 
@@ -462,7 +463,7 @@ legend.section-heading + * { clear: both; }
   gap: var(--space-2);
 }
 
-.fold > summary { cursor: pointer; }
+.fold > summary { cursor: pointer; min-height: var(--tap); }
 
 .fold > summary::-webkit-details-marker { display: none; }
 
@@ -525,7 +526,7 @@ a.row-title:hover { text-decoration: underline; }
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-3);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   color: var(--color-text-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -559,11 +560,11 @@ a.row-title:hover { text-decoration: underline; }
 
 .field { display: grid; gap: var(--space-1); align-content: start; }
 
-.field-label { font-size: 0.75rem; letter-spacing: 0.12em; color: var(--color-text-soft); }
+.field-label { font-size: 0.875rem; color: var(--color-text-soft); }
 
-.field-hint { letter-spacing: 0; margin-left: var(--space-1); }
+.field-hint { margin-left: var(--space-1); }
 
-.field-error { color: var(--color-accent); font-size: 0.8rem; }
+.field-error { color: var(--color-accent); font-size: 0.875rem; }
 
 .field-error::before { content: "! "; font-weight: 700; }
 
@@ -613,7 +614,6 @@ a.row-title:hover { text-decoration: underline; }
   align-items: center;
   justify-content: center;
   font: inherit;
-  letter-spacing: 0.1em;
   text-decoration: none;
   background: var(--color-fill);
   color: var(--color-on-fill);
@@ -692,7 +692,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .seg input { position: absolute; inset: 0; opacity: 0; margin: 0; min-height: 0; cursor: pointer; }
 
-.seg span { display: block; padding: 0 var(--space-3); font-size: 0.8rem; line-height: var(--tap); min-height: var(--tap); }
+.seg span { display: block; padding: 0 var(--space-3); line-height: var(--tap); min-height: var(--tap); }
 
 .seg label + label span,
 .seg a + a span { border-left: 1px solid var(--color-rule-strong); }
@@ -746,7 +746,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .notice {
   --notice-time: 5s;
-  --focus-ring: 2px solid var(--color-shell-marker); /* vermilion is about 2:1 on navy */
+  --focus-ring: 3px solid var(--color-shell-marker); /* navy is lost on navy */
   position: relative;
   display: flex;
   align-items: center;
@@ -807,8 +807,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .tag {
   display: inline-block;
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.875rem;
   line-height: 1.6;
   padding: 0 var(--space-2);
   background: var(--color-tag);
@@ -945,6 +944,8 @@ html:has(dialog:modal) { overflow: hidden; }
 
 .ingredient-details .tag { justify-self: start; }
 
+.ingredient-row > .btn-text { grid-column: 1 / -1; justify-self: start; }
+
 .cell-label {
   position: absolute;
   width: 1px;
@@ -976,7 +977,7 @@ html:has(dialog:modal) { overflow: hidden; }
     column-gap: var(--space-3);
   }
 
-  .slot-grid-head { font-size: 0.75rem; letter-spacing: 0.08em; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); padding: var(--space-2) 0; }
+  .slot-grid-head { font-size: 0.875rem; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); padding: var(--space-2) 0; }
 
   .slot-day > h3 { margin: 0; padding: var(--space-3) 0; font-size: 1rem; border-bottom: 1px solid var(--color-rule); }
 

@@ -235,3 +235,75 @@ func TestBrowserScrollingAnOpenSheetLeavesThePageStill(t *testing.T) {
 		t.Errorf("scrolling the sheet moves the page behind it to %v (%v)", y, err)
 	}
 }
+
+// A tap on the veil leaves open a sheet whose form the User has changed, with what they
+// typed, until a save; Esc and Close still close it. One unchanged, or only searched,
+// closes on the veil as any sheet does.
+func TestBrowserATapOnTheVeilKeepsAChangedForm(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen")
+	expect := playwright.NewPlaywrightAssertions()
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
+	name := sheet.Locator("#ingredient-add").GetByLabel("Name", playwright.LocatorGetByLabelOptions{Exact: playwright.Bool(true)})
+	opens := func() {
+		t.Helper()
+		if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).First().Click(); err != nil {
+			t.Fatalf("open the Ingredients: %v", err)
+		}
+		if err := expect.Locator(name).ToBeVisible(); err != nil {
+			t.Fatalf("the Ingredients sheet doesn't open: %v", err)
+		}
+	}
+	types := func(l playwright.Locator, what string) {
+		t.Helper()
+		if err := l.Fill(what); err != nil {
+			t.Fatalf("type %q: %v", what, err)
+		}
+	}
+	// The screen's left edge, halfway down, is outside the side sheet on a desktop.
+	tapsTheVeil := func() {
+		t.Helper()
+		if err := b.Mouse().Click(8, 360); err != nil {
+			t.Fatalf("tap the veil: %v", err)
+		}
+	}
+	closes := func(how string) {
+		t.Helper()
+		if err := expect.Locator(sheet).ToBeHidden(); err != nil {
+			t.Errorf("%s doesn't close the sheet: %v", how, err)
+		}
+	}
+
+	opens()
+	tapsTheVeil()
+	closes("a tap on the veil, with nothing typed,")
+
+	opens()
+	types(sheet.GetByRole("searchbox"), "ri")
+	tapsTheVeil()
+	closes("a tap on the veil, with only a search typed,")
+
+	opens()
+	types(name, "rice")
+	tapsTheVeil()
+	if err := expect.Locator(name).ToHaveValue("rice"); err != nil {
+		t.Errorf("a tap on the veil discards the changed form: %v", err)
+	}
+	if err := b.Keyboard().Press("Escape"); err != nil {
+		t.Fatalf("press Esc: %v", err)
+	}
+	closes("Esc, with something typed,")
+
+	opens()
+	types(name, "rice")
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
+		t.Fatalf("press Close: %v", err)
+	}
+	closes("Close, with something typed,")
+
+	opens()
+	fillsIngredient(t, sheet, "rice")
+	b.IsConfirmed(t, "Added rice.")
+	tapsTheVeil()
+	closes("a tap on the veil, after a save,")
+}

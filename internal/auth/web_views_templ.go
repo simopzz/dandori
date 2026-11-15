@@ -105,7 +105,7 @@ func signInPage(today time.Time, f SignInForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<form id=\"sign-in\" class=\"stack\" method=\"post\" action=\"/sign-in\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<form novalidate id=\"sign-in\" class=\"stack\" method=\"post\" action=\"/sign-in\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -440,7 +440,7 @@ func confirmPage(u *url.URL, today time.Time, tokenHash, kind string) templ.Comp
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<form id=\"confirm\" class=\"stack\" method=\"post\" action=\"/auth/confirm\"><input type=\"hidden\" name=\"token_hash\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<form novalidate id=\"confirm\" class=\"stack\" method=\"post\" action=\"/auth/confirm\"><input type=\"hidden\" name=\"token_hash\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

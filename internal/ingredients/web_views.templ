@@ -172,6 +172,7 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 // only way to them for a Staple, which no Stock Item holds.
 templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) {
 	<form
+		novalidate
 		id={ editFormID(ing.ID) }
 		method="post"
 		action={ templ.SafeURL(ingredientURL(ing.ID, "")) }
@@ -252,6 +253,7 @@ func editFormID(id int64) string { return "ingredient-edit-" + strconv.FormatInt
 // focus to the sheet left open.
 templ addForm(f AddForm) {
 	<form
+		novalidate
 		id="ingredient-add"
 		method="post"
 		action="/ingredients"
@@ -321,13 +323,15 @@ templ ingredientFields(f AddForm) {
 	@web.Hint() {
 		{ web.T(ctx, msgNutritionHint) }
 	}
-	@NutritionFields(f.Values, f.Errs)
+	@NutritionFields(f.Values, f.Errs, false)
 }
 
 // NutritionFields are the six nutritional value fields, with the values as typed and why
-// each was refused, by field. Fibre and sugar may be left blank.
-templ NutritionFields(values, errs map[string]string) {
-	@nutritionFields(func(field string) string { return field }, values, errs)
+// each was refused, by field. Fibre and sugar may be left blank. ids gives each control
+// its name as its id, for an ErrorSummary to link to, where no other form on the page
+// has the same names.
+templ NutritionFields(values, errs map[string]string, ids bool) {
+	@nutritionFields(func(field string) string { return field }, ids, values, errs)
 }
 
 // TypedIngredient is a new Ingredient's fields as typed, with why each was refused.
@@ -341,11 +345,12 @@ type TypedIngredient struct {
 }
 
 // NewIngredientFields confirm a new Ingredient inside another form, whose field names
-// are named gives them: its unit, usual Storage Location, Staple flag and values.
+// are named gives them, as are their ids: its unit, usual Storage Location, Staple flag
+// and values.
 templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 	@web.FieldRow() {
 		@web.Field(web.T(ctx, msgUnit), "", ing.Errs["unit"]) {
-			<select name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... }>
+			<select id={ named("unit") } name={ named("unit") } data-confirm?={ ing.Focus } { Invalid(ing.Errs["unit"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, u := range domain.Units {
 					<option value={ string(u) } selected?={ ing.Unit == string(u) }>{ web.T(ctx, UnitNames[u]) }</option>
@@ -353,7 +358,7 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 			</select>
 		}
 		@web.Field(web.T(ctx, msgUsual), "", ing.Errs["usual"]) {
-			<select name={ named("usual") } { Invalid(ing.Errs["usual"])... }>
+			<select id={ named("usual") } name={ named("usual") } { Invalid(ing.Errs["usual"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, l := range domain.StorageLocations {
 					<option value={ string(l) } selected?={ ing.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
@@ -361,14 +366,15 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 			</select>
 		}
 	}
-	@nutritionFields(named, ing.Values, ing.Errs)
+	@nutritionFields(named, true, ing.Values, ing.Errs)
 	@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
 		<input type="checkbox" name={ named("staple") } value="on" checked?={ ing.Staple }/>
 	}
 }
 
-// nutritionFields are the six fields as NutritionFields has them, named as named says.
-templ nutritionFields(named func(string) string, values, errs map[string]string) {
+// nutritionFields are the six fields as NutritionFields has them, named as named says,
+// and with ids, their names as ids.
+templ nutritionFields(named func(string) string, ids bool, values, errs map[string]string) {
 	@web.FieldRow() {
 		for _, n := range nutrients {
 			@web.Field(web.T(ctx, nutrientNames[n]), "", errs[n]) {
@@ -378,6 +384,9 @@ templ nutritionFields(named func(string) string, values, errs map[string]string)
 					step="0.1"
 					min="0"
 					name={ named(n) }
+					if ids {
+						id={ named(n) }
+					}
 					value={ values[n] }
 					required?={ n != "fibre" && n != "sugar" }
 					{ Invalid(errs[n])... }
@@ -392,7 +401,7 @@ const suggestionID = "ingredient-suggestion"
 
 // suggestion says closest is what name may have meant, if it isn't blank, and confirms
 // name, so Add means the name typed. Picking closest adds nothing, so it is a link, which
-// the form's other fields don't hold up and Enter doesn't press.
+// Enter doesn't press.
 templ suggestion(name, closest string) {
 	if closest != "" {
 		<input type="hidden" name="confirm" value={ name }/>

@@ -58,10 +58,8 @@ var (
 	msgPerPortion    = web.Message{En: "Per Portion", It: "Per Porzione"}
 	msgAddIngredient = web.Message{En: "Add an Ingredient", It: "Aggiungi un Ingrediente"}
 	msgAddStep       = web.Message{En: "Add a step", It: "Aggiungi un passaggio"}
-	msgRowsHint      = web.Message{
-		En: "Clear a row's name and quantity to remove it.",
-		It: "Svuota nome e quantità di una riga per toglierla.",
-	}
+	msgRemoveRow     = web.Message{En: "Remove", It: "Togli"}
+
 	msgMeasuredIn  = web.Message{En: "Measured in %s", It: "Si misura in %s"}
 	msgNew         = web.Message{En: "New", It: "Nuovo"}
 	msgDidYouMean  = web.Message{En: "Did you mean %s?", It: "Intendevi %s?"}

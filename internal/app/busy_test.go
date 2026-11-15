@@ -15,7 +15,7 @@ func TestBrowserShowsASlowWriteIsBusy(t *testing.T) {
 	b.Open(t, "/profile")
 	held := b.Hold(t, "/profile/language")
 
-	b.ChooseLanguage(t, "English", "Save")
+	b.ChooseLanguage(t, "English", "Save Language")
 	expect := playwright.NewPlaywrightAssertions()
 	if err := expect.Locator(busyBar(b)).ToBeVisible(); err != nil {
 		t.Errorf("the busy bar doesn't show while the write is slow: %v", err)
@@ -74,7 +74,7 @@ func TestBrowserShowsNothingForAQuickWrite(t *testing.T) {
 		t.Fatalf("watch for the busy state: %v", err)
 	}
 
-	b.ChooseLanguage(t, "English", "Save")
+	b.ChooseLanguage(t, "English", "Save Language")
 	b.IsAt(t, "/profile")
 	b.IsConfirmed(t, "Profile saved.")
 	if saw, err := b.Evaluate(`window.sawBusy`); err != nil || saw != false {
@@ -88,7 +88,7 @@ func TestBrowserShowsAFailedWriteIsNoLongerBusy(t *testing.T) {
 	b.Open(t, "/profile")
 	held := b.Hold(t, "/profile/language")
 
-	b.ChooseLanguage(t, "English", "Save")
+	b.ChooseLanguage(t, "English", "Save Language")
 	expect := playwright.NewPlaywrightAssertions()
 	if err := expect.Locator(busyBar(b)).ToBeVisible(); err != nil {
 		t.Fatalf("the busy bar doesn't show while the write is slow: %v", err)
@@ -144,5 +144,5 @@ func busyBar(b *apptest.Browser) playwright.Locator { return b.Locator(busyBarSe
 
 // save is the Language section's Save.
 func save(b *apptest.Browser) playwright.Locator {
-	return b.Locator("#profile-language").GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save"})
+	return b.Locator("#profile-language").GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save Language"})
 }

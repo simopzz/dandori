@@ -12,6 +12,8 @@ import (
 type FormData struct {
 	Action string
 	Values url.Values
+	// Button is the text its first submit button shows.
+	Button string
 }
 
 // Get returns the first value of field.
@@ -44,6 +46,9 @@ func Form(t testing.TB, page, id string) FormData {
 
 	f := FormData{Action: attr(form, "action"), Values: url.Values{}}
 	for n := range form.Descendants() {
+		if n.Type == html.ElementNode && n.Data == "button" && attr(n, "type") != "button" && f.Button == "" {
+			f.Button = shownText(n)
+		}
 		if n.Type != html.ElementNode || attr(n, "name") == "" || inTemplate(n, form) {
 			continue
 		}

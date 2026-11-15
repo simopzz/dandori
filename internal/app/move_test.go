@@ -38,16 +38,16 @@ func TestMovingStockBetweenStorageLocations(t *testing.T) {
 
 	s.Follows("rice")
 	s.Sees("rice · Freezer")
-	s.Sees("Moved from the pantry 300 g → 800 g Mon, Nov 2 11:00 am " +
-		"Moved from the pantry 0 g → 300 g Mon, Nov 2 10:00 am for next week")
+	s.Sees("Moved from the pantry 300 g → 800 g Mon, Nov 2 · 11:00 am " +
+		"Moved from the pantry 0 g → 300 g Mon, Nov 2 · 10:00 am for next week")
 
 	s.Open("/kitchen/count")
 	s.Follows("rice")
 	s.Follows("Movements")
 	s.Sees("rice · Pantry")
-	s.Sees("Moved to the freezer 500 g → 0 g Mon, Nov 2 11:00 am " +
-		"Moved to the freezer 800 g → 500 g Mon, Nov 2 10:00 am for next week " +
-		"Counted 0 g → 800 g Mon, Nov 2 9:00 am")
+	s.Sees("Moved to the freezer 500 g → 0 g Mon, Nov 2 · 11:00 am " +
+		"Moved to the freezer 800 g → 500 g Mon, Nov 2 · 10:00 am for next week " +
+		"Counted 0 g → 800 g Mon, Nov 2 · 9:00 am")
 }
 
 // The form starts from all of the Stock Item, in its unit, and leaves the target to the
@@ -410,7 +410,7 @@ func TestAMoveHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 	s.Sees("Fridge rice 100 g")
 	s.Follows("rice")
 	s.Follows("Pantry")
-	s.Sees("Moved to the fridge 100 g → 0 g Mon, Nov 2 10:00 am " +
-		"Counted 100 g → 100 g Mon, Nov 2 10:00 am " +
-		"Counted 0 g → 100 g Mon, Nov 2 10:00 am")
+	s.Sees("Moved to the fridge 100 g → 0 g Mon, Nov 2 · 10:00 am " +
+		"Counted 100 g → 100 g Mon, Nov 2 · 10:00 am " +
+		"Counted 0 g → 100 g Mon, Nov 2 · 10:00 am")
 }
