@@ -201,9 +201,6 @@ templ recipeForm(f RecipeForm) {
 			@web.Checks(web.T(ctx, msgSlots), "slots", web.SlotKindChoices(ctx), f.Slots, f.Errs["slots"])
 		</div>
 		@web.FieldGroup(1, web.T(ctx, msgIngredients)) {
-			@web.Hint() {
-				{ web.T(ctx, msgRowsHint) }
-			}
 			<div id="ingredients" class="ingredient-grid">
 				for i, row := range f.Ingredients {
 					@ingredientRow(i, row)
@@ -296,7 +293,8 @@ templ stepRow(step string, focus bool) {
 }
 
 // ingredientRow is the row at index i: its name, which says what it is as the User leaves
-// it, and its quantity, with what the name leads to beneath them.
+// it, and its quantity, with what the name leads to beneath them, and a Remove that posts
+// the form back without the row, renumbering the rest.
 templ ingredientRow(i int, row IngredientRow) {
 	<div class="ingredient-row">
 		@web.Field(web.T(ctx, msgIngredient), "", row.Errs["name"]) {
@@ -320,6 +318,12 @@ templ ingredientRow(i int, row IngredientRow) {
 		<div class="ingredient-details">
 			@rowDetails(i, row)
 		</div>
+		@web.TextButton(templ.Attributes{"type": "submit", "name": "remove", "value": strconv.Itoa(i), "formnovalidate": true}) {
+			{ web.T(ctx, msgRemoveRow) }
+			if row.Name != "" {
+				<span class="sr-only">{ row.Name }</span>
+			}
+		}
 	</div>
 }
 

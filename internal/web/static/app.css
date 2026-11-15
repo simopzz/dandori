@@ -462,7 +462,7 @@ legend.section-heading + * { clear: both; }
   gap: var(--space-2);
 }
 
-.fold > summary { cursor: pointer; }
+.fold > summary { cursor: pointer; min-height: var(--tap); }
 
 .fold > summary::-webkit-details-marker { display: none; }
 
@@ -944,6 +944,8 @@ html:has(dialog:modal) { overflow: hidden; }
 .ingredient-details:empty { display: none; }
 
 .ingredient-details .tag { justify-self: start; }
+
+.ingredient-row > .btn-text { grid-column: 1 / -1; justify-self: start; }
 
 .cell-label {
   position: absolute;
