@@ -173,7 +173,7 @@ func TestAModelFailureWorthRetryingShowsInTheTraceAndTheRunSucceeds(t *testing.T
 	)
 	s.PastesRecipe(pastedLasagne)
 	s.Sees("Reading a Recipe Succeeded")
-	s.Sees("Retry 1 of 3 in 1 ms overloaded (529)")
+	s.Sees("Asking the model again (1 of 3) overloaded (529) 1 ms")
 	s.Sees("Ended: Succeeded")
 }
 
@@ -218,8 +218,8 @@ func TestSubmitRecipesProblemsGoBackToTheModelWhichFixesThem(t *testing.T) {
 	)
 
 	s.PastesRecipe(pastedLasagne)
-	s.Sees("submit_recipe refuses")
-	s.Sees("submit_recipe answers")
+	s.Sees("Dandori sends it back submit_recipe")
+	s.Sees("Dandori answers submit_recipe")
 	s.Follows("Recipe Draft")
 	draftHolds(t, s, map[string]string{"ing_name_4": "rice", "ing_quantity_4": "100", "ing_name_0": "beef mince", "ing_kcal_0": "250"})
 }
@@ -249,7 +249,7 @@ func TestUnknownKindsGoBackToTheModelAllAtOnce(t *testing.T) {
 	)
 
 	s.PastesRecipe(pastedLasagne)
-	s.Sees("submit_recipe refuses")
+	s.Sees("Dandori sends it back submit_recipe")
 	s.Follows("Recipe Draft")
 	draftHolds(t, s, map[string]string{"appliances": "oven\nhob"})
 }
@@ -382,17 +382,20 @@ func TestSubmitRecipesSchemaStatesTheRulesItChecks(t *testing.T) {
 	}
 }
 
-// A Trace's fixed lines are in the User's Language, whichever it is when they look, and
-// what the model said is as it said it.
+// A Trace's fixed lines are plain words in the User's Language, whichever it is when they
+// look, timed to the minute, each folding its data, the model's and the tool's names
+// included; what the model said is as it said it.
 func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testing.T) {
 	s := kitchenWith(t)
 	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Parsed *the* lasagne."))
 	s.PastesRecipe(pastedLasagne)
 	run := s.Page().Path
 	s.Sees("Reading a Recipe Failed")
-	s.Sees("Started with " + runs.DefaultModel)
+	s.Sees("Started at 12:00 am")
+	s.DoesNotSee("12:00:00 am")
+	s.Sees("Started " + runs.DefaultModel)
 	s.Sees("Asking the model (turn 1)")
-	s.Sees("Calls submit_recipe")
+	s.Sees("The model asks Dandori submit_recipe")
 	s.Sees("The model says Parsed the lasagne.")
 	s.Sees("The model ended without a Recipe Draft.")
 	s.Sees("Ended: Failed")
@@ -404,9 +407,9 @@ func TestATracesFixedLinesAreInTheUsersLanguageAndTheModelsTextVerbatim(t *testi
 	s.ChangesLanguage("Italiano")
 	s.Open(run)
 	s.Sees("Lettura di una Ricetta Fallita")
-	s.Sees("Iniziata con " + runs.DefaultModel)
+	s.Sees("Iniziata " + runs.DefaultModel)
 	s.Sees("Chiedo al modello (turno 1)")
-	s.Sees("Chiama submit_recipe")
+	s.Sees("Il modello chiede a Dandori submit_recipe")
 	s.Sees("Il modello dice Parsed the lasagne.")
 	s.Sees("Il modello ha finito senza una Bozza di Ricetta.")
 	s.Sees("Finita: Fallita")
@@ -528,7 +531,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	}
 	b.Shot(t, "run-closed")
 
-	for _, line := range []string{"Pasted recipe", "Asking the model (turn 1)", "Calls submit_recipe"} {
+	for _, line := range []string{"Pasted recipe", "Asking the model (turn 1)", "The model asks Dandori"} {
 		if err := b.GetByText(line, playwright.PageGetByTextOptions{Exact: playwright.Bool(true)}).Click(); err != nil {
 			t.Fatal(err)
 		}
@@ -562,8 +565,8 @@ func TestTheDemoLLMReadsAnyPasteIntoARecipeDraft(t *testing.T) {
 	s.AddsIngredient(apptest.Ingredient{Name: "Olive oil", Unit: "g", Usual: "pantry", Kcal: "900", Protein: "0", Carbs: "0", Fat: "100"})
 
 	s.PastesRecipe("  Nonna's ragù\nSlow-cooked for hours.")
-	s.Sees("Started with a demo model")
-	s.Sees("Calls submit_recipe")
+	s.Sees("Started a demo model")
+	s.Sees("The model asks Dandori submit_recipe")
 	s.Follows("Recipe Draft")
 	draftHolds(t, s, map[string]string{
 		"name": "Nonna's ragù", "ing_name_2": "Olive oil", "ing_quantity_2": "10", "ing_kcal_2": "",

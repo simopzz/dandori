@@ -401,7 +401,7 @@ func TestALotsMovementsTellWhyItHoldsWhatItDoes(t *testing.T) {
 
 	s.Open("/kitchen/portions/movements?" + s.LinkQuery(countLasagne))
 	s.Sees("lasagne · Freezer")
-	s.Sees("Moved to the fridge 2 → 1 Mon, Nov 2 12:00 pm to thaw Counted 3 → 2 Mon, Nov 2 11:00 am ate one Added 0 → 3 Mon, Nov 2 10:00 am")
+	s.Sees("Moved to the fridge 2 → 1 Mon, Nov 2 · 12:00 pm to thaw Counted 3 → 2 Mon, Nov 2 · 11:00 am ate one Added 0 → 3 Mon, Nov 2 · 10:00 am")
 	if got := strings.Count(apptest.Text(s.Page().Body), "Counted"); got != 1 {
 		t.Errorf("the Count shows as %d Movements, want one", got)
 	}
@@ -451,7 +451,7 @@ func TestALotsMovementsInItalian(t *testing.T) {
 	s.Follows("lasagne")
 	s.Sees("Movimenti")
 	s.Sees("lasagne · Congelatore")
-	s.Sees("Contato 3 → 2 Lun 2 Nov 14:05 mangiata una Aggiunte 0 → 3")
+	s.Sees("Contato 3 → 2 Lun 2 Nov · 14:05 mangiata una Aggiunte 0 → 3")
 
 	s.Moves("Sposta lasagne nel congelatore", "1", "fridge", "")
 	s.Open("/kitchen/portions/movements?" + s.LinkQuery("Sposta lasagne nel congelatore"))

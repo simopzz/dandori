@@ -112,6 +112,17 @@ func ShortDateInYear(ctx context.Context, day time.Time) string {
 	return fmt.Sprintf("%s, %d", ShortDate(ctx, day), day.Year())
 }
 
+// DateTime is when at was, as of now: its ShortDate, with its year unless that is now's,
+// and its Time, apart so the day doesn't run into the hour: "Mon, Nov 2 · 9:00 am",
+// "Lun 2 Nov · 09:00".
+func DateTime(ctx context.Context, now, at time.Time) string {
+	day := ShortDate(ctx, at)
+	if at.Year() != now.Year() {
+		day = ShortDateInYear(ctx, at)
+	}
+	return day + " · " + Time(ctx, at)
+}
+
 // dayAndMonth writes a weekday, day and month in the order of the Language of ctx.
 func dayAndMonth(ctx context.Context, day time.Time, weekday, month Message, name func(string) string) string {
 	w, m := name(T(ctx, weekday)), name(T(ctx, month))
@@ -127,11 +138,6 @@ func identity(s string) string { return s }
 // in English.
 func Time(ctx context.Context, at time.Time) string {
 	return domain.FormatTime(LanguageOf(ctx), at, false)
-}
-
-// TimeWithSeconds is Time with the seconds: "13:00:05", "1:00:05 pm".
-func TimeWithSeconds(ctx context.Context, at time.Time) string {
-	return domain.FormatTime(LanguageOf(ctx), at, true)
 }
 
 // TimeOfDay is t in the Language of ctx.

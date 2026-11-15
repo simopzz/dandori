@@ -117,11 +117,7 @@ func TestBrowserTodayRendersOnAPhone(t *testing.T) {
 // open and the page under it the same.
 func TestBrowserAddsAnIngredientInTheSideSheet(t *testing.T) {
 	b := signedUpBrowser(t)
-	b.Open(t, "/")
-	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Open your kitchen"}).Click(); err != nil {
-		t.Fatalf("follow the link to the kitchen: %v", err)
-	}
-	b.IsAt(t, "/kitchen")
+	b.Open(t, "/kitchen")
 	if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredients"}).Click(); err != nil {
 		t.Fatalf("open the Ingredients: %v", err)
 	}

@@ -213,7 +213,7 @@ elements themselves.
 | `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
 | `FieldGroupAction(id, num, legend, action)` | A `FieldGroup` with a secondary action beside its legend, for one that changes what the legend names (the Count form's `Choose another`); on a long legend it drops to the next line, at the far end. `id` is the legend text's, which alone names the group. |
 | `Hint()` | A quiet paragraph explaining what follows. |
-| `Empty()` | What a list says when it has nothing in it. |
+| `Empty()` | What a list or a page says when it has nothing in it: it says what would be here, why it isn't, and links the one action that fills it. Today, before it has a Plan, names each thing planning needs instead, each a link named for its action. |
 | `Disclosure(summary)` | A group of a page's content a click away (the day's later Slots on Today): a quiet summary line with a chevron, closed until opened. |
 | `Fold(summary, holds)` | A line that opens in place to show what it holds (a Trace Event's data): a chevron at its start points right while closed and down while open, and it starts closed. Without `holds` it is the line alone, aligned with its neighbours. |
 | `Rows()` | A list of `Row`s or `EditRow`s. |

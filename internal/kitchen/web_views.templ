@@ -216,7 +216,7 @@ templ movementRows(now time.Time, movements []domain.StockMovement, location dom
 					<span class="row-title">{ causeText(ctx, m, location) }</span>
 					<span class="row-figure">{ web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, unit), web.Quantity(ctx, m.After, unit)) }</span>
 					<span class="row-meta">
-						<span>{ happenedText(ctx, now, m.At.In(now.Location())) }</span>
+						<span>{ web.DateTime(ctx, now, m.At.In(now.Location())) }</span>
 						if m.Note != "" {
 							<em>{ m.Note }</em>
 						}
@@ -241,22 +241,13 @@ func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bo
 	return link
 }
 
-// happenedText says when a Movement happened, told in at's zone, with its year unless
-// that is now's.
-func happenedText(ctx context.Context, now, at time.Time) string {
-	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgHappened, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
-	}
-	return web.Tf(ctx, msgHappened, web.ShortDate(ctx, at), web.Time(ctx, at))
-}
-
 // countedText says when a Stock Item was last counted, told in now's zone, with its date
 // unless it was today.
 func countedText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
 		return web.Tf(ctx, msgCountedAt, web.Time(ctx, at))
 	}
-	return web.Tf(ctx, msgCountedOn, happenedText(ctx, now, at))
+	return web.Tf(ctx, msgCountedOn, web.DateTime(ctx, now, at))
 }
 
 // countBody is the form of the Ingredient chosen, or else the search for one.
