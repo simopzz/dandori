@@ -14,8 +14,8 @@ var (
 		It: "Dandori la parla in ogni pagina, e ci scrive ogni Ingrediente e Ricetta.",
 	}
 	msgChooseHint = web.Message{
-		En: "You can change it on your Profile until your kitchen holds its first Ingredient or Recipe.",
-		It: "Puoi cambiarla nel tuo Profilo finché la tua cucina non ha il suo primo Ingrediente o Ricetta.",
+		En: "You can change it on your Profile until you write your first food in it: an Ingredient, Recipe, Recipe Draft or Portion, or an exclusion or allergy.",
+		It: "Puoi cambiarla nel tuo Profilo finché non ci scrivi il tuo primo alimento: un Ingrediente, una Ricetta, una Bozza di Ricetta o una Porzione, oppure un'esclusione o un'allergia.",
 	}
 	msgLanguage      = web.Message{En: "Language", It: "Lingua"}
 	msgContinue      = web.Message{En: "Continue", It: "Continua"}
