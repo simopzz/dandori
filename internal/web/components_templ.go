@@ -2805,7 +2805,8 @@ func SideSheet(id, title string) templ.Component {
 // behind it is inert, and a tap on the veil or Esc closes it, the top one of several.
 // closedby="any" closes it on the veil where the browser knows it; where it doesn't, a
 // press that both starts and ends on the veil does, so dragging out of a field doesn't
-// close it. open marks it to open as the page loads.
+// close it. Once its form is changed the veil no longer closes it (see keepsChanges).
+// open marks it to open as the page loads.
 func sheet(id, class, title string, open bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2839,7 +2840,7 @@ func sheet(id, class, title string, open bool) templ.Component {
 		var templ_7745c5c3_Var103 string
 		templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 559, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 560, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var103)
 		if templ_7745c5c3_Err != nil {
@@ -2865,7 +2866,7 @@ func sheet(id, class, title string, open bool) templ.Component {
 		var templ_7745c5c3_Var105 string
 		templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.ResolveAttributeValue(id + "-title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 562, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 563, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var105)
 		if templ_7745c5c3_Err != nil {
@@ -2889,6 +2890,10 @@ func sheet(id, class, title string, open bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, keepsChanges)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 182, "><div class=\"sheet-head\"><h2 id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -2896,7 +2901,7 @@ func sheet(id, class, title string, open bool) templ.Component {
 		var templ_7745c5c3_Var106 string
 		templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.ResolveAttributeValue(id + "-title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 568, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 570, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var106)
 		if templ_7745c5c3_Err != nil {
@@ -2909,7 +2914,7 @@ func sheet(id, class, title string, open bool) templ.Component {
 		var templ_7745c5c3_Var107 string
 		templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 568, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 570, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 		if templ_7745c5c3_Err != nil {
@@ -2922,7 +2927,7 @@ func sheet(id, class, title string, open bool) templ.Component {
 		var templ_7745c5c3_Var108 string
 		templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 569, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 571, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var108)
 		if templ_7745c5c3_Err != nil {
@@ -2935,7 +2940,7 @@ func sheet(id, class, title string, open bool) templ.Component {
 		var templ_7745c5c3_Var109 string
 		templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(T(ctx, msgClose))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 569, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 571, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
 		if templ_7745c5c3_Err != nil {
@@ -2960,8 +2965,23 @@ func sheet(id, class, title string, open bool) templ.Component {
 // veilCloses closes a sheet on a press that starts and ends on its veil, for a browser
 // that doesn't know closedby.
 var veilCloses = templ.Attributes{
-	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && " + onVeil,
+	"hx-on:pointerdown": "this.veilPressed = !('closedBy' in this) && !this.changed && " + onVeil,
 	"hx-on:click":       "if (this.veilPressed && " + onVeil + ") this.close()",
+}
+
+// keepsChanges keeps a sheet open on the veil once the User types or chooses in its form,
+// a search aside, until it closes or a form in it saves: Esc and Close still close it.
+// It sets the attribute: setting closedBy would add the property veilCloses checks.
+var keepsChanges = templ.Attributes{
+	"hx-on:input":              "if (!event.target.closest('[role=search]')) " + sheetChanged("true"),
+	"hx-on:close":              sheetChanged("false"),
+	"hx-on:htmx:after:request": "if (event.detail.ctx.request.method === 'POST' && event.detail.ctx.response?.status < 400) " + sheetChanged("false"),
+}
+
+// sheetChanged is the script that marks a sheet's form changed, or not, as changed is
+// "true" or "false".
+func sheetChanged(changed string) string {
+	return "{ this.changed = " + changed + "; this.setAttribute('closedby', this.changed ? 'closerequest' : 'any') }"
 }
 
 // CloseSheet is the event an answer to a form in a sheet triggers, with HX-Trigger, to
@@ -3010,7 +3030,7 @@ func SheetBody(id string) templ.Component {
 		var templ_7745c5c3_Var111 string
 		templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.ResolveAttributeValue(SideSheetBody(id))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 602, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 619, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var111)
 		if templ_7745c5c3_Err != nil {
@@ -3063,7 +3083,7 @@ func SectionBody(id string) templ.Component {
 		var templ_7745c5c3_Var113 string
 		templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 615, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 632, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
 		if templ_7745c5c3_Err != nil {
@@ -3236,7 +3256,7 @@ func sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attributes
 		var templ_7745c5c3_Var121 templ.SafeURL
 		templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinURLErrs(href)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 648, Col: 13}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 665, Col: 13}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 		if templ_7745c5c3_Err != nil {
@@ -3249,7 +3269,7 @@ func sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attributes
 		var templ_7745c5c3_Var122 string
 		templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(src))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 649, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 666, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var122)
 		if templ_7745c5c3_Err != nil {
@@ -3262,7 +3282,7 @@ func sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attributes
 		var templ_7745c5c3_Var123 string
 		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + SideSheetBody(id))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 650, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 667, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var123)
 		if templ_7745c5c3_Err != nil {
@@ -3275,7 +3295,7 @@ func sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attributes
 		var templ_7745c5c3_Var124 string
 		templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 652, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 669, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var124)
 		if templ_7745c5c3_Err != nil {
@@ -3335,7 +3355,7 @@ func LanguageSwitch(u *url.URL) templ.Component {
 		var templ_7745c5c3_Var126 string
 		templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.ResolveAttributeValue(T(ctx, msgLanguageSwitch))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 663, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 680, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var126)
 		if templ_7745c5c3_Err != nil {
@@ -3359,7 +3379,7 @@ func LanguageSwitch(u *url.URL) templ.Component {
 			var templ_7745c5c3_Var127 templ.SafeURL
 			templ_7745c5c3_Var127, templ_7745c5c3_Err = templ.JoinURLErrs(switchURL(u, l))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 669, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 686, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var127))
 			if templ_7745c5c3_Err != nil {
@@ -3372,7 +3392,7 @@ func LanguageSwitch(u *url.URL) templ.Component {
 			var templ_7745c5c3_Var128 string
 			templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(l))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 670, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 687, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 			if templ_7745c5c3_Err != nil {
@@ -3395,7 +3415,7 @@ func LanguageSwitch(u *url.URL) templ.Component {
 			var templ_7745c5c3_Var129 string
 			templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.JoinStringErrs(T(ctx, LanguageNames[l]))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 674, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 691, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var129))
 			if templ_7745c5c3_Err != nil {
