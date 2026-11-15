@@ -123,6 +123,67 @@ func (h Handlers) Accept(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ShowDiscard asks once before discarding the Recipe Draft in the path, as a page.
+func (h Handlers) ShowDiscard(w http.ResponseWriter, r *http.Request) {
+	h.showRemoval(w, r, false, h.discarding)
+}
+
+// ShowDiscardSheet is ShowDiscard as the body of the sheet over the Recipe Draft.
+func (h Handlers) ShowDiscardSheet(w http.ResponseWriter, r *http.Request) {
+	h.showRemoval(w, r, true, h.discarding)
+}
+
+// ShowDelete asks once before deleting the Recipe in the path, as a page.
+func (h Handlers) ShowDelete(w http.ResponseWriter, r *http.Request) {
+	h.showRemoval(w, r, false, h.deletion)
+}
+
+// ShowDeleteSheet is ShowDelete as the body of the sheet over the Recipe's edit form.
+func (h Handlers) ShowDeleteSheet(w http.ResponseWriter, r *http.Request) {
+	h.showRemoval(w, r, true, h.deletion)
+}
+
+// discarding is the step asking before discarding the Recipe Draft id.
+func (h Handlers) discarding(ctx context.Context, id int64) (removal, error) {
+	rec, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
+	return removal{
+		Title: msgDiscardDraft, Remove: msgDiscard, Question: web.Tf(ctx, msgDiscardAsk, rec.Name),
+		Action: draftURL(id) + "/discard", Back: draftURL(id),
+	}, err
+}
+
+// deletion is the step asking before deleting the Recipe id.
+func (h Handlers) deletion(ctx context.Context, id int64) (removal, error) {
+	rec, err := h.Service.Find(ctx, id)
+	return removal{
+		Title: msgDeleteRecipe, Remove: msgDelete, Question: web.Tf(ctx, msgDeleteAsk, rec.Name),
+		Action: recipeURL(id) + "/delete", Back: recipeURL(id) + "/edit",
+	}, err
+}
+
+// showRemoval answers with the step find makes of the id in the path: as its sheet's body
+// when sheet, else as a page. An id the User has no Recipe or Recipe Draft of is unknown.
+func (h Handlers) showRemoval(w http.ResponseWriter, r *http.Request, sheet bool, find func(context.Context, int64) (removal, error)) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	step, err := find(r.Context(), id)
+	if errors.Is(err, ErrNoRecipe) || errors.Is(err, ErrNoDraft) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load what to remove", err)
+		return
+	}
+	if sheet {
+		httpx.Render(w, r, h.Log, http.StatusOK, removeStep(step, ""))
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, removePage(h.Clock.Now(), step))
+}
+
 // Discard deletes the Recipe Draft in the path.
 func (h Handlers) Discard(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)

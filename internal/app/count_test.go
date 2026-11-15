@@ -22,10 +22,16 @@ var (
 // kitchenWith signs a new User in, in English, with these Ingredients.
 func kitchenWith(t *testing.T, ings ...apptest.Ingredient) *apptest.Scenario {
 	t.Helper()
+	return kitchenIn(t, "English", ings...)
+}
+
+// kitchenIn signs a new User in, in the Language named language, with these Ingredients.
+func kitchenIn(t *testing.T, language string, ings ...apptest.Ingredient) *apptest.Scenario {
+	t.Helper()
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
-	s.ChoosesLanguage("English")
+	s.ChoosesLanguage(language)
 	s.Open("/ingredients")
 	for _, ing := range ings {
 		s.AddsIngredient(ing)

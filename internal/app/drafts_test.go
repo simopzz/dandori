@@ -2,8 +2,11 @@ package app_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
@@ -148,15 +151,42 @@ func TestARecipeDraftRowGivesItsUnitAndWhatItsValuesArePer(t *testing.T) {
 	}
 }
 
-// Discarding a Recipe Draft removes it and adds nothing, and its Run stops linking
-// to it.
+// The sheet a Recipe Draft's Discard opens asks in the User's Language, and its form
+// posted as htmx lands on the Library confirming it, as a plain post does.
+func TestARecipeDraftIsDiscardedFromItsSheet(t *testing.T) {
+	s := kitchenIn(t, "Italiano", rice)
+	s.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Done."))
+	s.PastesRecipe(pastedLasagne)
+	s.Follows("Bozza di Ricetta")
+	sheet := s.HTMXGet(t, apptest.SheetSource(t, s.Page().Body, "Scarta"))
+	if shown := apptest.Text(sheet.Body); sheet.StatusCode != http.StatusOK || strings.Contains(sheet.Body, "<html") || !strings.Contains(shown, "Scartare la Bozza di Ricetta Lasagne?") {
+		t.Fatalf("the sheet answered %d:\n%s", sheet.StatusCode, sheet.Body)
+	}
+	step := apptest.Form(t, sheet.Body, "remove-step")
+	got := s.HTMXPostForm(t, step.Action, step.Values)
+	if got.Path != "/recipes" {
+		t.Errorf("discarding from the sheet landed on %s", got.Path)
+	}
+	if notices := apptest.Notices(t, got.Body); !slices.Equal(notices, []string{"Bozza di Ricetta scartata: Lasagne."}) {
+		t.Errorf("discarding from the sheet confirms %q", notices)
+	}
+}
+
+// Discarding a Recipe Draft asks once, naming it, then removes it and adds nothing, and
+// its Run stops linking to it. The Draft's page has no Discard that posts at once.
 func TestDiscardingARecipeDraftRemovesIt(t *testing.T) {
 	s := draftedLasagne(t)
 	run := s.Page().Path
 	s.Follows("Recipe Draft")
 	draft := s.Page().Path
 
-	s.Submits("recipe-remove")
+	if strings.Contains(s.Page().Body, `action="`+draft+`/discard"`) {
+		t.Errorf("the Recipe Draft's page discards it in one post:\n%s", s.Page().Body)
+	}
+	s.Follows("Discard")
+	s.IsAt(draft + "/discard")
+	s.Sees("Discard the Recipe Draft Lasagne?")
+	s.Submits("remove-step")
 	s.IsAt("/recipes")
 	s.IsConfirmed("Discarded the Recipe Draft Lasagne.")
 	s.Sees("No Recipes yet.")
@@ -192,7 +222,8 @@ func TestRecipeDraftsToCheckAreListedFirstOnTheRecipeLibrary(t *testing.T) {
 	s.Submits("recipe-form")
 	s.Open("/recipes")
 	s.Follows("Curry")
-	s.Submits("recipe-remove")
+	s.Follows("Discard")
+	s.Submits("remove-step")
 
 	s.Open("/recipes")
 	s.DoesNotSee("Recipe Drafts to check")
@@ -222,4 +253,38 @@ func draftHolds(t *testing.T, s *apptest.Scenario, want map[string]string) {
 			t.Errorf("the form's %s is %q, want %q", field, got, v)
 		}
 	}
+}
+
+// Without JavaScript, a Recipe Draft's Discard reaches the step asking first as a page of
+// its own, and confirming there discards it.
+func TestBrowserDiscardsARecipeDraftWithoutJS(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.BrowserWithoutJS(t)
+	b.SignUp(t, "ada@example.com")
+	b.Open(t, "/ingredients")
+	fillsIngredient(t, b.Locator("main"), "rice")
+	b.IsConfirmed(t, "Added rice.")
+	h.Model.Script(fakellm.CallTool("submit_recipe", submittedLasagne()), fakellm.Reply("Done."))
+	b.Open(t, "/recipes")
+	if err := b.Locator(`#paste-form [name="text"]`).Fill(pastedLasagne); err != nil {
+		t.Fatalf("paste: %v", err)
+	}
+	b.Click(t, "Read it")
+	if err := b.WaitForURL("**/runs/*"); err != nil {
+		t.Fatalf("the paste never reached its Run: %v", err)
+	}
+	h.Settle()
+
+	b.Open(t, "/recipes")
+	for _, link := range []string{"Lasagne", "Discard"} {
+		if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: link}).Click(); err != nil {
+			t.Fatalf("follow %s: %v", link, err)
+		}
+	}
+	b.Sees(t, "Discard the Recipe Draft Lasagne?")
+	b.Click(t, "Discard")
+	b.IsAt(t, "/recipes")
+	b.IsConfirmed(t, "Discarded the Recipe Draft Lasagne.")
+	b.Sees(t, "No Recipes yet.")
 }
