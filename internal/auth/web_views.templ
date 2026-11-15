@@ -31,7 +31,7 @@ templ signInPage(today time.Time, f SignInForm) {
 		@web.PageHeader("入口", web.T(ctx, msgSignIn), today) {
 			<p class="lede">{ web.T(ctx, msgByInvitation) }</p>
 		}
-		<form id="sign-in" class="stack" method="post" action="/sign-in">
+		<form novalidate id="sign-in" class="stack" method="post" action="/sign-in">
 			if f.BadLink {
 				@web.Alert() {
 					{ web.T(ctx, msgBadLink) }
@@ -82,7 +82,7 @@ templ confirmPage(u *url.URL, today time.Time, tokenHash, kind string) {
 	@web.Layout(web.T(ctx, msgSignInTitle), web.SignedOut) {
 		@web.LanguageSwitch(u)
 		@web.PageHeader("入口", web.T(ctx, msgSignIn), today)
-		<form id="confirm" class="stack" method="post" action="/auth/confirm">
+		<form novalidate id="confirm" class="stack" method="post" action="/auth/confirm">
 			<input type="hidden" name="token_hash" value={ tokenHash }/>
 			<input type="hidden" name="type" value={ kind }/>
 			@web.Actions() {

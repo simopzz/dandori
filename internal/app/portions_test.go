@@ -45,7 +45,8 @@ func TestAddingPortionsRefusesAMissingValueOnItsField(t *testing.T) {
 	s.Sees("Nothing in your kitchen yet.")
 }
 
-// A name and a Storage Location are refused on their fields too.
+// A name and a Storage Location are refused on their fields too, and the page, longer
+// than a screen, opens with a summary linking to each.
 func TestAddingPortionsRefusesNoNameAndNoStorageLocation(t *testing.T) {
 	s := kitchenWith(t)
 	p := lasagne
@@ -53,6 +54,12 @@ func TestAddingPortionsRefusesNoNameAndNoStorageLocation(t *testing.T) {
 
 	s.AddsPortions(p)
 	s.IsRefused()
+	s.Sees("Some fields need fixing: Name: Give it a name. Where: Choose where it is kept.")
+	for link, want := range map[string]string{"Name: Give it a name.": "#name", "Where: Choose where it is kept.": "#location"} {
+		if got := apptest.Link(t, s.Page().Body, link); got != want {
+			t.Errorf("the summary links %q to %q, want %q", link, got, want)
+		}
+	}
 	s.Sees("Give it a name.")
 	s.Sees("Choose where it is kept.")
 }

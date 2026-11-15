@@ -36,7 +36,7 @@ templ choicePage(today time.Time, f LanguageForm) {
 		@web.PageHeader("言語", web.T(ctx, msgChooseLanguage), today) {
 			<p class="lede">{ web.T(ctx, msgChooseLede) }</p>
 		}
-		<form id="language" class="stack" method="post" action="/language">
+		<form novalidate id="language" class="stack" method="post" action="/language">
 			@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(f.Language), web.T(ctx, f.Err))
 			@web.Hint() {
 				{ web.T(ctx, msgChooseHint) }
@@ -117,7 +117,7 @@ var (
 templ profilePage(today time.Time, email string, forms profileForms) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
-		<form id="profile-language" method="post" action="/profile/language">
+		<form novalidate id="profile-language" method="post" action="/profile/language">
 			@web.FieldGroup(languageNum, web.T(ctx, msgLanguage)) {
 				@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(forms.Language.Language), web.T(ctx, forms.Language.Err))
 				@web.Hint() {
@@ -146,7 +146,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 			@briefForm(forms.Brief)
 		}
 		@web.Section(signingInNum, web.T(ctx, msgSigningIn)) {
-			<form id="sign-out" method="post" action="/sign-out">
+			<form novalidate id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
 					@web.TextButton(templ.Attributes{"type": "submit"}) {
@@ -162,6 +162,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 // that saves it: a form posting to its own route, which htmx swaps in its SectionBody.
 templ sectionForm(s section) {
 	<form
+		novalidate
 		id={ "profile-" + s.id }
 		method="post"
 		action={ templ.SafeURL(s.route()) }

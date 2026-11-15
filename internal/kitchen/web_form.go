@@ -146,3 +146,18 @@ func refusedPortionsForm(ctx context.Context, typed domain.TypedPortions, proble
 	}
 	return f
 }
+
+// refusals are the fields f refused, in the order the form shows them, for the Add
+// Portions page's ErrorSummary.
+func (f PortionsForm) refusals(ctx context.Context) []web.Refusal {
+	var refusals []web.Refusal
+	refuse := func(id string, label web.Message) {
+		if err := f.Errs[id]; err != "" {
+			refusals = append(refusals, web.Refusal{ID: id, Label: web.T(ctx, label), Err: err})
+		}
+	}
+	refuse("name", msgPortionName)
+	refuse("how_many", msgHowMany)
+	refuse("location", msgPortionWhere)
+	return append(refusals, ingredients.Refusals(ctx, func(field string) string { return field }, f.Errs)...)
+}

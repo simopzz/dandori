@@ -189,6 +189,21 @@ wrong: a refusal stays on its field, and a failure is an `Alert`.
 - **Closing a sheet with it**: an answer to a form in a sheet that is done, as a
   move is, triggers `web.CloseSheet` with `HX-Trigger`, and that sheet closes.
 
+## Refusals
+
+- **The server's refusal is the only error a User sees.** Every `<form>` has
+  `novalidate` (a guardrail checks), so the browser never stops a post with its
+  own bubble, unstyled and in the browser's language rather than the User's.
+  Controls keep `required` for what it tells a screen reader. The post is
+  refused with a 422, each refused field marked `aria-invalid` with why under
+  it, in the User's Language.
+- **A rejected form longer than a screen opens with an `ErrorSummary`**: an
+  `Alert` listing each refusal, in the form's order, as a link to its field,
+  focused as the page loads (the GOV.UK error summary). Only the full-page
+  forms have one: the Recipe form, written, edited or checked from a Recipe
+  Draft, and the Add Portions page. A form in a sheet, or a short one (a
+  Count, a Move, an Ingredient), focuses its first refused field instead.
+
 ## Components
 
 All in package `web`. Feature pages compose these; they don't style base
@@ -225,12 +240,13 @@ elements themselves.
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
-| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
+| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. |
 | `Segmented(legend, name, choices, selected, err)` | Choosing one of two to four options at a glance (moving a Portion). For more, or in a long form, use a `<select>`. |
 | `SegmentedLinks(label)` | A `Segmented` whose options each open something instead of filling in a form, so what is shown is reachable from the others (a Stock Item's Movements in each Storage Location). Children are `SegmentLink`s; `label` is for a screen reader. |
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
+| `ErrorSummary(refusals)` | The top of a rejected form longer than a screen (see [Refusals](#refusals)): an `Alert` linking to each `web.Refusal`'s control by its id, taking focus as the page loads. A refused `Checks` or `Segmented` gives its first box its `name` as id to link to. |
 | Floating Notice | Something happened as asked ("Profile saved."), floating at the top of the screen: `web.RedirectWithNotice` for a plain post, `web.FragmentWithNotice` for an htmx answer, `web.WithNotice` for a page. `Layout` shows it; see [Notices](#notices). There is no in-flow notice: one in the page or sheet it confirms pushed the form down, and the list changing behind a sheet may be off-screen. |
 | `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
 | `AddButton(choices)` | A page's primary add action, one per page: a square vermilion `+` opening the sheet of the first `AddChoice`. One choice is a plain `+`. With more, the `+` shows the icon of what it adds, and a chevron joined to it opens a menu (a native popover of radios, so it needs no JS) that chooses another: choosing changes what the `+` adds and opens nothing, so the `+` always says what it will do. The first choice is the most frequent, and a new page starts on it again. An `AddChoice` whose sheet doesn't hold its body gives `Src` and `Href`, as a `SideSheetLink` does. One with only `Href` is a link to a page, for a form too long for a sheet. |
