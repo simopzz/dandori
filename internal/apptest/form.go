@@ -12,8 +12,9 @@ import (
 type FormData struct {
 	Action string
 	Values url.Values
-	// Button is the text its first submit button shows.
-	Button string
+	// Button is the text its first submit button shows, and ButtonName its accessible
+	// name: its aria-label, or else that text.
+	Button, ButtonName string
 }
 
 // Get returns the first value of field.
@@ -48,6 +49,10 @@ func Form(t testing.TB, page, id string) FormData {
 	for n := range form.Descendants() {
 		if n.Type == html.ElementNode && n.Data == "button" && attr(n, "type") != "button" && f.Button == "" {
 			f.Button = shownText(n)
+			f.ButtonName = f.Button
+			if label := attr(n, "aria-label"); label != "" {
+				f.ButtonName = label
+			}
 		}
 		if n.Type != html.ElementNode || attr(n, "name") == "" || inTemplate(n, form) {
 			continue

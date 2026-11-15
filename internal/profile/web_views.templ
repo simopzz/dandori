@@ -87,9 +87,9 @@ type FoodsForm struct {
 }
 
 // section is a section of the Profile page that is saved on its own: its number on the
-// page, its legend, what its button says, and its id, which also names its form and the
-// route it posts to. One that reloads posts as the page's boosted forms do, the page
-// it answers with replacing it, where the others swap their SectionBody.
+// page, its legend, its button's accessible name, and its id, which also names its form
+// and the route it posts to. One that reloads posts as the page's boosted forms do, the
+// page it answers with replacing it, where the others swap their SectionBody.
 type section struct {
 	id     string
 	num    int
@@ -158,8 +158,10 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 }
 
 // sectionForm is the section s, its fields and hints the children, followed by the button
-// that saves it, named for it: a form posting to its own route, which htmx swaps in its
-// SectionBody unless s reloads the page.
+// that saves it: a form posting to its own route, which htmx swaps in its SectionBody
+// unless s reloads the page. The button shows Save, and its accessible name names the
+// section, so six Saves don't read as one saving the page and a screen reader tells
+// them apart.
 templ sectionForm(s section) {
 	<form
 		novalidate
@@ -176,8 +178,8 @@ templ sectionForm(s section) {
 			<div class="stack">
 				{ children... }
 				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, s.save) }
+					@web.Button(templ.Attributes{"type": "submit", "aria-label": web.T(ctx, s.save)}) {
+						{ web.T(ctx, msgSave) }
 					}
 				}
 			</div>

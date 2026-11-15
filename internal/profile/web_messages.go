@@ -33,6 +33,7 @@ var (
 	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
 	msgSaved        = web.Message{En: "Profile saved.", It: "Profilo salvato."}
 	// Each section's Save names it: each is saved on its own.
+	msgSave          = web.Message{En: "Save", It: "Salva"}
 	msgSaveLanguage  = web.Message{En: "Save Language", It: "Salva la Lingua"}
 	msgSaveTimes     = web.Message{En: "Save the times of day", It: "Salva gli orari"}
 	msgSaveTargets   = web.Message{En: "Save Targets", It: "Salva gli Obiettivi"}
