@@ -222,7 +222,7 @@ elements themselves.
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. Their controls line up even when one label wraps onto two lines. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
-| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
+| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. On a page of forms each saved on its own, as the Profile's sections are, each says what it saves ("Save Targets"), so none reads as saving the page. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
