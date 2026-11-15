@@ -38,13 +38,7 @@ type Handlers struct {
 
 // Library is the Recipe Library page, searched for its query q.
 func (h Handlers) Library(w http.ResponseWriter, r *http.Request) {
-	h.library(w, r, http.StatusOK, PasteForm{}, r.URL.Query().Get("q"))
-}
-
-// library answers with the Recipe Library page searched for q, its paste box as in
-// paste, with status.
-func (h Handlers) library(w http.ResponseWriter, r *http.Request, status int, paste PasteForm, q string) {
-	ctx := r.Context()
+	ctx, q := r.Context(), r.URL.Query().Get("q")
 	drafts, err := h.Service.Drafts(ctx)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "list the Recipe Drafts", err)
@@ -55,14 +49,25 @@ func (h Handlers) library(w http.ResponseWriter, r *http.Request, status int, pa
 		httpx.ServerError(w, r, h.Log, "search the Recipes", err)
 		return
 	}
-	web.Answer{Status: status, Page: library(h.Clock.Now(), paste, drafts, recipes, q)}.Write(w, r, h.Log)
+	httpx.Render(w, r, h.Log, http.StatusOK, library(h.Clock.Now(), drafts, recipes, q))
+}
+
+// ShowPaste is the paste form as a page of its own.
+func (h Handlers) ShowPaste(w http.ResponseWriter, r *http.Request) {
+	httpx.Render(w, r, h.Log, http.StatusOK, pastePage(h.Clock.Now(), PasteForm{}))
+}
+
+// ShowPasteSheet is the paste sheet's body.
+func (h Handlers) ShowPasteSheet(w http.ResponseWriter, r *http.Request) {
+	httpx.Render(w, r, h.Log, http.StatusOK, pasteForm(PasteForm{}))
 }
 
 // pasteLimit is how many characters a paste may have, trimmed.
 const pasteLimit = 20000
 
 // Paste starts a parse Run reading the pasted text into a Recipe Draft, and goes to the
-// Run. A blank paste, or one over pasteLimit characters, is refused on its field.
+// Run. A blank paste, or one over pasteLimit characters, is refused on its field, on the
+// paste page.
 func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
@@ -73,14 +78,14 @@ func (h Handlers) Paste(w http.ResponseWriter, r *http.Request) {
 	if text == "" {
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.T(ctx, msgPasteRequired)}
 		httpx.Refused(r, refusedNothingPasted, nil)
-		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
+		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, pastePage(h.Clock.Now(), paste))
 		return
 	}
 	if n := utf8.RuneCountInString(text); n > pasteLimit {
 		p := message.NewPrinter(language.Make(string(web.LanguageOf(ctx))))
 		paste := PasteForm{Text: r.PostForm.Get("text"), Err: web.Tf(ctx, msgPasteTooLong, p.Sprint(pasteLimit), p.Sprint(n))}
 		httpx.Refused(r, refusedPasteTooLong, nil)
-		h.library(w, r, http.StatusUnprocessableEntity, paste, "")
+		httpx.Render(w, r, h.Log, http.StatusUnprocessableEntity, pastePage(h.Clock.Now(), paste))
 		return
 	}
 	id, err := h.Service.StartParse(ctx, web.LanguageOf(ctx), text)

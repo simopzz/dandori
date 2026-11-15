@@ -10,6 +10,7 @@ var (
 	msgIngredients      = web.Message{En: "Ingredients", It: "Ingredienti"}
 	msgIngredientsTitle = web.Message{En: "Ingredients · Dandori", It: "Ingredienti · Dandori"}
 	msgAddIngredient    = web.Message{En: "Add an Ingredient", It: "Aggiungi un Ingrediente"}
+	msgAddTitle         = web.Message{En: "Add an Ingredient · Dandori", It: "Aggiungi un Ingrediente · Dandori"}
 	msgYourIngredients  = web.Message{En: "Your Ingredients", It: "I tuoi Ingredienti"}
 	msgNoIngredients    = web.Message{En: "No Ingredients yet.", It: "Ancora nessun Ingrediente."}
 	msgAdded            = web.Message{En: "Added %s.", It: "Aggiunto: %s."}

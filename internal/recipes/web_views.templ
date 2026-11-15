@@ -13,13 +13,15 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// library is the Recipe Library page: the paste box, as typed in paste, the way to write
-// a Recipe, the Recipe Drafts to check, and the User's Recipes a search for q found, with
-// the search once there is something to search.
-templ library(now time.Time, paste PasteForm, drafts []Draft, recipes []domain.Recipe, q string) {
+// pasteSheetID is the paste sheet's id.
+const pasteSheetID = "paste"
+
+// library is the Recipe Library page: the Recipe Drafts to check, and the User's Recipes
+// a search for q found, with the search once there is something to search. Its primary
+// action pastes a recipe, in a sheet, or writes one, on a page of its own.
+templ library(now time.Time, drafts []Draft, recipes []domain.Recipe, q string) {
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgRecipes), now)
-		@pasteForm(paste)
 		if len(drafts) > 0 {
 			@web.Section(0, web.T(ctx, msgDraftsToCheck)) {
 				@web.Rows() {
@@ -40,7 +42,22 @@ templ library(now time.Time, paste PasteForm, drafts []Draft, recipes []domain.R
 				@recipeList(recipes, q)
 			</div>
 		}
-		@web.AddButton([]web.AddChoice{{Title: web.T(ctx, msgWrite), Href: "/recipes/new"}})
+		@web.AddButton([]web.AddChoice{
+			{Sheet: pasteSheetID, Title: web.T(ctx, msgPaste), Icon: "clipboard", Href: "/recipes/paste", Src: "/recipes/paste/sheet"},
+			{Title: web.T(ctx, msgWrite), Icon: "pencil", Href: "/recipes/new"},
+		})
+		@web.AddSheet(pasteSheetID, web.T(ctx, msgPaste), false) {
+			@web.SheetBody(pasteSheetID)
+		}
+	}
+}
+
+// pastePage is the paste form as a page of its own, for a browser without htmx and for a
+// paste refused.
+templ pastePage(now time.Time, f PasteForm) {
+	@web.Layout(web.T(ctx, msgPasteTitle), web.RecipesTab) {
+		@web.PageHeader("レシピ", web.T(ctx, msgPaste), now)
+		@pasteForm(f)
 	}
 }
 
@@ -377,7 +394,8 @@ templ rowDetails(i int, row IngredientRow) {
 // PasteForm is the paste box as typed, Err why it was refused.
 type PasteForm struct{ Text, Err string }
 
-// pasteForm reads a pasted recipe into a Recipe Draft through a parse Run.
+// pasteForm reads a pasted recipe into a Recipe Draft through a parse Run. It is a page's
+// form in the sheet too: it goes on to the Run's page, or, refused, to the paste page.
 templ pasteForm(f PasteForm) {
 	<form novalidate id="paste-form" method="post" action="/recipes/paste" class="section">
 		@web.Field(web.T(ctx, msgPaste), web.T(ctx, msgPasteHint), f.Err) {

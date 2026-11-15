@@ -201,10 +201,10 @@ func TestBrowserPicksASuggestionInPlace(t *testing.T) {
 	b.Shot(t, "suggestion-picked")
 }
 
-// browserHasLasagnaSheets adds lasagna sheets, measured in pieces, in the browser.
+// browserHasLasagnaSheets adds lasagna sheets, measured in pieces, on the add page.
 func browserHasLasagnaSheets(t *testing.T, b *apptest.Browser) {
 	t.Helper()
-	b.Open(t, "/ingredients")
+	b.Open(t, "/ingredients/new")
 	form := b.Locator("#ingredient-add")
 	for field, v := range map[string]string{"name": "lasagna sheets", "kcal": "360", "protein": "13", "carbs": "72", "fat": "1.5"} {
 		if err := form.Locator(`[name="` + field + `"]`).Fill(v); err != nil {

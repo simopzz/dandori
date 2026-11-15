@@ -9,6 +9,7 @@ import (
 
 	"github.com/mxschmitt/playwright-go"
 
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -436,14 +437,25 @@ func TestBrowserRemovesARow(t *testing.T) {
 	b.IsAt(t, "/recipes/new")
 }
 
-// In a browser, the Library's floating + opens the Recipe form.
+// In a browser, the Library's floating + pastes a recipe first, and, Write chosen, opens
+// the Recipe form.
 func TestBrowserTheFloatingPlusOpensTheRecipeForm(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
 	b.SignUp(t, "ada@example.com")
 	b.Open(t, "/recipes")
+	expect := playwright.NewPlaywrightAssertions()
 
+	if err := expect.Locator(b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Paste a recipe"})).ToBeVisible(); err != nil {
+		t.Errorf("the + doesn't start on Paste: %v", err)
+	}
+	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Choose what to add"}).Click(); err != nil {
+		t.Fatalf("open what to add: %v", err)
+	}
+	if err := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: "Write a Recipe"}).Click(); err != nil {
+		t.Fatalf("choose Write: %v", err)
+	}
 	if err := b.Locator(`a.fab[aria-label="Write a Recipe"]`).Click(); err != nil {
 		t.Fatalf("press the +: %v", err)
 	}
@@ -849,4 +861,90 @@ func TestBrowserSearchesTheLibraryAndDeletesARecipe(t *testing.T) {
 	b.IsAt(t, "/recipes")
 	b.IsConfirmed(t, "Deleted Lentil soup.")
 	b.Sees(t, "No Recipes yet.")
+}
+
+// The Recipe Library comes before any form: the page holds no paste form, and its + opens
+// one in a sheet, or without htmx the paste page. Pasted from either, a recipe starts a
+// Run; a paste refused lands on the paste page, with why.
+func TestTheRecipeLibraryComesBeforeThePasteForm(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.WritesRecipe(riceBowl())
+	s.Open("/recipes")
+	s.Sees("Rice bowl")
+	library := s.Page().Body
+	for _, form := range []string{`id="paste-form"`, `id="recipe-form"`} {
+		if strings.Contains(library, form) {
+			t.Errorf("the Recipe Library holds the form %s", form)
+		}
+	}
+	for _, href := range []string{`href="/recipes/paste"`, `href="/recipes/new"`} {
+		if !strings.Contains(library, href) {
+			t.Errorf("the Recipe Library's + has no link %s", href)
+		}
+	}
+
+	s.Model.Script(fakellm.Reply("Not a recipe."), fakellm.Reply("Not a recipe."))
+	sheet := s.HTMXGet(t, "/recipes/paste/sheet")
+	if sheet.StatusCode != http.StatusOK || strings.Contains(sheet.Body, "<html") {
+		t.Fatalf("the paste sheet's body answered %d, want 200 and a fragment:\n%s", sheet.StatusCode, sheet.Body)
+	}
+	form := apptest.Form(t, sheet.Body, "paste-form")
+	form.Values.Set("text", "Two eggs, boiled.")
+	if ran := s.PostForm(t, form.Action, form.Values); !strings.HasPrefix(ran.Path, "/runs/") {
+		t.Errorf("pasting from the sheet lands on %s, want its Run", ran.Path)
+	}
+
+	s.StartsParse("Two eggs, fried.")
+	if !strings.HasPrefix(s.Page().Path, "/runs/") {
+		t.Errorf("pasting from the paste page lands on %s, want its Run", s.Page().Path)
+	}
+
+	s.StartsParse("  ")
+	s.IsRefused()
+	s.Sees("Paste a recipe to read.")
+	apptest.Form(t, s.Page().Body, "paste-form")
+}
+
+// On a phone, the first Recipe in the Recipe Library shows without scrolling.
+func TestBrowserTheFirstRecipeShowsOnAPhoneWithoutScrolling(t *testing.T) {
+	s := kitchenWith(t, rice)
+	s.WritesRecipe(riceBowl())
+	b := s.Browser(t)
+	if err := b.SetViewportSize(360, 640); err != nil {
+		t.Fatalf("size a phone: %v", err)
+	}
+	b.SignIn(t, "ada@example.com")
+	b.Open(t, "/recipes")
+	first := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Rice bowl"})
+	if err := playwright.NewPlaywrightAssertions().Locator(first).ToBeInViewport(); err != nil {
+		t.Errorf("the first Recipe is below the fold on a phone: %v", err)
+	}
+}
+
+// Without JS, the Recipe Library's + reaches the paste form, and the Ingredients page's
+// the add form, each on a page of its own.
+func TestBrowserTheAddButtonsReachTheirFormsWithoutJS(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.BrowserWithoutJS(t)
+	b.SignUp(t, "ada@example.com")
+	expect := playwright.NewPlaywrightAssertions()
+
+	b.Open(t, "/recipes")
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Paste a recipe"}).Click(); err != nil {
+		t.Fatalf("press Paste: %v", err)
+	}
+	b.IsAt(t, "/recipes/paste")
+	if err := expect.Locator(b.GetByLabel("Paste a recipe")).ToBeVisible(); err != nil {
+		t.Errorf("Paste doesn't reach the paste form: %v", err)
+	}
+
+	b.Open(t, "/ingredients")
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Add an Ingredient"}).Click(); err != nil {
+		t.Fatalf("press Add: %v", err)
+	}
+	b.IsAt(t, "/ingredients/new")
+	if err := expect.Locator(b.Locator("#ingredient-add").GetByLabel("Name")).ToBeVisible(); err != nil {
+		t.Errorf("Add doesn't reach the add form: %v", err)
+	}
 }
