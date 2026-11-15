@@ -83,7 +83,7 @@ func TestBrowserSendsFaroWhatThePageSaw(t *testing.T) {
 	}
 
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "Italiano", "Save")
+	b.ChooseLanguage(t, "Italiano", "Save Language")
 	b.IsAt(t, "/profile")
 	_, err = b.ExpectResponse(func(r playwright.Response) bool {
 		body, _ := r.Request().PostData()

@@ -73,7 +73,7 @@ func TestBrowserChoosesALanguage(t *testing.T) {
 	b.Sees(t, "lunedì 2 novembre")
 
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "English", "Salva")
+	b.ChooseLanguage(t, "English", "Salva la Lingua")
 	b.IsAt(t, "/profile")
 	b.IsConfirmed(t, "Profile saved.")
 }
@@ -347,7 +347,7 @@ func TestBrowserSuggestsAndSearchesInTheSideSheet(t *testing.T) {
 func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")
-	b.ChooseLanguage(t, "Italiano", "Save")
+	b.ChooseLanguage(t, "Italiano", "Save Language")
 	b.Sees(t, "Profilo")  // the Language saved, before the page is opened again
 	b.Open(t, "/profile") // without the Language's Notice, which also says "Profilo salvato."
 	b.Sees(t, "Orari")
@@ -367,7 +367,7 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	if err := lunch.Fill("7:00"); err != nil {
 		t.Fatalf("fill lunch: %v", err)
 	}
-	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva"})
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Salva gli orari"})
 	if err := save.Click(); err != nil {
 		t.Fatalf("save the times of day: %v", err)
 	}

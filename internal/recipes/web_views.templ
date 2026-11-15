@@ -333,7 +333,7 @@ templ rowDetails(i int, row IngredientRow) {
 	if row.Name != "" {
 		<input type="hidden" name={ rowField("new", i) } value={ strconv.FormatBool(row.New) }/>
 		if row.New {
-			@web.Tag(true, "") {
+			@web.Tag(false, "") {
 				{ web.T(ctx, msgNew) }
 			}
 			if row.Suggested != "" {

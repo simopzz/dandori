@@ -2,7 +2,7 @@
 
 Dandori's look is **Pixel ledger**, the README banner's dusk brought to a
 quiet ledger: sumi ink on near-white paper, with one vermilion seal for what
-needs attention, framed by the banner's navy, its dithered sunset sky and its
+is wrong, urgent or irreversible, framed by the banner's navy, its dithered sunset sky and its
 pixel art. Space does the work that boxes and colour would do elsewhere; the
 pixels stay at the edges (the shell, titles, controls), and what is read stays
 flat paper.
@@ -28,11 +28,11 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-text` | `#1a1a18` sumi ink | text |
 | `--color-text-soft` | `#5c5a54` soft ink | labels, hints, metadata |
 | `--color-rule` | `#ecdfd2` warm peach-grey | hairlines between rows |
-| `--color-rule-strong` | `#2d3352` navy | section rules, input underlines, borders of controls |
+| `--color-rule-strong` | `#2d3352` navy | section numbers, strokes and rules, input underlines, borders of controls, the focus ring |
 | `--color-fill` | navy | primary buttons, the chosen segment, a floating Notice |
 | `--color-fill-dither` | `#4b5582` slate | dithered over the fill: the chosen segment, a button's hover |
 | `--color-on-fill` | paper | text on a fill or on the accent |
-| `--color-accent` | `#b8321b` vermilion seal | attention only (see below) |
+| `--color-accent` | `#b8321b` vermilion seal | wrong, urgent or irreversible only (see below) |
 | `--color-accent-wash` | `#fbe5dc` salmon wash | behind alerts |
 | `--color-tag` | `#f7e4c6` cream | behind a `Tag` |
 | `--color-veil` | navy | dithered over the page behind an open sheet |
@@ -41,17 +41,18 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-shell-marker` | `#eba083` salmon | the bar on the current tab |
 | `--color-sky-*` | paper, cream `#f7e4c6`, peach `#f2c29c`, salmon `#eba083`, deep `#252840`, slate, snow `#f3eee4`, navy, sun (vermilion) | the sky and the pixel art only |
 
-**The accent is reserved** for what needs attention: errors, things to use
-soon, a page's primary add action (the `+`), section numbers and the stroke
-under them, the seal on an urgent row, and destructive actions. The one
-exception is the sun in the sky, as in the banner, which the seal echoes. Never use it
-for decoration or emphasis. It is not the current tab's marker: vermilion on
-navy is about 2:1, below the 3:1 a non-text indicator needs, so the marker is
-salmon.
+**The accent means wrong, urgent or irreversible**, and nothing else: errors
+and a refused field's underline, an urgent row's seal and its accent `Tag`,
+and destructive actions. It also stays on the `+`, which is the seal, and on
+the sun in the sky, as in the banner, which the seal echoes. Never use it for
+decoration, emphasis or structure: a page where everything is vermilion has
+nothing left for an error to stand out against. It is not the current tab's
+marker: vermilion on navy is about 2:1, below the 3:1 a non-text indicator
+needs, so the marker is salmon.
 
 **Navy is structure**, not attention: it fills primary buttons, the chosen
-segment and a floating Notice, draws section rules and input underlines, and is
-the shell. The
+segment and a floating Notice, draws section numbers, the stroke under them,
+section rules, input underlines and the focus ring, and is the shell. The
 banner's other colours (slate, cream, peach, salmon, snow) are only in the
 sky and the pixel art, with three exceptions named above: slate in a
 control's dither, cream behind a tag, salmon on the current tab and in the
@@ -66,6 +67,13 @@ Kaku Gothic New (400, 700, latin subset) for everything else, `h3` in bold;
 Japanese text falls back to the system's Gothic.
 
 `--font-mono` is for code and trace details.
+
+Nothing a User reads to act is under 0.875rem: field labels, errors, tab
+names, tags, a row's details, table and grid heads. Only the eyebrow and the
+wordmark are smaller. Segment labels are 1rem. Labels stay soft ink, 6.7:1 at
+0.875rem. Letter-spacing is for the eyebrow, the wordmark and the titles in
+the pixel face (0.04em); labels, buttons, tabs, tags and running text keep
+the body's, as tracking breaks up a word's shape. `type_test.go` checks both.
 
 Space: `--space-1` … `--space-7` (0.25rem to 4rem). Shape: `--radius` is 0, so
 every control, tag and the `+` is plainly square, with no stepped edges;
@@ -122,14 +130,17 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
   paper. From 900px, a left rail whose top is the same sky with the vertical
   wordmark, then the tabs, and Runs at the rail's foot. Before the Language is
   chosen there are no tabs: a phone shows no bar, desktop the rail's sky alone.
-  Tabs are Plan, Recipes, Kitchen, Catalog and Profile; Runs is secondary. A page passes its
-  `Tab` to `Layout`, which marks it `aria-current="page"`.
+  Tabs are Today, Recipes, Kitchen and Profile; later steps add Plan and Catalog.
+  Runs is secondary: at the rail's foot on desktop, and on a phone not a tab but
+  a link on the Profile. A page passes its `Tab` to `Layout`, which marks it
+  `aria-current="page"`.
 - **Every page opens with a `PageHeader`**: a letter-spaced eyebrow with the
   page's Japanese name and today's date (`在庫 · Sunday, October 25`) and a large
   pixel title, which is the page's only `h1`.
 - **Content is grouped into numbered `Section`s** (`01 Stock Items`): a pixel
-  heading over the banner's underline, a short vermilion stroke under the
-  number, then navy. In a form, use `FieldGroup`, its fieldset twin.
+  heading over the banner's underline, the number and a short stroke under
+  it in navy, a gap, then the navy rule. In a form, use `FieldGroup`, its
+  fieldset twin.
 - **Lists are `Rows`**: lines separated by hairlines, the name first,
   quantities in tabular numbers.
 
@@ -198,7 +209,7 @@ elements themselves.
 | --- | --- |
 | `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
-| `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small vermilion square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
+| `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small navy square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
 | `FieldGroup(num, legend)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. |
 | `FieldGroupAction(id, num, legend, action)` | A `FieldGroup` with a secondary action beside its legend, for one that changes what the legend names (the Count form's `Choose another`); on a long legend it drops to the next line, at the far end. `id` is the legend text's, which alone names the group. |
 | `Hint()` | A quiet paragraph explaining what follows. |
@@ -222,7 +233,7 @@ elements themselves.
 | `FieldRow()` | A few short `Field`s side by side, wrapping on a phone. Their controls line up even when one label wraps onto two lines. |
 | `Actions()` | The row of buttons ending a form; the primary one first. |
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
-| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. |
+| `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. On a page of forms each saved on its own, as the Profile's sections are, each says what it saves ("Save Targets"), so none reads as saving the page. |
 | `ButtonLink(href)` | A link that is the primary action (e.g. Edit). |
 | `TextButton(attrs)` | A secondary action, underlined text. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses, and the form's required fields don't hold it up. |
@@ -232,10 +243,10 @@ elements themselves.
 | `SegmentLink(current, attrs)` | One option of `SegmentedLinks`, marked `aria-current` and shown as the chosen segment when `current`. `attrs` give its `href`, and in a sheet the swap of its body. |
 | `Alert()` | Something went wrong: a rejected form, a failure. On the salmon wash, with a vermilion edge. |
 | Floating Notice | Something happened as asked ("Profile saved."), floating at the top of the screen: `web.RedirectWithNotice` for a plain post, `web.FragmentWithNotice` for an htmx answer, `web.WithNotice` for a page. `Layout` shows it; see [Notices](#notices). There is no in-flow notice: one in the page or sheet it confirms pushed the form down, and the list changing behind a sheet may be off-screen. |
-| `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it needs attention: vermilion with paper text. |
+| `Tag(accent, title)` | A short label on a row (`New`, a Run's status), a flat cream fill. `accent` when it is wrong or urgent (a failed Run, an urgent row): vermilion with paper text. |
 | `AddButton(choices)` | A page's primary add action, one per page: a square vermilion `+` opening the sheet of the first `AddChoice`. One choice is a plain `+`. With more, the `+` shows the icon of what it adds, and a chevron joined to it opens a menu (a native popover of radios, so it needs no JS) that chooses another: choosing changes what the `+` adds and opens nothing, so the `+` always says what it will do. The first choice is the most frequent, and a new page starts on it again. An `AddChoice` whose sheet doesn't hold its body gives `Src` and `Href`, as a `SideSheetLink` does. One with only `Href` is a link to a page, for a form too long for a sheet. |
-| `AddSheet(id, title, open)` | The sheet of an add form: from the bottom on a phone, centred on desktop, over a navy dithered veil. Every add form is one, whichever choice of the `AddButton` opens it. Every sheet is modal, a `<dialog>` opened with `showModal()`: the page behind it is inert and holds still, Tab stays in it, and a tap on the veil or Esc closes it, the top one where one sheet is open over another. A sheet taller than the screen scrolls itself, and only itself. A tap outside discards a half-filled form, without asking. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. |
-| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil, and modal as every sheet is (see `AddSheet`). Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
+| `AddSheet(id, title, open)` | The sheet of an add form: from the bottom on a phone, centred on desktop, over a navy dithered veil. Every add form is one, whichever choice of the `AddButton` opens it. Every sheet is modal, a `<dialog>` opened with `showModal()`: the page behind it is inert and holds still, Tab stays in it, and a tap on the veil or Esc closes it, the top one where one sheet is open over another. A sheet taller than the screen scrolls itself, and only itself. Once the User has typed or chosen in its form since it opened, or since its last save for a sheet that keeps working (the Count), a tap on the veil leaves it open with what they typed; typing in a search box doesn't count. Esc and Close still close it, discarding the changes. Pass `open` when the form was rejected: it reopens with focus on the first field marked `aria-invalid`. |
+| `SideSheet(id, title)` | A sheet of content any page can open without leaving it (the Ingredients): from the right, the screen's full height and up to 60% of its width, on desktop; from the bottom on a phone, as `AddSheet`'s; over the same navy dithered veil, and modal as every sheet is, keeping a changed form on a tap on the veil (see `AddSheet`). Its body is empty until opened. A page renders it once, then opens it with `SideSheetLink`s. |
 | `SheetBody(id)` | The body of a sheet whose content swaps in place: every `SideSheet`'s, and an `AddSheet`'s that keeps working through several saves, as the Kitchen's Count does, or that loads as it opens, as Add Portions does. A form in it swaps it (`hx-target` on `SideSheetBody(id)`); a rejected one comes back with focus on its first field marked `aria-invalid`, or else the one marked `autofocus`, the sheet staying open. A swap into part of the body, such as a search's results, leaves the focus where it is. |
 | `autofocus` | Only for a sheet's first field as the sheet opens, or a page whose one job is that field: the Count page's search, a Count's or a Move's quantity. A page of a longer form, such as Add Portions without htmx, focuses nothing: on a phone the keyboard would cover half the page, and a screen reader would start past the `h1`. |
 | `SectionBody(id)` | A section of a page whose form swaps it in place, the form the children: each of the Profile's sections, saved on its own. The form targets `#id` with `innerHTML`; a rejected one comes back with focus on its first field marked `aria-invalid`. |
@@ -268,12 +279,14 @@ and closing.
   Paper on accent 5.8:1, accent on its salmon wash 4.9:1, ink on a cream tag
   14:1.
 - Non-text indicators reach 3:1: the current tab's salmon bar is 5.8:1 on
-  navy, a section rule and an input underline 12:1 on paper.
+  navy, a section rule, a section's stroke, an input underline and the focus
+  ring 12:1 on paper, and a salmon focus ring 5.8:1 on navy.
 - Touch targets are at least `--tap` (44px).
-- Focus is always visible: a 2px vermilion ring on every control, inputs
-  included, so a focused field stands out from an invalid one. On the navy
-  tabs and a floating Notice the ring is salmon (5.8:1), as vermilion there is
-  about 2:1.
+- Focus is always visible: a 3px navy ring with a 2px gap of paper on every
+  control, inputs included, so a field focused as a sheet opens doesn't look
+  refused, and a focused field stands out from an invalid one, which keeps its
+  thicker vermilion underline (or box) and `aria-invalid`. On the navy tabs
+  and a floating Notice the ring is salmon (5.8:1), as navy is lost there.
 - `prefers-reduced-motion` turns off transitions and animations: the busy
   bar's blocks and a busy button's dither stand still.
   The bar still waits its 300 ms. A floating Notice appears and goes with no
@@ -299,7 +312,8 @@ and closing.
 - **Don't** write a colour value outside the token block, or in a template.
 - **Don't** restyle base elements for one feature (`.profile input`,
   `.stock-form select`): change the base style or add a component.
-- **Don't** use the accent for anything that doesn't need attention.
+- **Don't** use the accent for anything that isn't wrong, urgent or
+  irreversible.
 - **Don't** add rounded corners, stepped corners, shadows, smooth gradients or
   a second accent.
 - **Don't** add an icon font, a stroke icon or runtime JS for presentation
