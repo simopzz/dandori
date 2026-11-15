@@ -104,6 +104,23 @@ func NutritionErrs(ctx context.Context, problems map[string]domain.Problem) map[
 	return errs
 }
 
+// Refusals are those of errs, the refused fields of NewIngredientFields or
+// NutritionFields, in the order they show them, each linking to the id named gives it.
+func Refusals(ctx context.Context, named func(string) string, errs map[string]string) []web.Refusal {
+	var refusals []web.Refusal
+	refuse := func(field string, label web.Message) {
+		if err := errs[field]; err != "" {
+			refusals = append(refusals, web.Refusal{ID: named(field), Label: web.T(ctx, label), Err: err})
+		}
+	}
+	refuse("unit", msgUnit)
+	refuse("usual", msgUsual)
+	for _, field := range nutrients {
+		refuse(field, nutrientNames[field])
+	}
+	return refusals
+}
+
 // ProblemMessage says why field of an Ingredient is refused for problem.
 func ProblemMessage(field string, problem domain.Problem) web.Message {
 	switch field {

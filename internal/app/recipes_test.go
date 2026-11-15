@@ -369,8 +369,30 @@ func TestBrowserTheFloatingPlusOpensTheRecipeForm(t *testing.T) {
 	b.IsAt(t, "/recipes/new")
 }
 
-// In a browser, a rejected form comes back with focus on the invalid field.
-func TestBrowserARejectedRecipeFocusesItsInvalidField(t *testing.T) {
+// In a browser, an empty Recipe form is refused by the app, not the browser: its errors
+// are in the User's Language, Italian on an English browser, each refused field marked.
+func TestBrowserAnEmptyRecipeShowsTheAppsErrorsInTheUsersLanguage(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	b := h.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.ChooseLanguage(t, "Italiano", "Continue")
+	b.IsAt(t, "/")
+	b.Open(t, "/recipes/new")
+
+	b.Click(t, "Salva la Ricetta")
+	b.Sees(t, "Dalle un nome.")
+	b.Sees(t, "Scegli almeno un tipo di Pasto.")
+	for _, field := range []string{"name", "portions", "active", "total", "slots", "ing_name_0"} {
+		if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="`+field+`"]`).First()).ToHaveAttribute("aria-invalid", "true"); err != nil {
+			t.Errorf("the refused %s isn't marked: %v", field, err)
+		}
+	}
+}
+
+// In a browser, a rejected Recipe form opens on its error summary, whose first link
+// takes focus to its field, the first refused.
+func TestBrowserARejectedRecipeOpensOnItsErrorSummary(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
@@ -383,14 +405,24 @@ func TestBrowserARejectedRecipeFocusesItsInvalidField(t *testing.T) {
 		}
 	}
 	b.Click(t, "Save Recipe")
-	b.Sees(t, "Can't be more than the total minutes.")
+	summary := b.Locator(".error-summary")
+	if err := playwright.NewPlaywrightAssertions().Locator(summary).ToBeFocused(); err != nil {
+		t.Fatalf("the error summary isn't focused: %v", err)
+	}
+	first := summary.GetByRole("link").First()
+	if err := playwright.NewPlaywrightAssertions().Locator(first).ToHaveText("Active minutes: Can't be more than the total minutes."); err != nil {
+		t.Errorf("the summary's first link: %v", err)
+	}
+	if err := first.Click(); err != nil {
+		t.Fatalf("follow the summary's first link: %v", err)
+	}
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="active"]`)).ToBeFocused(); err != nil {
-		t.Errorf("the invalid field isn't focused: %v", err)
+		t.Errorf("the link doesn't focus its field: %v", err)
 	}
 }
 
-// In a browser, a Recipe with no Ingredient comes back focused on the first row.
-func TestBrowserARecipeWithNoIngredientFocusesTheFirstRow(t *testing.T) {
+// In a browser, a Recipe with no Ingredient is summed up by a link to the first row.
+func TestBrowserARecipeWithNoIngredientLinksToTheFirstRow(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
 	b := h.Browser(t)
@@ -406,7 +438,9 @@ func TestBrowserARecipeWithNoIngredientFocusesTheFirstRow(t *testing.T) {
 		t.Fatalf("choose lunch: %v", err)
 	}
 	b.Click(t, "Save Recipe")
-	b.Sees(t, "List at least one Ingredient.")
+	if err := b.Locator(".error-summary").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Ingredient: List at least one Ingredient."}).Click(); err != nil {
+		t.Fatalf("follow the summary's link: %v", err)
+	}
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="ing_name_0"]`)).ToBeFocused(); err != nil {
 		t.Errorf("the first row isn't focused: %v", err)
 	}

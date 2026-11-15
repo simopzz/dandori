@@ -163,6 +163,7 @@ func TestARefusedCount(t *testing.T) {
 			s.Counts(c.ingredient, "", c.stated, "a note")
 			s.IsRefused()
 			s.Sees(c.why)
+			s.DoesNotSee("Some fields need fixing")
 			form := apptest.Form(t, s.Page().Body, "count-form")
 			if form.Get("stated") != c.stated || form.Get("note") != "a note" {
 				t.Errorf("the refused Count holds %q and note %q, want what was typed", form.Get("stated"), form.Get("note"))

@@ -36,7 +36,7 @@ templ choicePage(today time.Time, f LanguageForm) {
 		@web.PageHeader("言語", web.T(ctx, msgChooseLanguage), today) {
 			<p class="lede">{ web.T(ctx, msgChooseLede) }</p>
 		}
-		<form id="language" class="stack" method="post" action="/language">
+		<form novalidate id="language" class="stack" method="post" action="/language">
 			@web.Segmented(web.T(ctx, msgLanguage), "language", languageChoices(ctx), string(f.Language), web.T(ctx, f.Err))
 			@web.Hint() {
 				{ web.T(ctx, msgChooseHint) }
@@ -142,7 +142,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 			@briefForm(forms.Brief)
 		}
 		@web.Section(signingInNum, web.T(ctx, msgSigningIn)) {
-			<form id="sign-out" method="post" action="/sign-out">
+			<form novalidate id="sign-out" method="post" action="/sign-out">
 				@web.Hint() {
 					{ web.Tf(ctx, msgSignedInAs, email) } ·
 					@web.TextButton(templ.Attributes{"type": "submit"}) {
@@ -161,6 +161,7 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 // SectionBody unless s reloads the page.
 templ sectionForm(s section) {
 	<form
+		novalidate
 		id={ "profile-" + s.id }
 		method="post"
 		action={ templ.SafeURL(s.route()) }

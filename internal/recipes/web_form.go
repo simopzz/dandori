@@ -1,6 +1,7 @@
 package recipes
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"maps"
@@ -252,6 +253,28 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 		ok = false
 	}
 	return rec, f, ok && len(f.Errs) == 0 && !f.Confirm
+}
+
+// refusals are the fields f refused, in the order the form shows them: what its
+// ErrorSummary lists.
+func (f RecipeForm) refusals(ctx context.Context) []web.Refusal {
+	var refusals []web.Refusal
+	refuse := func(id string, label web.Message, err string) {
+		if err != "" {
+			refusals = append(refusals, web.Refusal{ID: id, Label: web.T(ctx, label), Err: err})
+		}
+	}
+	refuse("name", msgName, f.Errs["name"])
+	refuse("portions", msgPortions, f.Errs["portions"])
+	refuse("active", msgActive, f.Errs["active"])
+	refuse("total", msgTotal, f.Errs["total"])
+	refuse("slots", msgSlots, f.Errs["slots"])
+	for i, row := range f.Ingredients {
+		refuse(rowField("name", i), msgIngredient, row.Errs["name"])
+		refuse(rowField("quantity", i), msgQuantity, cmp.Or(row.UnitChanged, row.Errs["quantity"]))
+		refusals = append(refusals, ingredients.Refusals(ctx, func(field string) string { return rowField(field, i) }, row.Errs)...)
+	}
+	return refusals
 }
 
 // rowProblem says why field of a row is refused.
