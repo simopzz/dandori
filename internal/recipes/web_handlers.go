@@ -59,7 +59,7 @@ func (h Handlers) ShowPaste(w http.ResponseWriter, r *http.Request) {
 
 // ShowPasteSheet is the paste sheet's body.
 func (h Handlers) ShowPasteSheet(w http.ResponseWriter, r *http.Request) {
-	httpx.Render(w, r, h.Log, http.StatusOK, pasteForm(PasteForm{}))
+	httpx.Render(w, r, h.Log, http.StatusOK, pasteForm(PasteForm{}, true))
 }
 
 // pasteLimit is how many characters a paste may have, trimmed.
@@ -103,16 +103,11 @@ func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	rec, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
+	rec, pasted, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
 	if errors.Is(err, ErrNoDraft) {
 		http.NotFound(w, r)
 		return
 	}
-	if err != nil {
-		httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
-		return
-	}
-	pasted, err := h.Service.Pasted(ctx, id)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the Recipe Draft", err)
 		return
@@ -157,7 +152,7 @@ func (h Handlers) ShowDeleteSheet(w http.ResponseWriter, r *http.Request) {
 
 // discarding is the step asking before discarding the Recipe Draft id.
 func (h Handlers) discarding(ctx context.Context, id int64) (removal, error) {
-	rec, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
+	rec, _, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
 	return removal{
 		Title: msgDiscardDraft, Remove: msgDiscard, Question: web.Tf(ctx, msgDiscardAsk, rec.Name),
 		Action: draftURL(id) + "/discard", Back: draftURL(id),

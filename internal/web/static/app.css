@@ -408,6 +408,8 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
 .section-heading:has(.heading-action) { flex-wrap: wrap; }
 
+.section-heading .field-hint { margin-left: 0; font: 400 0.875rem var(--font-body); letter-spacing: normal; color: var(--color-text-soft); }
+
 .heading-action { margin-left: auto; font: 400 1rem var(--font-body); letter-spacing: normal; }
 
 legend.section-heading { float: left; }
@@ -639,6 +641,11 @@ legend.field-label { margin-bottom: var(--space-1); }
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+
+/* Beside another, it keeps the padding between them, so their targets stay apart. */
+.btn-text + .btn-text { margin-left: 0; }
+
+.btn-text:has(+ .btn-text) { margin-right: 0; }
 
 a.btn-text { display: inline-flex; align-items: center; }
 
@@ -1059,7 +1066,9 @@ html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; objec
 
 .prose li + li { margin-top: var(--space-1); }
 
-.trace-detail {
+/* text verbatim: a paste, a Trace Event's data */
+
+.verbatim {
   margin: var(--space-1) 0 0;
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface);

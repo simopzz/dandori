@@ -141,7 +141,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 		if r.Asked != "" && askedName != "" {
 			<div class="section">
 				@web.Fold(label(askedName), true) {
-					<pre class="trace-detail">{ r.Asked }</pre>
+					@web.Verbatim(r.Asked)
 				}
 			</div>
 		}
@@ -174,12 +174,13 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 // Language, folding its data: what the model was sent or what it or a tool said,
 // verbatim, under the model's or the tool's name.
 templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
+	{{ d := detail(ctx, ev.TraceEvent) }}
 	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
-		@web.Fold(traceLine(ev, zone), detail(ctx, ev.TraceEvent) != "") {
+		@web.Fold(traceLine(ev, zone), d != "") {
 			if ev.Kind == agent.Said {
 				@web.Markdown(ev.Text)
 			} else {
-				<pre class="trace-detail">{ detail(ctx, ev.TraceEvent) }</pre>
+				@web.Verbatim(d)
 			}
 		}
 	</li>
@@ -208,7 +209,7 @@ func detail(ctx context.Context, ev agent.TraceEvent) string {
 	case agent.Called, agent.Answered, agent.Refused:
 		return strings.TrimSpace(ev.Tool + "\n\n" + text)
 	case agent.Retrying:
-		return fmt.Sprintf("%s\n\n%d ms", text, ev.WaitMillis)
+		return text + "\n\n" + web.Tf(ctx, msgWaiting, ev.WaitMillis)
 	case agent.Tokens:
 		u := ev.Usage
 		return web.Tf(ctx, msgTokens, u.Input, u.Output, u.Thinking, u.CacheRead, u.CacheWrite)

@@ -154,6 +154,16 @@ func TestTheRunsPageListsTheUsersRunsNewestFirst(t *testing.T) {
 	s.Sees("The model says Not a recipe.")
 }
 
+// In Italian, the Runs page says in Italian when each Run started, date and time apart.
+func TestTheRunsPageInItalian(t *testing.T) {
+	s := kitchenIn(t, "Italiano")
+	s.Exec(t, `
+		INSERT INTO run (user_id, kind, asked, started_at)
+		SELECT id, 'parse', 'Lasagne per 4', '2026-11-03 10:30+01' FROM "user"`)
+	s.Open("/runs")
+	s.Sees("Lasagne per 4 In corso Lettura di una Ricetta Mar 3 Nov · 10:30")
+}
+
 // The Runs page names a Run by the first line of what it was given that isn't blank, cut
 // with an ellipsis when it is long.
 func TestTheRunsPageNamesARunByItsFirstLineCutWhenLong(t *testing.T) {

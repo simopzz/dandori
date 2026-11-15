@@ -205,7 +205,7 @@ func TestARecipesKindsOfApplianceAreShownInTheUsersLanguage(t *testing.T) {
 	s.Sees("Richiede forno, friggitrice ad aria")
 	s.Follows("Modifica")
 	draftHolds(t, s, map[string]string{"appliances": "oven\nair_fryer"})
-	s.Sees("Elettrodomestici forno piano cottura microonde friggitrice ad aria")
+	s.Sees("Elettrodomestici (facoltativi) forno piano cottura microonde friggitrice ad aria")
 }
 
 // An Ingredient a Recipe lists refuses deletion and a change of unit, naming the Recipe.
@@ -525,6 +525,22 @@ func TestBrowserAnEmptyRecipeShowsTheAppsErrorsInTheUsersLanguage(t *testing.T) 
 		if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(`[name="`+field+`"]`).First()).ToHaveAttribute("aria-invalid", "true"); err != nil {
 			t.Errorf("the refused %s isn't marked: %v", field, err)
 		}
+	}
+}
+
+// The Recipe form says its Steps and Appliances may be left blank, in each Language.
+func TestTheRecipeFormSaysWhatIsOptional(t *testing.T) {
+	for language, want := range map[string][]string{
+		"English":  {"Steps (optional)", "Appliances (optional)"},
+		"Italiano": {"Passaggi (facoltativi)", "Elettrodomestici (facoltativi)"},
+	} {
+		t.Run(language, func(t *testing.T) {
+			s := kitchenIn(t, language)
+			s.Open("/recipes/new")
+			for _, w := range want {
+				s.Sees(w)
+			}
+		})
 	}
 }
 

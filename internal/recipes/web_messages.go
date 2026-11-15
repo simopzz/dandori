@@ -55,6 +55,8 @@ var (
 	msgIngredient  = web.Message{En: "Ingredient", It: "Ingrediente"}
 	msgQuantity    = web.Message{En: "Quantity", It: "Quantità"}
 	msgStep        = web.Message{En: "Step", It: "Passaggio"}
+	// msgOptional agrees in Italian with Steps and Appliances, the groups it hints.
+	msgOptional = web.Message{En: "optional", It: "facoltativi"}
 
 	msgIngredients   = web.Message{En: "Ingredients", It: "Ingredienti"}
 	msgSteps         = web.Message{En: "Steps", It: "Passaggi"}

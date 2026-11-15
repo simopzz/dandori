@@ -619,16 +619,42 @@ func TestAStaleCountToNothingConfirmsNothing(t *testing.T) {
 var autofocused = regexp.MustCompile(`<[a-z]+[^<>]*\sautofocus[\s/>=]`)
 
 // The Add Portions page opens with no field focused, so a phone's keyboard doesn't cover
-// it; the sheet, as it opens, focuses its first field, as the Count page does its search.
+// it; each sheet, as it opens, focuses its first field, as the Count page its search.
 func TestOnlyASheetOrTheCountSearchFocusesAFieldAsItOpens(t *testing.T) {
-	s := kitchenWith(t)
+	s := kitchenWith(t, rice)
+	s.Counts("rice", "", "700", "")
+	s.AddsPortions(lasagne)
 	if got := autofocused.FindAllString(s.Get(t, "/kitchen/portions").Body, -1); len(got) != 0 {
 		t.Errorf("the Add Portions page focuses %q", got)
 	}
-	if got := autofocused.FindAllString(s.HTMXGet(t, "/kitchen/portions/sheet").Body, -1); len(got) != 1 || !strings.Contains(got[0], `name="name"`) {
-		t.Errorf("the Add Portions sheet focuses %q, want its name", got)
+	s.Open("/kitchen")
+	// sheetOf is the sheet the Kitchen's link showing text opens.
+	sheetOf := func(text string) string {
+		return strings.Replace(apptest.Link(t, s.Page().Body, text), "?", "/sheet?", 1)
 	}
-	if got := autofocused.FindAllString(s.Get(t, "/kitchen/count").Body, -1); len(got) != 1 || !strings.Contains(got[0], `name="q"`) {
-		t.Errorf("the Count page focuses %q, want its search", got)
+	for _, c := range []struct{ what, path, field string }{
+		{"the Count page", "/kitchen/count", "q"},
+		{"the Count sheet", "/kitchen/count/sheet", "q"},
+		{"the Add Portions sheet", "/kitchen/portions/sheet", "name"},
+		{"rice's Count sheet", sheetOf("Count rice"), "stated"},
+		{"rice's Move sheet", sheetOf("Move rice in the pantry"), "quantity"},
+		{"lasagne's Count sheet", sheetOf(countLasagne), "stated"},
+		{"lasagne's Move sheet", sheetOf(moveLasagne), "quantity"},
+	} {
+		if got := autofocused.FindAllString(s.HTMXGet(t, c.path).Body, -1); len(got) != 1 || !strings.Contains(got[0], `name="`+c.field+`"`) {
+			t.Errorf("%s focuses %q, want its %s", c.what, got, c.field)
+		}
 	}
+}
+
+// With htmx, the Add Portions page refused opens on its error summary, as without, and
+// stays at its address.
+func TestBrowserTheAddPortionsPageRefusedOpensOnItsErrorSummary(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/kitchen/portions")
+	b.Click(t, "Add")
+	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator(".error-summary")).ToBeFocused(); err != nil {
+		t.Fatalf("the error summary isn't focused: %v", err)
+	}
+	b.IsAt(t, "/kitchen/portions")
 }

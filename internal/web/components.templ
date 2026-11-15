@@ -37,12 +37,16 @@ templ Section(num int, title string) {
 	</section>
 }
 
-// FieldGroup is a Section of a form: its fields under a numbered legend.
-templ FieldGroup(num int, legend string) {
+// FieldGroup is a Section of a form: its fields under a numbered legend, followed by hint
+// in brackets, as a Field's, when set.
+templ FieldGroup(num int, legend, hint string) {
 	<fieldset class="section">
 		<legend class="section-heading">
 			@number(num)
 			@titleText(legend)
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
 		</legend>
 		{ children... }
 	</fieldset>
@@ -126,6 +130,12 @@ templ Hint() {
 // Empty says a list has nothing in it yet.
 templ Empty() {
 	<p class="empty">{ children... }</p>
+}
+
+// Verbatim is text shown exactly as it was, such as a paste or a Trace Event's data: its
+// lines kept, wrapping, on the surface.
+templ Verbatim(text string) {
+	<pre class="verbatim">{ text }</pre>
 }
 
 // Disclosure is a group of a page's content a click away, under summary: closed until the
@@ -319,12 +329,18 @@ templ Check(label, hint string) {
 	</label>
 }
 
-// Checks is a group of checkboxes named name under legend, one per choice, those whose
-// Values are in ticked ticked, in as many columns as the width allows. err marks each
-// and shows under them, the first taking name as its id, for an ErrorSummary to link to.
-templ Checks(legend, name string, choices []Choice, ticked []string, err string) {
+// Checks is a group of checkboxes named name under legend, hint in brackets after it as a
+// Field's, one per choice, those whose Values are in ticked ticked, in as many columns as
+// the width allows. err marks each and shows under them, the first taking name as its id,
+// for an ErrorSummary to link to.
+templ Checks(legend, hint, name string, choices []Choice, ticked []string, err string) {
 	<fieldset class="stack">
-		<legend class="field-label">{ legend }</legend>
+		<legend class="field-label">
+			{ legend }
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
+		</legend>
 		<div class="check-grid">
 			for i, c := range choices {
 				<label class="check">
@@ -697,15 +713,14 @@ var veilCloses = templ.Attributes{
 // a search aside, until it closes or a form in it saves: Esc and Close still close it.
 // It sets the attribute: setting closedBy would add the property veilCloses checks.
 var keepsChanges = templ.Attributes{
-	"hx-on:input":              "if (!event.target.closest('[role=search]')) " + sheetChanged("true"),
-	"hx-on:close":              sheetChanged("false"),
-	"hx-on:htmx:after:request": "if (event.detail.ctx.request.method === 'POST' && event.detail.ctx.response?.status < 400) " + sheetChanged("false"),
+	"hx-on:input":              "if (!event.target.closest('[role=search]')) " + sheetChanged(true),
+	"hx-on:close":              sheetChanged(false),
+	"hx-on:htmx:after:request": "if (event.detail.ctx.request.method === 'POST' && event.detail.ctx.response?.status < 400) " + sheetChanged(false),
 }
 
-// sheetChanged is the script that marks a sheet's form changed, or not, as changed is
-// "true" or "false".
-func sheetChanged(changed string) string {
-	return "{ this.changed = " + changed + "; this.setAttribute('closedby', this.changed ? 'closerequest' : 'any') }"
+// sheetChanged is the script that marks a sheet's form changed, or not.
+func sheetChanged(changed bool) string {
+	return "{ this.changed = " + fmt.Sprint(changed) + "; this.setAttribute('closedby', this.changed ? 'closerequest' : 'any') }"
 }
 
 // CloseSheet is the event an answer to a form in a sheet triggers, with HX-Trigger, to

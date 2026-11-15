@@ -58,7 +58,7 @@ templ library(now time.Time, drafts []Draft, recipes []domain.Recipe, q string) 
 templ pastePage(now time.Time, f PasteForm) {
 	@web.Layout(web.T(ctx, msgPasteTitle), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, msgPaste), now)
-		@pasteForm(f)
+		@pasteForm(f, false)
 	}
 }
 
@@ -179,7 +179,7 @@ templ formPage(now time.Time, f RecipeForm) {
 		@web.PageHeader("レシピ", web.T(ctx, f.Heading), now)
 		if f.Pasted != "" {
 			@web.Disclosure(web.T(ctx, msgWhatYouPasted), false) {
-				<pre class="trace-detail">{ f.Pasted }</pre>
+				@web.Verbatim(f.Pasted)
 			}
 		}
 		@recipeForm(f)
@@ -243,9 +243,9 @@ templ recipeForm(f RecipeForm) {
 				@numberField(msgActive, web.T(ctx, msgMinutesUnit), "active", f.Active, f.Errs["active"])
 				@numberField(msgTotal, web.T(ctx, msgMinutesUnit), "total", f.Total, f.Errs["total"])
 			}
-			@web.Checks(web.T(ctx, msgSlots), "slots", web.SlotKindChoices(ctx), f.Slots, f.Errs["slots"])
+			@web.Checks(web.T(ctx, msgSlots), "", "slots", web.SlotKindChoices(ctx), f.Slots, f.Errs["slots"])
 		</div>
-		@web.FieldGroup(1, web.T(ctx, msgIngredients)) {
+		@web.FieldGroup(1, web.T(ctx, msgIngredients), "") {
 			<div id="ingredients" class="ingredient-grid">
 				for i, row := range f.Ingredients {
 					if f.DraftID != 0 && row.New {
@@ -271,7 +271,7 @@ templ recipeForm(f RecipeForm) {
 				{ web.T(ctx, msgAddIngredient) }
 			}
 		}
-		@web.FieldGroup(2, web.T(ctx, msgSteps)) {
+		@web.FieldGroup(2, web.T(ctx, msgSteps), web.T(ctx, msgOptional)) {
 			<ol id="steps" class="draft-steps">
 				for _, step := range f.Steps {
 					@stepRow(step, false)
@@ -282,7 +282,7 @@ templ recipeForm(f RecipeForm) {
 			}
 		}
 		<div class="section">
-			@web.Checks(web.T(ctx, msgAppliances), "appliances", web.ApplianceKindChoices(ctx), f.Appliances, "")
+			@web.Checks(web.T(ctx, msgAppliances), web.T(ctx, msgOptional), "appliances", web.ApplianceKindChoices(ctx), f.Appliances, "")
 		</div>
 		if f.RemoveStep != "" {
 			@web.ActionsApart() {
@@ -300,7 +300,6 @@ templ recipeForm(f RecipeForm) {
 	if f.RemoveStep != "" {
 		@web.SideSheet(removeSheetID, web.T(ctx, f.RemoveTitle))
 	}
-	<script src="/static/recipe-form.js"></script>
 }
 
 // draftRowSummary is the line a Recipe Draft's new Ingredient folds to: its name and
@@ -435,9 +434,19 @@ templ rowDetails(i int, row IngredientRow) {
 type PasteForm struct{ Text, Err string }
 
 // pasteForm reads a pasted recipe into a Recipe Draft through a parse Run. It is a page's
-// form in the sheet too: it goes on to the Run's page, or, refused, to the paste page.
-templ pasteForm(f PasteForm) {
-	<form novalidate id="paste-form" method="post" action="/recipes/paste" class="section">
+// form in the sheet too: it goes on to the Run's page, or, refused, to the paste page,
+// which inSheet takes only the form of, into the sheet's body, keeping the User there.
+templ pasteForm(f PasteForm, inSheet bool) {
+	<form
+		novalidate
+		id="paste-form"
+		method="post"
+		action="/recipes/paste"
+		class="section"
+		if inSheet {
+			hx-status:422={ "target:#" + web.SideSheetBody(pasteSheetID) + " select:#paste-form swap:innerHTML push:false" }
+		}
+	>
 		@web.Field(web.T(ctx, msgPaste), web.T(ctx, msgPasteHint), f.Err) {
 			<textarea
 				name="text"

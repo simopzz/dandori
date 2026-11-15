@@ -841,8 +841,8 @@ func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {
 }
 
 // Focus is a navy ring, so the Count sheet's search, focused as it opens, doesn't look
-// refused; a refused quantity, focused as it comes back, is marked by its vermilion
-// underline and aria-invalid, in the same navy ring.
+// refused; a refused quantity, focused as it comes back, is marked by its vermilion box
+// and aria-invalid, in the same navy ring.
 func TestBrowserFocusIsNavyAndARefusalVermilion(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -872,10 +872,6 @@ func TestBrowserFocusIsNavyAndARefusalVermilion(t *testing.T) {
 	if err := stated.Fill("-1"); err != nil {
 		t.Fatalf("state the quantity: %v", err)
 	}
-	// The browser would refuse -1 itself; this is about the app's refusal.
-	if _, err := sheet.Locator("form:has([name=stated])").Evaluate(`(f) => { f.noValidate = true }`, nil); err != nil {
-		t.Fatalf("turn off the browser's validation: %v", err)
-	}
 	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Count"}).Click(); err != nil {
 		t.Fatalf("save the Count: %v", err)
 	}
@@ -886,7 +882,7 @@ func TestBrowserFocusIsNavyAndARefusalVermilion(t *testing.T) {
 		t.Errorf("the refused quantity isn't focused: %v", err)
 	}
 	if err := expect.Locator(stated).ToHaveCSS("border-bottom-color", vermilion); err != nil {
-		t.Errorf("the refused quantity isn't underlined in vermilion: %v", err)
+		t.Errorf("the refused quantity isn't boxed in vermilion: %v", err)
 	}
 	if err := expect.Locator(stated).ToHaveCSS("outline-color", navy); err != nil {
 		t.Errorf("the refused quantity's focus ring isn't navy: %v", err)
