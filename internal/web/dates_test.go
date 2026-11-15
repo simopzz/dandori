@@ -15,10 +15,10 @@ func TestDatesAndTimesFollowTheLanguage(t *testing.T) {
 	at := time.Date(2026, time.November, 3, 13, 0, 5, 0, time.UTC)
 	for _, tt := range []struct {
 		l                                            domain.Language
-		date, short, shortYear, clock, clockSec, tod string
+		date, short, shortYear, clock, dateTime, tod string
 	}{
-		{domain.English, "Tuesday, November 3", "Tue, Nov 3", "Tue, Nov 3, 2026", "1:00 pm", "1:00:05 pm", "12:00 am"},
-		{domain.Italian, "martedì 3 novembre", "Mar 3 Nov", "Mar 3 Nov 2026", "13:00", "13:00:05", "00:00"},
+		{domain.English, "Tuesday, November 3", "Tue, Nov 3", "Tue, Nov 3, 2026", "1:00 pm", "Tue, Nov 3 · 1:00 pm", "12:00 am"},
+		{domain.Italian, "martedì 3 novembre", "Mar 3 Nov", "Mar 3 Nov 2026", "13:00", "Mar 3 Nov · 13:00", "00:00"},
 	} {
 		ctx := web.WithLanguage(context.Background(), tt.l)
 		for name, c := range map[string][2]string{
@@ -26,7 +26,7 @@ func TestDatesAndTimesFollowTheLanguage(t *testing.T) {
 			"ShortDate":       {web.ShortDate(ctx, at), tt.short},
 			"ShortDateInYear": {web.ShortDateInYear(ctx, at), tt.shortYear},
 			"Time":            {web.Time(ctx, at), tt.clock},
-			"TimeWithSeconds": {web.TimeWithSeconds(ctx, at), tt.clockSec},
+			"DateTime":        {web.DateTime(ctx, at, at), tt.dateTime},
 			"TimeOfDay(0)":    {web.TimeOfDay(ctx, 0), tt.tod},
 		} {
 			if c[0] != c[1] {

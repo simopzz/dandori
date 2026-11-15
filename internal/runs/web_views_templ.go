@@ -226,9 +226,9 @@ func runsPage(now time.Time, list []Run, kinds map[string]web.Message) templ.Com
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var12 string
-							templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(startedOn(ctx, now, r.StartedAt.In(now.Location())))
+							templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(web.DateTime(ctx, now, r.StartedAt.In(now.Location())))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 69, Col: 67}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 69, Col: 70}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 							if templ_7745c5c3_Err != nil {
@@ -362,9 +362,9 @@ func runPage(now time.Time, r Run, kind, askedName string, res result, again str
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var18 string
-				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" " + web.Tf(ctx, msgStarted, web.TimeWithSeconds(ctx, r.StartedAt.In(now.Location()))))
+				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" " + web.Tf(ctx, msgStarted, web.Time(ctx, r.StartedAt.In(now.Location()))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 105, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 105, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -718,7 +718,8 @@ func runPage(now time.Time, r Run, kind, askedName string, res result, again str
 }
 
 // traceEvent is one Trace Event, a line of when and its fixed line in the User's
-// Language, folding what the model was sent or what it or a tool said, verbatim.
+// Language, folding its data: what the model was sent or what it or a tool said,
+// verbatim, under the model's or the tool's name.
 func traceEvent(ev StoredTraceEvent, zone *time.Location) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -785,9 +786,9 @@ func traceEvent(ev StoredTraceEvent, zone *time.Location) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var40 string
-				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(indented(ev.TraceEvent))
+				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(detail(ctx, ev.TraceEvent))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 181, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 182, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -800,7 +801,7 @@ func traceEvent(ev StoredTraceEvent, zone *time.Location) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = web.Fold(traceLine(ev, zone), ev.Text != "" && ev.Kind != agent.Failed).Render(templ.WithChildren(ctx, templ_7745c5c3_Var39), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = web.Fold(traceLine(ev, zone), detail(ctx, ev.TraceEvent) != "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var39), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -840,7 +841,7 @@ func traceLine(ev StoredTraceEvent, zone *time.Location) templ.Component {
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(ev.At.Format(time.RFC3339))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 188, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 189, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
@@ -851,9 +852,9 @@ func traceLine(ev StoredTraceEvent, zone *time.Location) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var43 string
-		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(web.TimeWithSeconds(ctx, ev.At.In(zone)))
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(web.Time(ctx, ev.At.In(zone)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 188, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 189, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -866,7 +867,7 @@ func traceLine(ev StoredTraceEvent, zone *time.Location) templ.Component {
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(line(ctx, ev.TraceEvent))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 189, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 190, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -908,7 +909,7 @@ func label(text string) templ.Component {
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 193, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 194, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 		if templ_7745c5c3_Err != nil {
@@ -922,44 +923,49 @@ func label(text string) templ.Component {
 	})
 }
 
-// startedOn is when a Run started at, as of now: the day, with its year unless it is
-// now's, and the time.
-func startedOn(ctx context.Context, now, at time.Time) string {
-	if at.Year() != now.Year() {
-		return web.Tf(ctx, msgStartedOn, web.ShortDateInYear(ctx, at), web.Time(ctx, at))
-	}
-	return web.Tf(ctx, msgStartedOn, web.ShortDate(ctx, at), web.Time(ctx, at))
-}
-
-// indented is ev's text, a tool's input indented to read.
-func indented(ev agent.TraceEvent) string {
+// detail is what ev's Fold holds, its data verbatim: the model's name, or a tool's over
+// what it was sent, indented to read, or what it said; a retry's wait; a turn's tokens.
+func detail(ctx context.Context, ev agent.TraceEvent) string {
+	text := ev.Text
 	var b bytes.Buffer
-	if ev.Kind != agent.Called || json.Indent(&b, []byte(ev.Text), "", "  ") != nil {
-		return ev.Text
+	if ev.Kind == agent.Called && json.Indent(&b, []byte(text), "", "  ") == nil {
+		text = b.String()
 	}
-	return b.String()
+	switch ev.Kind {
+	case agent.Started:
+		return ev.Model
+	case agent.Called, agent.Answered, agent.Refused:
+		return strings.TrimSpace(ev.Tool + "\n\n" + text)
+	case agent.Retrying:
+		return fmt.Sprintf("%s\n\n%d ms", text, ev.WaitMillis)
+	case agent.Tokens:
+		u := ev.Usage
+		return web.Tf(ctx, msgTokens, u.Input, u.Output, u.Thinking, u.CacheRead, u.CacheWrite)
+	case agent.Failed, agent.Ended:
+		return ""
+	}
+	return text
 }
 
 // line is ev's fixed line in the Language of ctx.
 func line(ctx context.Context, ev agent.TraceEvent) string {
 	switch ev.Kind {
 	case agent.Started:
-		return web.Tf(ctx, msgStartedWith, ev.Model)
+		return web.T(ctx, msgStartedRun)
 	case agent.Asked:
 		return web.Tf(ctx, msgAsked, ev.Turn)
 	case agent.Said:
 		return web.T(ctx, msgSaid)
 	case agent.Called:
-		return web.Tf(ctx, msgCalled, ev.Tool)
+		return web.T(ctx, msgCalled)
 	case agent.Answered:
-		return web.Tf(ctx, msgAnswered, ev.Tool)
+		return web.T(ctx, msgAnswered)
 	case agent.Refused:
-		return web.Tf(ctx, msgRefused, ev.Tool)
+		return web.T(ctx, msgRefused)
 	case agent.Retrying:
-		return web.Tf(ctx, msgRetrying, ev.Attempt, ev.Retries, ev.WaitMillis)
+		return web.Tf(ctx, msgRetrying, ev.Attempt, ev.Retries)
 	case agent.Tokens:
-		u := ev.Usage
-		return web.Tf(ctx, msgTokens, u.Input, u.Output, u.Thinking, u.CacheRead, u.CacheWrite)
+		return web.Tf(ctx, msgUsed, ev.Usage.Input+ev.Usage.Output)
 	case agent.Failed:
 		reason := web.T(ctx, reasonNames[ev.Reason])
 		if strings.Contains(reason, "%s") {

@@ -7,16 +7,15 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// Today links to the Kitchen page, which tells a new kitchen how to start and opens the
-// Ingredients from its header.
-func TestTodayLinksToTheKitchenPage(t *testing.T) {
+// The Kitchen page tells a new kitchen how to start, and opens the Ingredients from the
+// page's header.
+func TestANewKitchenPageSaysHowToStart(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
 	s.SignsIn("ada@example.com")
 	s.ChoosesLanguage("English")
 
-	s.Follows("Open your kitchen")
-	s.IsAt("/kitchen")
+	s.Open("/kitchen")
 	s.Sees("Kitchen")
 	s.Sees("Nothing in your kitchen yet. Count what you have, or add an Ingredient to start.")
 	s.Follows("Ingredients")
