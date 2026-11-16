@@ -230,8 +230,9 @@ func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 	}
 }
 
-// Through a browser: the Cycle page opens a Cycle on a page of its own, back to the Cycle
-// page showing it, and Drop asks in its sheet, over the Cycle page, before dropping it.
+// Through a browser: the Cycle page opens a Cycle on a page of its own, refusing a field
+// in place, back to the Cycle page showing it, and Drop asks in its sheet, over the Cycle
+// page, before dropping it.
 func TestBrowserOpensAndDropsACycle(t *testing.T) {
 	b := signedUpBrowser(t)
 	expect := playwright.NewPlaywrightAssertions()
@@ -261,18 +262,27 @@ func TestBrowserOpensAndDropsACycle(t *testing.T) {
 	b.IsAt(t, "/plan/open")
 	fill("[name=delivery]", "11/05/2026")
 	fill("[name=from]", "6pm")
+	fill("[name=to]", "5pm")
+	b.Click(t, "Open the Cycle")
+	b.Sees(t, "Must be after the window's start.")
+	b.Shot(t, "cycle-open-refused")
 	fill("[name=to]", "8pm")
 	b.Click(t, "Open the Cycle")
 	b.IsAt(t, "/plan")
 	b.IsConfirmed(t, "Cycle opened.")
 	b.Sees(t, "Thursday, November 5, 6:00 pm to 8:00 pm")
 	b.Sees(t, "Sunday, November 15")
+	b.Shot(t, "cycle-upcoming")
+	if err := b.Notices().GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close notice"}).Click(); err != nil {
+		t.Fatalf("close the Notice: %v", err)
+	}
 
 	follow("Drop the Cycle")
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Drop the Cycle"})
 	if err := expect.Locator(sheet).ToContainText("Drop the Cycle whose Delivery comes on Thursday, November 5?"); err != nil {
 		t.Fatalf("Drop doesn't ask in its sheet: %v", err)
 	}
+	b.Shot(t, "cycle-drop")
 	b.IsAt(t, "/plan")
 	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Drop", Exact: playwright.Bool(true)}).Click(); err != nil {
 		t.Fatalf("drop: %v", err)
