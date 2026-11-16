@@ -22,7 +22,7 @@ import (
 )
 
 // Kind is the kind of Run that plans a Cycle into a Plan Proposal.
-const Kind = "planning"
+const Kind runs.Kind = "planning"
 
 // planEffort is how hard the model thinks planning: the Plan is long, and thinking shares
 // its token budget.
@@ -37,6 +37,18 @@ const attempts = 3
 
 // BrokeHardRules is a planning Run failing after attempts Plans that break a hard rule.
 const BrokeHardRules agent.Reason = "broke_hard_rules"
+
+// ProposalStatus is where a Plan Proposal is: pending until the User decides on it or
+// something ends it.
+type ProposalStatus string
+
+// The statuses a Plan Proposal has, as the database checks them.
+const (
+	Pending  ProposalStatus = "pending"
+	Approved ProposalStatus = "approved"
+	Rejected ProposalStatus = "rejected"
+	Replaced ProposalStatus = "replaced"
+)
 
 // ErrBusy is planning while another planning Run is going, or a Plan Proposal pending,
 // for any of the User's Cycles.
@@ -77,7 +89,11 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	first := slots[0]
 	b := planBrief{
 		slots: slots, library: library, known: known, checks: s.checks,
-		unslotted: unslotted(held.Portions), zone: now.Location(), save: s.saveProposal,
+		unslotted: unslotted(held.Portions), zone: now.Location(),
+		leave: func(ctx context.Context, plan domain.Plan, summary string) {
+			runID := runs.IDFrom(ctx)
+			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error { return saveProposal(ctx, tx, runID, plan, summary) })
+		},
 	}
 	prompt := planPrompt(c, p, now, library, known, held)
 	asked, _, _ := strings.Cut(prompt, "\n")
@@ -251,7 +267,8 @@ func codes[K ~string](kinds []K) []string {
 
 // planBrief is what one planning Run checks drafts against: the Slots it plans, the
 // Recipe Library and Ingredients their ids name, the Portions without a Slot, how many
-// check_plan calls it has, the zone its days are in, and how to store its Plan Proposal.
+// check_plan calls it has, the zone its days are in, and how it leaves its Plan
+// Proposal, stored only as the Run is stored succeeded.
 type planBrief struct {
 	slots     []domain.Slot
 	library   []domain.Recipe
@@ -259,7 +276,7 @@ type planBrief struct {
 	unslotted []domain.Portion
 	checks    int
 	zone      *time.Location
-	save      func(ctx context.Context, runID int64, plan domain.Plan, summary string) error
+	leave     func(ctx context.Context, plan domain.Plan, summary string)
 
 	drafts  []domain.Plan
 	checked int
@@ -277,7 +294,8 @@ func (pb *planBrief) brief(l domain.Language, prompt string) agent.Brief {
 			if pb.chosen == nil {
 				return &agent.Failure{Reason: agent.NoResult, Detail: said}
 			}
-			return pb.save(ctx, runs.IDFrom(ctx), *pb.chosen, said)
+			pb.leave(ctx, *pb.chosen, said)
+			return nil
 		},
 		Tools: []agent.Tool{
 			{
@@ -494,12 +512,6 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 		plan.Kept = append(plan.Kept, domain.Kept{Portion: k.PortionID, At: slot(k.On, k.Kind, fmt.Sprintf("kept.%d", i))})
 	}
 	return plan, append(problems, plan.Unreadable()...)
-}
-
-// saveProposal stores plan as the Plan Proposal of the signed-in User's planning Run
-// runID, with the planner's summary.
-func (s *Service) saveProposal(ctx context.Context, runID int64, plan domain.Plan, summary string) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveProposal(ctx, tx, runID, plan, summary) })
 }
 
 // Proposal is a pending Plan Proposal as its Cycle page shows it: its Plan, the

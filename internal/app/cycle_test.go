@@ -32,7 +32,7 @@ func TestOpeningACycleShowsItUpcoming(t *testing.T) {
 	s.IsConfirmed("Cycle opened.")
 	s.Sees("Kitchen Check")
 	s.Open("/plan")
-	s.Sees("Upcoming Cycle")
+	s.Sees("01 Upcoming Cycle")
 	s.Sees("Delivery Thursday, November 5, 6:00 pm to 8:00 pm Tentative")
 	s.Sees("End date Sunday, November 15")
 	s.DoesNotSee("No Cycle is upcoming.")

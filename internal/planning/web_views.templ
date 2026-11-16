@@ -47,10 +47,12 @@ templ cyclePage(now time.Time, upcoming *Cycle, p Planning) {
 				}
 			</div>
 		} else {
+			{{ section := 1 }}
 			if p.Proposal != nil {
 				@proposalSection(*upcoming, *p.Proposal)
+				{{ section++ }}
 			}
-			@web.Section(2, web.T(ctx, msgUpcomingCycle)) {
+			@web.Section(section, web.T(ctx, msgUpcomingCycle)) {
 				<dl>
 					<dt>{ web.T(ctx, msgDelivery) }</dt>
 					<dd>
@@ -196,9 +198,6 @@ type planDay struct {
 	sessions []domain.PrepSession
 }
 
-// sameSlot reports whether s is the Slot of kind k on the day on.
-func sameSlot(s domain.Slot, on time.Time, k domain.SlotKind) bool { return s.On.Equal(on) && s.Kind == k }
-
 // days are the days of c that p fills a Slot or prepares food on, in order, each's Slots
 // in the order of the day.
 func days(c Cycle, p Proposal) []planDay {
@@ -206,18 +205,19 @@ func days(c Cycle, p Proposal) []planDay {
 	for on := c.Delivery.On; !on.After(c.Ends); on = on.AddDate(0, 0, 1) {
 		d := planDay{on: on}
 		for _, k := range domain.SlotKinds {
+			at := domain.Slot{On: on, Kind: k}
 			for _, ps := range p.Plan.PrepSessions {
 				for _, pp := range ps.Portions {
-					if pp.EatAt != nil && sameSlot(*pp.EatAt, on, k) {
+					if pp.EatAt != nil && pp.EatAt.Equal(at) {
 						d.filled = append(d.filled, filledSlot{kind: k, name: ps.Name(), size: ps.Size})
 					}
 				}
-				if sameSlot(ps.At, on, k) {
+				if ps.At.Equal(at) {
 					d.sessions = append(d.sessions, ps)
 				}
 			}
 			for _, kept := range p.Plan.Kept {
-				if sameSlot(kept.At, on, k) {
+				if kept.At.Equal(at) {
 					d.filled = append(d.filled, filledSlot{kind: k, name: p.Kept[kept.Portion].Name})
 				}
 			}

@@ -24,7 +24,7 @@ import (
 // Run is one of the User's Runs with its Trace.
 type Run struct {
 	ID     int64
-	Kind   string
+	Kind   Kind
 	Status Status
 	// Asked is what the Run was asked, such as the pasted recipe: on the Runs page, its
 	// first line only.
@@ -56,7 +56,7 @@ func (r Run) lastSeq() int {
 }
 
 // runsPage lists the User's Runs, newest first, kinds naming each kind.
-func runsPage(now time.Time, list []Run, kinds map[string]web.Message) templ.Component {
+func runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -285,7 +285,7 @@ func headline(line string) string {
 // it and appends its Trace Events as they stream in; once it ends, it fetches itself
 // again into the body, which goes on to what the Run left. Without JavaScript, a link
 // opens it again further along.
-func runPage(now time.Time, r Run, k Kind, res result, again string) templ.Component {
+func runPage(now time.Time, r Run, k KindPage, res result, again string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -708,7 +708,7 @@ func runPage(now time.Time, r Run, k Kind, res result, again string) templ.Compo
 // traceEvent is one Trace Event, a line of when and its fixed line in the User's
 // Language, folding its data: what the model was sent or what it or a tool said,
 // verbatim, under the model's or the tool's name.
-func traceEvent(ev StoredTraceEvent, zone *time.Location, k Kind) templ.Component {
+func traceEvent(ev StoredTraceEvent, zone *time.Location, k KindPage) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -789,7 +789,7 @@ func traceEvent(ev StoredTraceEvent, zone *time.Location, k Kind) templ.Componen
 	})
 }
 
-func traceLine(ev StoredTraceEvent, zone *time.Location, k Kind) templ.Component {
+func traceLine(ev StoredTraceEvent, zone *time.Location, k KindPage) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -924,7 +924,7 @@ func detail(ctx context.Context, ev agent.TraceEvent) string {
 }
 
 // line is ev's fixed line in the Language of ctx, in a Run of kind k.
-func line(ctx context.Context, ev agent.TraceEvent, k Kind) string {
+func line(ctx context.Context, ev agent.TraceEvent, k KindPage) string {
 	switch ev.Kind {
 	case agent.Started:
 		return web.T(ctx, msgStartedRun)

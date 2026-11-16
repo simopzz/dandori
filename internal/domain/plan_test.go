@@ -3,6 +3,7 @@ package domain_test
 import (
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
 )
@@ -152,6 +153,29 @@ func TestTheStructuralHardRules(t *testing.T) {
 			}
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("HardRules() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// Two Slots are the same Slot when they are the same kind on the same day, whatever zone
+// each day is in.
+func TestSlotsAreEqualByDayAndKind(t *testing.T) {
+	inUTC := domain.Slot{On: time.Date(2026, time.November, 6, 0, 0, 0, 0, time.UTC), Kind: domain.Lunch}
+	tests := []struct {
+		name string
+		a, b domain.Slot
+		want bool
+	}{
+		{"the same", slot(6, domain.Lunch), slot(6, domain.Lunch), true},
+		{"in another zone", slot(6, domain.Lunch), inUTC, true},
+		{"another kind", slot(6, domain.Lunch), slot(6, domain.Dinner), false},
+		{"another day", slot(6, domain.Lunch), slot(7, domain.Lunch), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.Equal(tt.b); got != tt.want {
+				t.Errorf("Equal() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -108,7 +108,8 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 
 	s.Follows("Plan Proposal")
 	s.IsAt("/plan")
-	s.Sees("Plan Proposal Rice bowls for Friday, with yogurt and the lasagne.")
+	s.Sees("01 Plan Proposal Rice bowls for Friday, with yogurt and the lasagne.")
+	s.Sees("02 Upcoming Cycle")
 	s.Sees("Friday, November 6")
 	s.Sees("Breakfast yogurt")
 	s.Sees("Lunch Rice bowl 1.25×")
@@ -456,4 +457,48 @@ func TestBrowserPlansACycleThroughTheKitchenCheck(t *testing.T) {
 	b.Sees(t, "Yogurt all Friday.")
 	b.Sees(t, "yogurt: 4 Portions")
 	b.ShotPage(t, "plan-proposal")
+}
+
+// Cancelling a planning Run once its Plan is submitted, as the model sums it up, leaves
+// no Plan Proposal: it is stored only with the Run's success.
+func TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	asked := make(chan struct{})
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		asksAgain(asked, fakellm.Hang()),
+	)
+	s.OpensCycle(friday)
+	s.StartsPlanning()
+	run := s.Page().Path
+	<-asked
+	s.Open(run)
+	s.Sees("is stored as the Plan Proposal")
+	s.CancelsRun(apptest.Form(t, s.Page().Body, "cancel-run"))
+	s.Sees("Planning a Cycle Cancelled")
+	s.Open("/plan")
+	s.DoesNotSee("Plan Proposal")
+	s.Sees("Plan the Cycle")
+}
+
+// A Plan Proposal that can't be stored as its Run ends, its Cycle dropped meanwhile,
+// fails the Run rather than leaving it going.
+func TestAPlanProposalThatCantBeStoredFailsItsRun(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	release := make(chan struct{})
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Friday.").After(release),
+	)
+	s.OpensCycle(friday)
+	s.StartsPlanning()
+	run := s.Page().Path
+	s.DropsCycle()
+	close(release)
+	s.Settle()
+	s.Open(run)
+	s.Sees("Planning a Cycle Failed")
+	s.Sees("Dandori crashed while running it")
 }

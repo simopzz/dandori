@@ -74,8 +74,8 @@ func deleteCycle(ctx context.Context, q db.Querier, id int64) error {
 func planningBusy(ctx context.Context, q db.Querier, except int64) (busy bool, err error) {
 	err = q.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM run WHERE kind = $1 AND status = $2 AND id <> $3)
-			OR EXISTS (SELECT 1 FROM plan_proposal WHERE status = 'pending')`,
-		Kind, runs.Going, except).Scan(&busy)
+			OR EXISTS (SELECT 1 FROM plan_proposal WHERE status = $4)`,
+		Kind, runs.Going, except, Pending).Scan(&busy)
 	return busy, err
 }
 
@@ -98,7 +98,7 @@ func goingRun(ctx context.Context, q db.Querier, id int64) (runID int64, err err
 // planning Run runID.
 func saveProposal(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, summary string) error {
 	var id int64
-	if err := q.QueryRow(ctx, `INSERT INTO plan_proposal (run_id, summary) VALUES ($1, $2) RETURNING id`, runID, summary).Scan(&id); err != nil {
+	if err := q.QueryRow(ctx, `INSERT INTO plan_proposal (run_id, status, summary) VALUES ($1, $2, $3) RETURNING id`, runID, Pending, summary).Scan(&id); err != nil {
 		return err
 	}
 	day := func(s *domain.Slot) (*string, *domain.SlotKind) {
@@ -166,7 +166,7 @@ func loadPending(ctx context.Context, q db.Querier, id int64, zone *time.Locatio
 	var proposalID int64
 	err := q.QueryRow(ctx, `
 		SELECT pp.id, pp.summary FROM plan_proposal pp JOIN planning_run p ON p.run_id = pp.run_id
-		WHERE p.cycle_id = $1 AND pp.status = 'pending'`, id).Scan(&proposalID, &sp.summary)
+		WHERE p.cycle_id = $1 AND pp.status = $2`, id, Pending).Scan(&proposalID, &sp.summary)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

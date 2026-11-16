@@ -89,6 +89,10 @@ func (s Slot) String() string { return string(s.Kind) + " on " + s.On.Format("Mo
 // key is s as a map key: Slots on the same day in different zones are the same Slot.
 func (s Slot) key() string { return s.On.Format(time.DateOnly) + " " + string(s.Kind) }
 
+// Equal reports whether s and o are the same Slot: the same kind on the same day, in
+// whatever zone each is.
+func (s Slot) Equal(o Slot) bool { return s.key() == o.key() }
+
 // Unreadable is why p can't be read as a Plan, one line each: a Portion size outside
 // MinSize–MaxSize, a Prep Session yielding no Portion, a Portion without a Slot put in
 // two. None when it can.

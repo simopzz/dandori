@@ -16,7 +16,7 @@ import (
 // Run is one of the User's Runs with its Trace.
 type Run struct {
 	ID     int64
-	Kind   string
+	Kind   Kind
 	Status Status
 	// Asked is what the Run was asked, such as the pasted recipe: on the Runs page, its
 	// first line only.
@@ -48,7 +48,7 @@ func (r Run) lastSeq() int {
 }
 
 // runsPage lists the User's Runs, newest first, kinds naming each kind.
-templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
+templ runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, web.T(ctx, msgRuns)), web.RunsTab) {
 		@web.PageHeader("実行", web.T(ctx, msgRuns), now)
 		<div class="section">
@@ -95,7 +95,7 @@ func headline(line string) string {
 // it and appends its Trace Events as they stream in; once it ends, it fetches itself
 // again into the body, which goes on to what the Run left. Without JavaScript, a link
 // opens it again further along.
-templ runPage(now time.Time, r Run, k Kind, res result, again string) {
+templ runPage(now time.Time, r Run, k KindPage, res result, again string) {
 	{{ kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedName) }}
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RunsTab) {
 		@web.PageHeader("実行", kind, now) {
@@ -174,7 +174,7 @@ templ runPage(now time.Time, r Run, k Kind, res result, again string) {
 // traceEvent is one Trace Event, a line of when and its fixed line in the User's
 // Language, folding its data: what the model was sent or what it or a tool said,
 // verbatim, under the model's or the tool's name.
-templ traceEvent(ev StoredTraceEvent, zone *time.Location, k Kind) {
+templ traceEvent(ev StoredTraceEvent, zone *time.Location, k KindPage) {
 	{{ d := detail(ctx, ev.TraceEvent) }}
 	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
 		@web.Fold(traceLine(ev, zone, k), d != "") {
@@ -187,7 +187,7 @@ templ traceEvent(ev StoredTraceEvent, zone *time.Location, k Kind) {
 	</li>
 }
 
-templ traceLine(ev StoredTraceEvent, zone *time.Location, k Kind) {
+templ traceLine(ev StoredTraceEvent, zone *time.Location, k KindPage) {
 	<time datetime={ ev.At.Format(time.RFC3339) }>{ web.Time(ctx, ev.At.In(zone)) }</time>
 	<span class="trace-kind">{ line(ctx, ev.TraceEvent, k) }</span>
 }
@@ -221,7 +221,7 @@ func detail(ctx context.Context, ev agent.TraceEvent) string {
 }
 
 // line is ev's fixed line in the Language of ctx, in a Run of kind k.
-func line(ctx context.Context, ev agent.TraceEvent, k Kind) string {
+func line(ctx context.Context, ev agent.TraceEvent, k KindPage) string {
 	switch ev.Kind {
 	case agent.Started:
 		return web.T(ctx, msgStartedRun)

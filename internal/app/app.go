@@ -145,7 +145,7 @@ func (a *App) Handler() http.Handler {
 	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
-	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[string]runs.Kind{
+	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[runs.Kind]runs.KindPage{
 		recipes.ParseKind: {
 			Name: recipes.ParseKindName, AskedName: recipes.PastedName,
 			ResultName: recipes.DraftName, Result: recs.DraftPage, Again: "/recipes/paste",

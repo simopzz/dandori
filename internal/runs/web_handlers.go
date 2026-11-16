@@ -16,12 +16,12 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// Kind is what a Run's page tells of its kind of Run: its name, the name of what the User
-// gives a Run of it, and the page of what it left them, named ResultName, or "" for none.
-// Again, if set, is where a failed Run's "Try again" posts what it was asked, as text.
-// Reasons are why a Run of the kind fails beside the reasons every Run can, such as
-// agent.NoResult; %s is what was said more, verbatim.
-type Kind struct {
+// KindPage is what a Run's page tells of its kind of Run: its name, the name of what the
+// User gives a Run of it, and the page of what it left them, named ResultName, or "" for
+// none. Again, if set, is where a failed Run's "Try again" posts what it was asked, as
+// text. Reasons are why a Run of the kind fails beside the reasons every Run can, such
+// as agent.NoResult; %s is what was said more, verbatim.
+type KindPage struct {
 	Name, AskedName, ResultName web.Message
 	Result                      func(ctx context.Context, runID int64) (string, error)
 	Again                       string
@@ -31,8 +31,8 @@ type Kind struct {
 // Handlers serve the Runs page, a Run's page and its live Trace, and cancel a Run.
 type Handlers struct {
 	Engine *Engine
-	// Kinds are the kinds of Run, by the name they are started with.
-	Kinds map[string]Kind
+	// Kinds are what each kind of Run's page tells of it.
+	Kinds map[Kind]KindPage
 	Clock clock.Clock
 	Log   *slog.Logger
 }
@@ -81,7 +81,7 @@ func (h Handlers) List(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "list the Runs", err)
 		return
 	}
-	names := map[string]web.Message{}
+	names := map[Kind]web.Message{}
 	for name, k := range h.Kinds {
 		names[name] = k.Name
 	}
