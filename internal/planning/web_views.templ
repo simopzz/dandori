@@ -49,7 +49,7 @@ templ cyclePage(now time.Time, upcoming *Cycle) {
 				<dl>
 					<dt>{ web.T(ctx, msgDelivery) }</dt>
 					<dd>
-						{ window(ctx, upcoming.Delivery) }
+						{ window(ctx, upcoming.Delivery) + " " }
 						@web.Tag(false, "") {
 							{ web.T(ctx, msgTentative) }
 						}

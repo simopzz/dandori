@@ -36,7 +36,7 @@ var (
 	msgSetTargets   = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
 	msgDropCycle    = web.Message{En: "Drop the Cycle", It: "Annulla il Ciclo"}
 	msgDropAsk      = web.Message{En: "Drop the Cycle whose Delivery comes on %s?", It: "Annullare il Ciclo con la Consegna di %s?"}
-	msgDrop         = web.Message{En: "Drop", It: "Annulla"}
+	msgDrop         = web.Message{En: "Drop", It: "Elimina"}
 	msgDropped      = web.Message{En: "Cycle dropped.", It: "Ciclo annullato."}
 )
 
