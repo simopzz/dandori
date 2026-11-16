@@ -5,7 +5,9 @@
 #   sync.sh status                       ua=<worktree|plain|none> remote=<yes|no> local=<sha7|-> published=<sha7|->
 #   sync.sh setup [--keep local|remote]  attach .ua to the branch (exit 2: both a local and a published graph, choose)
 #   sync.sh pull                         fast-forward .ua (exit 3: uncommitted changes, exit 5: not attached)
-#   sync.sh push <incremental|full>      commit and push .ua (exit 4: the published branch moved)
+#   sync.sh discard                      drop uncommitted graph files in .ua
+#   sync.sh push <incremental|full>      commit and push .ua (exit 4: the published branch moved, 6: push failed otherwise)
+# Any command: exit 7 when origin can't be reached.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -16,11 +18,21 @@ FILES=(knowledge-graph.json meta.json fingerprints.json config.json .understandi
 
 sha7() { sed -n 's/.*"gitCommitHash": *"\([0-9a-f]\{7\}\).*/\1/p' | head -1; }
 local_sha() { { [ -f "$UA/meta.json" ] && sha7 < "$UA/meta.json"; } || true; }
-remote_exists() { git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; }
+# ls-remote --exit-code exits 2 only when the ref is absent; anything else is an unreachable origin.
+remote_exists() {
+  local c=0
+  git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1 || c=$?
+  case $c in
+    0) return 0 ;;
+    2) return 1 ;;
+    *) echo "cannot reach origin (git ls-remote exit $c)" >&2; exit 7 ;;
+  esac
+}
 fetch_branch() { git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"; }
 
 ua_state() {
-  if [ -e "$UA/.git" ] && [ "$(git -C "$UA" rev-parse --abbrev-ref HEAD 2>/dev/null)" = "$BRANCH" ]; then
+  # symbolic-ref also names the branch before its first commit
+  if [ -e "$UA/.git" ] && [ "$(git -C "$UA" symbolic-ref -q --short HEAD 2>/dev/null)" = "$BRANCH" ]; then
     echo worktree
   elif [ -d "$UA" ]; then echo plain
   else echo none; fi
@@ -55,6 +67,7 @@ cmd_status() {
 }
 
 cmd_push() {
+  attached || return # else `git -C .ua` resolves to the code repo
   git -C "$UA" add -A
   if git -C "$UA" diff --cached --quiet; then echo "nothing to publish"; return 0; fi
   local s; s=$(local_sha)
@@ -63,8 +76,12 @@ cmd_push() {
   if ! git -C "$UA" push -q -u origin "$BRANCH"; then
     # Undo the commit so .ua stays on the published history; the graph waits as uncommitted changes.
     git -C "$UA" reset -q --soft HEAD~1 2>/dev/null || git -C "$UA" update-ref -d HEAD
-    echo "push refused: origin/$BRANCH moved. This graph is kept as uncommitted changes in $UA." >&2
-    return 4
+    if fetch_branch 2>/dev/null && ! git -C "$UA" merge-base --is-ancestor "origin/$BRANCH" HEAD 2>/dev/null; then
+      echo "push refused: origin/$BRANCH moved. This graph is kept as uncommitted changes in $UA." >&2
+      return 4
+    fi
+    echo "push failed, origin/$BRANCH unchanged. This graph is kept staged in $UA: rerun sync.sh push $1." >&2
+    return 6
   fi
 }
 
@@ -73,14 +90,22 @@ cmd_setup() {
   if [ "${1:-}" = --keep ]; then keep=${2:-}; fi
   local ua; ua=$(ua_state)
   [ "$ua" = worktree ] && return 0
+  git worktree prune # forget a .ua that was deleted by hand
   local bak=
   if ! remote_exists; then
     [ "$ua" = plain ] && bak=$(backup)
     git worktree add -q --orphan -b "$BRANCH" "$UA"
     write_gitignore
     [ -n "$bak" ] && replace_from "$bak"
-    cmd_push setup
-    return
+    local c=0
+    cmd_push setup || c=$?
+    if [ "$c" != 0 ]; then
+      # Undo the attach, so .ua is as it was and the next setup starts over.
+      git worktree remove --force "$UA"
+      git branch -D "$BRANCH" >/dev/null 2>&1 || true
+      [ -z "$bak" ] || mv "$bak" "$UA"
+    fi
+    return "$c"
   fi
   fetch_branch
   if [ "$ua" = plain ]; then
@@ -90,11 +115,12 @@ cmd_setup() {
     esac
   fi
   git worktree add -q --track -B "$BRANCH" "$UA" "origin/$BRANCH"
-  if [ "$keep" = local ]; then replace_from "$bak"; cmd_push setup; fi
+  # --keep local means something only when there was a local graph to keep
+  if [ "$keep" = local ] && [ -n "$bak" ]; then replace_from "$bak"; cmd_push setup; fi
 }
 
 cmd_pull() {
-  [ "$(ua_state)" = worktree ] || { echo "$UA is not attached to $BRANCH: run setup" >&2; return 5; }
+  attached || return
   if [ -n "$(git -C "$UA" status --porcelain --untracked-files=no)" ]; then
     git -C "$UA" status --short --untracked-files=no >&2
     return 3
@@ -102,12 +128,18 @@ cmd_pull() {
   git -C "$UA" pull -q --ff-only
 }
 
-usage() { sed -n '5,8p' "$0" >&2; exit 64; }
+attached() { [ "$(ua_state)" = worktree ] || { echo "$UA is not attached to $BRANCH: run setup" >&2; return 5; }; }
+
+# Drop uncommitted graph files (staged too: a refused push leaves its graph staged).
+cmd_discard() { attached || return; git -C "$UA" reset -q --hard; }
+
+usage() { sed -n '5,10p' "$0" >&2; exit 64; }
 
 case "${1:-}" in
   status) cmd_status ;;
   setup) shift; cmd_setup "$@" ;;
   pull) cmd_pull ;;
+  discard) cmd_discard ;;
   push) case "${2:-}" in incremental | full) cmd_push "$2" ;; *) usage ;; esac ;;
   *) usage ;;
 esac

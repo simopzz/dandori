@@ -15,6 +15,8 @@ meta() { printf '{"gitCommitHash": "%s"}\n' "$(sha "$1")" > "$2"; }
 none() { ! compgen -G "$1" >/dev/null; }
 code() { local c=0; "$@" >/dev/null 2>&1 || c=$?; echo "$c"; }
 clone() { git clone -q "$T/origin.git" "$T/$1"; cd "$T/$1"; }
+reject() { printf '#!/bin/sh\nexit 1\n' > "$1/hooks/pre-receive"; chmod +x "$1/hooks/pre-receive"; }
+allow() { rm -f "$1/hooks/pre-receive"; }
 
 git init -q --bare -b v2 "$T/origin.git"
 git clone -q "$T/origin.git" "$T/a" 2>/dev/null # empty-repo warning
@@ -89,6 +91,23 @@ push_refused_when_remote_moved() {
   [ -z "$(git -C .ua rev-list origin/understand-graph..HEAD)" ]
   grep -q 4444444 .ua/meta.json
   [ "$(code "$SYNC" pull)" = 3 ]
+  # SKILL.md step 2's discard gets past it to the newer published graph
+  "$SYNC" discard
+  "$SYNC" pull
+  grep -q 3333333 .ua/meta.json
+}
+
+push_failure_is_not_a_race() {
+  cd "$T/a"
+  reject "$T/origin.git"
+  meta 6666666 .ua/meta.json
+  local c; c=$(code "$SYNC" push incremental)
+  allow "$T/origin.git"
+  [ "$c" = 6 ]
+  grep -q 6666666 .ua/meta.json
+  "$SYNC" push incremental
+  git fetch -q origin
+  [ "$(git log -1 --format=%s origin/understand-graph)" = "Graph at 6666666 (incremental)" ]
 }
 
 pull_refuses_dirty_worktree() {
@@ -108,9 +127,65 @@ keep_local_publishes_local() {
   [ "$(git ls-tree -r --name-only origin/understand-graph | tr '\n' ' ')" = ".gitignore meta.json " ]
 }
 
+push_requires_attached() {
+  clone f
+  mkdir .ua && meta 8888888 .ua/meta.json
+  echo code > code.txt && git add code.txt
+  local head; head=$(git rev-parse HEAD)
+  [ "$(code "$SYNC" push incremental)" = 5 ]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+}
+
+keep_local_without_ua_publishes_nothing() {
+  clone g
+  local before; before=$(git rev-parse origin/understand-graph)
+  "$SYNC" setup --keep local
+  git fetch -q origin
+  [ "$(git rev-parse origin/understand-graph)" = "$before" ]
+  [ -f .ua/meta.json ]
+}
+
+reattach_after_rm() {
+  cd "$T/g"
+  rm -rf .ua
+  "$SYNC" setup
+  [ "$("$SYNC" status | cut -d' ' -f1)" = ua=worktree ]
+}
+
+unreachable_origin_is_an_error() {
+  clone h
+  git remote set-url origin "$T/nowhere.git"
+  mkdir .ua && meta 9999999 .ua/meta.json
+  [ "$(code "$SYNC" setup)" != 0 ]
+  [ ! -e .ua/.git ]
+  none '.ua.bak-*'
+}
+
+failed_first_publish_rolls_back() {
+  git init -q --bare -b v2 "$T/origin2.git"
+  git clone -q "$T/origin2.git" "$T/e" 2>/dev/null # empty-repo warning
+  cd "$T/e"
+  printf '.ua\n/.ua.bak-*\n' > .gitignore
+  git add .gitignore && git commit -q -m init && git push -q origin HEAD:v2
+  mkdir .ua && meta 7777777 .ua/meta.json
+  reject "$T/origin2.git"
+  local c; c=$(code "$SYNC" setup)
+  allow "$T/origin2.git"
+  [ "$c" != 0 ]
+  [ ! -e .ua/.git ]
+  grep -q 7777777 .ua/meta.json
+  none '.ua.bak-*'
+  [ "$(git worktree list | wc -l)" = 1 ]
+  [ -z "$(git branch --list understand-graph)" ]
+  "$SYNC" setup
+  [ "$("$SYNC" status | cut -d' ' -f1)" = ua=worktree ]
+}
+
 for current in setup_publishes_only_allowlist fresh_clone_attaches plain_and_remote_needs_choice \
   push_without_changes_is_noop push_publishes_change push_refused_when_remote_moved \
-  pull_refuses_dirty_worktree keep_local_publishes_local; do
+  push_failure_is_not_a_race pull_refuses_dirty_worktree keep_local_publishes_local \
+  push_requires_attached keep_local_without_ua_publishes_nothing reattach_after_rm \
+  unreachable_origin_is_an_error failed_first_publish_rolls_back; do
   "$current"
   echo "ok $current"
 done
