@@ -104,7 +104,7 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 		if busy, err := planningBusy(ctx, tx, runID); err != nil || busy {
 			return cmp.Or(err, ErrBusy)
 		}
-		return savePlanningRun(ctx, tx, runID, c.ID, first)
+		return saveCycleRun(ctx, tx, runID, c.ID, first)
 	})
 }
 

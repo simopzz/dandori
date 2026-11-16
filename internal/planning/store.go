@@ -79,9 +79,9 @@ func planningBusy(ctx context.Context, q db.Querier, except int64) (busy bool, e
 	return busy, err
 }
 
-// savePlanningRun records that the Run runID plans the Cycle cycleID from the Slot first.
-func savePlanningRun(ctx context.Context, q db.Querier, runID, cycleID int64, first domain.Slot) error {
-	_, err := q.Exec(ctx, `INSERT INTO planning_run (run_id, cycle_id, first_on, first_kind) VALUES ($1, $2, $3, $4)`,
+// saveCycleRun records that the Run runID plans the Cycle cycleID from the Slot first.
+func saveCycleRun(ctx context.Context, q db.Querier, runID, cycleID int64, first domain.Slot) error {
+	_, err := q.Exec(ctx, `INSERT INTO cycle_run (run_id, cycle_id, first_on, first_kind) VALUES ($1, $2, $3, $4)`,
 		runID, cycleID, first.On.Format(time.DateOnly), first.Kind)
 	return err
 }
@@ -89,8 +89,8 @@ func savePlanningRun(ctx context.Context, q db.Querier, runID, cycleID int64, fi
 // goingRun is the id of the signed-in User's planning Run going for the Cycle id, or 0.
 func goingRun(ctx context.Context, q db.Querier, id int64) (runID int64, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT coalesce(max(r.id), 0) FROM planning_run p JOIN run r ON r.id = p.run_id
-		WHERE p.cycle_id = $1 AND r.status = $2`, id, runs.Going).Scan(&runID)
+		SELECT coalesce(max(r.id), 0) FROM cycle_run cr JOIN run r ON r.id = cr.run_id
+		WHERE cr.cycle_id = $1 AND r.status = $2`, id, runs.Going).Scan(&runID)
 	return runID, err
 }
 
@@ -165,8 +165,8 @@ func loadPending(ctx context.Context, q db.Querier, id int64, zone *time.Locatio
 	var sp storedProposal
 	var proposalID int64
 	err := q.QueryRow(ctx, `
-		SELECT pp.id, pp.summary FROM plan_proposal pp JOIN planning_run p ON p.run_id = pp.run_id
-		WHERE p.cycle_id = $1 AND pp.status = $2`, id, Pending).Scan(&proposalID, &sp.summary)
+		SELECT pp.id, pp.summary FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id
+		WHERE cr.cycle_id = $1 AND pp.status = $2`, id, Pending).Scan(&proposalID, &sp.summary)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
