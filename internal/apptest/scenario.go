@@ -592,6 +592,20 @@ func (s *Scenario) SavesFoods(exclusions, allergies string) {
 	s.record(fmt.Sprintf("saves exclusions %q and allergies %q: %d %s", exclusions, allergies, s.page.StatusCode, s.page.Path))
 }
 
+// SavesAppliances ticks the kinds of appliance ticked, by code, unticking the rest, and
+// types notes, by code, beside any of them, with their form on the Profile open, posted
+// as a browser without htmx.
+func (s *Scenario) SavesAppliances(ticked []string, notes map[string]string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "profile-appliances")
+	form.Values["appliances"] = ticked
+	for code, note := range notes {
+		form.Values.Set("note-"+code, note)
+	}
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("saves appliances %q with notes %q: %d %s", ticked, notes, s.page.StatusCode, s.page.Path))
+}
+
 // SavesBrief saves brief, as typed, as the Planning Brief with its form on the Profile
 // open, posted as a browser without htmx.
 func (s *Scenario) SavesBrief(brief string) {

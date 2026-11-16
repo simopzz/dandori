@@ -589,6 +589,18 @@ legend.field-label { margin-bottom: var(--space-1); }
 
 .check > .icon { flex: none; }
 
+/* The Profile's appliances: each kind's Check with the note on its model beside it,
+   or under it on a phone. */
+.appliance-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+
+.appliance-grid > input { margin-bottom: var(--space-3); }
+
+@media (min-width: 600px) {
+  .appliance-grid { grid-template-columns: 14rem minmax(0, 1fr); column-gap: var(--space-4); row-gap: var(--space-2); align-items: center; }
+
+  .appliance-grid > input { margin-bottom: 0; }
+}
+
 /* Checks: a group of checkboxes in as many columns as the width allows */
 .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); column-gap: var(--space-4); }
 

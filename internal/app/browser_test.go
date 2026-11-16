@@ -395,6 +395,41 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	b.Shot(t, "times-of-day")
 }
 
+// Ticking an appliance and writing the note on its model, the section saves in place,
+// confirmed in a floating Notice, and shows what it saved.
+func TestBrowserSavesAnApplianceWithItsNoteInPlace(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/profile")
+	section := b.Locator("#profile-appliances")
+	airFryer := section.GetByRole("checkbox", playwright.LocatorGetByRoleOptions{Name: "Air fryer"})
+	note := section.GetByRole("textbox", playwright.LocatorGetByRoleOptions{Name: "Model of the air fryer"})
+	if err := airFryer.Check(); err != nil {
+		t.Fatalf("tick the air fryer: %v", err)
+	}
+	if err := note.Fill("Ninja AF100"); err != nil {
+		t.Fatalf("write the air fryer's model: %v", err)
+	}
+	if _, err := b.Evaluate(`window.notReloaded = true`); err != nil {
+		t.Fatalf("mark the page: %v", err)
+	}
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save appliances"})
+	if err := save.Click(); err != nil {
+		t.Fatalf("save the appliances: %v", err)
+	}
+	b.IsConfirmed(t, "Profile saved.")
+	if kept, err := b.Evaluate(`window.notReloaded === true`); err != nil || kept != true {
+		t.Errorf("saving the appliances reloaded the page (err %v)", err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(airFryer).ToBeChecked(); err != nil {
+		t.Errorf("the saved air fryer isn't ticked: %v", err)
+	}
+	if err := expect.Locator(note).ToHaveValue("Ninja AF100"); err != nil {
+		t.Errorf("the saved air fryer's model isn't shown: %v", err)
+	}
+	b.Shot(t, "appliances")
+}
+
 // A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line
 // of a Run's Trace that opens.
 func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {

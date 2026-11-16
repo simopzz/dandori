@@ -295,8 +295,9 @@ are styled once in `app.css`: every text input, select and textarea a square
 dense grids' cells included; tables ruled like rows, `dl` as a two-column list
 of facts.
 
-Three feature-shaped components live in `app.css` because nothing else needs
-them yet: the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), the
+Four feature-shaped components live in `app.css` because nothing else needs
+them yet: the Profile's `appliance-grid`, each kind's `Check` with the note on
+its model beside it, or under it on a phone; the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), the
 Run `trace` panel, and the Exceptions page's `slot-grid`, a Cycle's Slots as
 rows on a phone and a day × Slot grid on desktop, where an open Slot spans
 its day over the day's other Slots; `slot-grid.js` animates a Slot opening

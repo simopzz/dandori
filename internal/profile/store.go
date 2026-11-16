@@ -142,6 +142,20 @@ func saveBrief(ctx context.Context, q db.Querier, brief string) error {
 	return err
 }
 
+// loadAppliances reads the kinds of appliance the signed-in User owns, each with its
+// note. It has no WHERE on purpose: run in db.AsUser, row-level security leaves only
+// their row.
+func loadAppliances(ctx context.Context, q db.Querier) (owned domain.Appliances, err error) {
+	err = q.QueryRow(ctx, `SELECT appliances FROM profile`).Scan(&owned)
+	return owned, err
+}
+
+// saveAppliances sets the kinds of appliance the signed-in User owns, each with its note.
+func saveAppliances(ctx context.Context, q db.Querier, owned domain.Appliances) error {
+	_, err := q.Exec(ctx, `UPDATE profile SET appliances = $1`, owned)
+	return err
+}
+
 // saveLanguage creates the signed-in User's Profile with Language l, or changes the
 // Language of the one they have.
 func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {

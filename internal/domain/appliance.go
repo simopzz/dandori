@@ -1,5 +1,7 @@
 package domain
 
+import "strings"
+
 // ApplianceKind is a kind of kitchen appliance, from a fixed list (ADR-0020): what a
 // Recipe needs and the Profile owns.
 type ApplianceKind string
@@ -34,4 +36,21 @@ func ParseApplianceKind(code string) (ApplianceKind, bool) {
 		}
 	}
 	return "", false
+}
+
+// Appliances are the kinds of appliance a User owns, each with their free-text note on
+// its model ("Instant Pot Duo 6 L"), which the planner reads and nothing compares.
+type Appliances map[ApplianceKind]string
+
+// ParseAppliances are the kinds whose codes are ticked, each with its note in notes
+// trimmed. A note on a kind left unticked is dropped, and a code that isn't a kind
+// is ignored.
+func ParseAppliances(ticked []string, notes map[ApplianceKind]string) Appliances {
+	owned := Appliances{}
+	for _, code := range ticked {
+		if k, ok := ParseApplianceKind(code); ok {
+			owned[k] = strings.TrimSpace(notes[k])
+		}
+	}
+	return owned
 }

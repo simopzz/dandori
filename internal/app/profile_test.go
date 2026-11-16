@@ -12,20 +12,22 @@ func TestEachProfileSectionsButtonNamesIt(t *testing.T) {
 	shows := map[string]string{"English": "Save", "Italiano": "Salva"}
 	want := map[string]map[string]string{
 		"English": {
-			"profile-language": "Save Language",
-			"profile-times":    "Save the times of day",
-			"profile-targets":  "Save Targets",
-			"profile-meal-out": "Save the Meal Out estimate",
-			"profile-foods":    "Save exclusions and allergies",
-			"profile-brief":    "Save the Planning Brief",
+			"profile-language":   "Save Language",
+			"profile-times":      "Save the times of day",
+			"profile-targets":    "Save Targets",
+			"profile-meal-out":   "Save the Meal Out estimate",
+			"profile-foods":      "Save exclusions and allergies",
+			"profile-appliances": "Save appliances",
+			"profile-brief":      "Save the Planning Brief",
 		},
 		"Italiano": {
-			"profile-language": "Salva la Lingua",
-			"profile-times":    "Salva gli orari",
-			"profile-targets":  "Salva gli Obiettivi",
-			"profile-meal-out": "Salva la stima di un Pasto Fuori",
-			"profile-foods":    "Salva esclusioni e allergie",
-			"profile-brief":    "Salva le indicazioni per la pianificazione",
+			"profile-language":   "Salva la Lingua",
+			"profile-times":      "Salva gli orari",
+			"profile-targets":    "Salva gli Obiettivi",
+			"profile-meal-out":   "Salva la stima di un Pasto Fuori",
+			"profile-foods":      "Salva esclusioni e allergie",
+			"profile-appliances": "Salva gli elettrodomestici",
+			"profile-brief":      "Salva le indicazioni per la pianificazione",
 		},
 	}
 	for language, buttons := range want {
