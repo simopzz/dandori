@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"time"
 )
@@ -53,17 +54,26 @@ func (ps PrepSession) Name() string {
 
 // Ingredients are what ps uses for all its Portions: its Recipe's Ingredients scaled by
 // the Portions it yields over the Portions as written, times its size, or its
-// Ingredient's quantity for each Portion.
+// Ingredient's quantity for each Portion. What is counted in pieces is rounded to whole
+// ones, never to none.
 func (ps PrepSession) Ingredients() []RecipeIngredient {
 	n := float64(len(ps.Portions))
 	if ps.Recipe == nil {
-		return []RecipeIngredient{{Ingredient: *ps.Ingredient, Quantity: QuantityOf(ps.Quantity.Number() * n)}}
+		return []RecipeIngredient{scaled(*ps.Ingredient, ps.Quantity.Number()*n)}
 	}
-	scaled := make([]RecipeIngredient, len(ps.Recipe.Ingredients))
+	out := make([]RecipeIngredient, len(ps.Recipe.Ingredients))
 	for i, ri := range ps.Recipe.Ingredients {
-		scaled[i] = RecipeIngredient{Ingredient: ri.Ingredient, Quantity: QuantityOf(ri.Quantity.Number() * n / float64(ps.Recipe.Portions) * ps.Size)}
+		out[i] = scaled(ri.Ingredient, ri.Quantity.Number()*n/float64(ps.Recipe.Portions)*ps.Size)
 	}
-	return scaled
+	return out
+}
+
+// scaled is v of ing, whole and at least one if ing is counted in pieces.
+func scaled(ing Ingredient, v float64) RecipeIngredient {
+	if ing.Unit == Pieces {
+		v = max(1, math.Round(v))
+	}
+	return RecipeIngredient{Ingredient: ing, Quantity: QuantityOf(v)}
 }
 
 // NutritionPerPortion is one of ps's Portions' nutritional values: its Recipe's Portion

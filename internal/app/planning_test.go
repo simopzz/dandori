@@ -116,12 +116,12 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 	s.Sees("Snack lasagne")
 	s.Sees("Dinner Rice bowl 1.25×")
 	s.Sees("Rice bowl: 3 Portions at 1.25×")
-	s.Sees("375 g rice")
+	s.Sees("rice 375 g")
 	s.Sees("10 active of 25 minutes")
-	s.Sees("Lunch, Friday, November 6, in the fridge")
-	s.Sees("No Slot, in the freezer")
+	s.Sees("Lunch on Friday, November 6 In the fridge")
+	s.Sees("No Slot In the freezer")
 	s.Sees("yogurt: 1 Portion")
-	s.Sees("150 g yogurt")
+	s.Sees("yogurt 150 g")
 }
 
 // prompt is what the planning Run s started first was told.

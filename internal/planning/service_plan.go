@@ -137,7 +137,7 @@ A Plan is Prep Sessions, each preparing food at one Slot (an eating occasion: br
 
 Write every food term in the user's Language, named in the prompt.
 
-Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a short summary of the Plan for the user, in their Language.`, attempts, domain.MinSize, domain.MaxSize)
+Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a summary of the Plan for the user, in their Language: two or three sentences on what it cooks and why. Give no nutrition figures and no day-by-day list: Dandori shows both.`, attempts, domain.MinSize, domain.MaxSize)
 
 // planPrompt is what a planning Run of c is told: the User's Language, the Cycle and its
 // Slots, today, the Profile p as the planner reads it, the Recipe Library, the known

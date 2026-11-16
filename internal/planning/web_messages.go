@@ -58,9 +58,12 @@ var (
 	}
 	msgSeeCycle     = web.Message{En: "See the Cycle", It: "Vedi il Ciclo"}
 	msgPlanProposal = web.Message{En: "Plan Proposal", It: "Proposta di Piano"}
-	msgPortions     = web.Message{En: "%d Portions", It: "%d Porzioni"}
-	msgOnePortion   = web.Message{En: "1 Portion", It: "1 Porzione"}
-	msgAtSize       = web.Message{En: "%s at %s", It: "%s a %s"}
+	msgPortions     = web.Message{En: "%s: %d Portions", It: "%s: %d Porzioni"}
+	msgOnePortion   = web.Message{En: "%s: 1 Portion", It: "%s: 1 Porzione"}
+	msgPortionsAt   = web.Message{En: "%s: %d Portions at %s", It: "%s: %d Porzioni a %s"}
+	msgOnePortionAt = web.Message{En: "%s: 1 Portion at %s", It: "%s: 1 Porzione a %s"}
+	msgSize         = web.Message{En: "%s×", It: "%s×"}
+	msgSlotOn       = web.Message{En: "%s on %s", It: "%s di %s"}
 	msgMinutes      = web.Message{En: "%d active of %d minutes", It: "%d attivi su %d minuti"}
 	msgNoSlot       = web.Message{En: "No Slot", It: "Nessun Pasto"}
 

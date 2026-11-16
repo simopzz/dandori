@@ -136,51 +136,56 @@ templ proposalSection(c Cycle, p Proposal) {
 	}
 }
 
-// prepSession is ps: how many Portions at what size, its Ingredients scaled, its minutes,
+// prepSession is ps: how many Portions at what size, its minutes, its Ingredients scaled,
 // and where each Portion goes.
 templ prepSession(ps domain.PrepSession) {
 	<div class="stack">
-		<p>
-			<strong>{ portionsOf(ctx, ps) }</strong>
-			if ps.Recipe != nil {
-				{ " · " + web.Tf(ctx, msgMinutes, ps.Recipe.ActiveMinutes, ps.Recipe.TotalMinutes) }
-			}
-		</p>
-		<ul>
+		<h3>{ portionsOf(ctx, ps) }</h3>
+		if ps.Recipe != nil {
+			<p>{ web.Tf(ctx, msgMinutes, ps.Recipe.ActiveMinutes, ps.Recipe.TotalMinutes) }</p>
+		}
+		@web.Rows() {
 			for _, ri := range ps.Ingredients() {
-				<li>{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) } { ri.Ingredient.Name }</li>
+				@web.Row() {
+					<span class="row-title">{ ri.Ingredient.Name }</span>
+					<span class="row-figure">{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
+				}
 			}
-		</ul>
-		<ul>
+		}
+		@web.Rows() {
 			for _, pp := range ps.Portions {
-				<li>{ goesTo(ctx, pp) }</li>
+				@web.Row() {
+					<span class="row-title">{ eatenAt(ctx, pp.EatAt) }</span>
+					<span class="row-meta">{ web.Capitalised(web.T(ctx, web.InLocations[pp.Location])) }</span>
+				}
 			}
-		</ul>
+		}
 	</div>
 }
 
 // size is a Portion size as the Language writes it: "1.25×".
-func size(ctx context.Context, s float64) string { return web.Number(ctx, s) + "×" }
+func size(ctx context.Context, s float64) string { return web.Tf(ctx, msgSize, web.Number(ctx, s)) }
 
 // portionsOf is ps's name with how many Portions it yields, and their size for a Recipe.
 func portionsOf(ctx context.Context, ps domain.PrepSession) string {
-	n := web.Tf(ctx, msgPortions, len(ps.Portions))
-	if len(ps.Portions) == 1 {
-		n = web.T(ctx, msgOnePortion)
+	n := len(ps.Portions)
+	switch {
+	case ps.Recipe == nil && n == 1:
+		return web.Tf(ctx, msgOnePortion, ps.Name())
+	case ps.Recipe == nil:
+		return web.Tf(ctx, msgPortions, ps.Name(), n)
+	case n == 1:
+		return web.Tf(ctx, msgOnePortionAt, ps.Name(), size(ctx, ps.Size))
 	}
-	if ps.Recipe != nil {
-		n = web.Tf(ctx, msgAtSize, n, size(ctx, ps.Size))
-	}
-	return ps.Name() + ": " + n
+	return web.Tf(ctx, msgPortionsAt, ps.Name(), n, size(ctx, ps.Size))
 }
 
-// goesTo is where pp goes: its Slot, or none, and its Storage Location.
-func goesTo(ctx context.Context, pp domain.PlannedPortion) string {
-	where := web.T(ctx, msgNoSlot)
-	if pp.EatAt != nil {
-		where = web.Capitalised(web.T(ctx, web.SlotKindNames[pp.EatAt.Kind])) + ", " + web.Date(ctx, pp.EatAt.On)
+// eatenAt is the Slot a Portion is eaten at, or that it has none.
+func eatenAt(ctx context.Context, s *domain.Slot) string {
+	if s == nil {
+		return web.T(ctx, msgNoSlot)
 	}
-	return where + ", " + web.T(ctx, web.InLocations[pp.Location])
+	return web.Tf(ctx, msgSlotOn, web.Capitalised(web.T(ctx, web.SlotKindNames[s.Kind])), web.Date(ctx, s.On))
 }
 
 // filledSlot is a Slot of a Plan Proposal with the Portion filling it: its name, and its

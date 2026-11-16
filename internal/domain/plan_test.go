@@ -28,7 +28,7 @@ func in(s domain.Slot) *domain.Slot { return &s }
 
 // A Prep Session of a Recipe scales each Ingredient by the Portions it yields over the
 // Portions as written, times its size; one of an Ingredient sets out its quantity for
-// each Portion.
+// each Portion. What is counted in pieces is rounded to whole ones, never to none.
 func TestAPrepSessionScalesItsIngredients(t *testing.T) {
 	tests := []struct {
 		name string
@@ -36,9 +36,12 @@ func TestAPrepSessionScalesItsIngredients(t *testing.T) {
 		want []float64
 	}{
 		{"as written", domain.PrepSession{Recipe: &chili, Size: 1, Portions: make([]domain.PlannedPortion, 4)}, []float64{400, 2}},
-		{"3 Portions at 1.25×", domain.PrepSession{Recipe: &chili, Size: 1.25, Portions: make([]domain.PlannedPortion, 3)}, []float64{375, 1.9}},
-		{"6 Portions at 0.75×", domain.PrepSession{Recipe: &chili, Size: 0.75, Portions: make([]domain.PlannedPortion, 6)}, []float64{450, 2.3}},
+		{"3 Portions at 1.25×", domain.PrepSession{Recipe: &chili, Size: 1.25, Portions: make([]domain.PlannedPortion, 3)}, []float64{375, 2}},
+		{"6 Portions at 0.75×", domain.PrepSession{Recipe: &chili, Size: 0.75, Portions: make([]domain.PlannedPortion, 6)}, []float64{450, 2}},
+		{"7 Portions at 1.5×", domain.PrepSession{Recipe: &chili, Size: 1.5, Portions: make([]domain.PlannedPortion, 7)}, []float64{1050, 5}},
+		{"pieces never round to none", domain.PrepSession{Recipe: &chili, Size: 0.75, Portions: make([]domain.PlannedPortion, 1)}, []float64{75, 1}},
 		{"an Ingredient", domain.PrepSession{Ingredient: &yogurt, Quantity: grams(150), Portions: make([]domain.PlannedPortion, 3)}, []float64{450}},
+		{"an Ingredient in pieces", domain.PrepSession{Ingredient: &egg, Quantity: grams(0.5), Portions: make([]domain.PlannedPortion, 3)}, []float64{2}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
