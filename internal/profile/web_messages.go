@@ -83,14 +83,16 @@ var (
 	msgAllergies      = web.Message{En: "Allergies", It: "Allergie"}
 	msgAppliances     = web.Message{En: "Appliances", It: "Elettrodomestici"}
 	msgAppliancesHint = web.Message{
-		En: "Tick the ones you own, and beside each, its model if you like. A Plan only uses Recipes your appliances can cook.",
-		It: "Spunta quelli che hai e, accanto a ciascuno, il modello se vuoi. Un Piano usa solo Ricette che i tuoi elettrodomestici possono cucinare.",
+		En: "Tick the ones you own, with each one's model if you like. A Plan only uses Recipes your appliances can cook.",
+		It: "Spunta quelli che hai, con il modello di ciascuno se vuoi. Un Piano usa solo Ricette che i tuoi elettrodomestici possono cucinare.",
 	}
 	msgAppliance = web.Message{En: "Appliance", It: "Elettrodomestico"}
 	msgModel     = web.Message{En: "Model", It: "Modello"}
 	msgModelHint = web.Message{En: "optional", It: "facoltativo"}
-	// A note's label, shown on a phone, where the column heads are hidden.
-	msgModelOf   = web.Message{En: "Model of the %s (optional)", It: "Modello: %s (facoltativo)"}
+	// A note's placeholder, shown on a phone, where the column heads are hidden.
+	msgModelPlaceholder = web.Message{En: "Model (optional)", It: "Modello (facoltativo)"}
+	// A note's label, for a screen reader.
+	msgModelOf   = web.Message{En: "Model of the %s", It: "Modello: %s"}
 	msgBrief     = web.Message{En: "Planning Brief", It: "Indicazioni per la pianificazione"}
 	msgBriefHint = web.Message{
 		En: "Your lasting wishes for every Plan: variety, effort, what you enjoy. Every planning Run reads it and follows it as far as the rules of the Plan allow. Saving it starts no planning Run: it applies from the next one.",

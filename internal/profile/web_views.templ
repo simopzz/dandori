@@ -305,15 +305,15 @@ func noteField(k domain.ApplianceKind) string { return "note-" + string(k) }
 
 // appliancesForm is the appliances' section: a Check per kind, in the list's order, those
 // owned ticked, each with the note on its model beside it under the column's head, or
-// under it, labelled, on a phone.
+// under it on a phone, where its placeholder says what it is.
 templ appliancesForm(owned domain.Appliances) {
 	@sectionForm(appliancesSection) {
 		@web.Hint() {
 			{ web.T(ctx, msgAppliancesHint) }
 		}
 		<div class="appliance-grid">
-			// Each note's own label names it to a screen reader: the heads are for
-			// the eye.
+			// Each note's hidden label names it to a screen reader: the heads and
+			// placeholders are for the eye.
 			<span class="appliance-grid-head" aria-hidden="true">{ web.T(ctx, msgAppliance) }</span>
 			<span class="appliance-grid-head" aria-hidden="true">
 				{ web.T(ctx, msgModel) }
@@ -325,9 +325,16 @@ templ appliancesForm(owned domain.Appliances) {
 					<input type="checkbox" name="appliances" value={ string(k) } checked?={ isOwned }/>
 					@web.Icon(string(k))
 				}
-				@web.CellField(web.Tf(ctx, msgModelOf, web.T(ctx, web.ApplianceKindNames[k])), "") {
-					<input type="text" name={ noteField(k) } value={ owned[k] } autocomplete="off"/>
-				}
+				<label>
+					<span class="sr-only">{ web.Tf(ctx, msgModelOf, web.T(ctx, web.ApplianceKindNames[k])) }</span>
+					<input
+						type="text"
+						name={ noteField(k) }
+						value={ owned[k] }
+						placeholder={ web.T(ctx, msgModelPlaceholder) }
+						autocomplete="off"
+					/>
+				</label>
 			}
 		</div>
 	}

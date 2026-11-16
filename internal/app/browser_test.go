@@ -396,14 +396,14 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 }
 
 // Ticking an appliance and writing the note on its model, the section saves in place,
-// confirmed in a floating Notice, and shows what it saved; on a phone, each note shows
-// its own label.
+// confirmed in a floating Notice, and shows what it saved; on a phone, the column heads
+// give way to each note's placeholder.
 func TestBrowserSavesAnApplianceWithItsNoteInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")
 	section := b.Locator("#profile-appliances")
 	airFryer := section.GetByRole("checkbox", playwright.LocatorGetByRoleOptions{Name: "Air fryer"})
-	note := section.GetByRole("textbox", playwright.LocatorGetByRoleOptions{Name: "Model of the air fryer (optional)"})
+	note := section.GetByRole("textbox", playwright.LocatorGetByRoleOptions{Name: "Model of the air fryer"})
 	if err := airFryer.Check(); err != nil {
 		t.Fatalf("tick the air fryer: %v", err)
 	}
@@ -433,12 +433,15 @@ func TestBrowserSavesAnApplianceWithItsNoteInPlace(t *testing.T) {
 	}
 	b.Shot(t, "appliances")
 
-	// On a phone the column heads are hidden, and each note shows its own label.
+	// On a phone the column heads are hidden: each note's placeholder says what it is.
 	if err := b.SetViewportSize(390, 844); err != nil {
 		t.Fatalf("size the page as a phone: %v", err)
 	}
-	if err := expect.Locator(section.GetByText("Model of the air fryer (optional)")).ToBeVisible(); err != nil {
-		t.Errorf("on a phone the air fryer's note shows no label: %v", err)
+	if err := expect.Locator(section.Locator(".appliance-grid-head").First()).ToBeHidden(); err != nil {
+		t.Errorf("on a phone the column heads show: %v", err)
+	}
+	if err := expect.Locator(note).ToHaveAttribute("placeholder", "Model (optional)"); err != nil {
+		t.Errorf("on a phone the air fryer's note doesn't say what it is: %v", err)
 	}
 	if wide, err := b.Evaluate(`document.documentElement.scrollWidth > window.innerWidth`); err != nil || wide == true {
 		t.Errorf("the Profile is wider than a phone's screen (err %v)", err)
