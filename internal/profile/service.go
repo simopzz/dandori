@@ -1,7 +1,7 @@
 // Package profile is the User's Profile: for now, their Language, chosen at their first
 // sign-in and changeable until they have written a Food Term (ADR-0015), the time of day
 // of each kind of Slot, their Targets, their Meal Out estimate, their exclusions and
-// allergies, and their Planning Brief.
+// allergies, the appliances they own, and their Planning Brief.
 package profile
 
 import (
@@ -132,6 +132,24 @@ func (s *Service) Brief(ctx context.Context) (brief string, err error) {
 func (s *Service) SetBrief(ctx context.Context, typed string) (string, error) {
 	brief := strings.TrimSpace(strings.ReplaceAll(typed, "\r\n", "\n"))
 	return brief, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveBrief(ctx, tx, brief) })
+}
+
+// Appliances are the kinds of appliance the signed-in User owns, each with their note on
+// its model: a hob and an oven until they say otherwise.
+func (s *Service) Appliances(ctx context.Context) (owned domain.Appliances, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		owned, err = loadAppliances(ctx, tx)
+		return err
+	})
+	return owned, err
+}
+
+// SetAppliances saves the kinds whose codes are ticked as those the signed-in User owns,
+// each with its note in notes, and is what it saved: a note on a kind left unticked
+// is dropped.
+func (s *Service) SetAppliances(ctx context.Context, ticked []string, notes map[domain.ApplianceKind]string) (domain.Appliances, error) {
+	owned := domain.ParseAppliances(ticked, notes)
+	return owned, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveAppliances(ctx, tx, owned) })
 }
 
 // SetLanguage chooses the signed-in User's Language, or changes it while they have

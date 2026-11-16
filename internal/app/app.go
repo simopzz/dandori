@@ -168,6 +168,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /profile/times", signedIn(prof.SaveTimes))
 	mux.Handle("POST /profile/meal-out", signedIn(prof.SaveMealOut))
 	mux.Handle("POST /profile/foods", signedIn(prof.SaveFoods))
+	mux.Handle("POST /profile/appliances", signedIn(prof.SaveAppliances))
 	mux.Handle("POST /profile/brief", signedIn(prof.SaveBrief))
 	mux.Handle("GET /recipes", signedIn(recs.Library))
 	mux.Handle("POST /recipes", signedIn(recs.Add))

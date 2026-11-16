@@ -168,6 +168,9 @@ func (h Handlers) asSaved(ctx context.Context) (f profileForms, err error) {
 	if f.Foods.Exclusions, f.Foods.Allergies, err = h.Service.Foods(ctx); err != nil {
 		return f, err
 	}
+	if f.Appliances, err = h.Service.Appliances(ctx); err != nil {
+		return f, err
+	}
 	f.Brief, err = h.Service.Brief(ctx)
 	return f, err
 }
@@ -315,6 +318,26 @@ func (h Handlers) SaveFoods(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.answerSaved(w, r, foodsForm(FoodsForm{Exclusions: exclusions, Allergies: allergies}))
+}
+
+// SaveAppliances saves the kinds of appliance ticked, each with its note, answering with
+// their section as saved; a plain post lands on the Profile page.
+func (h Handlers) SaveAppliances(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	notes := map[domain.ApplianceKind]string{}
+	for _, k := range domain.ApplianceKinds {
+		notes[k] = r.PostFormValue(noteField(k))
+	}
+	owned, err := h.Service.SetAppliances(ctx, r.PostForm["appliances"], notes)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "save the User's appliances", err)
+		return
+	}
+	h.answerSaved(w, r, appliancesForm(owned))
 }
 
 // SaveBrief saves the Planning Brief posted, answering with its section as saved; a plain

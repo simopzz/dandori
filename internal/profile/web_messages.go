@@ -33,15 +33,16 @@ var (
 	msgProfileTitle = web.Message{En: "Profile · Dandori", It: "Profilo · Dandori"}
 	msgSaved        = web.Message{En: "Profile saved.", It: "Profilo salvato."}
 	// Each section's Save names it: each is saved on its own.
-	msgSave          = web.Message{En: "Save", It: "Salva"}
-	msgSaveLanguage  = web.Message{En: "Save Language", It: "Salva la Lingua"}
-	msgSaveTimes     = web.Message{En: "Save the times of day", It: "Salva gli orari"}
-	msgSaveTargets   = web.Message{En: "Save Targets", It: "Salva gli Obiettivi"}
-	msgSaveMealOut   = web.Message{En: "Save the Meal Out estimate", It: "Salva la stima di un Pasto Fuori"}
-	msgSaveFoods     = web.Message{En: "Save exclusions and allergies", It: "Salva esclusioni e allergie"}
-	msgSaveBrief     = web.Message{En: "Save the Planning Brief", It: "Salva le indicazioni per la pianificazione"}
-	msgTargets       = web.Message{En: "Targets", It: "Obiettivi"}
-	msgTargetsNeeded = web.Message{
+	msgSave           = web.Message{En: "Save", It: "Salva"}
+	msgSaveLanguage   = web.Message{En: "Save Language", It: "Salva la Lingua"}
+	msgSaveTimes      = web.Message{En: "Save the times of day", It: "Salva gli orari"}
+	msgSaveTargets    = web.Message{En: "Save Targets", It: "Salva gli Obiettivi"}
+	msgSaveMealOut    = web.Message{En: "Save the Meal Out estimate", It: "Salva la stima di un Pasto Fuori"}
+	msgSaveFoods      = web.Message{En: "Save exclusions and allergies", It: "Salva esclusioni e allergie"}
+	msgSaveAppliances = web.Message{En: "Save appliances", It: "Salva gli elettrodomestici"}
+	msgSaveBrief      = web.Message{En: "Save the Planning Brief", It: "Salva le indicazioni per la pianificazione"}
+	msgTargets        = web.Message{En: "Targets", It: "Obiettivi"}
+	msgTargetsNeeded  = web.Message{
 		En: "Planning needs your Targets.",
 		It: "Per pianificare servono i tuoi Obiettivi.",
 	}
@@ -78,10 +79,22 @@ var (
 		En: "One food per line, or separated by commas or semicolons. Every planning Run is told to leave them out.",
 		It: "Un alimento per riga, o separati da virgole o punti e virgola. Ogni Run di pianificazione è tenuto a escluderli.",
 	}
-	msgExclusions = web.Message{En: "Never eat", It: "Non mangio mai"}
-	msgAllergies  = web.Message{En: "Allergies", It: "Allergie"}
-	msgBrief      = web.Message{En: "Planning Brief", It: "Indicazioni per la pianificazione"}
-	msgBriefHint  = web.Message{
+	msgExclusions     = web.Message{En: "Never eat", It: "Non mangio mai"}
+	msgAllergies      = web.Message{En: "Allergies", It: "Allergie"}
+	msgAppliances     = web.Message{En: "Appliances", It: "Elettrodomestici"}
+	msgAppliancesHint = web.Message{
+		En: "Tick the ones you own, with each one's model if you like. A Plan only uses Recipes your appliances can cook.",
+		It: "Spunta quelli che hai, con il modello di ciascuno se vuoi. Un Piano usa solo Ricette che i tuoi elettrodomestici possono cucinare.",
+	}
+	msgAppliance = web.Message{En: "Appliance", It: "Elettrodomestico"}
+	msgModel     = web.Message{En: "Model", It: "Modello"}
+	msgModelHint = web.Message{En: "optional", It: "facoltativo"}
+	// A note's placeholder, shown on a phone, where the column heads are hidden.
+	msgModelPlaceholder = web.Message{En: "Model (optional)", It: "Modello (facoltativo)"}
+	// A note's label, for a screen reader.
+	msgModelOf   = web.Message{En: "Model of the %s", It: "Modello: %s"}
+	msgBrief     = web.Message{En: "Planning Brief", It: "Indicazioni per la pianificazione"}
+	msgBriefHint = web.Message{
 		En: "Your lasting wishes for every Plan: variety, effort, what you enjoy. Every planning Run reads it and follows it as far as the rules of the Plan allow. Saving it starts no planning Run: it applies from the next one.",
 		It: "I tuoi desideri durevoli per ogni Piano: varietà, impegno, cosa ti piace. Ogni Run di pianificazione li legge e li segue per quanto le regole del Piano lo permettono. Salvarli non avvia alcun Run: valgono dal prossimo.",
 	}

@@ -395,6 +395,63 @@ func TestBrowserSavesTheTimesOfDayInPlace(t *testing.T) {
 	b.Shot(t, "times-of-day")
 }
 
+// Ticking an appliance and writing the note on its model, the section saves in place,
+// confirmed in a floating Notice, and shows what it saved; on a phone, the column heads
+// give way to each note's placeholder.
+func TestBrowserSavesAnApplianceWithItsNoteInPlace(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/profile")
+	section := b.Locator("#profile-appliances")
+	airFryer := section.GetByRole("checkbox", playwright.LocatorGetByRoleOptions{Name: "Air fryer"})
+	note := section.GetByRole("textbox", playwright.LocatorGetByRoleOptions{Name: "Model of the air fryer"})
+	if err := airFryer.Check(); err != nil {
+		t.Fatalf("tick the air fryer: %v", err)
+	}
+	if err := note.Fill("Ninja AF100"); err != nil {
+		t.Fatalf("write the air fryer's model: %v", err)
+	}
+	if _, err := b.Evaluate(`window.notReloaded = true`); err != nil {
+		t.Fatalf("mark the page: %v", err)
+	}
+	save := section.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Save appliances"})
+	if err := save.Click(); err != nil {
+		t.Fatalf("save the appliances: %v", err)
+	}
+	b.IsConfirmed(t, "Profile saved.")
+	if kept, err := b.Evaluate(`window.notReloaded === true`); err != nil || kept != true {
+		t.Errorf("saving the appliances reloaded the page (err %v)", err)
+	}
+	expect := playwright.NewPlaywrightAssertions()
+	if err := expect.Locator(airFryer).ToBeChecked(); err != nil {
+		t.Errorf("the saved air fryer isn't ticked: %v", err)
+	}
+	if err := expect.Locator(note).ToHaveValue("Ninja AF100"); err != nil {
+		t.Errorf("the saved air fryer's model isn't shown: %v", err)
+	}
+	if _, err := b.Evaluate(`document.getElementById("profile-appliances").scrollIntoView()`); err != nil {
+		t.Fatalf("scroll to the appliances: %v", err)
+	}
+	b.Shot(t, "appliances")
+
+	// On a phone the column heads are hidden: each note's placeholder says what it is.
+	if err := b.SetViewportSize(390, 844); err != nil {
+		t.Fatalf("size the page as a phone: %v", err)
+	}
+	if err := expect.Locator(section.Locator(".appliance-grid-head").First()).ToBeHidden(); err != nil {
+		t.Errorf("on a phone the column heads show: %v", err)
+	}
+	if err := expect.Locator(note).ToHaveAttribute("placeholder", "Model (optional)"); err != nil {
+		t.Errorf("on a phone the air fryer's note doesn't say what it is: %v", err)
+	}
+	if wide, err := b.Evaluate(`document.documentElement.scrollWidth > window.innerWidth`); err != nil || wide == true {
+		t.Errorf("the Profile is wider than a phone's screen (err %v)", err)
+	}
+	if err := airFryer.ScrollIntoViewIfNeeded(); err != nil {
+		t.Fatalf("scroll to the air fryer: %v", err)
+	}
+	b.Shot(t, "appliances-phone")
+}
+
 // A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line
 // of a Run's Trace that opens.
 func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {

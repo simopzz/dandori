@@ -54,12 +54,13 @@ templ choicePage(today time.Time, f LanguageForm) {
 // profileForms are the Profile page's sections as shown: each as saved, but for one
 // refused, shown as typed.
 type profileForms struct {
-	Language LanguageForm
-	Times    TimesForm
-	Targets  TargetsForm
-	MealOut  MealOutForm
-	Foods    FoodsForm
-	Brief    string
+	Language   LanguageForm
+	Times      TimesForm
+	Targets    TargetsForm
+	MealOut    MealOutForm
+	Foods      FoodsForm
+	Appliances domain.Appliances
+	Brief      string
 }
 
 // TargetsForm is the Targets as shown, by field: as saved or as typed, with why each
@@ -103,21 +104,22 @@ func (s section) route() string { return "/profile/" + s.id }
 
 // The Profile page's sections, numbered in the order the page shows them: the Language
 // first, and signing in last.
-const signingInNum = 7
+const signingInNum = 8
 
 var (
 	// The Language changes every word on the page, so its section reloads it.
-	languageSection = section{id: "language", num: 1, legend: msgLanguage, save: msgSaveLanguage, reload: true}
-	timesSection    = section{id: "times", num: 2, legend: msgTimesOfDay, save: msgSaveTimes}
-	targetsSection  = section{id: "targets", num: 3, legend: msgTargets, save: msgSaveTargets}
-	mealOutSection  = section{id: "meal-out", num: 4, legend: msgMealOut, save: msgSaveMealOut}
-	foodsSection    = section{id: "foods", num: 5, legend: msgFoods, save: msgSaveFoods}
-	briefSection    = section{id: "brief", num: 6, legend: msgBrief, save: msgSaveBrief}
+	languageSection   = section{id: "language", num: 1, legend: msgLanguage, save: msgSaveLanguage, reload: true}
+	timesSection      = section{id: "times", num: 2, legend: msgTimesOfDay, save: msgSaveTimes}
+	targetsSection    = section{id: "targets", num: 3, legend: msgTargets, save: msgSaveTargets}
+	mealOutSection    = section{id: "meal-out", num: 4, legend: msgMealOut, save: msgSaveMealOut}
+	foodsSection      = section{id: "foods", num: 5, legend: msgFoods, save: msgSaveFoods}
+	appliancesSection = section{id: "appliances", num: 6, legend: msgAppliances, save: msgSaveAppliances}
+	briefSection      = section{id: "brief", num: 7, legend: msgBrief, save: msgSaveBrief}
 )
 
 // profilePage is the User's Profile: their Language, the time of day of each kind of
-// Slot, their Targets, their Meal Out estimate, their exclusions and allergies, their
-// Planning Brief, and who is signed in.
+// Slot, their Targets, their Meal Out estimate, their exclusions and allergies, the
+// appliances they own, their Planning Brief, and who is signed in.
 templ profilePage(today time.Time, email string, forms profileForms) {
 	@web.Layout(web.T(ctx, msgProfileTitle), web.ProfileTab) {
 		@web.PageHeader("設定", web.T(ctx, msgProfile), today)
@@ -138,6 +140,9 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 		}
 		@web.SectionBody(foodsSection.id) {
 			@foodsForm(forms.Foods)
+		}
+		@web.SectionBody(appliancesSection.id) {
+			@appliancesForm(forms.Appliances)
 		}
 		@web.SectionBody(briefSection.id) {
 			@briefForm(forms.Brief)
@@ -292,6 +297,46 @@ templ foodsForm(f FoodsForm) {
 		@web.Field(web.T(ctx, msgAllergies), web.T(ctx, msgAllergiesHint), "") {
 			<textarea name="allergies" rows="4">{ strings.Join(f.Allergies, "\n") }</textarea>
 		}
+	}
+}
+
+// noteField names the field of the note on k's model.
+func noteField(k domain.ApplianceKind) string { return "note-" + string(k) }
+
+// appliancesForm is the appliances' section: a Check per kind, in the list's order, those
+// owned ticked, each with the note on its model beside it under the column's head, or
+// under it on a phone, where its placeholder says what it is.
+templ appliancesForm(owned domain.Appliances) {
+	@sectionForm(appliancesSection) {
+		@web.Hint() {
+			{ web.T(ctx, msgAppliancesHint) }
+		}
+		<div class="appliance-grid">
+			// Each note's hidden label names it to a screen reader: the heads and
+			// placeholders are for the eye.
+			<span class="appliance-grid-head" aria-hidden="true">{ web.T(ctx, msgAppliance) }</span>
+			<span class="appliance-grid-head" aria-hidden="true">
+				{ web.T(ctx, msgModel) }
+				<span class="field-hint">({ web.T(ctx, msgModelHint) })</span>
+			</span>
+			for _, k := range domain.ApplianceKinds {
+				{{ _, isOwned := owned[k] }}
+				@web.Check(web.Capitalised(web.T(ctx, web.ApplianceKindNames[k])), "") {
+					<input type="checkbox" name="appliances" value={ string(k) } checked?={ isOwned }/>
+					@web.Icon(string(k))
+				}
+				<label>
+					<span class="sr-only">{ web.Tf(ctx, msgModelOf, web.T(ctx, web.ApplianceKindNames[k])) }</span>
+					<input
+						type="text"
+						name={ noteField(k) }
+						value={ owned[k] }
+						placeholder={ web.T(ctx, msgModelPlaceholder) }
+						autocomplete="off"
+					/>
+				</label>
+			}
+		</div>
 	}
 }
 
