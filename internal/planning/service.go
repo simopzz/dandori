@@ -1,8 +1,10 @@
-// Package planning is planning the User's meals: for now, opening a Cycle with its
-// Delivery and dropping the upcoming one. Later slices plan it into a Plan.
+// Package planning is planning the User's meals: opening a Cycle with its Delivery,
+// dropping the upcoming one, and planning it into a pending Plan Proposal after the
+// Kitchen Check.
 package planning
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"time"
@@ -12,7 +14,11 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/profile"
+	"github.com/simopzz/dandori/internal/recipes"
+	"github.com/simopzz/dandori/internal/runs"
 )
 
 var (
@@ -30,13 +36,24 @@ type Cycle struct {
 	domain.Cycle
 }
 
-// Service is the signed-in User's Cycles.
+// Service is the signed-in User's Cycles and planning them. It reads the Profile, the
+// Recipe Library and the kitchen through their Services, and starts planning Runs.
 type Service struct {
-	pool *pgxpool.Pool
+	pool        *pgxpool.Pool
+	runs        *runs.Engine
+	profile     *profile.Service
+	recipes     *recipes.Service
+	ingredients *ingredients.Service
+	kitchen     *kitchen.Service
+	// checks is how many times a planning Run may call check_plan.
+	checks int
 }
 
-// New creates the Service.
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+// New creates the Service, its planning Runs allowed checks calls to check_plan each,
+// DefaultChecks when 0.
+func New(pool *pgxpool.Pool, engine *runs.Engine, prof *profile.Service, recs *recipes.Service, ings *ingredients.Service, kit *kitchen.Service, checks int) *Service {
+	return &Service{pool: pool, runs: engine, profile: prof, recipes: recs, ingredients: ings, kitchen: kit, checks: cmp.Or(checks, DefaultChecks)}
+}
 
 // Now is the signed-in User's current and upcoming Cycles at now, each nil when they
 // have none.
@@ -73,12 +90,12 @@ func refusal(ctx context.Context, tx pgx.Tx, now time.Time) error {
 	return nil
 }
 
-// Open opens a Cycle for the signed-in User at now, as typed by field in l, unless a
-// field is refused: then it opens nothing and is the problem with each. It is
-// ErrNoTargets before their Targets are set, and ErrUpcoming while a Cycle is upcoming.
-func (s *Service) Open(ctx context.Context, l domain.Language, typed map[string]string, now time.Time) (map[string]domain.Problem, error) {
+// Open opens a Cycle for the signed-in User at now, as typed by field in l, and is its
+// id, unless a field is refused: then it opens nothing and is the problem with each.
+// Before their Targets are set it is ErrNoTargets, and ErrUpcoming while a Cycle is.
+func (s *Service) Open(ctx context.Context, l domain.Language, typed map[string]string, now time.Time) (id int64, problems map[string]domain.Problem, err error) {
 	c, problems := domain.ParseCycle(l, typed, now)
-	return problems, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+	return id, problems, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		// Locked, so two Cycles opened at once can't both find none upcoming.
 		if err := lockOpening(ctx, tx); err != nil {
 			return err
@@ -86,7 +103,8 @@ func (s *Service) Open(ctx context.Context, l domain.Language, typed map[string]
 		if err := refusal(ctx, tx, now); err != nil || len(problems) > 0 {
 			return err
 		}
-		return saveCycle(ctx, tx, c)
+		id, err = saveCycle(ctx, tx, c)
+		return err
 	})
 }
 

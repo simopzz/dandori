@@ -108,16 +108,20 @@ func (e *Engine) Wait() { e.wg.Wait() }
 
 // Start records a new Run of kind for the signed-in User, asked asked, and carries out b
 // in the background as that User. The tools of b find the Run's id with IDFrom. The Run
-// is a span under ctx's, though it outlives it.
-func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (int64, error) {
+// is a span under ctx's, though it outlives it. link, if set, runs in the transaction
+// recording the Run, given its id, so what it records commits with the Run: an error
+// from it records and starts nothing.
+func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief, link func(tx pgx.Tx, id int64) error) (int64, error) {
 	userID, ok := db.UserID(ctx)
 	if !ok {
 		return 0, errors.New("runs.Start: no signed-in User")
 	}
 	var id int64
 	err := db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		id, err = insertRun(ctx, tx, kind, asked, e.clock.Now())
-		return err
+		if id, err = insertRun(ctx, tx, kind, asked, e.clock.Now()); err != nil || link == nil {
+			return err
+		}
+		return link(tx, id)
 	})
 	if err != nil {
 		return 0, err
@@ -195,7 +199,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	var cancelled bool
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		if _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
+		if _, _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
 			return err
 		}
 		cancelled, err = setStatus(ctx, tx, id, Cancelled, e.clock.Now())
@@ -219,13 +223,14 @@ func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 // cancelWait bounds how long Cancel waits for a cancelled Run to record its end.
 const cancelWait = 2 * time.Second
 
-// Status is the status of the signed-in User's Run id, found false when they have none.
-func (e *Engine) Status(ctx context.Context, id int64) (status Status, found bool, err error) {
+// Status is the kind and status of the signed-in User's Run id, found false when they
+// have none.
+func (e *Engine) Status(ctx context.Context, id int64) (kind string, status Status, found bool, err error) {
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		status, found, err = loadStatus(ctx, tx, id)
+		kind, status, found, err = loadStatus(ctx, tx, id)
 		return err
 	})
-	return status, found, err
+	return kind, status, found, err
 }
 
 // List is the signed-in User's Runs, newest first, without their Traces.

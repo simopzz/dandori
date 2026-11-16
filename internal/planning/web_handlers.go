@@ -2,12 +2,14 @@ package planning
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
+	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -16,27 +18,90 @@ const (
 	refusedCycle    httpx.Refusal = "Cycle refused"
 	refusedUpcoming httpx.Refusal = "a Cycle is already upcoming"
 	refusedTargets  httpx.Refusal = "the Targets aren't set"
+	refusedBusy     httpx.Refusal = "another planning Run is going or a Plan Proposal is pending"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
 var cycleFields = []string{domain.CycleDelivery, domain.CycleFrom, domain.CycleTo, domain.CycleEnds}
 
-// Handlers serve the Cycle page, opening a Cycle and dropping it.
+// Handlers serve the Cycle page, opening a Cycle, dropping it, and the Kitchen Check
+// that starts planning it.
 type Handlers struct {
 	Service *Service
+	Kitchen *kitchen.Service
 	Clock   clock.Clock
 	Log     *slog.Logger
 }
 
-// Show is the Cycle page: the upcoming Cycle, or that there's none.
+// Show is the Cycle page: the upcoming Cycle with how planning it stands, or that
+// there's none.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
-	now := h.Clock.Now()
-	_, upcoming, err := h.Service.Now(r.Context(), now)
+	ctx, now := r.Context(), h.Clock.Now()
+	_, upcoming, err := h.Service.Now(ctx, now)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Cycles", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, cyclePage(now, upcoming))
+	var p Planning
+	if upcoming != nil {
+		if p, err = h.Service.PlanningOf(ctx, upcoming.ID, now.Location()); err != nil {
+			httpx.ServerError(w, r, h.Log, "load how planning the Cycle stands", err)
+			return
+		}
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, cyclePage(now, upcoming, p))
+}
+
+// ShowCheck is the Kitchen Check before planning the upcoming Cycle in the path.
+func (h Handlers) ShowCheck(w http.ResponseWriter, r *http.Request) {
+	h.check(w, r, http.StatusOK, nil)
+}
+
+// check answers with the Kitchen Check of the upcoming Cycle in the path, with status,
+// saying why planning is refused, if it is. A Cycle not upcoming is unknown.
+func (h Handlers) check(w http.ResponseWriter, r *http.Request, status int, refusal error) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ctx, now := r.Context(), h.Clock.Now()
+	c, err := h.Service.Upcoming(ctx, id, now)
+	if errors.Is(err, ErrNoCycle) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the Cycle to plan", err)
+		return
+	}
+	contents, err := h.Kitchen.Contents(ctx, now)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "add up the Kitchen Ledger", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, status, checkPage(now, c, contents, refusal))
+}
+
+// Plan confirms the Kitchen Check of the upcoming Cycle in the path and starts its
+// planning Run, landing on the Run's page and its live Trace, or answers with the
+// Kitchen Check saying why it can't.
+func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	runID, err := h.Service.StartPlanning(r.Context(), id, h.Clock.Now())
+	switch {
+	case errors.Is(err, ErrNoCycle):
+		http.NotFound(w, r)
+	case errors.Is(err, ErrBusy):
+		httpx.Refused(r, refusedBusy, nil)
+		h.check(w, r, http.StatusConflict, err)
+	case err != nil:
+		httpx.ServerError(w, r, h.Log, "start planning the Cycle", err)
+	default:
+		web.Answer{RedirectTo: fmt.Sprintf("/runs/%d", runID)}.Write(w, r, h.Log)
+	}
 }
 
 // ShowOpen is the form opening a Cycle, saying first why it would be refused, if it
@@ -51,7 +116,7 @@ func (h Handlers) ShowOpen(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, openPage(now, OpenForm{Refusal: refusal}))
 }
 
-// Open opens the Cycle posted, landing on the Cycle page, or answers with the form as
+// Open opens the Cycle posted, landing on its Kitchen Check, or answers with the form as
 // typed, refused on each field or as a whole.
 func (h Handlers) Open(w http.ResponseWriter, r *http.Request) {
 	ctx, now := r.Context(), h.Clock.Now()
@@ -59,7 +124,7 @@ func (h Handlers) Open(w http.ResponseWriter, r *http.Request) {
 	for _, field := range cycleFields {
 		typed[field] = r.PostFormValue(field)
 	}
-	problems, err := h.Service.Open(ctx, web.LanguageOf(ctx), typed, now)
+	id, problems, err := h.Service.Open(ctx, web.LanguageOf(ctx), typed, now)
 	form := OpenForm{Values: typed, Errs: map[string]string{}, Refusal: err}
 	switch {
 	case errors.Is(err, ErrUpcoming):
@@ -70,7 +135,7 @@ func (h Handlers) Open(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "open a Cycle", err)
 		return
 	case len(problems) == 0:
-		web.Answer{Notice: web.T(ctx, msgOpened), RedirectTo: "/plan"}.Write(w, r, h.Log)
+		web.Answer{Notice: web.T(ctx, msgOpened), RedirectTo: string(checkURL(id))}.Write(w, r, h.Log)
 		return
 	default:
 		for field, problem := range problems {

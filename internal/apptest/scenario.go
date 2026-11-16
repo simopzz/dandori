@@ -649,3 +649,23 @@ func (s *Scenario) DropsCycle() {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("drops the Cycle: %d %s", s.page.StatusCode, s.page.Path))
 }
+
+// PlansCycle confirms the Kitchen Check on the page open with its one button, as a
+// browser without htmx, lands on the planning Run's page, and reloads it once the Run
+// has ended.
+func (s *Scenario) PlansCycle() {
+	s.t.Helper()
+	s.StartsPlanning()
+	s.Settle()
+	s.Open(s.page.Path)
+}
+
+// StartsPlanning confirms the Kitchen Check on the page open with its one button, as a
+// browser without htmx, and lands where that goes: the planning Run's page, the Run
+// going, or the Kitchen Check saying why it can't plan.
+func (s *Scenario) StartsPlanning() {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "plan-cycle")
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("plans the Cycle: %d %s", s.page.StatusCode, s.page.Path))
+}

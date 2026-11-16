@@ -21,7 +21,8 @@ type Brief struct {
 }
 
 // Tool is something the agent can do. Run's result goes back to the model; an error goes
-// back as a failed tool result, so the model can recover.
+// back as a failed tool result, so the model can recover, unless it is a *Failure, which
+// fails the Run.
 type Tool struct {
 	Name        string
 	Description string

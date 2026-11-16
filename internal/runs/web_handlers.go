@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/web"
@@ -18,10 +19,13 @@ import (
 // Kind is what a Run's page tells of its kind of Run: its name, the name of what the User
 // gives a Run of it, and the page of what it left them, named ResultName, or "" for none.
 // Again, if set, is where a failed Run's "Try again" posts what it was asked, as text.
+// Reasons are why a Run of the kind fails beside the reasons every Run can, such as
+// agent.NoResult; %s is what was said more, verbatim.
 type Kind struct {
 	Name, AskedName, ResultName web.Message
 	Result                      func(ctx context.Context, runID int64) (string, error)
 	Again                       string
+	Reasons                     map[agent.Reason]web.Message
 }
 
 // Handlers serve the Runs page, a Run's page and its live Trace, and cancel a Run.
@@ -67,7 +71,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	if run.Status == Failed {
 		again = kind.Again
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, web.T(ctx, kind.Name), web.T(ctx, kind.AskedName), res, again))
+	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, kind, res, again))
 }
 
 // List is the signed-in User's Runs, newest first.
@@ -113,11 +117,12 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	_, found, err := h.Engine.Status(ctx, id)
+	kindName, _, found, err := h.Engine.Status(ctx, id)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the Run", err)
 		return
 	}
+	kind := h.Kinds[kindName]
 	if !found {
 		http.NotFound(w, r)
 		return
@@ -141,7 +146,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 		var b bytes.Buffer
-		if err := traceEvent(ev, zone).Render(ctx, &b); err != nil {
+		if err := traceEvent(ev, zone, kind).Render(ctx, &b); err != nil {
 			h.Log.ErrorContext(ctx, "render a Trace Event", "err", err)
 			return false
 		}
@@ -182,7 +187,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	status, _, err := h.Engine.Status(ctx, id)
+	_, status, _, err := h.Engine.Status(ctx, id)
 	if err != nil || status == Going {
 		// It fell behind, or nothing here is running it: hang up without an end, and the
 		// browser reconnects.

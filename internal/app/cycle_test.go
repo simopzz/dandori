@@ -14,9 +14,10 @@ import (
 // ending when left to.
 var thursday = apptest.Cycle{Delivery: "11/05/2026", From: "6pm", To: "8pm"}
 
-// plannerOf signs up email, in English, with their Targets set.
-func plannerOf(t *testing.T, email string) *apptest.Scenario {
-	s := profileOf(t, email)
+// plannerOf signs up email, in English, with their Targets set, in an app started
+// with opts.
+func plannerOf(t *testing.T, email string, opts ...apptest.Option) *apptest.Scenario {
+	s := profileOf(t, email, opts...)
 	s.SavesTargets(targets)
 	return s
 }
@@ -28,8 +29,9 @@ func TestOpeningACycleShowsItUpcoming(t *testing.T) {
 	s.Open("/plan")
 	s.Sees("No Cycle is upcoming.")
 	s.OpensCycle(thursday)
-	s.IsAt("/plan")
 	s.IsConfirmed("Cycle opened.")
+	s.Sees("Kitchen Check")
+	s.Open("/plan")
 	s.Sees("Upcoming Cycle")
 	s.Sees("Delivery Thursday, November 5, 6:00 pm to 8:00 pm Tentative")
 	s.Sees("End date Sunday, November 15")
@@ -45,6 +47,7 @@ func TestACycleEndsOnTheDateTyped(t *testing.T) {
 	c := thursday
 	c.Ends = "11/12/2026"
 	s.OpensCycle(c)
+	s.Open("/plan")
 	s.Sees("End date Thursday, November 12")
 }
 
@@ -116,11 +119,13 @@ func TestADeliveryBeforeOrAfterAnotherCyclesEndIsAccepted(t *testing.T) {
 	s.Sees("No Cycle is upcoming.")
 
 	s.OpensCycle(apptest.Cycle{Delivery: "11/10/2026", From: "6pm", To: "8pm"})
-	s.IsAt("/plan")
+	s.IsConfirmed("Cycle opened.")
+	s.Open("/plan")
 	s.Sees("Delivery Tuesday, November 10")
 	s.DropsCycle()
 	s.OpensCycle(apptest.Cycle{Delivery: "11/20/2026", From: "6pm", To: "8pm"})
-	s.IsAt("/plan")
+	s.IsConfirmed("Cycle opened.")
+	s.Open("/plan")
 	s.Sees("Delivery Friday, November 20")
 }
 
@@ -129,6 +134,7 @@ func TestADeliveryBeforeOrAfterAnotherCyclesEndIsAccepted(t *testing.T) {
 func TestDroppingTheUpcomingCycle(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	s.OpensCycle(thursday)
+	s.Open("/plan")
 	s.Follows("Drop the Cycle")
 	s.Sees("Drop the Cycle whose Delivery comes on Thursday, November 5?")
 	s.Submits("remove-step")
@@ -136,13 +142,14 @@ func TestDroppingTheUpcomingCycle(t *testing.T) {
 	s.IsConfirmed("Cycle dropped.")
 	s.Sees("No Cycle is upcoming.")
 	s.OpensCycle(thursday)
-	s.IsAt("/plan")
+	s.IsConfirmed("Cycle opened.")
 }
 
 // A Cycle whose Delivery has arrived can't be dropped.
 func TestACycleArrivedCantBeDropped(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	s.OpensCycle(thursday)
+	s.Open("/plan")
 	form := apptest.Form(t, s.Get(t, apptest.Link(t, s.Page().Body, "Drop the Cycle")).Body, "remove-step")
 	s.At("Thu 20:00")
 	if got := s.PostForm(t, form.Action, form.Values); got.StatusCode != http.StatusNotFound {
@@ -150,7 +157,7 @@ func TestACycleArrivedCantBeDropped(t *testing.T) {
 	}
 }
 
-// Each form answers htmx as it does a plain post: opening lands on the Cycle page, a
+// Each form answers htmx as it does a plain post: opening lands on the Kitchen Check, a
 // refusal is the form again with 422, and dropping, posted from its sheet, lands on the
 // Cycle page.
 func TestCycleFormsPostedAsHTMX(t *testing.T) {
@@ -163,8 +170,8 @@ func TestCycleFormsPostedAsHTMX(t *testing.T) {
 		t.Errorf("a refused opening as htmx answers %d, want 422 with the form as typed", got.StatusCode)
 	}
 	thursday.Fill(open)
-	if got := s.HTMXPostForm(t, open.Action, open.Values); got.Path != "/plan" || !strings.Contains(apptest.Text(got.Body), "Upcoming Cycle") {
-		t.Errorf("opening as htmx lands on %s, want the Cycle page showing it", got.Path)
+	if got := s.HTMXPostForm(t, open.Action, open.Values); got.Path != "/plan/cycles/1/check" || !strings.Contains(apptest.Text(got.Body), "Kitchen Check") {
+		t.Errorf("opening as htmx lands on %s, want its Kitchen Check", got.Path)
 	}
 	src := apptest.SheetSource(t, s.Get(t, "/plan").Body, "Drop the Cycle")
 	drop := apptest.Form(t, s.HTMXGet(t, src).Body, "remove-step")
@@ -193,6 +200,7 @@ func TestTodayOffersToOpenACycle(t *testing.T) {
 func TestTwoUsersNeverSeeEachOthersCycles(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	s.OpensCycle(thursday)
+	s.Open("/plan")
 	drop := apptest.Link(t, s.Page().Body, "Drop the Cycle")
 	s.Open("/profile")
 	s.SignsOut()
@@ -219,6 +227,7 @@ func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 	} {
 		s.At(c.before)
 		s.OpensCycle(apptest.Cycle{Delivery: c.delivery, From: "6pm", To: "8pm"})
+		s.Open("/plan")
 		s.Sees(c.shown)
 		s.Sees(c.ends)
 		s.At(c.lastMinute)
@@ -231,8 +240,8 @@ func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 }
 
 // Through a browser: the Cycle page opens a Cycle on a page of its own, refusing a field
-// in place, back to the Cycle page showing it, and Drop asks in its sheet, over the Cycle
-// page, before dropping it.
+// in place, on to its Kitchen Check; the Cycle page shows it, and Drop asks in its sheet,
+// over the Cycle page, before dropping it.
 func TestBrowserOpensAndDropsACycle(t *testing.T) {
 	b := signedUpBrowser(t)
 	expect := playwright.NewPlaywrightAssertions()
@@ -268,14 +277,13 @@ func TestBrowserOpensAndDropsACycle(t *testing.T) {
 	b.Shot(t, "cycle-open-refused")
 	fill("[name=to]", "8pm")
 	b.Click(t, "Open the Cycle")
-	b.IsAt(t, "/plan")
+	b.IsAt(t, "/plan/cycles/1/check")
 	b.IsConfirmed(t, "Cycle opened.")
+	b.Sees(t, "Kitchen Check")
+	b.Open(t, "/plan")
 	b.Sees(t, "Thursday, November 5, 6:00 pm to 8:00 pm")
 	b.Sees(t, "Sunday, November 15")
 	b.Shot(t, "cycle-upcoming")
-	if err := b.Notices().GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close notice"}).Click(); err != nil {
-		t.Fatalf("close the Notice: %v", err)
-	}
 
 	follow("Drop the Cycle")
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Drop the Cycle"})

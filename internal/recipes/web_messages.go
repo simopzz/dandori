@@ -1,6 +1,7 @@
 package recipes
 
 import (
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -145,4 +146,9 @@ var quantityMessages = map[domain.Problem]web.Message{
 var rowNameMessages = map[domain.Problem]web.Message{
 	domain.Required:    {En: "Name the Ingredient.", It: "Indica l'Ingrediente."},
 	domain.ListedTwice: {En: "Already listed in this Recipe.", It: "Già presente in questa Ricetta."},
+}
+
+// ParseReasons are why a parse Run fails beside the reasons every Run can.
+var ParseReasons = map[agent.Reason]web.Message{
+	agent.NoResult: {En: "The model ended without a Recipe Draft.", It: "Il modello ha finito senza una Bozza di Ricetta."},
 }

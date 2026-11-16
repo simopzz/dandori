@@ -180,3 +180,41 @@ func (s *Service) SetLanguage(ctx context.Context, l domain.Language) error {
 		return saveLanguage(ctx, tx, l)
 	})
 }
+
+// Planner is the Profile as the planner reads it.
+type Planner struct {
+	Language              domain.Language
+	Times                 domain.SlotTimes
+	Targets               domain.Targets
+	MealOut               domain.Nutrition
+	Exclusions, Allergies []string
+	Appliances            domain.Appliances
+	Brief                 string
+}
+
+// Planner is the signed-in User's Profile as the planner reads it.
+func (s *Service) Planner(ctx context.Context) (p Planner, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		if p.Language, _, err = loadLanguage(ctx, tx); err != nil {
+			return err
+		}
+		if p.Times, err = loadSlotTimes(ctx, tx); err != nil {
+			return err
+		}
+		if p.Targets, _, err = LoadTargets(ctx, tx); err != nil {
+			return err
+		}
+		if p.MealOut, err = loadMealOut(ctx, tx); err != nil {
+			return err
+		}
+		if p.Exclusions, p.Allergies, err = loadFoods(ctx, tx); err != nil {
+			return err
+		}
+		if p.Appliances, err = loadAppliances(ctx, tx); err != nil {
+			return err
+		}
+		p.Brief, err = loadBrief(ctx, tx)
+		return err
+	})
+	return p, err
+}
