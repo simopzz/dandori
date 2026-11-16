@@ -4,6 +4,7 @@
 .claude/skills/*
 !.claude/skills/htmx-*/
 !.claude/skills/grafana-debugging
+!.claude/skills/graph
 skills-lock.json
 .claude/settings.local.json
 
@@ -15,3 +16,5 @@ bin/
 .env.provision
 
 .ua
+# What /graph moves aside when it attaches .ua to the understand-graph branch.
+/.ua.bak-*
