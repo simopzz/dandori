@@ -86,8 +86,11 @@ var (
 		En: "Tick the ones you own, and beside each, its model if you like. A Plan only uses Recipes your appliances can cook.",
 		It: "Spunta quelli che hai e, accanto a ciascuno, il modello se vuoi. Un Piano usa solo Ricette che i tuoi elettrodomestici possono cucinare.",
 	}
-	msgModel     = web.Message{En: "model, optional", It: "modello, facoltativo"}
-	msgModelOf   = web.Message{En: "Model of the %s", It: "Modello: %s"}
+	msgAppliance = web.Message{En: "Appliance", It: "Elettrodomestico"}
+	msgModel     = web.Message{En: "Model", It: "Modello"}
+	msgModelHint = web.Message{En: "optional", It: "facoltativo"}
+	// A note's label, shown on a phone, where the column heads are hidden.
+	msgModelOf   = web.Message{En: "Model of the %s (optional)", It: "Modello: %s (facoltativo)"}
 	msgBrief     = web.Message{En: "Planning Brief", It: "Indicazioni per la pianificazione"}
 	msgBriefHint = web.Message{
 		En: "Your lasting wishes for every Plan: variety, effort, what you enjoy. Every planning Run reads it and follows it as far as the rules of the Plan allow. Saving it starts no planning Run: it applies from the next one.",

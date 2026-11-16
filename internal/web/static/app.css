@@ -590,15 +590,20 @@ legend.field-label { margin-bottom: var(--space-1); }
 .check > .icon { flex: none; }
 
 /* The Profile's appliances: each kind's Check with the note on its model beside it,
-   or under it on a phone. */
+   under the column heads, or under it on a phone, with its CellField label. The
+   width is where a CellField's label hides. */
 .appliance-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 
-.appliance-grid > input { margin-bottom: var(--space-3); }
+.appliance-grid > .field { margin-bottom: var(--space-5); }
 
-@media (min-width: 600px) {
+.appliance-grid-head { display: none; }
+
+@media (width > 40rem) {
   .appliance-grid { grid-template-columns: 14rem minmax(0, 1fr); column-gap: var(--space-4); row-gap: var(--space-2); align-items: center; }
 
-  .appliance-grid > input { margin-bottom: 0; }
+  .appliance-grid > .field { margin-bottom: 0; }
+
+  .appliance-grid-head { display: block; font-size: 0.875rem; color: var(--color-text-soft); }
 }
 
 /* Checks: a group of checkboxes in as many columns as the width allows */
