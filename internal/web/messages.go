@@ -9,6 +9,7 @@ import (
 // The shell's and the shared components' Messages.
 var (
 	msgToday          = Message{En: "Today", It: "Oggi"}
+	msgPlan           = Message{En: "Plan", It: "Piano"}
 	msgRecipes        = Message{En: "Recipes", It: "Ricette"}
 	msgKitchen        = Message{En: "Kitchen", It: "Cucina"}
 	msgProfile        = Message{En: "Profile", It: "Profilo"}

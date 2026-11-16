@@ -64,7 +64,7 @@ func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (do
 // only the tolerance is.
 func (s *Service) Targets(ctx context.Context) (t domain.Targets, set bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		t, set, err = loadTargets(ctx, tx)
+		t, set, err = LoadTargets(ctx, tx)
 		return err
 	})
 	return t, set, err

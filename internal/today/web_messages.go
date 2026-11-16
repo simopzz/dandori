@@ -19,6 +19,7 @@ var (
 	msgCountKitchen = web.Message{En: "Count your kitchen", It: "Conta la tua cucina"}
 	msgAddRecipes   = web.Message{En: "Add Recipes", It: "Aggiungi Ricette"}
 	msgSetTargets   = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
+	msgOpenCycle    = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
 )
 
 // setUp is what planning needs, each named for what the User does at its link.

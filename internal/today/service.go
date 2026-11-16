@@ -1,6 +1,6 @@
 // Package today is Today, the page a User opens Dandori on: for now, the day's Slot now
-// or next by the Profile's times of day, the day's later ones, and how up to date the
-// kitchen is. Later slices fill each Slot in.
+// or next by the Profile's times of day, the day's later ones, how up to date the kitchen
+// is, and an offer to open a Cycle while there's none. Later slices fill each Slot in.
 package today
 
 import (
@@ -9,18 +9,20 @@ import (
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/profile"
 )
 
 // Service is what Today shows the signed-in User.
 type Service struct {
-	profile *profile.Service
-	ledger  *ledger.Service
+	profile  *profile.Service
+	ledger   *ledger.Service
+	planning *planning.Service
 }
 
 // New creates the Service.
-func New(profile *profile.Service, ledger *ledger.Service) *Service {
-	return &Service{profile: profile, ledger: ledger}
+func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Service) *Service {
+	return &Service{profile: profile, ledger: ledger, planning: planning}
 }
 
 // Day is what Today shows at a moment.
@@ -31,6 +33,8 @@ type Day struct {
 	// until it first has.
 	Beat   time.Time
 	Beaten bool
+	// NoCycle is whether the User has no Cycle, current or upcoming, to plan.
+	NoCycle bool
 }
 
 // At is what Today shows the signed-in User at now.
@@ -43,5 +47,12 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	if err != nil {
 		return Day{}, err
 	}
-	return Day{Slots: domain.TodayAt(now, times), Times: times, Beat: beat, Beaten: beaten}, nil
+	current, upcoming, err := s.planning.Now(ctx, now)
+	if err != nil {
+		return Day{}, err
+	}
+	return Day{
+		Slots: domain.TodayAt(now, times), Times: times, Beat: beat, Beaten: beaten,
+		NoCycle: current == nil && upcoming == nil,
+	}, nil
 }
