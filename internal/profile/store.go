@@ -60,10 +60,10 @@ func timeOfDay(t pgtype.Time) domain.TimeOfDay {
 	return domain.TimeOfDay(time.Duration(t.Microseconds) * time.Microsecond / time.Minute)
 }
 
-// loadTargets reads the signed-in User's Targets; set is false until they save theirs,
+// LoadTargets reads the signed-in User's Targets; set is false until they save theirs,
 // when only the tolerance is. It has no WHERE on purpose: run in db.AsUser, row-level
 // security leaves only their row.
-func loadTargets(ctx context.Context, q db.Querier) (t domain.Targets, set bool, err error) {
+func LoadTargets(ctx context.Context, q db.Querier) (t domain.Targets, set bool, err error) {
 	var kcal, protein, fibre, sugar pgtype.Int4
 	err = q.QueryRow(ctx, `SELECT target_kcal, target_protein, target_fibre, target_sugar, kcal_tolerance FROM profile`).
 		Scan(&kcal, &protein, &fibre, &sugar, &t.Tolerance)

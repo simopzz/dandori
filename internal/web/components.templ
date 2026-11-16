@@ -294,10 +294,11 @@ templ TimeField(label, name, value, err string) {
 }
 
 // DateField is a Field for a day, holding value as the Language writes it
-// (domain.FormatDate), for the same reason as TimeField.
-templ DateField(label, name, value, err string) {
-	@Field(label, "", err) {
-		<input type="text" inputmode="numeric" autocomplete="off" required name={ name } value={ value }
+// (domain.FormatDate), for the same reason as TimeField. hint follows the label: a day
+// that may be left blank says optional, and isn't required.
+templ DateField(label, hint, name, value, err string) {
+	@Field(label, hint, err) {
+		<input type="text" inputmode="numeric" autocomplete="off" required?={ hint == "" } name={ name } value={ value }
 			placeholder={ domain.FormatDate(LanguageOf(ctx), time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)) }
 			if err != "" {
 				aria-invalid="true"

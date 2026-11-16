@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mxschmitt/playwright-go"
+
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -202,4 +204,79 @@ func TestTwoUsersNeverSeeEachOthersCycles(t *testing.T) {
 	if got := s.Get(t, drop); got.StatusCode != http.StatusNotFound {
 		t.Errorf("another User's drop step answers %d, want 404", got.StatusCode)
 	}
+}
+
+// A Cycle across a change of the clocks, to summer time in March and back to standard
+// time in October, ends ten days after its Delivery's date, and arrives at the end of
+// its window on the wall clock, not an hour early or late.
+func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
+	s := plannerOf(t, "ada@example.com")
+	for _, c := range []struct {
+		before, delivery, shown, ends, lastMinute, arrives string
+	}{
+		{"2027-03-26 10:00", "03/27/2027", "Delivery Saturday, March 27, 6:00 pm to 8:00 pm", "End date Tuesday, April 6", "2027-03-27 19:59", "2027-03-27 20:00"},
+		{"2027-10-29 10:00", "10/30/2027", "Delivery Saturday, October 30, 6:00 pm to 8:00 pm", "End date Tuesday, November 9", "2027-10-30 19:59", "2027-10-30 20:00"},
+	} {
+		s.At(c.before)
+		s.OpensCycle(apptest.Cycle{Delivery: c.delivery, From: "6pm", To: "8pm"})
+		s.Sees(c.shown)
+		s.Sees(c.ends)
+		s.At(c.lastMinute)
+		s.Open("/plan")
+		s.Sees("Upcoming Cycle")
+		s.At(c.arrives)
+		s.Open("/plan")
+		s.Sees("No Cycle is upcoming.")
+	}
+}
+
+// Through a browser: the Cycle page opens a Cycle on a page of its own, back to the Cycle
+// page showing it, and Drop asks in its sheet, over the Cycle page, before dropping it.
+func TestBrowserOpensAndDropsACycle(t *testing.T) {
+	b := signedUpBrowser(t)
+	expect := playwright.NewPlaywrightAssertions()
+	fill := func(selector, value string) {
+		t.Helper()
+		if err := b.Locator(selector).Fill(value); err != nil {
+			t.Fatalf("fill %s: %v", selector, err)
+		}
+	}
+	follow := func(name string) {
+		t.Helper()
+		if err := b.Locator("main").GetByRole("link", playwright.LocatorGetByRoleOptions{Name: name}).Click(); err != nil {
+			t.Fatalf("follow %s: %v", name, err)
+		}
+	}
+	b.Open(t, "/profile")
+	for field, v := range map[string]string{"kcal": "2200", "protein": "130", "fibre": "30", "sugar": "50"} {
+		fill("#profile-targets [name="+field+"]", v)
+	}
+	if err := b.Locator("#profile-targets button[type=submit]").Click(); err != nil {
+		t.Fatalf("save the Targets: %v", err)
+	}
+	b.IsConfirmed(t, "Profile saved.")
+
+	b.Open(t, "/plan")
+	follow("Open a Cycle")
+	b.IsAt(t, "/plan/open")
+	fill("[name=delivery]", "11/05/2026")
+	fill("[name=from]", "6pm")
+	fill("[name=to]", "8pm")
+	b.Click(t, "Open the Cycle")
+	b.IsAt(t, "/plan")
+	b.IsConfirmed(t, "Cycle opened.")
+	b.Sees(t, "Thursday, November 5, 6:00 pm to 8:00 pm")
+	b.Sees(t, "Sunday, November 15")
+
+	follow("Drop the Cycle")
+	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Drop the Cycle"})
+	if err := expect.Locator(sheet).ToContainText("Drop the Cycle whose Delivery comes on Thursday, November 5?"); err != nil {
+		t.Fatalf("Drop doesn't ask in its sheet: %v", err)
+	}
+	b.IsAt(t, "/plan")
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Drop", Exact: playwright.Bool(true)}).Click(); err != nil {
+		t.Fatalf("drop: %v", err)
+	}
+	b.IsConfirmed(t, "Cycle dropped.")
+	b.Sees(t, "No Cycle is upcoming.")
 }

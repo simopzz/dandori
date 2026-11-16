@@ -84,13 +84,14 @@ func ParseCycle(l Language, typed map[string]string, now time.Time) (Cycle, map[
 	var c Cycle
 	c.Delivery.On, c.Delivery.From, c.Delivery.To = date(CycleDelivery), clock(CycleFrom), clock(CycleTo)
 	dated := problems[CycleDelivery] == ""
-	switch {
-	case dated && c.Delivery.On.Before(today):
+	if dated && c.Delivery.On.Before(today) {
 		problems[CycleDelivery] = AlreadyEnded
+	}
+	switch {
 	case problems[CycleTo] != "":
 	case problems[CycleFrom] == "" && c.Delivery.To <= c.Delivery.From:
 		problems[CycleTo] = NotAfterFrom
-	case dated && !c.Delivery.Arrives().After(now):
+	case problems[CycleDelivery] == "" && !c.Delivery.Arrives().After(now):
 		problems[CycleTo] = AlreadyEnded
 	}
 	if typed[CycleEnds] == "" {

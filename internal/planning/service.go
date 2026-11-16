@@ -32,14 +32,11 @@ type Cycle struct {
 
 // Service is the signed-in User's Cycles.
 type Service struct {
-	pool    *pgxpool.Pool
-	profile *profile.Service
+	pool *pgxpool.Pool
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, profile *profile.Service) *Service {
-	return &Service{pool: pool, profile: profile}
-}
+func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
 // Now is the signed-in User's current and upcoming Cycles at now, each nil when they
 // have none.
@@ -51,20 +48,15 @@ func (s *Service) Now(ctx context.Context, now time.Time) (current, upcoming *Cy
 	return current, upcoming, err
 }
 
-// NoCycle reports whether the signed-in User has no Cycle at now, current or upcoming.
-func (s *Service) NoCycle(ctx context.Context, now time.Time) (bool, error) {
-	current, upcoming, err := s.Now(ctx, now)
-	return current == nil && upcoming == nil, err
-}
-
 // Refusal is why the signed-in User can't open a Cycle at now, ErrNoTargets or
 // ErrUpcoming, or nil when they can.
 func (s *Service) Refusal(ctx context.Context, now time.Time) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return s.refusal(ctx, tx, now) })
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return refusal(ctx, tx, now) })
 }
 
-func (s *Service) refusal(ctx context.Context, tx pgx.Tx, now time.Time) error {
-	_, set, err := s.profile.Targets(ctx)
+// refusal is why the signed-in User can't open a Cycle at now, read in tx, or nil.
+func refusal(ctx context.Context, tx pgx.Tx, now time.Time) error {
+	_, set, err := profile.LoadTargets(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -91,7 +83,7 @@ func (s *Service) Open(ctx context.Context, l domain.Language, typed map[string]
 		if err := lockOpening(ctx, tx); err != nil {
 			return err
 		}
-		if err := s.refusal(ctx, tx, now); err != nil || len(problems) > 0 {
+		if err := refusal(ctx, tx, now); err != nil || len(problems) > 0 {
 			return err
 		}
 		return saveCycle(ctx, tx, c)

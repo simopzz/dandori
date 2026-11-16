@@ -90,8 +90,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
-	a.planning = planning.New(pool, a.profile)
-	a.today = today.New(a.profile, a.ledger, a.planning.NoCycle)
+	a.planning = planning.New(pool)
+	a.today = today.New(a.profile, a.ledger, a.planning)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err

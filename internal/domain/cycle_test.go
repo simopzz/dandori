@@ -63,6 +63,9 @@ func TestOpeningACycle(t *testing.T) {
 		{"a Delivery yesterday", typed(func(f map[string]string) { f[domain.CycleDelivery] = "11/01/2026" }), domain.Cycle{}, map[string]domain.Problem{
 			domain.CycleDelivery: domain.AlreadyEnded,
 		}},
+		{"a Delivery yesterday, its window ending before it starts", typed(func(f map[string]string) {
+			f[domain.CycleDelivery], f[domain.CycleTo] = "11/01/2026", "17:00"
+		}), domain.Cycle{}, map[string]domain.Problem{domain.CycleDelivery: domain.AlreadyEnded, domain.CycleTo: domain.NotAfterFrom}},
 		{"an end date on the Delivery's", typed(func(f map[string]string) { f[domain.CycleEnds] = "11/05/2026" }), domain.Cycle{}, map[string]domain.Problem{
 			domain.CycleEnds: domain.NotAfterDelivery,
 		}},
@@ -162,6 +165,53 @@ func TestWhichCycleASlotBelongsTo(t *testing.T) {
 			got, ok := domain.CycleOf(cycles, tt.slot, domain.DefaultSlotTimes)
 			if ok != tt.ok || (ok && got != tt.want) {
 				t.Errorf("got Cycle %d (%v), want %d (%v)", got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+// A Cycle across a change of the clocks, from summer time to standard time in October
+// and back in March, keeps its days at midnight, and its window and Slots on the wall
+// clock: an hour further from UTC, or nearer, after the change.
+func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
+	utc := func(y int, m time.Month, d, h int) time.Time { return time.Date(y, m, d, h, 0, 0, 0, time.UTC) }
+	tests := []struct {
+		name                  string
+		now                   time.Time
+		delivery              string
+		arrives, ends, dinner time.Time
+	}{
+		{"to standard time", time.Date(2026, time.October, 20, 10, 0, 0, 0, rome), "10/24/2026",
+			utc(2026, time.October, 24, 18), time.Date(2026, time.November, 3, 0, 0, 0, 0, rome), utc(2026, time.October, 25, 19)},
+		{"to summer time", time.Date(2027, time.March, 25, 10, 0, 0, 0, rome), "03/27/2027",
+			utc(2027, time.March, 27, 19), time.Date(2027, time.April, 6, 0, 0, 0, 0, rome), utc(2027, time.March, 28, 18)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			typed := map[string]string{domain.CycleDelivery: tt.delivery, domain.CycleFrom: "18:00", domain.CycleTo: "20:00"}
+			c, problems := domain.ParseCycle(domain.English, typed, tt.now)
+			if len(problems) > 0 {
+				t.Fatalf("refused: %v", problems)
+			}
+			if !c.Delivery.Arrives().Equal(tt.arrives) {
+				t.Errorf("arrives at %v, want %v", c.Delivery.Arrives().UTC(), tt.arrives)
+			}
+			if !c.Ends.Equal(tt.ends) {
+				t.Errorf("ends on %v, want %v", c.Ends, tt.ends)
+			}
+			slots := c.Slots(domain.DefaultSlotTimes)
+			if len(slots) != 40 {
+				t.Errorf("has %d Slots, want 40: four a day for ten days", len(slots))
+			}
+			if got := slots[3].At(domain.DefaultSlotTimes); slots[3].Kind != domain.Dinner || !got.Equal(tt.dinner) {
+				t.Errorf("the first day's dinner is %v at %v, want at %v", slots[3].Kind, got.UTC(), tt.dinner)
+			}
+			cycles := []domain.Cycle{c}
+			if got := domain.CycleStatuses(cycles, tt.arrives.Add(-time.Minute)); got[0] != domain.Upcoming {
+				t.Errorf("a minute before arriving it is %v, want upcoming", got[0])
+			}
+			if got := domain.CycleStatuses(cycles, tt.arrives); got[0] != domain.Current {
+				t.Errorf("as it arrives it is %v, want current", got[0])
 			}
 		})
 	}

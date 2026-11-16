@@ -46,18 +46,32 @@ linters:
             - pkg: github.com/simopzz/dandori/internal/app
               desc: only cmd and apptest may depend on app
         # Feature dependencies are one-way (ADR-0006): planning uses the
-        # Profile and is used by app alone; stock gets planning's arrivals
+        # Profile, the Recipe Library and the kitchen, so only Today, which
+        # shows them all, and app use it; stock gets planning's arrivals
         # as a function, wired in app.
         planning-is-downstream:
           files:
             - "**/internal/**"
             - "!**/internal/planning/**"
+            - "!**/internal/today/**"
             - "!**/internal/app/**"
             - "!**/internal/apptest/**"
             - "!$test"
           deny:
             - pkg: github.com/simopzz/dandori/internal/planning
-              desc: only app wires planning; pass what a feature needs from it as a function
+              desc: only Today and app use planning; pass what a feature needs from it as a function
+        # Today shows what every feature knows, so it is the top: only app
+        # wires it, and no feature reads it.
+        today-is-the-top:
+          files:
+            - "**/internal/**"
+            - "!**/internal/today/**"
+            - "!**/internal/app/**"
+            - "!**/internal/apptest/**"
+            - "!$test"
+          deny:
+            - pkg: github.com/simopzz/dandori/internal/today
+              desc: only app wires Today; a feature never reads it
   exclusions:
     presets:
       - std-error-handling

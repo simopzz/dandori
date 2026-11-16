@@ -9,22 +9,20 @@ import (
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/profile"
 )
 
 // Service is what Today shows the signed-in User.
 type Service struct {
-	profile *profile.Service
-	ledger  *ledger.Service
-	noCycle NoCycle
+	profile  *profile.Service
+	ledger   *ledger.Service
+	planning *planning.Service
 }
 
-// NoCycle reports whether the signed-in User has no Cycle at now, current or upcoming.
-type NoCycle func(ctx context.Context, now time.Time) (bool, error)
-
 // New creates the Service.
-func New(profile *profile.Service, ledger *ledger.Service, noCycle NoCycle) *Service {
-	return &Service{profile: profile, ledger: ledger, noCycle: noCycle}
+func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Service) *Service {
+	return &Service{profile: profile, ledger: ledger, planning: planning}
 }
 
 // Day is what Today shows at a moment.
@@ -49,9 +47,12 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	if err != nil {
 		return Day{}, err
 	}
-	noCycle, err := s.noCycle(ctx, now)
+	current, upcoming, err := s.planning.Now(ctx, now)
 	if err != nil {
 		return Day{}, err
 	}
-	return Day{Slots: domain.TodayAt(now, times), Times: times, Beat: beat, Beaten: beaten, NoCycle: noCycle}, nil
+	return Day{
+		Slots: domain.TodayAt(now, times), Times: times, Beat: beat, Beaten: beaten,
+		NoCycle: current == nil && upcoming == nil,
+	}, nil
 }

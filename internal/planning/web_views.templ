@@ -74,23 +74,16 @@ templ openPage(now time.Time, f OpenForm) {
 	@web.Layout(web.T(ctx, msgOpenCycleTitle), web.PlanTab) {
 		@web.PageHeader("献立", web.T(ctx, msgOpenCycle), now)
 		<form novalidate id="open-cycle" class="stack section" method="post" action="/plan">
-			@refusal(f.Refusal)
+			@refusalAlert(f.Refusal)
 			@web.Hint() {
 				{ web.T(ctx, msgOpenHint) }
 			}
-			@web.DateField(web.T(ctx, msgDeliveryDate), domain.CycleDelivery, f.Values[domain.CycleDelivery], f.Errs[domain.CycleDelivery])
+			@web.DateField(web.T(ctx, msgDeliveryDate), "", domain.CycleDelivery, f.Values[domain.CycleDelivery], f.Errs[domain.CycleDelivery])
 			@web.FieldRow() {
 				@web.TimeField(web.T(ctx, msgWindowFrom), domain.CycleFrom, f.Values[domain.CycleFrom], f.Errs[domain.CycleFrom])
 				@web.TimeField(web.T(ctx, msgWindowTo), domain.CycleTo, f.Values[domain.CycleTo], f.Errs[domain.CycleTo])
 			}
-			@web.Field(web.T(ctx, msgEndDate), web.T(ctx, msgOptional), f.Errs[domain.CycleEnds]) {
-				<input type="text" inputmode="numeric" autocomplete="off" name={ domain.CycleEnds } value={ f.Values[domain.CycleEnds] }
-					placeholder={ domain.FormatDate(web.LanguageOf(ctx), time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)) }
-					if f.Errs[domain.CycleEnds] != "" {
-						aria-invalid="true"
-					}
-				/>
-			}
+			@web.DateField(web.T(ctx, msgEndDate), web.T(ctx, msgOptional), domain.CycleEnds, f.Values[domain.CycleEnds], f.Errs[domain.CycleEnds])
 			@web.Actions() {
 				@web.Button(templ.Attributes{"type": "submit"}) {
 					{ web.T(ctx, msgOpen) }
@@ -100,9 +93,9 @@ templ openPage(now time.Time, f OpenForm) {
 	}
 }
 
-// refusal says why opening a Cycle is refused as a whole, linking to what to do about it,
-// or is nothing.
-templ refusal(err error) {
+// refusalAlert says why opening a Cycle is refused as a whole, linking to what to do
+// about it, or is nothing.
+templ refusalAlert(err error) {
 	if errors.Is(err, ErrUpcoming) {
 		@web.Alert() {
 			<p>{ web.T(ctx, msgUpcoming) }</p>
