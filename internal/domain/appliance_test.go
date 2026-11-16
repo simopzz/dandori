@@ -33,8 +33,8 @@ func TestAnApplianceKindIsParsedFromItsCode(t *testing.T) {
 	}
 }
 
-// The appliances owned are the kinds ticked, each with its note trimmed: a note on a kind
-// left unticked is dropped, and a code that isn't a kind is ignored.
+// The appliances owned are the kinds ticked, each with its note on one line: a note on a
+// kind left unticked is dropped, and a code that isn't a kind is ignored.
 func TestTheAppliancesOwnedAreTheKindsTicked(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -45,8 +45,8 @@ func TestTheAppliancesOwnedAreTheKindsTicked(t *testing.T) {
 		{name: "none ticked", want: domain.Appliances{}},
 		{name: "ticked without notes", ticked: []string{"oven", "air_fryer"}, want: domain.Appliances{domain.Oven: "", domain.AirFryer: ""}},
 		{
-			name: "a ticked kind's note trimmed", ticked: []string{"pressure_cooker"},
-			notes: map[domain.ApplianceKind]string{domain.PressureCooker: "  Instant Pot Duo 6 L "},
+			name: "a ticked kind's note on one line", ticked: []string{"pressure_cooker"},
+			notes: map[domain.ApplianceKind]string{domain.PressureCooker: "  Instant Pot\r\nDuo  6 L "},
 			want:  domain.Appliances{domain.PressureCooker: "Instant Pot Duo 6 L"},
 		},
 		{
