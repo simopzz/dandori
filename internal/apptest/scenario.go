@@ -615,3 +615,37 @@ func (s *Scenario) SavesBrief(brief string) {
 	s.page = s.PostForm(s.t, form.Action, form.Values)
 	s.record(fmt.Sprintf("saves the Planning Brief %q: %d %s", brief, s.page.StatusCode, s.page.Path))
 }
+
+// Cycle is a Cycle as the form opening one takes it, each value as typed in English.
+type Cycle struct {
+	Delivery, From, To, Ends string
+}
+
+// Fill sets f, the form opening a Cycle, to c.
+func (c Cycle) Fill(f FormData) {
+	for field, v := range map[string]string{"delivery": c.Delivery, "from": c.From, "to": c.To, "ends": c.Ends} {
+		f.Values.Set(field, v)
+	}
+}
+
+// OpensCycle opens c with the form on the page to open a Cycle, posted as a browser
+// without htmx.
+func (s *Scenario) OpensCycle(c Cycle) {
+	s.t.Helper()
+	s.Open("/plan/open")
+	form := Form(s.t, s.page.Body, "open-cycle")
+	c.Fill(form)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("opens a Cycle %+v: %d %s", c, s.page.StatusCode, s.page.Path))
+}
+
+// DropsCycle drops the upcoming Cycle from the Cycle page, following its Drop to the step
+// that asks first and confirming there, as a browser without htmx.
+func (s *Scenario) DropsCycle() {
+	s.t.Helper()
+	s.Open("/plan")
+	s.page = s.Get(s.t, Link(s.t, s.page.Body, "Drop the Cycle"))
+	form := Form(s.t, s.page.Body, "remove-step")
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("drops the Cycle: %d %s", s.page.StatusCode, s.page.Path))
+}

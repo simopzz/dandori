@@ -136,7 +136,7 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
   about 48px, with the wordmark alone, so the page's content starts high. From 900px, a left rail whose top is the same sky with the vertical
   wordmark, then the tabs, and Runs at the rail's foot. Before the Language is
   chosen there are no tabs: a phone shows no bar, desktop the rail's sky alone.
-  Tabs are Today, Recipes, Kitchen and Profile; later steps add Plan and Catalog.
+  Tabs are Today, Plan, Recipes, Kitchen and Profile; a later step adds Catalog.
   Runs is secondary: at the rail's foot on desktop, and on a phone not a tab but
   a link on the Profile. A page passes its `Tab` to `Layout`, which marks it
   `aria-current="page"`.

@@ -26,6 +26,7 @@ import (
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
@@ -65,6 +66,7 @@ type App struct {
 	recipes     *recipes.Service
 	kitchen     *kitchen.Service
 	ledger      *ledger.Service
+	planning    *planning.Service
 	today       *today.Service
 	runs        *runs.Engine
 }
@@ -88,7 +90,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
-	a.today = today.New(a.profile, a.ledger)
+	a.planning = planning.New(pool, a.profile)
+	a.today = today.New(a.profile, a.ledger, a.planning.NoCycle)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -145,6 +148,7 @@ func (a *App) Handler() http.Handler {
 			ResultName: recipes.DraftName, Result: recs.DraftPage, Again: "/recipes/paste",
 		},
 	}}
+	plan := planning.Handlers{Service: a.planning, Clock: a.clock, Log: a.log}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
@@ -162,6 +166,12 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /language", choosing(prof.ShowChoice))
 	mux.Handle("POST /language", choosing(prof.Choose))
 	mux.Handle("GET /{$}", signedIn(day.Show))
+	mux.Handle("GET /plan", signedIn(plan.Show))
+	mux.Handle("POST /plan", signedIn(plan.Open))
+	mux.Handle("GET /plan/open", signedIn(plan.ShowOpen))
+	mux.Handle("GET /plan/cycles/{id}/drop", signedIn(plan.ShowDrop))
+	mux.Handle("GET /plan/cycles/{id}/drop/sheet", signedIn(plan.ShowDropSheet))
+	mux.Handle("POST /plan/cycles/{id}/drop", signedIn(plan.Drop))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("POST /profile/targets", signedIn(prof.SaveTargets))

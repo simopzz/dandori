@@ -90,7 +90,7 @@ func TestEverySignedInPageHasTheSameTabs(t *testing.T) {
 	h.SignUp(t, "ada@example.com")
 	tab := regexp.MustCompile(`(?s)<a class="tab" href="([^"]+)"( aria-current="page")?>.*?<span>([^<]+)</span>`)
 
-	for path, current := range map[string]string{"/": "Today", "/recipes": "Recipes", "/kitchen": "Kitchen", "/profile": "Profile", "/runs": ""} {
+	for path, current := range map[string]string{"/": "Today", "/plan": "Plan", "/recipes": "Recipes", "/kitchen": "Kitchen", "/profile": "Profile", "/runs": ""} {
 		page := h.Get(t, path)
 		var labels []string
 		marked := ""
@@ -100,8 +100,8 @@ func TestEverySignedInPageHasTheSameTabs(t *testing.T) {
 				marked = m[3]
 			}
 		}
-		if got := strings.Join(labels, ", "); got != "Today, Recipes, Kitchen, Profile" {
-			t.Errorf("%s's tabs are %q, want Today, Recipes, Kitchen, Profile", path, got)
+		if got := strings.Join(labels, ", "); got != "Today, Plan, Recipes, Kitchen, Profile" {
+			t.Errorf("%s's tabs are %q, want Today, Plan, Recipes, Kitchen, Profile", path, got)
 		}
 		if marked != current {
 			t.Errorf("%s marks %q as the current tab, want %q", path, marked, current)

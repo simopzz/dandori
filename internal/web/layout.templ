@@ -14,6 +14,7 @@ type Tab string
 const (
 	SignedOut  Tab = "signed-out"
 	TodayTab   Tab = "/"
+	PlanTab    Tab = "/plan"
 	RecipesTab Tab = "/recipes"
 	KitchenTab Tab = "/kitchen"
 	ProfileTab Tab = "/profile"
@@ -80,6 +81,7 @@ templ Layout(title string, current Tab) {
 				if current != SignedOut {
 					<div class="tabs">
 						@tab(TodayTab, current, "calendar-day", T(ctx, msgToday), false)
+						@tab(PlanTab, current, "calendar", T(ctx, msgPlan), false)
 						@tab(RecipesTab, current, "book-open", T(ctx, msgRecipes), false)
 						@tab(KitchenTab, current, "package", T(ctx, msgKitchen), false)
 						@tab(ProfileTab, current, "user", T(ctx, msgProfile), false)

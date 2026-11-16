@@ -1,0 +1,131 @@
+package planning
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// OpenForm is the form opening a Cycle as shown: what was typed and why each field was
+// refused, by field, and why opening is refused as a whole, if it is.
+type OpenForm struct {
+	Values, Errs map[string]string
+	Refusal      error
+}
+
+// dropSheetID is the id of the sheet asking before dropping the upcoming Cycle.
+const dropSheetID = "drop-cycle"
+
+// dropURL is the step asking before dropping the Cycle id.
+func dropURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/drop", id)) }
+
+// window is d's date and window as the Language writes them.
+func window(ctx context.Context, d domain.Delivery) string {
+	return web.Tf(ctx, msgWindow, web.Date(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))
+}
+
+// cyclePage is the Cycle page: the upcoming Cycle, with its Delivery tentative and a way
+// to drop it, or, with none, a way to open one.
+templ cyclePage(now time.Time, upcoming *Cycle) {
+	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
+		@web.PageHeader("献立", web.T(ctx, msgCycle), now)
+		if upcoming == nil {
+			<div class="section">
+				@web.Empty() {
+					{ web.T(ctx, msgNoCycle) }
+				}
+				@web.Rows() {
+					@web.Row() {
+						<a class="row-title" href="/plan/open">{ web.T(ctx, msgOpenCycle) }</a>
+					}
+				}
+			</div>
+		} else {
+			@web.Section(1, web.T(ctx, msgUpcomingCycle)) {
+				<dl>
+					<dt>{ web.T(ctx, msgDelivery) }</dt>
+					<dd>
+						{ window(ctx, upcoming.Delivery) }
+						@web.Tag(false, "") {
+							{ web.T(ctx, msgTentative) }
+						}
+					</dd>
+					<dt>{ web.T(ctx, msgEndDate) }</dt>
+					<dd>{ web.Date(ctx, upcoming.Ends) }</dd>
+				</dl>
+				@web.Actions() {
+					@web.RemoveLink(dropSheetID, dropURL(upcoming.ID), dropURL(upcoming.ID)+"/sheet") {
+						{ web.T(ctx, msgDropCycle) }
+					}
+				}
+			}
+			@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
+		}
+	}
+}
+
+// openPage is the form opening a Cycle, f: why it is refused as a whole first, if it is,
+// then its Delivery's date and window, and its end date, which may be left blank.
+templ openPage(now time.Time, f OpenForm) {
+	@web.Layout(web.T(ctx, msgOpenCycleTitle), web.PlanTab) {
+		@web.PageHeader("献立", web.T(ctx, msgOpenCycle), now)
+		<form novalidate id="open-cycle" class="stack section" method="post" action="/plan">
+			@refusal(f.Refusal)
+			@web.Hint() {
+				{ web.T(ctx, msgOpenHint) }
+			}
+			@web.DateField(web.T(ctx, msgDeliveryDate), domain.CycleDelivery, f.Values[domain.CycleDelivery], f.Errs[domain.CycleDelivery])
+			@web.FieldRow() {
+				@web.TimeField(web.T(ctx, msgWindowFrom), domain.CycleFrom, f.Values[domain.CycleFrom], f.Errs[domain.CycleFrom])
+				@web.TimeField(web.T(ctx, msgWindowTo), domain.CycleTo, f.Values[domain.CycleTo], f.Errs[domain.CycleTo])
+			}
+			@web.Field(web.T(ctx, msgEndDate), web.T(ctx, msgOptional), f.Errs[domain.CycleEnds]) {
+				<input type="text" inputmode="numeric" autocomplete="off" name={ domain.CycleEnds } value={ f.Values[domain.CycleEnds] }
+					placeholder={ domain.FormatDate(web.LanguageOf(ctx), time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)) }
+					if f.Errs[domain.CycleEnds] != "" {
+						aria-invalid="true"
+					}
+				/>
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					{ web.T(ctx, msgOpen) }
+				}
+			}
+		</form>
+	}
+}
+
+// refusal says why opening a Cycle is refused as a whole, linking to what to do about it,
+// or is nothing.
+templ refusal(err error) {
+	if errors.Is(err, ErrUpcoming) {
+		@web.Alert() {
+			<p>{ web.T(ctx, msgUpcoming) }</p>
+			<a href="/plan">{ web.T(ctx, msgSeeUpcoming) }</a>
+		}
+	} else if errors.Is(err, ErrNoTargets) {
+		@web.Alert() {
+			<p>{ web.T(ctx, msgNoTargets) }</p>
+			<a href="/profile#targets">{ web.T(ctx, msgSetTargets) }</a>
+		}
+	}
+}
+
+// dropPage is the step asking before dropping c as a page of its own, for a browser
+// without htmx.
+templ dropPage(now time.Time, c Cycle) {
+	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
+		@web.PageHeader("献立", web.T(ctx, msgDropCycle), now)
+		@dropStep(c, "/plan")
+	}
+}
+
+// dropStep asks before dropping c, with a link back unless back is "", as in its sheet.
+templ dropStep(c Cycle, back templ.SafeURL) {
+	@web.RemoveStep(web.Tf(ctx, msgDropAsk, web.Date(ctx, c.Delivery.On)), web.T(ctx, msgDrop), dropURL(c.ID), back, nil)
+}
