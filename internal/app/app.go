@@ -145,19 +145,13 @@ func (a *App) Handler() http.Handler {
 	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
-	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[runs.Kind]runs.KindPage{
-		recipes.ParseKind: {
-			Name: recipes.ParseKindName, AskedName: recipes.PastedName,
-			ResultName: recipes.DraftName, Result: recs.DraftPage, Again: "/recipes/paste",
-			Reasons: recipes.ParseReasons,
-		},
-		planning.Kind: {
-			Name: planning.KindName, ResultName: planning.ProposalName,
-			Result:  func(context.Context, int64) (string, error) { return "/plan", nil },
-			Reasons: planning.Reasons,
-		},
-	}}
 	plan := planning.Handlers{Service: a.planning, Kitchen: a.kitchen, Clock: a.clock, Log: a.log}
+	run := runs.Handlers{
+		Engine: a.runs,
+		Kinds:  []runs.KindPage{recs.RunPage(), plan.RunPage()},
+		Clock:  a.clock,
+		Log:    a.log,
+	}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {

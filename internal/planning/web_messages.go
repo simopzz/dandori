@@ -67,16 +67,14 @@ var (
 	msgMinutes      = web.Message{En: "%d active of %d minutes", It: "%d attivi su %d minuti"}
 	msgNoSlot       = web.Message{En: "No Slot", It: "Nessun Pasto"}
 
-	// KindName and ProposalName tell a planning Run's page its kind and what it leaves.
-	KindName     = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
-	ProposalName = web.Message{En: "Plan Proposal", It: "Proposta di Piano"}
+	msgPlanningKind = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
 )
 
-// Reasons are why a planning Run fails beside the reasons every Run can; %s is what was
-// said more, verbatim.
-var Reasons = map[agent.Reason]web.Message{
+// planningReasons are why a planning Run fails beside the reasons every Run can; %s is
+// what was said more, verbatim.
+var planningReasons = map[agent.Reason]web.Message{
 	agent.NoResult: {En: "The model ended without a Plan Proposal.", It: "Il modello ha finito senza una Proposta di Piano."},
-	BrokeHardRules: {
+	brokeHardRules: {
 		En: "The planner submitted three Plans breaking hard rules:\n%s",
 		It: "Il pianificatore ha proposto tre Piani che violano regole rigide:\n%s",
 	},

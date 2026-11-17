@@ -75,7 +75,7 @@ func planningBusy(ctx context.Context, q db.Querier, except int64) (busy bool, e
 	err = q.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM run WHERE kind = $1 AND status = $2 AND id <> $3)
 			OR EXISTS (SELECT 1 FROM plan_proposal WHERE status = $4)`,
-		Kind, runs.Going, except, Pending).Scan(&busy)
+		planningKind, runs.Going, except, Pending).Scan(&busy)
 	return busy, err
 }
 

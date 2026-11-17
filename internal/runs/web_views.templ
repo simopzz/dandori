@@ -96,7 +96,7 @@ func headline(line string) string {
 // again into the body, which goes on to what the Run left. Without JavaScript, a link
 // opens it again further along.
 templ runPage(now time.Time, r Run, k KindPage, res result, again string) {
-	{{ kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedName) }}
+	{{ kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedLabel) }}
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RunsTab) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">

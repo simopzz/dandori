@@ -16,6 +16,7 @@ import (
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -210,9 +211,22 @@ func (h Handlers) Discard(w http.ResponseWriter, r *http.Request) {
 	web.Answer{Notice: web.Tf(ctx, msgDiscarded, name), RedirectTo: "/recipes"}.Write(w, r, h.Log)
 }
 
-// DraftPage is the page of the Recipe Draft the signed-in User's parse Run runID left, or
+// RunPage is what the Runs pages tell of a parse Run.
+func (h Handlers) RunPage() runs.KindPage {
+	return runs.KindPage{
+		Kind:        parseKind,
+		Name:        msgParseKind,
+		AskedLabel:  msgPasted,
+		ResultLabel: msgDraftName,
+		ResultURL:   h.draftPage,
+		TryAgainURL: "/recipes/paste",
+		Reasons:     parseReasons,
+	}
+}
+
+// draftPage is the page of the Recipe Draft the signed-in User's parse Run runID left, or
 // "" if it left none: a Run's page links to it.
-func (h Handlers) DraftPage(ctx context.Context, runID int64) (string, error) {
+func (h Handlers) draftPage(ctx context.Context, runID int64) (string, error) {
 	id, err := h.Service.DraftOf(ctx, runID)
 	if errors.Is(err, ErrNoDraft) {
 		return "", nil

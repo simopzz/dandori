@@ -16,8 +16,8 @@ import (
 	"github.com/simopzz/dandori/internal/runs"
 )
 
-// ParseKind is the kind of Run that reads pasted text into a Recipe Draft.
-const ParseKind runs.Kind = "parse"
+// parseKind is the kind of Run that reads pasted text into a Recipe Draft.
+const parseKind runs.Kind = "parse"
 
 // parseEffort is how hard the model thinks reading a recipe.
 const parseEffort = agent.EffortMedium

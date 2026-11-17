@@ -227,7 +227,7 @@ func CountDrafts(ctx context.Context, q db.Querier) (int, error) {
 // Language. Like CountRecipes, row-level security leaves their rows.
 func CountParsing(ctx context.Context, q db.Querier) (int, error) {
 	var n int
-	err := q.QueryRow(ctx, `SELECT count(*) FROM run WHERE kind = $1 AND status = $2`, ParseKind, runs.Going).Scan(&n)
+	err := q.QueryRow(ctx, `SELECT count(*) FROM run WHERE kind = $1 AND status = $2`, parseKind, runs.Going).Scan(&n)
 	return n, err
 }
 

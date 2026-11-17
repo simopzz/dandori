@@ -22,7 +22,7 @@ func (s *Service) StartParse(ctx context.Context, l domain.Language, text string
 	if err != nil {
 		return 0, err
 	}
-	return s.runs.Start(ctx, ParseKind, text, s.parseBrief(l, text, known), nil)
+	return s.runs.Start(ctx, parseKind, text, s.parseBrief(l, text, known), nil)
 }
 
 // saveDraft stores p as the Recipe Draft of the Run runID, replacing any earlier one.

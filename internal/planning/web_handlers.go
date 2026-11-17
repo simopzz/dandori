@@ -1,6 +1,7 @@
 package planning
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -31,6 +33,18 @@ type Handlers struct {
 	Kitchen *kitchen.Service
 	Clock   clock.Clock
 	Log     *slog.Logger
+}
+
+// RunPage is what the Runs pages tell of a planning Run: a succeeded one left a Plan
+// Proposal, which the Cycle page shows.
+func (h Handlers) RunPage() runs.KindPage {
+	return runs.KindPage{
+		Kind:        planningKind,
+		Name:        msgPlanningKind,
+		ResultLabel: msgPlanProposal,
+		ResultURL:   func(context.Context, int64) (string, error) { return "/plan", nil },
+		Reasons:     planningReasons,
+	}
 }
 
 // Show is the Cycle page: the upcoming Cycle with how planning it stands, or that

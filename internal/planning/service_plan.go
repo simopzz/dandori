@@ -21,8 +21,8 @@ import (
 	"github.com/simopzz/dandori/internal/runs"
 )
 
-// Kind is the kind of Run that plans a Cycle into a Plan Proposal.
-const Kind runs.Kind = "planning"
+// planningKind is the kind of Run that plans a Cycle into a Plan Proposal.
+const planningKind runs.Kind = "planning"
 
 // planEffort is how hard the model thinks planning: the Plan is long, and thinking shares
 // its token budget.
@@ -35,8 +35,8 @@ const DefaultChecks = 6
 // attempts is how many submitted Plans breaking a hard rule fail a planning Run.
 const attempts = 3
 
-// BrokeHardRules is a planning Run failing after attempts Plans that break a hard rule.
-const BrokeHardRules agent.Reason = "broke_hard_rules"
+// brokeHardRules is a planning Run failing after attempts Plans that break a hard rule.
+const brokeHardRules agent.Reason = "broke_hard_rules"
 
 // ProposalStatus is where a Plan Proposal is: pending until the User decides on it or
 // something ends it.
@@ -97,7 +97,7 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	}
 	prompt := planPrompt(c, p, now, library, known, held)
 	asked, _, _ := strings.Cut(prompt, "\n")
-	return s.runs.Start(ctx, Kind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
+	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
 		if err := lockOpening(ctx, tx); err != nil {
 			return err
 		}
@@ -355,7 +355,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 	}
 	pb.broken = append(pb.broken, fmt.Sprintf("Draft %d:\n%s", in.DraftID, listViolations(vs)))
 	if len(pb.broken) >= attempts {
-		return "", &agent.Failure{Reason: BrokeHardRules, Detail: strings.Join(pb.broken, "\n")}
+		return "", &agent.Failure{Reason: brokeHardRules, Detail: strings.Join(pb.broken, "\n")}
 	}
 	return "", fmt.Errorf("draft %d breaks these hard rules (submit %d of %d):\n%s", in.DraftID, len(pb.broken), attempts, listViolations(vs))
 }

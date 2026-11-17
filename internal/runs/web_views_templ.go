@@ -306,7 +306,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string) templ.C
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedName)
+		kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedLabel)
 		templ_7745c5c3_Var14 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
