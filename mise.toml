@@ -102,3 +102,13 @@ run = [
   """psql -XAtc "SELECT format('CREATE EXTENSION %I WITH SCHEMA public;', extname) FROM pg_extension WHERE extnamespace = 'public'::regnamespace ORDER BY 1" "$DANDORI_DATABASE_URL"""",
   'pg_dump --schema-only --no-owner --no-privileges --schema=public "$DANDORI_DATABASE_URL"',
 ]
+
+[tasks."graph:dashboard"]
+description = "Serve the understand-anything dashboard for the graph in .ua (publish one with /graph, fetch one with .claude/skills/graph/sync.sh pull)"
+# The viewer is the plugin's prebuilt release, pinned to the installed plugin so it reads the graph format that wrote .ua.
+run = '''
+[ -f .ua/knowledge-graph.json ] || { echo "no graph in .ua: run /graph in Claude Code" >&2; exit 1; }
+v=$(ls ~/.claude/plugins/cache/understand-anything/understand-anything 2>/dev/null | sort -V | tail -1)
+[ -n "$v" ] || { echo "the understand-anything plugin isn't installed" >&2; exit 1; }
+npx --yes "https://github.com/Egonex-AI/Understand-Anything/releases/download/v$v/understand-anything-viewer.tgz" "$PWD"
+'''

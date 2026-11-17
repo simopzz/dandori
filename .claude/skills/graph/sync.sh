@@ -6,14 +6,14 @@
 #   sync.sh setup [--keep local|remote]  attach .ua to the branch (exit 2: both a local and a published graph, choose)
 #   sync.sh pull                         fast-forward .ua (exit 3: uncommitted changes, exit 5: not attached)
 #   sync.sh discard                      drop uncommitted graph files in .ua
-#   sync.sh push <incremental|full>      commit and push .ua (exit 4: the published branch moved, 6: push failed otherwise)
+#   sync.sh push <incremental|full|onboard|domain>  commit and push .ua (exit 4: the published branch moved, 6: push failed otherwise)
 # Any command: exit 7 when origin can't be reached.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BRANCH=understand-graph
 UA=.ua
-FILES=(knowledge-graph.json meta.json fingerprints.json config.json .understandignore UA_ONBOARDING.md
+FILES=(knowledge-graph.json meta.json fingerprints.json config.json .understandignore UA_ONBOARDING.md domain-graph.json
   intermediate/scan-result.json)
 
 sha7() { sed -n 's/.*"gitCommitHash": *"\([0-9a-f]\{7\}\).*/\1/p' | head -1; }
@@ -68,6 +68,7 @@ cmd_status() {
 
 cmd_push() {
   attached || return # else `git -C .ua` resolves to the code repo
+  write_gitignore # a branch set up under an older allowlist picks up new entries
   git -C "$UA" add -A
   if git -C "$UA" diff --cached --quiet; then echo "nothing to publish"; return 0; fi
   local s; s=$(local_sha)
@@ -140,6 +141,6 @@ case "${1:-}" in
   setup) shift; cmd_setup "$@" ;;
   pull) cmd_pull ;;
   discard) cmd_discard ;;
-  push) case "${2:-}" in incremental | full) cmd_push "$2" ;; *) usage ;; esac ;;
+  push) case "${2:-}" in incremental | full | onboard | domain) cmd_push "$2" ;; *) usage ;; esac ;;
   *) usage ;;
 esac

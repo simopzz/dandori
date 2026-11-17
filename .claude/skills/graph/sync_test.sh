@@ -30,13 +30,15 @@ setup_publishes_only_allowlist() {
   meta abcdef1 .ua/meta.json
   echo '{}' > .ua/knowledge-graph.json
   echo '*.templ' > .ua/.understandignore
+  echo '{}' > .ua/domain-graph.json
+  echo '{}' > .ua/diff-overlay.json
   echo '{}' > .ua/intermediate/scan-result.json
   echo '{}' > .ua/intermediate/batch-1.json
   echo x > .ua/tmp/x
   echo y > .ua/.trash-1/y
   "$SYNC" setup
   [ "$(git ls-tree -r --name-only origin/understand-graph | tr '\n' ' ')" \
-    = ".gitignore .understandignore intermediate/scan-result.json knowledge-graph.json meta.json " ]
+    = ".gitignore .understandignore domain-graph.json intermediate/scan-result.json knowledge-graph.json meta.json " ]
   [ -f "$(compgen -G '.ua.bak-*')/tmp/x" ]
   [ "$("$SYNC" status)" = "ua=worktree remote=yes local=abcdef1 published=abcdef1" ]
   [ "$(git -C .ua log -1 --format=%s)" = "Graph at abcdef1 (setup)" ]
@@ -108,6 +110,22 @@ push_failure_is_not_a_race() {
   "$SYNC" push incremental
   git fetch -q origin
   [ "$(git log -1 --format=%s origin/understand-graph)" = "Graph at 6666666 (incremental)" ]
+}
+
+push_labels_derived_artifacts() {
+  cd "$T/a"
+  echo '# Onboarding' > .ua/UA_ONBOARDING.md
+  "$SYNC" push onboard
+  # a branch set up before domain-graph.json joined the allowlist
+  grep -v domain-graph .ua/.gitignore > .ua/.gitignore.old && mv .ua/.gitignore.old .ua/.gitignore
+  git -C .ua rm -q --cached domain-graph.json
+  git -C .ua commit -q -am "old allowlist" && git -C .ua push -q
+  echo '{"domains": []}' > .ua/domain-graph.json
+  "$SYNC" push domain
+  git fetch -q origin
+  [ "$(git log -2 --format=%s origin/understand-graph | tr '\n' '|')" \
+    = "Graph at 6666666 (domain)|old allowlist|" ]
+  git cat-file -e origin/understand-graph:domain-graph.json
 }
 
 pull_refuses_dirty_worktree() {
@@ -183,7 +201,7 @@ failed_first_publish_rolls_back() {
 
 for current in setup_publishes_only_allowlist fresh_clone_attaches plain_and_remote_needs_choice \
   push_without_changes_is_noop push_publishes_change push_refused_when_remote_moved \
-  push_failure_is_not_a_race pull_refuses_dirty_worktree keep_local_publishes_local \
+  push_failure_is_not_a_race push_labels_derived_artifacts pull_refuses_dirty_worktree keep_local_publishes_local \
   push_requires_attached keep_local_without_ua_publishes_nothing reattach_after_rm \
   unreachable_origin_is_an_error failed_first_publish_rolls_back; do
   "$current"
