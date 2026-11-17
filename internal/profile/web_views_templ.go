@@ -858,7 +858,7 @@ func targetsForm(f TargetsForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = targetField(msgKcal, msgKcalHint, domain.TargetKcal, f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = targetField(msgKcal, msgKcalHint, string(domain.TargetKcal), f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -884,15 +884,15 @@ func targetsForm(f TargetsForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = targetField(msgProtein, msgFloorHint, domain.TargetProtein, f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = targetField(msgProtein, msgFloorHint, string(domain.TargetProtein), f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = targetField(msgFibre, msgFloorHint, domain.TargetFibre, f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = targetField(msgFibre, msgFloorHint, string(domain.TargetFibre), f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = targetField(msgSugar, msgCeilingHint, domain.TargetSugar, f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = targetField(msgSugar, msgCeilingHint, string(domain.TargetSugar), f).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

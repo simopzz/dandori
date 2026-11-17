@@ -94,7 +94,7 @@ func (s Slot) Before(o Slot) bool {
 }
 
 // String is s as the planner reads it: "dinner on Thu 5 Nov".
-func (s Slot) String() string { return string(s.Kind) + " on " + s.On.Format("Mon 2 Jan") }
+func (s Slot) String() string { return string(s.Kind) + " on " + s.On.Format(PlannerDay) }
 
 // key is s as a map key: Slots on the same day in different zones are the same Slot.
 func (s Slot) key() string { return s.On.Format(time.DateOnly) + " " + string(s.Kind) }

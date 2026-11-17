@@ -18,17 +18,24 @@ const (
 	MaxTolerance = 20
 )
 
-// The Targets' fields, as typed.
+// Target is one of the daily goals a Plan aims at, named as its field is typed.
+type Target string
+
 const (
-	TargetKcal      = "kcal"
-	TargetProtein   = "protein"
-	TargetFibre     = "fibre"
-	TargetSugar     = "sugar"
-	TargetTolerance = "tolerance"
+	TargetKcal    Target = "kcal"
+	TargetProtein Target = "protein"
+	TargetFibre   Target = "fibre"
+	TargetSugar   Target = "sugar"
 )
 
+// Aimed are the Targets, in the order they are shown.
+var Aimed = []Target{TargetKcal, TargetProtein, TargetFibre, TargetSugar}
+
+// TargetTolerance is the field of the calorie tolerance, as typed.
+const TargetTolerance = "tolerance"
+
 // TargetFields are the Targets' fields, as typed, in the order ParseTargets reads them.
-var TargetFields = []string{TargetKcal, TargetProtein, TargetFibre, TargetSugar, TargetTolerance}
+var TargetFields = []string{string(TargetKcal), string(TargetProtein), string(TargetFibre), string(TargetSugar), TargetTolerance}
 
 // Targets are a User's daily goals: calories within Tolerance percent either side of
 // Kcal, protein and fibre in grams as floors, sugar in grams as a ceiling.
@@ -39,8 +46,8 @@ type Targets struct {
 // ByField is t by its fields, as typed.
 func (t Targets) ByField() map[string]int {
 	return map[string]int{
-		TargetKcal: t.Kcal, TargetProtein: t.Protein, TargetFibre: t.Fibre,
-		TargetSugar: t.Sugar, TargetTolerance: t.Tolerance,
+		string(TargetKcal): t.Kcal, string(TargetProtein): t.Protein, string(TargetFibre): t.Fibre,
+		string(TargetSugar): t.Sugar, TargetTolerance: t.Tolerance,
 	}
 }
 
@@ -59,8 +66,8 @@ func ParseTargets(typed map[string]string) (Targets, map[string]Problem) {
 		return n
 	}
 	t := Targets{
-		Kcal: read(TargetKcal, checkTarget), Protein: read(TargetProtein, checkTarget),
-		Fibre: read(TargetFibre, checkTarget), Sugar: read(TargetSugar, checkTarget),
+		Kcal: read(string(TargetKcal), checkTarget), Protein: read(string(TargetProtein), checkTarget),
+		Fibre: read(string(TargetFibre), checkTarget), Sugar: read(string(TargetSugar), checkTarget),
 		Tolerance: read(TargetTolerance, checkTolerance),
 	}
 	return t, problems

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -189,7 +191,17 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 // typed, or without.
 templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes, note string) {
 	@web.Section(num, web.T(ctx, msgPlanProposal)) {
+		if len(p.Misses) > 0 {
+			@web.Rows() {
+				for _, m := range p.Misses {
+					@web.Row() {
+						<span class="row-title">{ missLine(ctx, m, p.Targets) }</span>
+					}
+				}
+			}
+		}
 		@web.Markdown(p.Summary)
+		@dayTable(p)
 		@planDays(c, p, times)
 		<div class="stack">
 			<form novalidate id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/approve", p.ID)) }>
@@ -385,4 +397,145 @@ templ dropPage(now time.Time, c Cycle) {
 // dropStep asks before dropping c, with a link back unless back is "", as in its sheet.
 templ dropStep(c Cycle, back templ.SafeURL) {
 	@web.RemoveStep(web.Tf(ctx, msgDropAsk, web.Date(ctx, c.Delivery.On)), web.T(ctx, msgDrop), dropURL(c.ID), back, nil)
+}
+
+// dayTable is p's days against the Targets it aimed at: the seven days before it,
+// greyed, "No Plan" where no Plan covered them, then each day it plans, and the average
+// over the days judged, each soft miss marked: a day more than 25% off a Target, an
+// average missing it.
+templ dayTable(p Proposal) {
+	{{ lo, hi := p.Targets.Bounds(domain.TargetKcal) }}
+	<table>
+		<thead>
+			<tr>
+				<th scope="col">{ web.T(ctx, msgDay) }</th>
+				for _, target := range domain.Aimed {
+					<th scope="col">{ web.T(ctx, targetMessages[target].head) }</th>
+				}
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>{ web.T(ctx, msgTargets) }</td>
+				<td>{ web.Tf(ctx, msgRange, whole(ctx, lo), whole(ctx, hi)) }</td>
+				<td>{ web.Tf(ctx, msgAtLeast, grams(ctx, p.Targets.Protein)) }</td>
+				<td>{ web.Tf(ctx, msgAtLeast, grams(ctx, p.Targets.Fibre)) }</td>
+				<td>{ web.Tf(ctx, msgAtMost, grams(ctx, p.Targets.Sugar)) }</td>
+			</tr>
+			for _, d := range p.Trailing {
+				<tr class="hint">
+					<td>{ web.ShortDate(ctx, d.On) }</td>
+					if d.Filled == 0 {
+						<td colspan="4">{ web.T(ctx, msgNoPlan) }</td>
+					} else {
+						@figures(d.Nutrition, nil)
+					}
+				</tr>
+			}
+			for _, d := range p.Days {
+				<tr>
+					if d.Partly {
+						<td>{ web.Tf(ctx, msgPartly, web.ShortDate(ctx, d.On)) }</td>
+					} else {
+						<td>{ web.ShortDate(ctx, d.On) }</td>
+					}
+					@figures(d.Nutrition, dayMissed(p.Targets, d))
+				</tr>
+			}
+			if judged := domain.Judged(p.Days); len(judged) > 0 {
+				{{ avg := domain.Average(judged) }}
+				<tr>
+					<td>{ web.T(ctx, msgAverage) }</td>
+					@figures(avg, averageMissed(p.Targets, avg))
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+// figures are n's values of what the Targets aim at, a cell each, those missed marked,
+// if missed says.
+templ figures(n domain.PortionNutrition, missed func(domain.Target) bool) {
+	for _, target := range domain.Aimed {
+		<td>
+			if missed != nil && missed(target) {
+				@web.Tag(true, "") {
+					{ figure(ctx, target, n) + " " }<span class="sr-only">{ web.T(ctx, msgMissed) }</span>
+				}
+			} else {
+				{ figure(ctx, target, n) }
+			}
+		</td>
+	}
+}
+
+// targetMessages head the day table's column of each Target, and name it in a line.
+var targetMessages = map[domain.Target]struct{ head, word web.Message }{
+	domain.TargetKcal:    {msgCalories, msgCaloriesWord},
+	domain.TargetProtein: {msgProtein, msgProteinWord},
+	domain.TargetFibre:   {msgFibre, msgFibreWord},
+	domain.TargetSugar:   {msgSugar, msgSugarWord},
+}
+
+// whole is v rounded to whole, as the Language writes it.
+func whole(ctx context.Context, v float64) string { return web.Number(ctx, math.Round(v)) }
+
+// grams is n grams.
+func grams(ctx context.Context, n int) string { return web.Tf(ctx, msgGrams, web.Number(ctx, float64(n))) }
+
+// figure is n's value of target as a cell shows it: whole, in grams but for calories,
+// "at least" when only that is known, or unknown.
+func figure(ctx context.Context, target domain.Target, n domain.PortionNutrition) string {
+	a, floor := n.Of(target)
+	if !a.Known {
+		return web.T(ctx, msgUnknown)
+	}
+	s := whole(ctx, a.Value)
+	if target != domain.TargetKcal {
+		s = web.Tf(ctx, msgGrams, s)
+	}
+	if floor {
+		s = web.Tf(ctx, msgAtLeast, s)
+	}
+	return s
+}
+
+// missLine is m, a soft rule a Plan Proposal breaks, against the Targets t it aimed at.
+func missLine(ctx context.Context, m domain.Miss, t domain.Targets) string {
+	value := web.Number(ctx, float64(m.Value))
+	if m.Rule == domain.RuleTargetAverage && m.Target != domain.TargetKcal {
+		value = web.Tf(ctx, msgGrams, value)
+	}
+	if m.Floor {
+		value = web.Tf(ctx, msgAtLeast, value)
+	}
+	switch m.Rule {
+	case domain.RuleTargetAverage:
+		if m.Target == domain.TargetKcal {
+			lo, hi := t.Bounds(domain.TargetKcal)
+			return web.Tf(ctx, msgCaloriesAverage, value, whole(ctx, lo), whole(ctx, hi))
+		}
+		return web.Tf(ctx, msgAverages, web.Capitalised(web.T(ctx, targetMessages[m.Target].word)), value, grams(ctx, t.Aim(m.Target)))
+	case domain.RuleDayOff:
+		way := msgOver
+		if m.Under {
+			way = msgUnder
+		}
+		return web.Tf(ctx, way, web.ShortDate(ctx, m.On), value, web.T(ctx, targetMessages[m.Target].word))
+	case domain.RuleBackToBack:
+		days := make([]string, len(m.Days))
+		for i, d := range m.Days {
+			days[i] = web.ShortDate(ctx, d)
+		}
+		list := days[0]
+		if n := len(days); n > 1 {
+			list = web.Tf(ctx, msgAnd, strings.Join(days[:n-1], ", "), days[n-1])
+		}
+		return web.Tf(ctx, msgBackToBack, m.Name, list)
+	}
+	name := m.Name
+	if m.Count > 1 {
+		name = web.Tf(ctx, msgCounted, m.Name, m.Count)
+	}
+	return web.Tf(ctx, msgUnused, name, web.T(ctx, web.InLocations[m.Location]))
 }
