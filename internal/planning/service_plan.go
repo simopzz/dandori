@@ -17,7 +17,6 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
-	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/runs"
 )
 
@@ -69,7 +68,11 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	if err != nil {
 		return 0, err
 	}
-	p, err := s.profile.Planner(ctx)
+	p, err := s.profile.Profile(ctx)
+	if err != nil {
+		return 0, err
+	}
+	brief, err := s.profile.Brief(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -85,7 +88,7 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	if err != nil {
 		return 0, err
 	}
-	slots := c.Slots(p.Times)
+	slots := c.Slots(p.SlotTimes)
 	first := slots[0]
 	b := planBrief{
 		slots: slots, library: library, known: known, checks: s.checks,
@@ -95,7 +98,7 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error { return saveProposal(ctx, tx, runID, plan, summary) })
 		},
 	}
-	prompt := planPrompt(c, p, now, library, known, held)
+	prompt := planPrompt(c, p, brief, now, library, known, held)
 	asked, _, _ := strings.Cut(prompt, "\n")
 	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
 		if err := lockOpening(ctx, tx); err != nil {
@@ -140,11 +143,10 @@ Write every food term in the user's Language, named in the prompt.
 Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a summary of the Plan for the user, in their Language: two or three sentences on what it cooks and why. Give no nutrition figures and no day-by-day list: Dandori shows both.`, attempts, domain.MinSize, domain.MaxSize)
 
 // planPrompt is what a planning Run of c is told: the User's Language, the Cycle and its
-// Slots, today, the Profile p as the planner reads it, the Recipe Library, the known
-// Ingredients, the Planning Brief or its low-care default, and what the kitchen holds,
-// k, at now.
-func planPrompt(c Cycle, p profile.Planner, now time.Time, library []domain.Recipe, known []domain.Ingredient, k kitchen.Contents) string {
-	slots := c.Slots(p.Times)
+// Slots, today, the Profile p, the Recipe Library, the known Ingredients, the Planning
+// Brief or its low-care default, and what the kitchen holds, k, at now.
+func planPrompt(c Cycle, p domain.Profile, brief string, now time.Time, library []domain.Recipe, known []domain.Ingredient, k kitchen.Contents) string {
+	slots := c.Slots(p.SlotTimes)
 	var b strings.Builder
 	fmt.Fprintf(&b, "Plan the Cycle whose Delivery comes on %s, %s to %s, ending on %s.\n",
 		c.Delivery.On.Format(longDate), c.Delivery.From, c.Delivery.To, c.Ends.Format(longDate))
@@ -189,7 +191,7 @@ func planPrompt(c Cycle, p profile.Planner, now time.Time, library []domain.Reci
 		fmt.Fprintf(&b, "- Ingredient %d: %s, in %s, usually in the %s, per %s %s\n", ing.ID, ing.Name, ing.Unit, ing.Usual, per(ing.Unit), describeNutrition(ing.Nutrition, false, false))
 	}
 
-	brief := cmp.Or(p.Brief, lowCareBrief)
+	brief = cmp.Or(brief, lowCareBrief)
 	fmt.Fprintf(&b, "\nThe user's Planning Brief, their lasting wishes for how their meals are planned:\n<brief>\n%s\n</brief>\n", brief)
 
 	b.WriteString("\nWhat the kitchen holds now.\nPortions without a Slot:\n")
