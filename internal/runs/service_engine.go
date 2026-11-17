@@ -211,27 +211,40 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 // its Trace says it ended. found is false when they have no such Run; one that has ended
 // stays as it ended.
 func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
-	var cancelled bool
+	var stop func(context.Context)
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
 		if _, _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
 			return err
 		}
-		cancelled, err = setStatus(ctx, tx, id, Cancelled, e.clock.Now())
+		stop, err = e.CancelIn(ctx, tx, id)
 		return err
 	})
-	if err != nil || !cancelled {
+	if err != nil || !found {
 		return found, err
 	}
-	if tr := e.liveRun(id); tr != nil {
-		tr.cancel()
-		wait, stop := context.WithTimeout(ctx, cancelWait)
-		defer stop()
-		select {
-		case <-tr.done:
-		case <-wait.Done():
-		}
-	}
+	stop(ctx)
 	return true, nil
+}
+
+// CancelIn stores the signed-in User's Run id cancelled in tx if it is going, and is
+// stop, which stops it and waits a moment for it to, as Cancel does: call it only once tx
+// has committed, so a Run is never stopped by a cancel that didn't happen.
+func (e *Engine) CancelIn(ctx context.Context, tx pgx.Tx, id int64) (stop func(context.Context), err error) {
+	cancelled, err := setStatus(ctx, tx, id, Cancelled, e.clock.Now())
+	if err != nil || !cancelled {
+		return func(context.Context) {}, err
+	}
+	return func(ctx context.Context) {
+		if tr := e.liveRun(id); tr != nil {
+			tr.cancel()
+			wait, done := context.WithTimeout(ctx, cancelWait)
+			defer done()
+			select {
+			case <-tr.done:
+			case <-wait.Done():
+			}
+		}
+	}, nil
 }
 
 // cancelWait bounds how long Cancel waits for a cancelled Run to record its end.

@@ -138,6 +138,37 @@ const (
 	RuleOutsideCycle        Rule = "outside-cycle"
 )
 
+// The hard rules a Plan breaks by when it is: starting at a Slot already passed, and
+// filling a Slot with an Exception, which step 7's Exceptions first reach.
+const (
+	RuleStartsInThePast   Rule = "starts-in-the-past"
+	RuleSlotWithException Rule = "slot-with-exception"
+)
+
+// Stage is when a Plan's hard rules are checked: as the planner submits it, and as the
+// User approves it.
+type Stage string
+
+const (
+	AtSubmit   Stage = "submit"
+	AtApproval Stage = "approval"
+)
+
+// Blocks reports whether breaking r stops a Plan at stage: every hard rule at submit,
+// only those about time passing or an Exception at approval.
+func (r Rule) Blocks(stage Stage) bool {
+	return stage == AtSubmit || r == RuleStartsInThePast || r == RuleSlotWithException
+}
+
+// StartsInThePast is the violation of a Plan whose first Slot has passed at now, its
+// time of day by times reached, or none.
+func StartsInThePast(first Slot, times SlotTimes, now time.Time) []Violation {
+	if first.At(times).After(now) {
+		return nil
+	}
+	return []Violation{{Rule: RuleStartsInThePast, Message: fmt.Sprintf("its first Slot, %s, has passed", first)}}
+}
+
 // Violation is a rule a Plan breaks, and where, said for the planner.
 type Violation struct {
 	Rule    Rule

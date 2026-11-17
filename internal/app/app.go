@@ -93,7 +93,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
-	a.planning = planning.New(pool, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
+	a.planning = planning.New(pool, a.clock, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
 	a.today = today.New(a.profile, a.ledger, a.planning)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
@@ -177,6 +177,9 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /plan/cycles/{id}/drop", signedIn(plan.Drop))
 	mux.Handle("GET /plan/cycles/{id}/check", signedIn(plan.ShowCheck))
 	mux.Handle("POST /plan/cycles/{id}/plan", signedIn(plan.Plan))
+	mux.Handle("POST /plan/cycles/{id}/again", signedIn(plan.PlanAgain))
+	mux.Handle("POST /plan/proposals/{id}/approve", signedIn(plan.Approve))
+	mux.Handle("POST /plan/proposals/{id}/reject", signedIn(plan.Reject))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("POST /profile/targets", signedIn(prof.SaveTargets))

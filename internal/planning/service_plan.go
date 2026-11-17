@@ -59,18 +59,36 @@ const lowCareBrief = "Low-care Recipes, about 15 active minutes."
 // languageNames name each Language for the model.
 var languageNames = map[domain.Language]string{domain.English: "English", domain.Italian: "Italian"}
 
-// StartPlanning starts a planning Run of the signed-in User's Cycle id, upcoming at now,
-// from its first Slot, told what the kitchen holds now, and is the Run's id. It is
-// ErrNoCycle for a Cycle not upcoming, and ErrBusy while another planning Run is going or
-// a Plan Proposal is pending.
+// StartPlanning starts a planning Run of the signed-in User's Cycle id, upcoming or
+// current at now, from its first Slot still to come, told what the kitchen holds now,
+// and is the Run's id. It is ErrNoCycle for a Cycle neither, ErrPlanned for one with a
+// Plan, ErrNothingLeft when all its Slots have passed, and ErrBusy while another
+// planning Run is going or a Plan Proposal is pending.
 func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (int64, error) {
-	c, err := s.Upcoming(ctx, id, now)
+	c, err := s.Find(ctx, id, now)
 	if err != nil {
 		return 0, err
 	}
+	return s.start(ctx, c, domain.Slot{On: c.Delivery.On, Kind: domain.Breakfast}, now, "", nil)
+}
+
+// start starts a planning Run of c at now from the Slot from, or the first still to come
+// once that has passed, told every Planning Note of c, newest first, note first if not
+// "", and is the Run's id. before, if set, runs in the transaction recording the Run,
+// before it is told whether it is c's turn: an error from it starts nothing.
+func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time.Time, note string, before func(tx pgx.Tx) error) (int64, error) {
 	p, err := s.profile.Profile(ctx)
 	if err != nil {
 		return 0, err
+	}
+	var slots []domain.Slot
+	for _, sl := range c.Slots(p.SlotTimes) {
+		if !sl.Before(from) && sl.At(p.SlotTimes).After(now) {
+			slots = append(slots, sl)
+		}
+	}
+	if len(slots) == 0 {
+		return 0, ErrNothingLeft
 	}
 	brief, err := s.profile.Brief(ctx)
 	if err != nil {
@@ -88,26 +106,38 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	if err != nil {
 		return 0, err
 	}
-	slots := c.Slots(p.SlotTimes)
-	first := slots[0]
+	var notes []string
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		notes, err = loadNotes(ctx, tx, c.ID)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	if note != "" {
+		notes = append([]string{note}, notes...)
+	}
 	b := planBrief{
 		slots: slots, library: library, known: known, checks: s.checks,
 		unslotted: unslotted(held.Portions), zone: now.Location(),
+		passed: func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
 		leave: func(ctx context.Context, plan domain.Plan, summary string) {
 			runID := runs.IDFrom(ctx)
-			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error { return saveProposal(ctx, tx, runID, plan, summary) })
+			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error { return submit(ctx, tx, runID, plan, summary) })
 		},
 	}
-	prompt := planPrompt(c, p, brief, now, library, known, held)
+	prompt := planPrompt(c, p, slots[0], brief, notes, now, library, known, held)
 	asked, _, _ := strings.Cut(prompt, "\n")
 	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
-		if err := lockOpening(ctx, tx); err != nil {
+		if before != nil {
+			if err := before(tx); err != nil {
+				return err
+			}
+		}
+		if err := turn(ctx, tx, c.ID, runID); err != nil {
 			return err
 		}
-		if busy, err := planningBusy(ctx, tx, runID); err != nil || busy {
-			return cmp.Or(err, ErrBusy)
-		}
-		return saveCycleRun(ctx, tx, runID, c.ID, first)
+		return saveCycleRun(ctx, tx, runID, c.ID, slots[0])
 	})
 }
 
@@ -142,15 +172,16 @@ Write every food term in the user's Language, named in the prompt.
 
 Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a summary of the Plan for the user, in their Language: two or three sentences on what it cooks and why. Give no nutrition figures and no day-by-day list: Dandori shows both.`, attempts, domain.MinSize, domain.MaxSize)
 
-// planPrompt is what a planning Run of c is told: the User's Language, the Cycle and its
-// Slots, today, the Profile p, the Recipe Library, the known Ingredients, the Planning
-// Brief or its low-care default, and what the kitchen holds, k, at now.
-func planPrompt(c Cycle, p domain.Profile, brief string, now time.Time, library []domain.Recipe, known []domain.Ingredient, k kitchen.Contents) string {
+// planPrompt is what a planning Run of c from the Slot from is told: the User's Language,
+// the Cycle and its Slots, today, the Profile p, the Recipe Library, the known
+// Ingredients, the Planning Brief or its low-care default, the Planning Notes newest
+// first, and what the kitchen holds, k, at now.
+func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes []string, now time.Time, library []domain.Recipe, known []domain.Ingredient, k kitchen.Contents) string {
 	slots := c.Slots(p.SlotTimes)
 	var b strings.Builder
 	fmt.Fprintf(&b, "Plan the Cycle whose Delivery comes on %s, %s to %s, ending on %s.\n",
 		c.Delivery.On.Format(longDate), c.Delivery.From, c.Delivery.To, c.Ends.Format(longDate))
-	fmt.Fprintf(&b, "Its Slots run from %s to %s. Plan every Slot from %s on.\n", slots[0], slots[len(slots)-1], slots[0])
+	fmt.Fprintf(&b, "Its Slots run from %s to %s. Plan every Slot from %s on.\n", slots[0], slots[len(slots)-1], from)
 	fmt.Fprintf(&b, "Today is %s. The user's Language is %s.\n", now.Format(longDate), languageNames[p.Language])
 
 	t := p.Targets
@@ -193,6 +224,12 @@ func planPrompt(c Cycle, p domain.Profile, brief string, now time.Time, library 
 
 	brief = cmp.Or(brief, lowCareBrief)
 	fmt.Fprintf(&b, "\nThe user's Planning Brief, their lasting wishes for how their meals are planned:\n<brief>\n%s\n</brief>\n", brief)
+	if len(notes) > 0 {
+		b.WriteString("\nThe user's Planning Notes on this Cycle, newest first: where they disagree, the newer one wins.\n")
+		for _, n := range notes {
+			fmt.Fprintf(&b, "<note>\n%s\n</note>\n", n)
+		}
+	}
 
 	b.WriteString("\nWhat the kitchen holds now.\nPortions without a Slot:\n")
 	if len(k.Portions) == 0 {
@@ -278,7 +315,9 @@ type planBrief struct {
 	unslotted []domain.Portion
 	checks    int
 	zone      *time.Location
-	leave     func(ctx context.Context, plan domain.Plan, summary string)
+	// passed is the violation of a Plan starting at a Slot already passed, or none.
+	passed func() []domain.Violation
+	leave  func(ctx context.Context, plan domain.Plan, summary string)
 
 	drafts  []domain.Plan
 	checked int
@@ -329,7 +368,7 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 	}
 	pb.drafts = append(pb.drafts, plan)
 	id := len(pb.drafts)
-	vs := domain.HardRules(plan, pb.slots, pb.unslotted)
+	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), pb.passed()...)
 	left := fmt.Sprintf("%d of %d check_plan calls left.", pb.checks-pb.checked, pb.checks)
 	if len(vs) == 0 {
 		return fmt.Sprintf("Draft %d keeps every hard rule. %s", id, left), nil
@@ -350,7 +389,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 		return "", fmt.Errorf("there is no draft %d: check a draft with check_plan first", in.DraftID)
 	}
 	plan := pb.drafts[in.DraftID-1]
-	vs := domain.HardRules(plan, pb.slots, pb.unslotted)
+	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), pb.passed()...)
 	if len(vs) == 0 {
 		pb.chosen = &plan
 		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it.", in.DraftID), nil
@@ -519,35 +558,62 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 // Proposal is a pending Plan Proposal as its Cycle page shows it: its Plan, the
 // Portions without a Slot it puts in Slots by id, and the planner's summary.
 type Proposal struct {
+	ID      int64
 	Plan    domain.Plan
 	Kept    map[int64]domain.Portion
 	Summary string
 }
 
-// Planning is how planning a Cycle stands: its pending Plan Proposal, nil when it has
-// none, and the id of its planning Run going, 0 when none is.
+// Planning is how planning a Cycle stands: its pending Plan Proposal, its Plan (the Plan
+// Proposal approved), each nil when it has none, the id of its planning Run going, 0
+// when none is, its latest planning Run when that failed, with its Trace, and the times
+// of day its Slots are at.
 type Planning struct {
-	Proposal *Proposal
-	Going    int64
+	Proposal, Plan *Proposal
+	Going          int64
+	Failed         *runs.Run
+	Times          domain.SlotTimes
 }
 
 // PlanningOf is how planning the signed-in User's Cycle id stands, its days in zone.
 func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location) (Planning, error) {
 	var p Planning
-	var stored *storedProposal
+	var pending, approved *storedProposal
+	var last lastRun
 	var portions []domain.Portion
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+	times, err := s.profile.SlotTimes(ctx)
+	if err != nil {
+		return p, err
+	}
+	p.Times = times
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		if p.Going, err = goingRun(ctx, tx, id); err != nil {
 			return err
 		}
-		if stored, err = loadPending(ctx, tx, id, zone); err != nil || stored == nil {
+		if last, err = loadLastRun(ctx, tx, id, zone); err != nil {
+			return err
+		}
+		if pending, err = loadProposal(ctx, tx, id, Pending, zone); err != nil {
+			return err
+		}
+		if approved, err = loadProposal(ctx, tx, id, Approved, zone); err != nil || (pending == nil && approved == nil) {
 			return err
 		}
 		portions, err = ledger.LoadPortions(ctx, tx)
 		return err
 	})
-	if err != nil || stored == nil {
+	if err != nil {
 		return p, err
+	}
+	if last.status == runs.Failed {
+		run, _, err := s.runs.Find(ctx, last.id)
+		if err != nil {
+			return p, err
+		}
+		p.Failed = &run
+	}
+	if pending == nil && approved == nil {
+		return p, nil
 	}
 	library, err := s.recipes.Search(ctx, "")
 	if err != nil {
@@ -557,7 +623,12 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 	if err != nil {
 		return p, err
 	}
-	p.Proposal = stored.resolve(library, known, portions)
+	if pending != nil {
+		p.Proposal = pending.resolve(library, known, portions)
+	}
+	if approved != nil {
+		p.Plan = approved.resolve(library, known, portions)
+	}
 	return p, nil
 }
 
@@ -571,7 +642,7 @@ func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredi
 	for i := range known {
 		ingredients[known[i].ID] = &known[i]
 	}
-	p := &Proposal{Summary: sp.summary, Plan: domain.Plan{Kept: sp.kept}, Kept: map[int64]domain.Portion{}}
+	p := &Proposal{ID: sp.id, Summary: sp.summary, Plan: domain.Plan{Kept: sp.kept}, Kept: map[int64]domain.Portion{}}
 	for _, ps := range sp.sessions {
 		ps.Recipe, ps.Ingredient = recipes[ps.recipeID], ingredients[ps.ingredientID]
 		p.Plan.PrepSessions = append(p.Plan.PrepSessions, ps.PrepSession)

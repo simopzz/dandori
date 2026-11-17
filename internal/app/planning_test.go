@@ -288,7 +288,7 @@ func TestThreeSubmitsBreakingHardRulesFailThePlanningRun(t *testing.T) {
 
 	s.Open("/plan")
 	s.DoesNotSee("Plan Proposal")
-	s.Sees("Plan the Cycle")
+	s.Sees("Plan again")
 }
 
 // A planning Run whose model ends without submitting a Plan fails, its last message as
@@ -385,7 +385,7 @@ func TestUsersSeeOnlyTheirOwnPlanProposals(t *testing.T) {
 
 // Through a browser: opening a Cycle lands on the Kitchen Check, whose button starts the
 // planning Run on its live Trace, which goes on to the Cycle page and its pending Plan
-// Proposal once the Run ends.
+// Proposal once the Run ends; approving it shows the Plan.
 func TestBrowserPlansACycleThroughTheKitchenCheck(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -457,6 +457,11 @@ func TestBrowserPlansACycleThroughTheKitchenCheck(t *testing.T) {
 	b.Sees(t, "Yogurt all Friday.")
 	b.Sees(t, "yogurt: 4 Portions")
 	b.ShotPage(t, "plan-proposal")
+
+	b.Click(t, "Approve")
+	b.IsConfirmed(t, "Plan approved.")
+	b.Sees(t, "8:00 am Breakfast yogurt")
+	b.ShotPage(t, "plan")
 }
 
 // Cancelling a planning Run once its Plan is submitted, as the model sums it up, leaves
@@ -482,9 +487,9 @@ func TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal(t *testing.T) 
 	s.Sees("Plan the Cycle")
 }
 
-// A Plan Proposal that can't be stored as its Run ends, its Cycle dropped meanwhile,
-// fails the Run rather than leaving it going.
-func TestAPlanProposalThatCantBeStoredFailsItsRun(t *testing.T) {
+// Dropping a Cycle while its planning Run is going cancels the Run, which then stores no
+// Plan Proposal.
+func TestDroppingACycleCancelsItsPlanningRun(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	release := make(chan struct{})
 	s.Model.Script(
@@ -499,6 +504,7 @@ func TestAPlanProposalThatCantBeStoredFailsItsRun(t *testing.T) {
 	close(release)
 	s.Settle()
 	s.Open(run)
-	s.Sees("Planning a Cycle Failed")
-	s.Sees("Dandori crashed while running it")
+	s.Sees("Planning a Cycle Cancelled")
+	s.Open("/plan")
+	s.Sees("No Cycle is upcoming.")
 }

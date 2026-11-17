@@ -70,6 +70,27 @@ var (
 	msgPlanningKind = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
 )
 
+// Deciding on a Plan Proposal's Messages, the Plan's and a failed planning Run's.
+var (
+	msgPlan            = web.Message{En: "Plan", It: "Piano"}
+	msgCurrentCycle    = web.Message{En: "Current Cycle", It: "Ciclo in corso"}
+	msgApprove         = web.Message{En: "Approve", It: "Approva"}
+	msgApproved        = web.Message{En: "Plan approved.", It: "Piano approvato."}
+	msgPlanningNote    = web.Message{En: "Planning Note", It: "Nota di pianificazione"}
+	msgNoteHint        = web.Message{En: "optional: with one, it is planned again", It: "facoltativa: con una, viene ripianificato"}
+	msgReject          = web.Message{En: "Reject", It: "Rifiuta"}
+	msgRejected        = web.Message{En: "Plan Proposal rejected.", It: "Proposta di Piano rifiutata."}
+	msgStartsInThePast = web.Message{
+		En: "This Plan Proposal starts at a Slot that has passed, so it can't be approved. Reject it with a Planning Note to have it planned again, or reject it and plan the Cycle again.",
+		It: "Questa Proposta di Piano inizia da un Pasto già passato, quindi non può essere approvata. Rifiutala con una Nota di pianificazione per ripianificarla, oppure rifiutala e pianifica di nuovo il Ciclo.",
+	}
+	msgPlanned     = web.Message{En: "This Cycle already has a Plan.", It: "Questo Ciclo ha già un Piano."}
+	msgNothingLeft = web.Message{En: "Every Slot of this Cycle has passed: there's nothing left to plan.", It: "Tutti i Pasti di questo Ciclo sono passati: non resta nulla da pianificare."}
+	msgFailed      = web.Message{En: "Planning failed: %s", It: "La pianificazione non è riuscita: %s"}
+	msgSeeTrace    = web.Message{En: "See its Trace", It: "Vedi la Traccia"}
+	msgPlanAgain   = web.Message{En: "Plan again", It: "Pianifica di nuovo"}
+)
+
 // planningReasons are why a planning Run fails beside the reasons every Run can; %s is
 // what was said more, verbatim.
 var planningReasons = map[agent.Reason]web.Message{

@@ -237,3 +237,14 @@ func writeSSE(w io.Writer, id, name, data string) {
 	}
 	fmt.Fprint(w, "\n")
 }
+
+// Failure is why run, of the kind k tells of, failed, in the Language of ctx, as its
+// Trace tells it: "" for a Run that didn't.
+func (k KindPage) Failure(ctx context.Context, run Run) string {
+	for _, ev := range run.Trace {
+		if ev.Kind == agent.Failed {
+			return line(ctx, ev.TraceEvent, k)
+		}
+	}
+	return ""
+}

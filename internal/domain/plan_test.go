@@ -183,3 +183,53 @@ func TestSlotsAreEqualByDayAndKind(t *testing.T) {
 		})
 	}
 }
+
+// Every hard rule blocks a Plan at submit; at approval only starting in the past and
+// filling a Slot with an Exception do.
+func TestWhichRulesBlockAtWhichStage(t *testing.T) {
+	tests := []struct {
+		rule               domain.Rule
+		submit, atApproval bool
+	}{
+		{domain.RuleSlotFilledTwice, true, false},
+		{domain.RuleEmptySlot, true, false},
+		{domain.RuleEatenBeforePrepared, true, false},
+		{domain.RuleUnknownPortion, true, false},
+		{domain.RuleOutsideCycle, true, false},
+		{domain.RuleStartsInThePast, true, true},
+		{domain.RuleSlotWithException, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.rule), func(t *testing.T) {
+			if got := tt.rule.Blocks(domain.AtSubmit); got != tt.submit {
+				t.Errorf("Blocks(AtSubmit) = %v, want %v", got, tt.submit)
+			}
+			if got := tt.rule.Blocks(domain.AtApproval); got != tt.atApproval {
+				t.Errorf("Blocks(AtApproval) = %v, want %v", got, tt.atApproval)
+			}
+		})
+	}
+}
+
+// A Plan starts in the past once its first Slot's time of day is reached.
+func TestAPlanStartsInThePastOnceItsFirstSlotsTimeIsReached(t *testing.T) {
+	first := slot(6, domain.Breakfast) // at 8:00
+	tests := []struct {
+		name string
+		now  time.Time
+		want bool
+	}{
+		{"the evening before", time.Date(2026, time.November, 5, 21, 0, 0, 0, rome), false},
+		{"a minute before", time.Date(2026, time.November, 6, 7, 59, 0, 0, rome), false},
+		{"at its time", time.Date(2026, time.November, 6, 8, 0, 0, 0, rome), true},
+		{"later that day", time.Date(2026, time.November, 6, 13, 0, 0, 0, rome), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vs := domain.StartsInThePast(first, domain.DefaultSlotTimes, tt.now)
+			if got := len(vs) == 1 && vs[0].Rule == domain.RuleStartsInThePast; got != tt.want {
+				t.Errorf("StartsInThePast() = %v, want it broken %v", vs, tt.want)
+			}
+		})
+	}
+}
