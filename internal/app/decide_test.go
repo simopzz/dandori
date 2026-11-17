@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -80,8 +81,8 @@ func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	s.Open("/plan")
 	s.Sees("01 Plan Proposal Rice bowls for Friday.")
 	s.Submits("approve")
-	if s.Page().StatusCode != http.StatusConflict {
-		t.Errorf("approving a Plan Proposal starting in the past = %d, want %d", s.Page().StatusCode, http.StatusConflict)
+	if s.Page().StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("approving a Plan Proposal starting in the past = %d, want %d", s.Page().StatusCode, http.StatusUnprocessableEntity)
 	}
 	s.Sees("This Plan Proposal starts at a Slot that has passed, so it can't be approved. Reject it with a Planning Note to have it planned again, or reject it and plan the Cycle again.")
 	s.Sees("01 Plan Proposal Rice bowls for Friday.")
@@ -192,7 +193,7 @@ func TestAFailedPlanningRunOffersToPlanAgain(t *testing.T) {
 
 // Each decision answers htmx as it does a plain post: approving and rejecting land on
 // the Cycle page, rejecting with a note and planning again on the Run, and a refused
-// approval is the Cycle page with 409.
+// approval is the Cycle page with 422.
 func TestDecisionsPostedAsHTMX(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
@@ -208,8 +209,8 @@ func TestDecisionsPostedAsHTMX(t *testing.T) {
 
 	approve := apptest.Form(t, s.Get(t, "/plan").Body, "approve")
 	s.At("Fri 08:00")
-	if got := s.HTMXPostForm(t, approve.Action, approve.Values); got.StatusCode != http.StatusConflict || !strings.Contains(apptest.Text(got.Body), "can't be approved") {
-		t.Errorf("a refused approval as htmx answers %d, want 409 saying why", got.StatusCode)
+	if got := s.HTMXPostForm(t, approve.Action, approve.Values); got.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(apptest.Text(got.Body), "can't be approved") {
+		t.Errorf("a refused approval as htmx answers %d, want 422 saying why", got.StatusCode)
 	}
 	reject = apptest.Form(t, s.Get(t, "/plan").Body, "reject")
 	if got := s.HTMXPostForm(t, reject.Action, reject.Values); got.Path != "/plan" || !strings.Contains(apptest.Text(got.Body), "Plan the Cycle") {
@@ -217,5 +218,44 @@ func TestDecisionsPostedAsHTMX(t *testing.T) {
 	}
 	if got := s.HTMXPostForm(t, reject.Action, reject.Values); got.StatusCode != http.StatusNotFound {
 		t.Errorf("rejecting a decided Plan Proposal = %d, want 404", got.StatusCode)
+	}
+}
+
+// Once every Slot has passed, rejecting with a Planning Note is refused with 422, the
+// note still typed, and the Plan Proposal stays pending.
+func TestARefusedRejectionKeepsItsPlanningNote(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Rice bowls for Friday.")
+
+	s.At("Fri 23:00")
+	s.Open("/plan")
+	s.Rejects("No lasagne.")
+	if s.Page().StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("rejecting with nothing left to plan = %d, want %d", s.Page().StatusCode, http.StatusUnprocessableEntity)
+	}
+	if got := apptest.Form(t, s.Page().Body, "reject").Values.Get("note"); got != "No lasagne." {
+		t.Errorf("the refused rejection's note = %q, want it as typed", got)
+	}
+	s.Sees("01 Plan Proposal Rice bowls for Friday.")
+}
+
+// Planning again and approving, posted as htmx, land where a plain post does: the Run,
+// then the Cycle page with its Plan.
+func TestPlanningAgainAndApprovingPostedAsHTMX(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.Model.Script(fakellm.Reply("The kitchen is empty."))
+	s.OpensCycle(friday)
+	s.PlansCycle()
+
+	fridayPlanned(t, s, "Friday after all.")
+	again := apptest.Form(t, s.Get(t, "/plan").Body, "plan-again")
+	if got := s.HTMXPostForm(t, again.Action, again.Values); got.Path != "/runs/2" {
+		t.Errorf("planning again as htmx lands on %s, want /runs/2", got.Path)
+	}
+	s.Settle()
+
+	approve := apptest.Form(t, s.Get(t, "/plan").Body, "approve")
+	if got := s.HTMXPostForm(t, approve.Action, approve.Values); got.Path != "/plan" || !slices.Equal(apptest.Notices(t, got.Body), []string{"Plan approved."}) {
+		t.Errorf("approving as htmx lands on %s, want the Cycle page saying so", got.Path)
 	}
 }

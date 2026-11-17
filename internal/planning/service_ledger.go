@@ -10,6 +10,7 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/runs"
 )
 
 // The Plan Proposal ledger: turn, submit and decide (in the store) and end are the only
@@ -24,6 +25,8 @@ var (
 	ErrNoProposal = errors.New("no such pending Plan Proposal")
 	// ErrStartsInThePast is approving a Plan Proposal whose first Slot has passed.
 	ErrStartsInThePast = errors.New("the Plan Proposal's first Slot has passed")
+	// ErrNoFailure is planning a Cycle again when its last planning Run didn't fail.
+	ErrNoFailure = errors.New("the Cycle's last planning Run didn't fail")
 )
 
 // turn is whether the Run runID may plan the Cycle id now, read in tx, locked so two
@@ -73,10 +76,8 @@ func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		for _, v := range domain.StartsInThePast(first, times, now) {
-			if v.Rule.Blocks(domain.AtApproval) {
-				return ErrStartsInThePast
-			}
+		if len(domain.Blocking(domain.StartsInThePast(first, times, now), domain.AtApproval)) > 0 {
+			return ErrStartsInThePast
 		}
 		return decide(ctx, tx, id, Approved, now)
 	})
@@ -114,7 +115,8 @@ func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Ti
 
 // PlanAgain starts a planning Run of the signed-in User's Cycle id at now, with no
 // Kitchen Check, from the first Slot its last planning Run planned from, or the first
-// still to come once that has passed, and is the Run's id.
+// still to come once that has passed, and is the Run's id. It is ErrNoFailure unless that
+// Run failed: after any other, planning goes through the Kitchen Check.
 func (s *Service) PlanAgain(ctx context.Context, id int64, now time.Time) (int64, error) {
 	c, err := s.Find(ctx, id, now)
 	if err != nil {
@@ -128,8 +130,8 @@ func (s *Service) PlanAgain(ctx context.Context, id int64, now time.Time) (int64
 	if err != nil {
 		return 0, err
 	}
-	if last.id == 0 {
-		return 0, ErrNoCycle
+	if last.status != runs.Failed {
+		return 0, ErrNoFailure
 	}
 	return s.start(ctx, c, last.first, now, "", nil)
 }

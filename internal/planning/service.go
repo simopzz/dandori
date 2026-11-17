@@ -115,6 +115,10 @@ func (s *Service) Open(ctx context.Context, l domain.Language, typed map[string]
 func (s *Service) Drop(ctx context.Context, id int64, now time.Time) error {
 	var stop func(context.Context)
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		// turn's lock, taken first, makes a planning Run still starting seen, and ended.
+		if err := lockOpening(ctx, tx); err != nil {
+			return err
+		}
 		if _, err := findUpcoming(ctx, tx, id, now); err != nil {
 			return err
 		}

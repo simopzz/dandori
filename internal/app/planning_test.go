@@ -331,8 +331,8 @@ func TestASecondPlanningRunIsRefusedWhileOneIsGoingOrAPlanProposalIsPending(t *t
 	s.Sees("Being planned: see its Trace")
 	s.Open(check)
 	s.StartsPlanning()
-	if s.Page().StatusCode != http.StatusConflict {
-		t.Errorf("a second planning Run = %d, want %d", s.Page().StatusCode, http.StatusConflict)
+	if s.Page().StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("a second planning Run = %d, want %d", s.Page().StatusCode, http.StatusUnprocessableEntity)
 	}
 	s.Sees("Another planning Run is going, or a Plan Proposal is waiting for you.")
 
@@ -341,6 +341,10 @@ func TestASecondPlanningRunIsRefusedWhileOneIsGoingOrAPlanProposalIsPending(t *t
 	s.Sees("Planning a Cycle Cancelled")
 	s.Open("/plan")
 	s.DoesNotSee("Plan Proposal")
+	s.DoesNotSee("Plan again")
+	if got := s.PostForm(t, strings.Replace(check, "/check", "/again", 1), nil); got.StatusCode != http.StatusNotFound {
+		t.Errorf("planning again after a cancelled Run = %d, want 404: it goes through the Kitchen Check", got.StatusCode)
+	}
 
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),

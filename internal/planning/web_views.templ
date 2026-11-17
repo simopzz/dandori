@@ -30,14 +30,15 @@ func window(ctx context.Context, d domain.Delivery) string {
 }
 
 // cycleView is what the Cycle page shows: the Cycle, nil when there's none, upcoming or
-// current, how planning it stands, why its latest planning Run failed, if it did, and why
-// a decision or planning was refused, if one was.
+// current, how planning it stands, why its latest planning Run failed, if it did, why
+// a decision or planning was refused, if one was, and the Planning Note typed with it.
 type cycleView struct {
 	Cycle    *Cycle
 	Upcoming bool
 	Planning Planning
 	Failure  string
 	Refusal  error
+	Note     string
 }
 
 // cyclePage is the Cycle page: the Cycle, its pending Plan Proposal first, then its
@@ -62,7 +63,7 @@ templ cyclePage(now time.Time, v cycleView) {
 			@decisionAlert(v.Refusal)
 			{{ section := 1 }}
 			if p.Proposal != nil {
-				@proposalSection(section, c, *p.Proposal, p.Times)
+				@proposalSection(section, c, *p.Proposal, p.Times, v.Note)
 				{{ section++ }}
 			}
 			if p.Plan != nil {
@@ -184,8 +185,9 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 }
 
 // proposalSection is the pending Plan Proposal of c, numbered num: the planner's
-// summary, its days, then approving it, or rejecting it with a Planning Note or without.
-templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes) {
+// summary, its days, then approving it, or rejecting it with a Planning Note, note as
+// typed, or without.
+templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes, note string) {
 	@web.Section(num, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
 		@planDays(c, p, times)
@@ -199,7 +201,7 @@ templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes) {
 			</form>
 			<form novalidate id="reject" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/reject", p.ID)) }>
 				@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgNoteHint), "") {
-					<textarea name="note" rows="3"></textarea>
+					<textarea name="note" rows="3">{ note }</textarea>
 				}
 				@web.Actions() {
 					@web.TextButton(templ.Attributes{"type": "submit"}) {

@@ -16,13 +16,15 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// Why the app refuses opening a Cycle.
+// Why the app refuses opening, planning or deciding on a Cycle.
 const (
 	refusedCycle    httpx.Refusal = "Cycle refused"
 	refusedUpcoming httpx.Refusal = "a Cycle is already upcoming"
 	refusedTargets  httpx.Refusal = "the Targets aren't set"
 	refusedBusy     httpx.Refusal = "another planning Run is going or a Plan Proposal is pending"
 	refusedPast     httpx.Refusal = "the Plan Proposal's first Slot has passed"
+	refusedPlanned  httpx.Refusal = "the Cycle already has a Plan"
+	refusedNoneLeft httpx.Refusal = "no Slot of the Cycle is left to plan"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
@@ -56,7 +58,7 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 // cycle answers with the Cycle page, with status, saying why a decision or planning was
-// refused, if it was.
+// refused, if it was, with any Planning Note posted still typed.
 func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, refusal error) {
 	ctx, now := r.Context(), h.Clock.Now()
 	current, upcoming, err := h.Service.Now(ctx, now)
@@ -64,7 +66,7 @@ func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, refu
 		httpx.ServerError(w, r, h.Log, "load the User's Cycles", err)
 		return
 	}
-	v := cycleView{Cycle: cmp.Or(upcoming, current), Upcoming: upcoming != nil, Refusal: refusal}
+	v := cycleView{Cycle: cmp.Or(upcoming, current), Upcoming: upcoming != nil, Refusal: refusal, Note: r.PostFormValue("note")}
 	if v.Cycle != nil {
 		if v.Planning, err = h.Service.PlanningOf(ctx, v.Cycle.ID, now.Location()); err != nil {
 			httpx.ServerError(w, r, h.Log, "load how planning the Cycle stands", err)
@@ -129,18 +131,25 @@ func (h Handlers) PlanAgain(w http.ResponseWriter, r *http.Request) {
 // refused answers a decision or a replan that failed with err, doing what: unknown when
 // there's nothing to decide or plan, the Cycle page saying why when a rule refused it.
 func (h Handlers) refused(w http.ResponseWriter, r *http.Request, what string, err error) {
+	var refusal httpx.Refusal
 	switch {
-	case errors.Is(err, ErrNoProposal), errors.Is(err, ErrNoCycle):
+	case errors.Is(err, ErrNoProposal), errors.Is(err, ErrNoCycle), errors.Is(err, ErrNoFailure):
 		http.NotFound(w, r)
+		return
 	case errors.Is(err, ErrStartsInThePast):
-		httpx.Refused(r, refusedPast, nil)
-		h.cycle(w, r, http.StatusConflict, err)
-	case errors.Is(err, ErrBusy), errors.Is(err, ErrPlanned), errors.Is(err, ErrNothingLeft):
-		httpx.Refused(r, httpx.Refusal(err.Error()), nil)
-		h.cycle(w, r, http.StatusConflict, err)
+		refusal = refusedPast
+	case errors.Is(err, ErrBusy):
+		refusal = refusedBusy
+	case errors.Is(err, ErrPlanned):
+		refusal = refusedPlanned
+	case errors.Is(err, ErrNothingLeft):
+		refusal = refusedNoneLeft
 	default:
 		httpx.ServerError(w, r, h.Log, what, err)
+		return
 	}
+	httpx.Refused(r, refusal, nil)
+	h.cycle(w, r, http.StatusUnprocessableEntity, err)
 }
 
 // ShowCheck is the Kitchen Check before planning the upcoming Cycle in the path.
@@ -185,7 +194,7 @@ func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, ErrBusy):
 		httpx.Refused(r, refusedBusy, nil)
-		h.check(w, r, http.StatusConflict, err)
+		h.check(w, r, http.StatusUnprocessableEntity, err)
 	case err != nil:
 		h.refused(w, r, "start planning the Cycle", err)
 	default:

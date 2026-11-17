@@ -160,6 +160,17 @@ func (r Rule) Blocks(stage Stage) bool {
 	return stage == AtSubmit || r == RuleStartsInThePast || r == RuleSlotWithException
 }
 
+// Blocking are the violations of vs that stop a Plan at stage.
+func Blocking(vs []Violation, stage Stage) []Violation {
+	var out []Violation
+	for _, v := range vs {
+		if v.Rule.Blocks(stage) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 // StartsInThePast is the violation of a Plan whose first Slot has passed at now, its
 // time of day by times reached, or none.
 func StartsInThePast(first Slot, times SlotTimes, now time.Time) []Violation {

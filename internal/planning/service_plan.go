@@ -368,7 +368,7 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 	}
 	pb.drafts = append(pb.drafts, plan)
 	id := len(pb.drafts)
-	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), pb.passed()...)
+	vs := pb.violations(plan)
 	left := fmt.Sprintf("%d of %d check_plan calls left.", pb.checks-pb.checked, pb.checks)
 	if len(vs) == 0 {
 		return fmt.Sprintf("Draft %d keeps every hard rule. %s", id, left), nil
@@ -389,7 +389,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 		return "", fmt.Errorf("there is no draft %d: check a draft with check_plan first", in.DraftID)
 	}
 	plan := pb.drafts[in.DraftID-1]
-	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), pb.passed()...)
+	vs := domain.Blocking(pb.violations(plan), domain.AtSubmit)
 	if len(vs) == 0 {
 		pb.chosen = &plan
 		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it.", in.DraftID), nil
@@ -399,6 +399,11 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 		return "", &agent.Failure{Reason: brokeHardRules, Detail: strings.Join(pb.broken, "\n")}
 	}
 	return "", fmt.Errorf("draft %d breaks these hard rules (submit %d of %d):\n%s", in.DraftID, len(pb.broken), attempts, listViolations(vs))
+}
+
+// violations are the hard rules plan breaks, a first Slot already passed among them.
+func (pb *planBrief) violations(plan domain.Plan) []domain.Violation {
+	return append(domain.HardRules(plan, pb.slots, pb.unslotted), pb.passed()...)
 }
 
 // listViolations is vs one a line, as the planner reads them.
