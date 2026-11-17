@@ -31,7 +31,11 @@ Done when the checkout is `v2` at `origin/v2` and `sync.sh pull` exited 0.
 
 ## 3. Update
 
-Invoke `understand-anything:understand` with no arguments, and relay its questions to the user as it asks them. When it reaches its symbol-loss gate, at the merge or at the save, step 4 decides before `prepare-symbol-retry.mjs` runs. A STOP inside the understand skill ends that skill, not `/graph`: continue at step 4 for a gate, or step 5 once `meta.json` has advanced.
+Invoke `understand-anything:understand` with no arguments, and relay its questions to the user as it asks them.
+
+A full analysis costs roughly 1.2–1.5M tokens, so it starts only on the user's yes. When `.ua/intermediate/incremental-plan.json` says `FULL_UPDATE`, or the understand skill is about to run its full pipeline for any other reason (no graph yet), stop before its Phase 0.5. Tell the user it is a full rebuild and why (the plan's `filesToReanalyze` count), with that cost. Ask whether to go ahead. On no, stop: the published graph is unchanged.
+
+When it reaches its symbol-loss gate, at the merge or at the save, step 4 decides before `prepare-symbol-retry.mjs` runs. A STOP inside the understand skill ends that skill, not `/graph`: continue at step 4 for a gate, or step 5 once `meta.json` has advanced.
 
 ## 4. Blocks
 
@@ -48,10 +52,19 @@ Other `understand` failures go to the user as they stand, with no rebuild offer.
 
 Publish only a graph of this checkout: `gitCommitHash` in `.ua/meta.json` must equal `git rev-parse HEAD`. If it doesn't, say so and stop.
 
-Run `sync.sh push full` after a `--full` run, otherwise `sync.sh push incremental`:
+Run `sync.sh push full` after any full analysis, otherwise `sync.sh push incremental`:
 
 - **`nothing to publish`:** the published graph already matches.
 - **Exit 4:** another machine published first. The refused graph waits as uncommitted files in `.ua`. Rerunning `/graph` pulls the newer graph, and step 2 asks what to do with these files.
 - **Exit 6:** the push failed (network, auth), and `origin/understand-graph` didn't move. The graph is still staged in `.ua`. Tell the user, and offer to rerun the same `sync.sh push` command.
 
-Publishing always goes through `sync.sh push`, which never force-pushes. Finish with one line: the published commit (`git -C .ua log -1 --format='%h %s'`) and `https://github.com/simopzz/dandori/tree/understand-graph`.
+Publishing always goes through `sync.sh push`, which never force-pushes.
+
+## 6. Derived artifacts
+
+Two artifacts are built from the graph and go stale when it changes: the domain graph (`.ua/domain-graph.json`, the dashboard's domain view) and the onboarding guide (`.ua/UA_ONBOARDING.md`). After a publish that changed the graph, ask once which of them to regenerate: domain graph, onboarding guide, both, or neither. Each one is a separate LLM pass, so neither is the default. Run each one the user picks, then publish it:
+
+- **Domain graph:** invoke `understand-anything:understand-domain` with no arguments. It derives from the graph in `.ua` and saves `.ua/domain-graph.json`. Then run `sync.sh push domain`.
+- **Onboarding guide:** invoke `understand-anything:understand-onboard`. Where it offers to save to `docs/UA_ONBOARDING.md`, write the guide to `.ua/UA_ONBOARDING.md` instead, without asking. The guide is published with the graph, not committed to the code repo. Then run `sync.sh push onboard`.
+
+The push exits are the same as in step 5. Finish with one line: the last published commit (`git -C .ua log -1 --format='%h %s'`) and `https://github.com/simopzz/dandori/tree/understand-graph`.
