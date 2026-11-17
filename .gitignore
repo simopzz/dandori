@@ -1,0 +1,11 @@
+*
+!.gitignore
+!intermediate/
+intermediate/*
+!knowledge-graph.json
+!meta.json
+!fingerprints.json
+!config.json
+!.understandignore
+!UA_ONBOARDING.md
+!intermediate/scan-result.json
