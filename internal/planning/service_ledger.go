@@ -76,8 +76,10 @@ func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		if len(domain.Blocking(domain.StartsInThePast(first, times, now), domain.AtApproval)) > 0 {
-			return ErrStartsInThePast
+		for _, v := range domain.StartsInThePast(first, times, now) {
+			if v.Rule.BlocksApproval() {
+				return ErrStartsInThePast
+			}
 		}
 		return decide(ctx, tx, id, Approved, now)
 	})

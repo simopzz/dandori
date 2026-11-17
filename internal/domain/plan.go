@@ -145,30 +145,11 @@ const (
 	RuleSlotWithException Rule = "slot-with-exception"
 )
 
-// Stage is when a Plan's hard rules are checked: as the planner submits it, and as the
-// User approves it.
-type Stage string
-
-const (
-	AtSubmit   Stage = "submit"
-	AtApproval Stage = "approval"
-)
-
-// Blocks reports whether breaking r stops a Plan at stage: every hard rule at submit,
-// only those about time passing or an Exception at approval.
-func (r Rule) Blocks(stage Stage) bool {
-	return stage == AtSubmit || r == RuleStartsInThePast || r == RuleSlotWithException
-}
-
-// Blocking are the violations of vs that stop a Plan at stage.
-func Blocking(vs []Violation, stage Stage) []Violation {
-	var out []Violation
-	for _, v := range vs {
-		if v.Rule.Blocks(stage) {
-			out = append(out, v)
-		}
-	}
-	return out
+// BlocksApproval reports whether breaking r stops the User approving a Plan: only the
+// rules about time passing or an Exception do. Every hard rule stops the planner
+// submitting one.
+func (r Rule) BlocksApproval() bool {
+	return r == RuleStartsInThePast || r == RuleSlotWithException
 }
 
 // StartsInThePast is the violation of a Plan whose first Slot has passed at now, its

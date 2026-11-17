@@ -184,28 +184,25 @@ func TestSlotsAreEqualByDayAndKind(t *testing.T) {
 	}
 }
 
-// Every hard rule blocks a Plan at submit; at approval only starting in the past and
-// filling a Slot with an Exception do.
-func TestWhichRulesBlockAtWhichStage(t *testing.T) {
+// Only starting in the past and filling a Slot with an Exception stop the User approving
+// a Plan.
+func TestWhichRulesBlockApproval(t *testing.T) {
 	tests := []struct {
-		rule               domain.Rule
-		submit, atApproval bool
+		rule domain.Rule
+		want bool
 	}{
-		{domain.RuleSlotFilledTwice, true, false},
-		{domain.RuleEmptySlot, true, false},
-		{domain.RuleEatenBeforePrepared, true, false},
-		{domain.RuleUnknownPortion, true, false},
-		{domain.RuleOutsideCycle, true, false},
-		{domain.RuleStartsInThePast, true, true},
-		{domain.RuleSlotWithException, true, true},
+		{domain.RuleSlotFilledTwice, false},
+		{domain.RuleEmptySlot, false},
+		{domain.RuleEatenBeforePrepared, false},
+		{domain.RuleUnknownPortion, false},
+		{domain.RuleOutsideCycle, false},
+		{domain.RuleStartsInThePast, true},
+		{domain.RuleSlotWithException, true},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.rule), func(t *testing.T) {
-			if got := tt.rule.Blocks(domain.AtSubmit); got != tt.submit {
-				t.Errorf("Blocks(AtSubmit) = %v, want %v", got, tt.submit)
-			}
-			if got := tt.rule.Blocks(domain.AtApproval); got != tt.atApproval {
-				t.Errorf("Blocks(AtApproval) = %v, want %v", got, tt.atApproval)
+			if got := tt.rule.BlocksApproval(); got != tt.want {
+				t.Errorf("BlocksApproval() = %v, want %v", got, tt.want)
 			}
 		})
 	}

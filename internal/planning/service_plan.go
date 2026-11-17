@@ -129,6 +129,10 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	prompt := planPrompt(c, p, slots[0], brief, notes, now, library, known, held)
 	asked, _, _ := strings.Cut(prompt, "\n")
 	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
+		// The planning lock first, as in Drop, so a reject and a drop never deadlock.
+		if err := lockOpening(ctx, tx); err != nil {
+			return err
+		}
 		if before != nil {
 			if err := before(tx); err != nil {
 				return err
@@ -389,7 +393,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 		return "", fmt.Errorf("there is no draft %d: check a draft with check_plan first", in.DraftID)
 	}
 	plan := pb.drafts[in.DraftID-1]
-	vs := domain.Blocking(pb.violations(plan), domain.AtSubmit)
+	vs := pb.violations(plan)
 	if len(vs) == 0 {
 		pb.chosen = &plan
 		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it.", in.DraftID), nil
