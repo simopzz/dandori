@@ -3,16 +3,20 @@
   "project": {
     "name": "dandori",
     "languages": [
+      "config",
       "css",
       "dockerfile",
       "go",
       "javascript",
       "json",
       "markdown",
+      "mod",
       "shell",
       "sql",
-      "templ",
       "toml",
+      "txt",
+      "unknown",
+      "webmanifest",
       "yaml"
     ],
     "frameworks": [
@@ -26,8 +30,8 @@
       "GitHub Actions"
     ],
     "description": "Dandori is a meal-planning co-pilot for a few invited users cooking for themselves: it plans batch-cooked meals, tracks kitchen inventory, adapts to schedule changes and fills an online supermarket cart. Built in Go with templ, htmx, PostgreSQL/pgvector and Claude.",
-    "analyzedAt": "2026-11-17T10:22:02.553Z",
-    "gitCommitHash": "4beb90901db15e622a2be94cc0356832c3491a47"
+    "analyzedAt": "2026-11-17T11:14:35.733Z",
+    "gitCommitHash": "28daec61b0bb825d0e57ad687ced76b37f80b969"
   },
   "nodes": [
     {
@@ -22785,22 +22789,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "config:mise.toml",
-      "type": "config",
-      "name": "mise.toml",
-      "filePath": "mise.toml",
-      "summary": "mise toolchain and task runner config: pins Go, templ and golangci-lint, loads .env, enables git hooks, and defines tasks for generate, build, test, check, guardrails, dockerised test/dev Postgres+pgvector servers, dev run and schema dump.",
-      "tags": [
-        "configuration",
-        "build-system",
-        "task-runner",
-        "developer-tooling",
-        "database"
-      ],
-      "complexity": "moderate",
-      "languageNotes": "mise tasks use Tera templating to default env vars (e.g. demo LLM on in dev) and serialize devdb before generate to avoid sudo prompt clashes."
-    },
-    {
       "id": "document:vision.md",
       "type": "document",
       "name": "vision.md",
@@ -23581,6 +23569,21 @@
         "profile"
       ],
       "complexity": "simple"
+    },
+    {
+      "id": "config:mise.toml",
+      "type": "config",
+      "name": "mise.toml",
+      "filePath": "mise.toml",
+      "summary": "mise toolchain and task runner config: pins Go, templ and golangci-lint, loads .env, enables git hooks, and defines tasks for generate, build, test, check, guardrails, dockerised test/dev Postgres+pgvector servers, dev run, schema dump, and graph:dashboard, which serves the understand-anything dashboard for the graph in .ua via npx, pinned to the installed plugin version.",
+      "tags": [
+        "configuration",
+        "build-system",
+        "task-runner",
+        "developer-tooling",
+        "database"
+      ],
+      "complexity": "moderate"
     }
   ],
   "edges": [
@@ -59202,13 +59205,6 @@
     },
     {
       "source": "pipeline:.github/workflows/ci.yml",
-      "target": "config:mise.toml",
-      "type": "depends_on",
-      "direction": "forward",
-      "weight": 0.6
-    },
-    {
-      "source": "pipeline:.github/workflows/ci.yml",
       "target": "file:internal/app/browser_test.go",
       "type": "triggers",
       "direction": "forward",
@@ -59818,13 +59814,6 @@
     },
     {
       "source": "document:AGENTS.md",
-      "target": "config:mise.toml",
-      "type": "documents",
-      "direction": "forward",
-      "weight": 0.5
-    },
-    {
-      "source": "document:AGENTS.md",
       "target": "document:GLOSSARY.md",
       "type": "related",
       "direction": "forward",
@@ -59930,13 +59919,6 @@
     },
     {
       "source": "document:README.md",
-      "target": "config:mise.toml",
-      "type": "documents",
-      "direction": "forward",
-      "weight": 0.5
-    },
-    {
-      "source": "document:README.md",
       "target": "file:cmd/dandori/main.go",
       "type": "documents",
       "direction": "forward",
@@ -59958,27 +59940,6 @@
     },
     {
       "source": "config:.env.example",
-      "target": "file:cmd/dandori/main.go",
-      "type": "configures",
-      "direction": "forward",
-      "weight": 0.6
-    },
-    {
-      "source": "config:mise.toml",
-      "target": "config:.env.example",
-      "type": "depends_on",
-      "direction": "forward",
-      "weight": 0.6
-    },
-    {
-      "source": "config:mise.toml",
-      "target": "config:.golangci.yml",
-      "type": "depends_on",
-      "direction": "forward",
-      "weight": 0.6
-    },
-    {
-      "source": "config:mise.toml",
       "target": "file:cmd/dandori/main.go",
       "type": "configures",
       "direction": "forward",
@@ -60468,13 +60429,6 @@
       "weight": 0.5
     },
     {
-      "source": "file:.githooks/pre-commit",
-      "target": "config:mise.toml",
-      "type": "depends_on",
-      "direction": "forward",
-      "weight": 0.6
-    },
-    {
       "source": "file:cmd/dandori/main_test.go",
       "target": "function:cmd/dandori/main_test.go:TestTheBinaryHasNoClockSwitch",
       "type": "contains",
@@ -60782,6 +60736,27 @@
       "type": "calls",
       "direction": "forward",
       "weight": 0.8
+    },
+    {
+      "source": "config:mise.toml",
+      "target": "config:.env.example",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:mise.toml",
+      "target": "config:.golangci.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:mise.toml",
+      "target": "file:cmd/dandori/main.go",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
     }
   ],
   "layers": [

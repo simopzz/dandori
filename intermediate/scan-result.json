@@ -1372,7 +1372,7 @@
     {
       "path": "mise.toml",
       "language": "toml",
-      "sizeLines": 104,
+      "sizeLines": 114,
       "fileCategory": "config"
     },
     {
@@ -4565,5 +4565,5 @@
     "scripts/provision.sh": [],
     "vision.md": []
   },
-  "contentDigest": "2db77e522f164561c14e853666c0f5a0faeb620205eeb6bd44068ff436a31bdb"
+  "contentDigest": "ea80a33e9dd12597ee26e88d1d90eeb09cd3b9fe67dc9f00048e067cc0bbbe2f"
 }

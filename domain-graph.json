@@ -1,0 +1,4889 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "dandori",
+    "languages": [
+      "go",
+      "templ",
+      "sql",
+      "javascript",
+      "css"
+    ],
+    "frameworks": [
+      "templ",
+      "htmx",
+      "pgx",
+      "goose",
+      "PostgreSQL/pgvector",
+      "Anthropic Claude",
+      "Supabase Auth",
+      "OpenTelemetry"
+    ],
+    "description": "Dandori is a meal-planning co-pilot for a few invited Users cooking for themselves: it keeps a Kitchen Ledger of what the kitchen holds, a Recipe Library fed by LLM-parsed pastes, and plans each Cycle between supermarket Deliveries into batch-cooked Plan Proposals with a Claude agent.",
+    "analyzedAt": "2026-11-17T10:30:00Z",
+    "gitCommitHash": "4beb90901db15e622a2be94cc0356832c3491a47"
+  },
+  "nodes": [
+    {
+      "id": "domain:identity-access",
+      "type": "domain",
+      "name": "Identity & Access",
+      "summary": "Invited Users sign in with Supabase magic links; every page sits behind the SignedIn middleware, which authenticates and refreshes cookie session Tokens. Invitation status never leaks: refusals to send a link look like success.",
+      "tags": [
+        "auth",
+        "supabase",
+        "session"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": [
+          "User",
+          "Tokens",
+          "Session cookie",
+          "Magic link"
+        ],
+        "businessRules": [
+          "Only invited Users receive a magic link; refusals are silent so invitation status never leaks",
+          "A magic link lands on a one-click confirmation page to protect it from mail scanners",
+          "The User row is created at first sign-in",
+          "Expired access tokens are refreshed; a dead session is ErrSignedOut and redirects to sign-in",
+          "Session cookies are HttpOnly, SameSite=Lax, Secure over https"
+        ],
+        "crossDomainInteractions": [
+          "Hands the signed-in User to Profile & Goals, whose LanguageChosen middleware runs next",
+          "Every feature reads the signed-in User from the request under row-level security"
+        ]
+      }
+    },
+    {
+      "id": "flow:sign-in-with-magic-link",
+      "type": "flow",
+      "name": "Sign In With Magic Link",
+      "summary": "An invited User asks for a magic link, confirms it on a one-click page, and the link is redeemed into session cookies.",
+      "tags": [
+        "identity-access",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP POST sign-in form (auth.Handlers.SendLink), then magic-link confirm (Handlers.Confirm)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:sign-in-with-magic-link:request-magic-link",
+      "type": "step",
+      "name": "Validate email and request link",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        65,
+        78
+      ],
+      "summary": "Handles the sign-in form: validates the email and asks the Service to send a magic link back to this origin.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:sign-in-with-magic-link:send-magic-link",
+      "type": "step",
+      "name": "Email link if invited",
+      "filePath": "internal/auth/service.go",
+      "lineRange": [
+        57,
+        62
+      ],
+      "summary": "Emails a magic link if invited, treating Supabase refusals as silent success so invitation status never leaks.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:sign-in-with-magic-link:show-confirmation",
+      "type": "step",
+      "name": "Show one-click confirmation",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        86,
+        89
+      ],
+      "summary": "Shows the one-click confirmation page a magic link lands on, protecting links from mail scanners.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:sign-in-with-magic-link:confirm-link",
+      "type": "step",
+      "name": "Confirm magic link",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        96,
+        113
+      ],
+      "summary": "Redeems a confirmed magic link of a known type and stores the session in cookies.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:sign-in-with-magic-link:redeem-token",
+      "type": "step",
+      "name": "Redeem token and save User",
+      "filePath": "internal/auth/service.go",
+      "lineRange": [
+        66,
+        82
+      ],
+      "summary": "Redeems a magic-link token hash for session Tokens and saves the User at first sign-in.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:sign-in-with-magic-link:set-session-cookie",
+      "type": "step",
+      "name": "Store session cookies",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        156,
+        166
+      ],
+      "summary": "Builds a HttpOnly, SameSite=Lax session cookie, Secure when served over https.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:authenticate-request",
+      "type": "flow",
+      "name": "Authenticate Request",
+      "summary": "Every signed-in route reads the session cookies, authenticates them (refreshing an expired access token) and redirects anyone else to sign-in.",
+      "tags": [
+        "identity-access",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "SignedIn middleware on every signed-in HTTP route",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:authenticate-request:read-cookies",
+      "type": "step",
+      "name": "Read session tokens",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        134,
+        144
+      ],
+      "summary": "Reads session Tokens from the access and refresh cookies.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:authenticate-request:authenticate",
+      "type": "step",
+      "name": "Authenticate and refresh",
+      "filePath": "internal/auth/service.go",
+      "lineRange": [
+        88,
+        110
+      ],
+      "summary": "Resolves the User id from session Tokens, refreshing an expired access token and returning ErrSignedOut when the session is dead.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:authenticate-request:guard-route",
+      "type": "step",
+      "name": "Record user or redirect to sign-in",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        36,
+        59
+      ],
+      "summary": "Middleware that authenticates the cookie session, keeps renewed tokens, records the user on the span and redirects anyone else to sign-in.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:sign-out",
+      "type": "flow",
+      "name": "Sign Out",
+      "summary": "Revokes the session at Supabase, clears the cookies and returns to sign-in.",
+      "tags": [
+        "identity-access",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST sign-out (auth.Handlers.SignOut)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:sign-out:handle-sign-out",
+      "type": "step",
+      "name": "Handle sign-out",
+      "filePath": "internal/auth/web_handlers.go",
+      "lineRange": [
+        115,
+        125
+      ],
+      "summary": "Signs out at Supabase, clears the session cookies and returns to sign-in.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:sign-out:revoke-session",
+      "type": "step",
+      "name": "Revoke session at Supabase",
+      "filePath": "internal/auth/service.go",
+      "lineRange": [
+        114,
+        126
+      ],
+      "summary": "Revokes the session at Supabase, refreshing first if the access token has expired.",
+      "tags": [
+        "identity-access",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "domain:profile-goals",
+      "type": "domain",
+      "name": "Profile & Goals",
+      "summary": "Holds each User's Profile: Language, Targets, Slot times, Meal Out estimate, food exclusions and allergies, owned appliances and the Planning Brief. Each section is saved on its own and refused field by field.",
+      "tags": [
+        "profile",
+        "targets",
+        "language"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": [
+          "Profile",
+          "Language",
+          "Target",
+          "Slot times",
+          "Meal Out",
+          "Planning Brief",
+          "Appliance",
+          "Food Term"
+        ],
+        "businessRules": [
+          "Language can change only until the User has written any Food Term",
+          "Pages are served in the User's Language; a User without one is sent to the choice page",
+          "Calories are a range with a tolerance (default +-5%), protein and fibre are floors, sugar is a ceiling",
+          "Each Slot kind's time must come after the previous kind's",
+          "A refused field saves nothing in its section",
+          "A User owns a hob and an oven until they say otherwise"
+        ],
+        "crossDomainInteractions": [
+          "Cycle Planning reads the Profile and Planning Brief into the planning Run's prompt",
+          "Today reads Slot times to lay out the day",
+          "Language governs how Ingredient and Recipe names are normalised"
+        ]
+      }
+    },
+    {
+      "id": "flow:choose-language",
+      "type": "flow",
+      "name": "Choose or Change Language",
+      "summary": "At first sign-in the User must choose a Language before any page; later they may change it from the Profile while they have written no Food Term.",
+      "tags": [
+        "profile-goals",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "LanguageChosen middleware redirect; HTTP POST Language choice (profile.Handlers.Choose / ChangeLanguage)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:choose-language:require-language",
+      "type": "step",
+      "name": "Redirect until a Language is chosen",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        41,
+        54
+      ],
+      "summary": "Middleware serving pages in the User's Language, redirecting to the choice page until one is chosen.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:choose-language:show-choice",
+      "type": "step",
+      "name": "Show Language choice",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        58,
+        63
+      ],
+      "summary": "Serves the first-sign-in Language choice page.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:choose-language:choose",
+      "type": "step",
+      "name": "Submit choice",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        66,
+        80
+      ],
+      "summary": "Saves the first Language choice and goes to Today.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:choose-language:parse-language",
+      "type": "step",
+      "name": "Look up Language code",
+      "filePath": "internal/domain/language.go",
+      "lineRange": [
+        17,
+        24
+      ],
+      "summary": "Looks up a choosable Language by its ISO 639-1 code.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:choose-language:check-can-change",
+      "type": "step",
+      "name": "Refuse change once Food Terms exist",
+      "filePath": "internal/domain/language.go",
+      "lineRange": [
+        46,
+        46
+      ],
+      "summary": "Reports whether a User can still change Language: only before writing any Food Term.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:choose-language:save-language",
+      "type": "step",
+      "name": "Save Language",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        158,
+        182
+      ],
+      "summary": "SetLanguage chooses the signed-in User's Language, or changes it while they have written no Food Term; after that it is ErrLanguageStays, and while a parse Run is going it is ErrParsing.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:choose-language:remember-cookie",
+      "type": "step",
+      "name": "Remember Language in cookie",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        124,
+        140
+      ],
+      "summary": "Saves the User's Language and remembers it in a browser cookie.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:save-targets",
+      "type": "flow",
+      "name": "Save Nutritional Targets",
+      "summary": "Saves the daily Targets section, refusing each bad field on its own.",
+      "tags": [
+        "profile-goals",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Profile Targets section (profile.Handlers.SaveTargets)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:save-targets:submit-targets",
+      "type": "step",
+      "name": "Submit Targets section",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        223,
+        246
+      ],
+      "summary": "Saves the nutritional Targets section.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-targets:parse-targets",
+      "type": "step",
+      "name": "Parse Targets by field",
+      "filePath": "internal/domain/target.go",
+      "lineRange": [
+        49,
+        67
+      ],
+      "summary": "ParseTargets reads Targets as typed, by field, with a problem per field refused. Each field is checked on its own.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-targets:save-targets",
+      "type": "step",
+      "name": "Save Targets",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        75,
+        81
+      ],
+      "summary": "SetTargets saves typed as the signed-in User's Targets, by field, unless a field is refused: then it saves nothing and is the problem with each.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-targets:answer-refused",
+      "type": "step",
+      "name": "Answer refused fields",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        194,
+        208
+      ],
+      "summary": "Answers a refused section with 422 and field errors, as a section fragment or full page.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:save-slot-times",
+      "type": "flow",
+      "name": "Save Slot Times",
+      "summary": "Saves the time of day of each Slot kind, each after the one before.",
+      "tags": [
+        "profile-goals",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Profile times section (profile.Handlers.SaveTimes)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:save-slot-times:submit-times",
+      "type": "step",
+      "name": "Submit times of day",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        259,
+        285
+      ],
+      "summary": "Saves the times-of-day section.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-slot-times:parse-time",
+      "type": "step",
+      "name": "Parse each time of day",
+      "filePath": "internal/domain/datetime.go",
+      "lineRange": [
+        48,
+        75
+      ],
+      "summary": "Parses a typed time of day in either form (\"13:00\", \"1pm\", \"1300\") into minutes after midnight, or a problem.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-slot-times:parse-slot-times",
+      "type": "step",
+      "name": "Check Slot order",
+      "filePath": "internal/domain/slot.go",
+      "lineRange": [
+        41,
+        55
+      ],
+      "summary": "ParseSlotTimes reads SlotTimes as typed, by SlotKind, with a problem per field refused: a kind's time not after the one before's is refused on the later kind, and a field that isn't a time skips the order check against it.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-slot-times:save-slot-times",
+      "type": "step",
+      "name": "Save Slot times",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        55,
+        61
+      ],
+      "summary": "SetSlotTimes saves typed, by SlotKind, as the signed-in User's time of day of each kind of Slot, unless a field is refused: then it saves nothing and is each problem.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:save-meal-out-and-foods",
+      "type": "flow",
+      "name": "Save Meal Out Estimate and Foods",
+      "summary": "Saves the default nutrition of a Meal Out and the normalised food exclusions and allergies.",
+      "tags": [
+        "profile-goals",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Profile Meal Out / foods sections (profile.Handlers.SaveMealOut, SaveFoods)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:save-meal-out-and-foods:submit-meal-out",
+      "type": "step",
+      "name": "Submit Meal Out estimate",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        289,
+        309
+      ],
+      "summary": "Saves the Meal Out estimate section.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-meal-out-and-foods:parse-meal-out",
+      "type": "step",
+      "name": "Parse Meal Out nutrition",
+      "filePath": "internal/domain/meal_out.go",
+      "lineRange": [
+        22,
+        47
+      ],
+      "summary": "Parses the typed Meal Out estimate into Nutrition with per-field problems.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-meal-out-and-foods:save-meal-out",
+      "type": "step",
+      "name": "Save Meal Out",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        95,
+        101
+      ],
+      "summary": "SetMealOut saves typed as the signed-in User's Meal Out estimate, by field, unless a field is refused: then it saves nothing and is the problem with each.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-meal-out-and-foods:submit-foods",
+      "type": "step",
+      "name": "Submit exclusions and allergies",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        313,
+        321
+      ],
+      "summary": "Saves food exclusions and allergies.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-meal-out-and-foods:normalise-foods",
+      "type": "step",
+      "name": "Normalise food list",
+      "filePath": "internal/domain/foods.go",
+      "lineRange": [
+        12,
+        21
+      ],
+      "summary": "Splits a typed food list on commas, semicolons and newlines, lower-cases, collapses spaces, folds apostrophes and drops blanks and repeats; never nil.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-meal-out-and-foods:save-foods",
+      "type": "step",
+      "name": "Save foods",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        115,
+        118
+      ],
+      "summary": "SetFoods saves the exclusions and allergies typed as the signed-in User's, each normalised, and is what it saved. Either may be empty.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:save-appliances-and-brief",
+      "type": "flow",
+      "name": "Save Appliances and Planning Brief",
+      "summary": "Saves the appliance kinds the User owns, with notes, and the free-text Planning Brief every planning Run reads.",
+      "tags": [
+        "profile-goals",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Profile appliances / brief sections (profile.Handlers.SaveAppliances, SaveBrief)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:save-appliances-and-brief:submit-appliances",
+      "type": "step",
+      "name": "Submit ticked appliances",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        325,
+        341
+      ],
+      "summary": "Saves the ticked appliance kinds with their notes.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-appliances-and-brief:parse-appliances",
+      "type": "step",
+      "name": "Build owned Appliances",
+      "filePath": "internal/domain/appliance.go",
+      "lineRange": [
+        48,
+        56
+      ],
+      "summary": "Builds the owned Appliances map from ticked codes, collapsing each note's whitespace and dropping notes on unticked or unknown kinds.",
+      "tags": [
+        "profile-goals",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-appliances-and-brief:save-appliances",
+      "type": "step",
+      "name": "Save Appliances",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        150,
+        153
+      ],
+      "summary": "SetAppliances saves the kinds whose codes are ticked as those the signed-in User owns, each with its note in notes, and is what it saved: a note on a kind left unticked is dropped.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-appliances-and-brief:submit-brief",
+      "type": "step",
+      "name": "Submit Planning Brief",
+      "filePath": "internal/profile/web_handlers.go",
+      "lineRange": [
+        345,
+        353
+      ],
+      "summary": "Saves the Planning Brief text.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:save-appliances-and-brief:save-brief",
+      "type": "step",
+      "name": "Save Planning Brief",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        132,
+        135
+      ],
+      "summary": "SetBrief saves typed as the signed-in User's Planning Brief, and is what it saved: each line ending in a bare newline, and without the blank space around it, so a blank Brief is empty.",
+      "tags": [
+        "profile-goals",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "domain:ingredients",
+      "type": "domain",
+      "name": "Ingredients",
+      "summary": "A User's Ingredients: foods with one unit, nutritional values and a usual Storage Location. Adding catches near-duplicate names with a suggestion; marking a Staple counts its stock to nothing.",
+      "tags": [
+        "ingredients",
+        "nutrition",
+        "fuzzy-search"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": [
+          "Ingredient",
+          "Nutrition",
+          "Staple",
+          "Storage Location"
+        ],
+        "businessRules": [
+          "Each food is one Ingredient: plurals and size or grade words don't make a new one",
+          "A name close to an existing one is refused with a suggestion",
+          "An Ingredient's unit is fixed once it is used",
+          "Marking an Ingredient a Staple counts its Stock Items to nothing",
+          "An Ingredient that Movements refer to, or a Recipe lists, can't be deleted",
+          "Calories, protein, carbs and fat are always known; fibre and sugar may be unknown, never zero"
+        ],
+        "crossDomainInteractions": [
+          "Marking a Staple writes Counts to nothing through the Kitchen Ledger",
+          "Recipe Library adds new Ingredients in the Recipe's transaction",
+          "An Ingredient add can continue straight to its first Count in the Kitchen"
+        ]
+      }
+    },
+    {
+      "id": "flow:add-ingredient",
+      "type": "flow",
+      "name": "Add Ingredient",
+      "summary": "Adds an Ingredient, refusing a near-duplicate name with a suggestion, optionally continuing to its first Count.",
+      "tags": [
+        "ingredients",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP POST add Ingredient (ingredients.Handlers.Add)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:add-ingredient:suggest-on-blur",
+      "type": "step",
+      "name": "Suggest close name as field is left",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        97,
+        105
+      ],
+      "summary": "Suggests an existing Ingredient close to the name typed as the field is left.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-ingredient:submit-add",
+      "type": "step",
+      "name": "Submit new Ingredient",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        114,
+        144
+      ],
+      "summary": "Adds an Ingredient, refusing near-duplicate names with a suggestion and continuing to a Count when asked.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-ingredient:check-problems",
+      "type": "step",
+      "name": "Check required fields",
+      "filePath": "internal/domain/ingredient.go",
+      "lineRange": [
+        141,
+        153
+      ],
+      "summary": "Reports what an Ingredient is missing by field: name, unit, usual Storage Location and required nutrition.",
+      "tags": [
+        "ingredients",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-ingredient:normalise-name",
+      "type": "step",
+      "name": "Normalise name",
+      "filePath": "internal/domain/ingredient.go",
+      "lineRange": [
+        160,
+        166
+      ],
+      "summary": "Computes the identity key of an Ingredient name in a Language, ignoring case, spacing, typographic apostrophes and size/grade words but keeping plurals.",
+      "tags": [
+        "ingredients",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-ingredient:find-closest",
+      "type": "step",
+      "name": "Find closest existing Ingredient",
+      "filePath": "internal/domain/ingredient_match.go",
+      "lineRange": [
+        26,
+        51
+      ],
+      "summary": "Suggests the known Ingredient a mistyped name most likely meant: exact normalised match, then one slip away, then trigram similarity above 0.5, ties broken alphabetically.",
+      "tags": [
+        "ingredients",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-ingredient:save-ingredient",
+      "type": "step",
+      "name": "Save Ingredient",
+      "filePath": "internal/ingredients/service.go",
+      "lineRange": [
+        97,
+        112
+      ],
+      "summary": "Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and is its id. One whose name normalises as another's is a *NameTakenError.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-ingredient:continue-to-count",
+      "type": "step",
+      "name": "Continue to Count",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        481,
+        496
+      ],
+      "summary": "Continues an Ingredient add to its Count form, in a nested sheet for htmx or the Count page.",
+      "tags": [
+        "ingredients",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:edit-ingredient",
+      "type": "flow",
+      "name": "Edit Ingredient and Mark Staple",
+      "summary": "Edits an Ingredient; marking it a Staple counts its stock to nothing and refreshes the kitchen.",
+      "tags": [
+        "ingredients",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP POST edit Ingredient (ingredients.Handlers.Edit)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:edit-ingredient:submit-edit",
+      "type": "step",
+      "name": "Submit edit",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        161,
+        212
+      ],
+      "summary": "Edits an Ingredient, handling name suggestions and Staple marking that counts its stock to nothing and triggers a stock refresh.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:edit-ingredient:save-edit",
+      "type": "step",
+      "name": "Save Ingredient edit",
+      "filePath": "internal/ingredients/service.go",
+      "lineRange": [
+        138,
+        188
+      ],
+      "summary": "Edit sets the signed-in User's Ingredient id, whose Language is l, to ing, which has no Problems, at at. Marking it a Staple counts its stock to nothing in the same transaction, and counted is the Movement of each Stock Item that held some.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:edit-ingredient:count-to-nothing",
+      "type": "step",
+      "name": "Count stock to nothing",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        64,
+        70
+      ],
+      "summary": "CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding some of it to nothing at now, as marking it a Staple does, in q's transaction, and is the Movements written, in Storage Location order, each with what its Stock Item held.",
+      "tags": [
+        "ingredients",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:edit-ingredient:build-counts",
+      "type": "step",
+      "name": "Build Counts to nothing",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        397,
+        408
+      ],
+      "summary": "Builds the Counts to nothing for each Stock Item of an Ingredient being marked a Staple.",
+      "tags": [
+        "ingredients",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:edit-ingredient:notify-staple",
+      "type": "step",
+      "name": "Notify counted Stock Items",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        216,
+        228
+      ],
+      "summary": "Builds the Notice confirming which Stock Items were counted to nothing when marking a Staple.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:delete-ingredient",
+      "type": "flow",
+      "name": "Delete Ingredient",
+      "summary": "Deletes an Ingredient after confirmation, refusing one Movements refer to or a Recipe lists.",
+      "tags": [
+        "ingredients",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST delete Ingredient (ingredients.Handlers.Delete)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:delete-ingredient:confirm-delete",
+      "type": "step",
+      "name": "Show delete confirmation",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        238,
+        258
+      ],
+      "summary": "Shows the delete confirmation step as a page or sheet body.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:delete-ingredient:submit-delete",
+      "type": "step",
+      "name": "Submit delete",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        262,
+        291
+      ],
+      "summary": "Deletes an Ingredient, refusing one with Movements or used in Recipes.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:delete-ingredient:check-recipes",
+      "type": "step",
+      "name": "Refuse if in a Recipe",
+      "filePath": "internal/ingredients/service.go",
+      "lineRange": [
+        82,
+        91
+      ],
+      "summary": "notInRecipe is an *InRecipeError if a Recipe lists the Ingredient id.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:delete-ingredient:delete",
+      "type": "step",
+      "name": "Delete Ingredient",
+      "filePath": "internal/ingredients/service.go",
+      "lineRange": [
+        193,
+        222
+      ],
+      "summary": "Delete deletes the signed-in User's Ingredient id, and is its name. One that Movements refer to is ErrHasMovements and one a Recipe lists an *InRecipeError, both of which the database also holds to, and one they haven't got is ErrNoIngredient.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:search-ingredients",
+      "type": "flow",
+      "name": "Search Ingredients",
+      "summary": "Live-searches the User's Ingredients by spelling so a typo still finds them.",
+      "tags": [
+        "ingredients",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Ingredients page / list fragment (ingredients.Handlers.Show, ShowList)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:search-ingredients:show-page",
+      "type": "step",
+      "name": "Serve Ingredients page or sheet",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        46,
+        58
+      ],
+      "summary": "Serves the Ingredients page searched for q or confirming a just-picked Ingredient.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:search-ingredients:live-list",
+      "type": "step",
+      "name": "Swap searched list",
+      "filePath": "internal/ingredients/web_handlers.go",
+      "lineRange": [
+        84,
+        93
+      ],
+      "summary": "Serves just the searched Ingredient list for live search swaps.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:search-ingredients:listing",
+      "type": "step",
+      "name": "Search with Movement usage",
+      "filePath": "internal/ingredients/service.go",
+      "lineRange": [
+        281,
+        292
+      ],
+      "summary": "Listing is what Search finds for query, with the ids of the signed-in User's Ingredients some Movement refers to, read together, for the Ingredients' list.",
+      "tags": [
+        "ingredients",
+        "ingredients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:search-ingredients:search-names",
+      "type": "step",
+      "name": "Rank names by similarity",
+      "filePath": "internal/domain/ingredient_match.go",
+      "lineRange": [
+        83,
+        102
+      ],
+      "summary": "Returns indices of names a query finds, most alike first: containment or trigram similarity of the whole name or a run of its words above 0.3.",
+      "tags": [
+        "ingredients",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "domain:recipe-library",
+      "type": "domain",
+      "name": "Recipe Library",
+      "summary": "The Recipes a User writes by hand or accepts from Recipe Drafts. Pasted text becomes a Recipe Draft through an LLM parse Run that resolves Ingredients by name; the User checks the draft and then accepts or discards it.",
+      "tags": [
+        "recipes",
+        "llm",
+        "drafts"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Recipe",
+          "Recipe Draft",
+          "Recipe Ingredient",
+          "Portion nutrition"
+        ],
+        "businessRules": [
+          "No two of a User's Recipes share a name",
+          "Active minutes must be within total minutes",
+          "A Recipe's new Ingredients are added all or nothing with it",
+          "A pasted Recipe is translated into the User's Language when parsed",
+          "Accepting a Recipe Draft adds the Recipe and deletes the Draft in one transaction",
+          "Deleting a Recipe frees its Ingredients"
+        ],
+        "crossDomainInteractions": [
+          "Starts parse Runs on the Agent Runs engine",
+          "Creates and resolves Ingredients",
+          "Cycle Planning gives the Recipe Library to the planner"
+        ]
+      }
+    },
+    {
+      "id": "flow:write-recipe",
+      "type": "flow",
+      "name": "Write or Edit Recipe by Hand",
+      "summary": "Saves a hand-written or edited Recipe with its new Ingredients, all or nothing.",
+      "tags": [
+        "recipe-library",
+        "http"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Recipe form (recipes.Handlers.save via ShowNew / Edit)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:write-recipe:show-form",
+      "type": "step",
+      "name": "Serve Recipe form",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        271,
+        278
+      ],
+      "summary": "Serves a blank Recipe form.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:write-recipe:ingredient-row",
+      "type": "step",
+      "name": "Re-render ingredient row",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        283,
+        298
+      ],
+      "summary": "Re-renders one ingredient row as its name or unit changes, with new-Ingredient fields.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:write-recipe:save-form",
+      "type": "step",
+      "name": "Save posted Recipe",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        372,
+        467
+      ],
+      "summary": "Saves a Recipe (new, edited or from a Draft) with its new Ingredients, handling add/remove-row posts and refusals.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:write-recipe:validate",
+      "type": "step",
+      "name": "Validate Recipe",
+      "filePath": "internal/domain/recipe.go",
+      "lineRange": [
+        66,
+        103
+      ],
+      "summary": "Validates a Recipe by field and each Ingredient row: required fields, active within total minutes, new Ingredients complete, no Ingredient listed twice, positive quantities.",
+      "tags": [
+        "recipe-library",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:write-recipe:add-recipe",
+      "type": "step",
+      "name": "Add Recipe",
+      "filePath": "internal/recipes/service.go",
+      "lineRange": [
+        50,
+        56
+      ],
+      "summary": "Add adds rec, which has no Problems, for the signed-in User, whose Language is l, and its new Ingredients, all or nothing, and is its id. A name another of theirs has is a *NameTakenError.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:write-recipe:save-ingredients",
+      "type": "step",
+      "name": "Add new Ingredients",
+      "filePath": "internal/recipes/service.go",
+      "lineRange": [
+        112,
+        122
+      ],
+      "summary": "saveIngredients adds rec's new Ingredients for a User speaking l, in the caller's transaction, and lists all of them on the Recipe id.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:write-recipe:edit-recipe",
+      "type": "step",
+      "name": "Save over existing Recipe",
+      "filePath": "internal/recipes/service.go",
+      "lineRange": [
+        80,
+        98
+      ],
+      "summary": "Edit sets the signed-in User's Recipe id, whose Language is l, to rec, which has no Problems, adding its new Ingredients, all or nothing. Only the Recipe changes: what is already recorded keeps its own name and values.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:parse-pasted-recipe",
+      "type": "flow",
+      "name": "Parse Pasted Recipe into Draft",
+      "summary": "Pasted text starts a parse Run whose model submits a Recipe, resolved against the User's Ingredients and stored as a Recipe Draft.",
+      "tags": [
+        "recipe-library",
+        "http"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "HTTP POST paste (recipes.Handlers.Paste)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:parse-pasted-recipe:paste",
+      "type": "step",
+      "name": "Submit pasted text",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        72,
+        98
+      ],
+      "summary": "Starts a parse Run on pasted text, refusing blank or oversize pastes, and redirects to the Run.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:parse-pasted-recipe:start-parse",
+      "type": "step",
+      "name": "Start parse Run",
+      "filePath": "internal/recipes/service_draft.go",
+      "lineRange": [
+        20,
+        26
+      ],
+      "summary": "StartParse starts a parse Run reading text, pasted by the signed-in User speaking l, into a Recipe Draft, and is the Run's id.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:parse-pasted-recipe:parse-brief",
+      "type": "step",
+      "name": "Build parse Brief",
+      "filePath": "internal/recipes/service_parse.go",
+      "lineRange": [
+        231,
+        276
+      ],
+      "summary": "parseBrief reads text into a Recipe Draft for a User speaking l, stored with the Run. known are their Ingredients, which the model is told to reuse.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:parse-pasted-recipe:start-run",
+      "type": "step",
+      "name": "Start Run in background",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        118,
+        147
+      ],
+      "summary": "Start records a new Run of kind for the signed-in User, asked asked, and carries out b in the background as that User. The tools of b find the Run's id with IDFrom.",
+      "tags": [
+        "recipe-library",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:parse-pasted-recipe:to-recipe",
+      "type": "step",
+      "name": "Resolve parsed Recipe",
+      "filePath": "internal/recipes/service_parse.go",
+      "lineRange": [
+        61,
+        122
+      ],
+      "summary": "recipe is p for a User speaking l, each Ingredient resolved by name to the one of known it is, if any, and otherwise new with the values proposed. problems are what p has that a Recipe can't, by field path, as the model is told.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:parse-pasted-recipe:link-draft",
+      "type": "step",
+      "name": "Link Run to its Draft",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        229,
+        238
+      ],
+      "summary": "Returns the URL of the Recipe Draft a parse Run left, if any.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:review-recipe-draft",
+      "type": "flow",
+      "name": "Accept or Discard Recipe Draft",
+      "summary": "The User checks a Recipe Draft against the pasted text, then accepts it into the Library or discards it.",
+      "tags": [
+        "recipe-library",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Recipe Draft, then POST accept / discard (recipes.Handlers.ShowDraft, Accept, Discard)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:review-recipe-draft:show-draft",
+      "type": "step",
+      "name": "Serve prefilled Draft form",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        101,
+        124
+      ],
+      "summary": "Serves the Recipe form prefilled with a parsed Recipe Draft for checking.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:review-recipe-draft:find-draft",
+      "type": "step",
+      "name": "Find Draft and resolve Ingredients",
+      "filePath": "internal/recipes/service_draft.go",
+      "lineRange": [
+        51,
+        70
+      ],
+      "summary": "FindDraft is the signed-in User's Recipe Draft id, for them speaking l, each Ingredient resolved by name to theirs, with the text its Run read, as Pasted. It is ErrNoDraft unless its Run has succeeded, and when there is no such Recipe Draft.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:review-recipe-draft:accept",
+      "type": "step",
+      "name": "Submit accepted Draft",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        128,
+        132
+      ],
+      "summary": "Saves the checked Recipe Draft as a Recipe.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:review-recipe-draft:accept-draft",
+      "type": "step",
+      "name": "Add Recipe and delete Draft",
+      "filePath": "internal/recipes/service_draft.go",
+      "lineRange": [
+        103,
+        112
+      ],
+      "summary": "Accept adds rec, which has no Problems and is what the User made of their Recipe Draft id, as Add does, and deletes the Recipe Draft, all or nothing. A Recipe Draft they haven't got, or whose Run is going, is ErrNoDraft.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:review-recipe-draft:discard",
+      "type": "step",
+      "name": "Submit discard",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        196,
+        212
+      ],
+      "summary": "Discards a Recipe Draft.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:review-recipe-draft:discard-draft",
+      "type": "step",
+      "name": "Delete Draft",
+      "filePath": "internal/recipes/service_draft.go",
+      "lineRange": [
+        115,
+        121
+      ],
+      "summary": "Discard deletes the signed-in User's Recipe Draft id and is its name, or ErrNoDraft.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:browse-library",
+      "type": "flow",
+      "name": "Browse and Delete Recipes",
+      "summary": "Searches the Recipe Library with pending Drafts, shows a Recipe and deletes one after confirmation.",
+      "tags": [
+        "recipe-library",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Recipe Library (recipes.Handlers.Library); POST delete (Handlers.Delete)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:browse-library:library",
+      "type": "step",
+      "name": "Serve Library",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        41,
+        54
+      ],
+      "summary": "Serves the Recipe Library page with search results and pending Recipe Drafts.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:browse-library:search",
+      "type": "step",
+      "name": "Search Recipes",
+      "filePath": "internal/recipes/service.go",
+      "lineRange": [
+        126,
+        144
+      ],
+      "summary": "Search is the signed-in User's Recipes whose names a search for query finds, most alike first, or all of them by name for a blank query.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:browse-library:show",
+      "type": "step",
+      "name": "Serve a Recipe",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        253,
+        268
+      ],
+      "summary": "Serves a Recipe's own page.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:browse-library:confirm-removal",
+      "type": "step",
+      "name": "Confirm removal",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        174,
+        193
+      ],
+      "summary": "Shows the confirmation step before discarding a Draft or deleting a Recipe.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:browse-library:delete",
+      "type": "step",
+      "name": "Delete Recipe",
+      "filePath": "internal/recipes/service.go",
+      "lineRange": [
+        102,
+        108
+      ],
+      "summary": "Delete deletes the signed-in User's Recipe id with its own rows, freeing its Ingredients, and is its name, or ErrNoRecipe.",
+      "tags": [
+        "recipe-library",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "domain:kitchen-ledger",
+      "type": "domain",
+      "name": "Kitchen Ledger",
+      "summary": "What the kitchen holds is never stored: it is what the Movements of the Kitchen Ledger add up to at a moment. Users correct it with Counts, move Stock Items and Portion Lots between Storage Locations and add Portions; a scheduler beat brings every kitchen up to now.",
+      "tags": [
+        "inventory",
+        "ledger",
+        "movements",
+        "portions"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Kitchen Ledger",
+          "Movement",
+          "Stock Item",
+          "Portion",
+          "Portion Lot",
+          "Count",
+          "Storage Location"
+        ],
+        "businessRules": [
+          "A Count records the difference from what Dandori believed and keeps both",
+          "Counting Portions down takes unslotted ones first, oldest first, then the latest Slot",
+          "A move can't move nothing or more than the Stock Item holds",
+          "A Portion Lot holds at most 99 Portions",
+          "A new Movement is written at now or after the Ledger's last Movement",
+          "Writes hold a per-User kitchen lock for the transaction",
+          "Bringing a kitchen up to a moment it has reached changes nothing"
+        ],
+        "crossDomainInteractions": [
+          "Stock Items are quantities of Ingredients",
+          "Cycle Planning's Kitchen Check and planning prompt read the kitchen's contents",
+          "Today reads the last scheduler beat"
+        ]
+      }
+    },
+    {
+      "id": "flow:view-kitchen",
+      "type": "flow",
+      "name": "View Kitchen Contents",
+      "summary": "Brings the kitchen up to now, then shows what the Kitchen Ledger adds up to and any Stock Item's or Portion Lot's Movements.",
+      "tags": [
+        "kitchen-ledger",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Kitchen page (kitchen.Handlers.Show) behind UpToNow middleware",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:view-kitchen:up-to-now",
+      "type": "step",
+      "name": "Bring kitchen up to now",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        43,
+        51
+      ],
+      "summary": "Middleware bringing the signed-in User's kitchen ledger up to now before serving the page.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-kitchen:show",
+      "type": "step",
+      "name": "Serve Kitchen page",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        54,
+        67
+      ],
+      "summary": "Serves the Kitchen page with current contents.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-kitchen:contents",
+      "type": "step",
+      "name": "Compute contents",
+      "filePath": "internal/kitchen/service.go",
+      "lineRange": [
+        51,
+        80
+      ],
+      "summary": "Contents is what the signed-in User's Kitchen Ledger adds up to at now.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-kitchen:fold-ledger",
+      "type": "step",
+      "name": "Fold Movements to now",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        187,
+        209
+      ],
+      "summary": "Folds Movements up to a moment into what the kitchen holds by Stock Item.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-kitchen:group-lots",
+      "type": "step",
+      "name": "Group Portion Lots",
+      "filePath": "internal/domain/portion.go",
+      "lineRange": [
+        183,
+        212
+      ],
+      "summary": "Groups held Portions into Lots by Storage Location then name.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-kitchen:movements",
+      "type": "step",
+      "name": "Show a Stock Item's Movements",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        253,
+        271
+      ],
+      "summary": "Every Movement touching a Stock Item with its before/after holdings, showing what Counts believed.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:count-stock-item",
+      "type": "flow",
+      "name": "Count a Stock Item",
+      "summary": "Records a Count of an Ingredient in a Storage Location: a Movement of the difference from what Dandori believed.",
+      "tags": [
+        "kitchen-ledger",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Count form (kitchen.Handlers.Count)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:count-stock-item:start-count",
+      "type": "step",
+      "name": "Build Count form",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        501,
+        520
+      ],
+      "summary": "Builds the Count form from the query: chosen non-Staple Ingredient and location, or a search.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-stock-item:countable",
+      "type": "step",
+      "name": "Search countable Ingredients",
+      "filePath": "internal/kitchen/service.go",
+      "lineRange": [
+        149,
+        166
+      ],
+      "summary": "Countable is the signed-in User's Ingredients a search for query finds, Staples left out: no Stock Item holds one. When query names a Staple and nothing else is found, staple is its name, speaking l.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-stock-item:submit-count",
+      "type": "step",
+      "name": "Submit Count",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        154,
+        194
+      ],
+      "summary": "Saves a Count of a Stock Item, answering with a cleared sheet and Notice or the form with refusals.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-stock-item:parse-count",
+      "type": "step",
+      "name": "Parse Count",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        133,
+        143
+      ],
+      "summary": "Parses a typed Count of a Stock Item with per-field problems.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-stock-item:record-count",
+      "type": "step",
+      "name": "Record Count",
+      "filePath": "internal/kitchen/service.go",
+      "lineRange": [
+        182,
+        203
+      ],
+      "summary": "Count records at now the Count of the Ingredient id in location, stating what the User typed is there, as domain.ParseCount reads it.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-stock-item:write-ledger",
+      "type": "step",
+      "name": "Write under kitchen lock",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        39,
+        57
+      ],
+      "summary": "Write holds the signed-in User's kitchen until q's transaction ends, hands write the Kitchen Ledger as it then stands, and saves the Movements write makes of it, unless it fails.",
+      "tags": [
+        "kitchen-ledger",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-stock-item:build-movement",
+      "type": "step",
+      "name": "Build Count Movement",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        287,
+        291
+      ],
+      "summary": "Builds a Count Movement of the difference between stated and believed, keeping both.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:move-stock-item",
+      "type": "flow",
+      "name": "Move a Stock Item",
+      "summary": "Moves a quantity of an Ingredient between Storage Locations.",
+      "tags": [
+        "kitchen-ledger",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP POST move form (kitchen.Handlers.Move)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:move-stock-item:start-move",
+      "type": "step",
+      "name": "Build prefilled move form",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        419,
+        439
+      ],
+      "summary": "Builds the move form for the queried Stock Item prefilled with all it holds.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:move-stock-item:submit-move",
+      "type": "step",
+      "name": "Submit move",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        445,
+        477
+      ],
+      "summary": "Moves a Stock Item between Storage Locations, confirming or refusing.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:move-stock-item:parse-move",
+      "type": "step",
+      "name": "Parse move",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        148,
+        158
+      ],
+      "summary": "Parses a typed move between two different Storage Locations with per-field problems.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:move-stock-item:record-move",
+      "type": "step",
+      "name": "Record move",
+      "filePath": "internal/kitchen/service.go",
+      "lineRange": [
+        365,
+        386
+      ],
+      "summary": "Move records at now a move of the Ingredient id from one Storage Location to another, of what the User typed, as domain.ParseMove reads it.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:move-stock-item:check-move",
+      "type": "step",
+      "name": "Refuse empty or excess move",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        120,
+        128
+      ],
+      "summary": "Refuses a move of nothing or of more than the Stock Item holds.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:move-stock-item:write-ledger",
+      "type": "step",
+      "name": "Write under kitchen lock",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        39,
+        57
+      ],
+      "summary": "Write holds the signed-in User's kitchen until q's transaction ends, hands write the Kitchen Ledger as it then stands, and saves the Movements write makes of it, unless it fails.",
+      "tags": [
+        "kitchen-ledger",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:add-portions",
+      "type": "flow",
+      "name": "Add Portions",
+      "summary": "Adds Portions the User typed, each its own row, with one Movement placing them in a Storage Location.",
+      "tags": [
+        "kitchen-ledger",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP POST add Portions (kitchen.Handlers.AddPortions)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:add-portions:submit-portions",
+      "type": "step",
+      "name": "Submit Portions",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        210,
+        228
+      ],
+      "summary": "Adds cooked Portions to the kitchen, confirming in a Notice or refusing fields.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-portions:parse-portions",
+      "type": "step",
+      "name": "Parse Portions",
+      "filePath": "internal/domain/portion.go",
+      "lineRange": [
+        40,
+        56
+      ],
+      "summary": "Parses typed Portions with per-field problems: name, how many, location and required nutrition.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-portions:record-portions",
+      "type": "step",
+      "name": "Record Portions",
+      "filePath": "internal/kitchen/service.go",
+      "lineRange": [
+        209,
+        233
+      ],
+      "summary": "AddPortions adds at now the Portions the User typed, as domain.ParsePortions reads them: each Portion a row of its own and one Movement that lists them. Refused, as also when the Portion Lot they join can't fit them, it writes nothing and says why, by field.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-portions:build-movement",
+      "type": "step",
+      "name": "Build add Movement",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        295,
+        300
+      ],
+      "summary": "Builds the one Movement adding new Portions to a Storage Location.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:add-portions:write-ledger",
+      "type": "step",
+      "name": "Write under kitchen lock",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        39,
+        57
+      ],
+      "summary": "Write holds the signed-in User's kitchen until q's transaction ends, hands write the Kitchen Ledger as it then stands, and saves the Movements write makes of it, unless it fails.",
+      "tags": [
+        "kitchen-ledger",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:count-or-move-portion-lot",
+      "type": "flow",
+      "name": "Count or Move a Portion Lot",
+      "summary": "Counts a Portion Lot (down takes unslotted oldest first, up adds alike) or moves its oldest Portions to another Storage Location.",
+      "tags": [
+        "kitchen-ledger",
+        "http"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Portion Lot count / move (kitchen.Handlers.CountPortions, MovePortions)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:count-or-move-portion-lot:start-lot-form",
+      "type": "step",
+      "name": "Build Portion Lot form",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        277,
+        292
+      ],
+      "summary": "Builds the form for the queried Portion Lot, refusing one holding nothing.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:submit-count",
+      "type": "step",
+      "name": "Submit Portion Count",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        314,
+        341
+      ],
+      "summary": "Saves a Count of a Portion Lot, confirming or refusing.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:parse-lot-count",
+      "type": "step",
+      "name": "Parse Portion Count",
+      "filePath": "internal/domain/portion.go",
+      "lineRange": [
+        130,
+        136
+      ],
+      "summary": "Parses a typed Count of a Portion Lot as a whole number up to the cap.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:submit-move",
+      "type": "step",
+      "name": "Submit Portion move",
+      "filePath": "internal/kitchen/web_handlers.go",
+      "lineRange": [
+        370,
+        399
+      ],
+      "summary": "Moves a Portion Lot to another Storage Location, confirming or refusing.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:write-lot",
+      "type": "step",
+      "name": "Read Lot and write Movement",
+      "filePath": "internal/kitchen/service.go",
+      "lineRange": [
+        302,
+        317
+      ],
+      "summary": "writeLot holds the kitchen, reads the Portion Lot key names, and has write fill in the Movement to record of it, if any: one that lists no Portion records nothing. It is nil if the signed-in User has no such Portion.",
+      "tags": [
+        "kitchen-ledger",
+        "kitchen"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:build-count",
+      "type": "step",
+      "name": "Build Portion Count",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        306,
+        318
+      ],
+      "summary": "Builds a Count Movement of a Portion Lot, listing Portions added or the ones taken (unslotted oldest first).",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:build-move",
+      "type": "step",
+      "name": "Build Portion move",
+      "filePath": "internal/domain/ledger.go",
+      "lineRange": [
+        324,
+        336
+      ],
+      "summary": "Builds a move of the oldest Portions of a Lot to another Lot, refused when CheckMove or the target's capacity says no.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:count-or-move-portion-lot:check-fits",
+      "type": "step",
+      "name": "Refuse past the 99 cap",
+      "filePath": "internal/domain/portion.go",
+      "lineRange": [
+        96,
+        101
+      ],
+      "summary": "Refuses more Portions joining a Lot past the 99 cap.",
+      "tags": [
+        "kitchen-ledger",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:scheduler-beat",
+      "type": "flow",
+      "name": "Scheduler Beat",
+      "summary": "Every ledger interval the scheduler brings every User's kitchen up to the beat and records it.",
+      "tags": [
+        "kitchen-ledger",
+        "cron"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Scheduler beat every ledger interval (app.App.Schedule)",
+        "entryType": "cron"
+      }
+    },
+    {
+      "id": "step:scheduler-beat:schedule",
+      "type": "step",
+      "name": "Start scheduler",
+      "filePath": "internal/app/app.go",
+      "lineRange": [
+        126,
+        133
+      ],
+      "summary": "Starts the scheduler that beats every ledger interval, bringing each User's kitchen up to now inside a span.",
+      "tags": [
+        "kitchen-ledger",
+        "app"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:scheduler-beat:tick",
+      "type": "step",
+      "name": "Beat every interval",
+      "filePath": "internal/clock/clock.go",
+      "lineRange": [
+        32,
+        45
+      ],
+      "summary": "Beats on a ticker every interval until the context ends.",
+      "tags": [
+        "kitchen-ledger",
+        "clock"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:scheduler-beat:beat",
+      "type": "step",
+      "name": "Bring every kitchen up to beat",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        80,
+        97
+      ],
+      "summary": "Beat brings every User's kitchen up to at, the scheduler's beat, and records the beat for each. One User's failure is logged and doesn't stop the others.",
+      "tags": [
+        "kitchen-ledger",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:scheduler-beat:up-to-now",
+      "type": "step",
+      "name": "Bring one kitchen up to now",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        74,
+        76
+      ],
+      "summary": "BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it has reached, it changes nothing.",
+      "tags": [
+        "kitchen-ledger",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "domain:cycle-planning",
+      "type": "domain",
+      "name": "Cycle Planning & Today",
+      "summary": "Opens and drops the upcoming Cycle with its Delivery, runs the Kitchen Check, and starts an LLM planning Run that turns the Cycle into a pending Plan Proposal checked against the hard rules. Today shows the day's Slots from the current Cycle.",
+      "tags": [
+        "planning",
+        "cycle",
+        "plan-proposal",
+        "llm"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Cycle",
+          "Delivery",
+          "Slot",
+          "Plan",
+          "Plan Proposal",
+          "Prep Session",
+          "Planned Portion",
+          "Kitchen Check",
+          "Today"
+        ],
+        "businessRules": [
+          "A Cycle can't be opened without Targets or while one is upcoming",
+          "A Cycle is upcoming until its Delivery arrives, current until the next one's does, then closed",
+          "Only an upcoming Cycle can be dropped",
+          "A Portion's size is between 0.75 and 1.5 of the Recipe as written",
+          "Each planned Slot is filled once, none empty, nothing eaten before it is prepared",
+          "A planning Run fails after too many drafts that break a hard rule"
+        ],
+        "crossDomainInteractions": [
+          "Starts planning Runs on the Agent Runs engine",
+          "Reads the Profile, Recipe Library and kitchen contents into the planner prompt",
+          "Today composes Profile Slot times, the kitchen's last beat and the current Cycle"
+        ]
+      }
+    },
+    {
+      "id": "flow:open-cycle",
+      "type": "flow",
+      "name": "Open a Cycle",
+      "summary": "Opens the upcoming Cycle with its Delivery and end date, unless the User has no Targets or already has one upcoming.",
+      "tags": [
+        "cycle-planning",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP GET/POST open-Cycle form (planning.Handlers.ShowOpen, Open)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:open-cycle:show-open",
+      "type": "step",
+      "name": "Serve open form with warning",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        123,
+        131
+      ],
+      "summary": "Serves the open-Cycle form, warning first if opening would be refused.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:open-cycle:refusal",
+      "type": "step",
+      "name": "Check whether opening is refused",
+      "filePath": "internal/planning/service.go",
+      "lineRange": [
+        75,
+        91
+      ],
+      "summary": "refusal is why the signed-in User can't open a Cycle at now, read in tx, or nil.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:open-cycle:submit-open",
+      "type": "step",
+      "name": "Submit Cycle",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        135,
+        161
+      ],
+      "summary": "Opens the posted Cycle, landing on its Kitchen Check or refusing fields.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:open-cycle:parse-cycle",
+      "type": "step",
+      "name": "Parse Cycle and Delivery",
+      "filePath": "internal/domain/cycle.go",
+      "lineRange": [
+        65,
+        113
+      ],
+      "summary": "Parses a typed Cycle with per-field problems: delivery date/window must be valid and not ended, end date after delivery and within MaxCycleDays, defaulting to DefaultCycleDays.",
+      "tags": [
+        "cycle-planning",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:open-cycle:open",
+      "type": "step",
+      "name": "Open Cycle",
+      "filePath": "internal/planning/service.go",
+      "lineRange": [
+        96,
+        109
+      ],
+      "summary": "Open opens a Cycle for the signed-in User at now, as typed by field in l, and is its id, unless a field is refused: then it opens nothing and is the problem with each. Before their Targets are set it is ErrNoTargets, and ErrUpcoming while a Cycle is.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:drop-cycle",
+      "type": "flow",
+      "name": "Drop the Upcoming Cycle",
+      "summary": "Deletes the upcoming Cycle after confirmation.",
+      "tags": [
+        "cycle-planning",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST drop Cycle (planning.Handlers.Drop)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:drop-cycle:confirm-drop",
+      "type": "step",
+      "name": "Confirm drop",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        172,
+        192
+      ],
+      "summary": "Shows the confirmation step before dropping an upcoming Cycle.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:drop-cycle:submit-drop",
+      "type": "step",
+      "name": "Submit drop",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        195,
+        210
+      ],
+      "summary": "Drops the upcoming Cycle and returns to the Cycle page.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:drop-cycle:find-upcoming",
+      "type": "step",
+      "name": "Find upcoming Cycle",
+      "filePath": "internal/planning/service.go",
+      "lineRange": [
+        133,
+        142
+      ],
+      "summary": "findUpcoming is the Cycle id while it is upcoming at now, and ErrNoCycle otherwise.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:drop-cycle:drop",
+      "type": "step",
+      "name": "Delete Cycle",
+      "filePath": "internal/planning/service.go",
+      "lineRange": [
+        113,
+        120
+      ],
+      "summary": "Drop deletes the signed-in User's Cycle id while it is upcoming at now, and is ErrNoCycle otherwise.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:plan-cycle",
+      "type": "flow",
+      "name": "Plan a Cycle into a Plan Proposal",
+      "summary": "After the Kitchen Check, a planning Run is told the Profile, Recipe Library and kitchen contents; the model drafts Plans with check_plan and submits one that keeps every hard rule as the pending Plan Proposal.",
+      "tags": [
+        "cycle-planning",
+        "http"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "HTTP POST Kitchen Check confirm (planning.Handlers.Plan)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:plan-cycle:kitchen-check",
+      "type": "step",
+      "name": "Render Kitchen Check",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        76,
+        97
+      ],
+      "summary": "Renders the Kitchen Check for the upcoming Cycle with an optional refusal.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:confirm-plan",
+      "type": "step",
+      "name": "Confirm and start planning",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        102,
+        119
+      ],
+      "summary": "Confirms the Kitchen Check and starts a planning Run, redirecting to its live trace.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:start-planning",
+      "type": "step",
+      "name": "Start planning Run",
+      "filePath": "internal/planning/service_plan.go",
+      "lineRange": [
+        66,
+        112
+      ],
+      "summary": "StartPlanning starts a planning Run of the signed-in User's Cycle id, upcoming at now, from its first Slot, told what the kitchen holds now, and is the Run's id.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:build-prompt",
+      "type": "step",
+      "name": "Build planner prompt",
+      "filePath": "internal/planning/service_plan.go",
+      "lineRange": [
+        148,
+        214
+      ],
+      "summary": "planPrompt is what a planning Run of c is told: the User's Language, the Cycle and its Slots, today, the Profile p, the Recipe Library, the known Ingredients, the Planning Brief or its low-care default, and what the kitchen holds, k, at now.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:list-slots",
+      "type": "step",
+      "name": "List Cycle Slots",
+      "filePath": "internal/domain/cycle.go",
+      "lineRange": [
+        135,
+        145
+      ],
+      "summary": "Lists a Cycle's Slots of every kind each day, from the first after its Delivery arrives to the last on its end date.",
+      "tags": [
+        "cycle-planning",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:check-draft",
+      "type": "step",
+      "name": "check_plan: read draft",
+      "filePath": "internal/planning/service_plan.go",
+      "lineRange": [
+        321,
+        338
+      ],
+      "summary": "check reads a draft Plan, stores it for submit_plan under the next id, and says which hard rules it breaks.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:hard-rules",
+      "type": "step",
+      "name": "Check hard rules",
+      "filePath": "internal/domain/plan.go",
+      "lineRange": [
+        151,
+        205
+      ],
+      "summary": "Checks a Plan against the structural hard rules over the planned Slots: each filled once, none empty, nothing eaten before prepared, only known unslotted Portions, nothing outside the Cycle.",
+      "tags": [
+        "cycle-planning",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:plan-cycle:submit-proposal",
+      "type": "step",
+      "name": "submit_plan: choose Proposal",
+      "filePath": "internal/planning/service_plan.go",
+      "lineRange": [
+        342,
+        363
+      ],
+      "summary": "submit chooses the draft named as the Plan Proposal if it keeps every hard rule, and fails the Run after attempts that break one.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:view-cycle",
+      "type": "flow",
+      "name": "View Cycle and Planning State",
+      "summary": "Serves the Cycle page with the current and upcoming Cycles and how planning the upcoming one stands, including the pending Plan Proposal.",
+      "tags": [
+        "cycle-planning",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Cycle page (planning.Handlers.Show)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:view-cycle:show",
+      "type": "step",
+      "name": "Serve Cycle page",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        52,
+        67
+      ],
+      "summary": "Serves the Cycle page with the upcoming Cycle and its planning state.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-cycle:now",
+      "type": "step",
+      "name": "Read current and upcoming Cycles",
+      "filePath": "internal/planning/service.go",
+      "lineRange": [
+        60,
+        66
+      ],
+      "summary": "Now is the signed-in User's current and upcoming Cycles at now, each nil when they have none.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-cycle:statuses",
+      "type": "step",
+      "name": "Derive Cycle statuses",
+      "filePath": "internal/domain/cycle.go",
+      "lineRange": [
+        118,
+        131
+      ],
+      "summary": "Derives each Cycle's status at now: upcoming until its Delivery arrives, current until the next one's does, then closed.",
+      "tags": [
+        "cycle-planning",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-cycle:planning-of",
+      "type": "step",
+      "name": "Read planning state",
+      "filePath": "internal/planning/service_plan.go",
+      "lineRange": [
+        535,
+        562
+      ],
+      "summary": "PlanningOf is how planning the signed-in User's Cycle id stands, its days in zone.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:view-cycle:resolve",
+      "type": "step",
+      "name": "Resolve Prep Sessions",
+      "filePath": "internal/planning/service_plan.go",
+      "lineRange": [
+        565,
+        585
+      ],
+      "summary": "resolve is sp with its Recipes, Ingredients and Portions found by id among those given.",
+      "tags": [
+        "cycle-planning",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:show-today",
+      "type": "flow",
+      "name": "Show Today",
+      "summary": "Shows the day's Slots at the clock's now, from Slot times, the last beat and the current Cycle.",
+      "tags": [
+        "cycle-planning",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Today (today.Handlers.Show)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:show-today:show",
+      "type": "step",
+      "name": "Render Today",
+      "filePath": "internal/today/web_handlers.go",
+      "lineRange": [
+        19,
+        27
+      ],
+      "summary": "Renders Today at the clock's now, answering a server error if the day can't load.",
+      "tags": [
+        "cycle-planning",
+        "today"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:show-today:at",
+      "type": "step",
+      "name": "Compose the Day",
+      "filePath": "internal/today/service.go",
+      "lineRange": [
+        41,
+        58
+      ],
+      "summary": "At is what Today shows the signed-in User at now.",
+      "tags": [
+        "cycle-planning",
+        "today"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:show-today:slot-times",
+      "type": "step",
+      "name": "Read Slot times",
+      "filePath": "internal/profile/service.go",
+      "lineRange": [
+        45,
+        51
+      ],
+      "summary": "SlotTimes is the signed-in User's time of day of each kind of Slot, which they have once they have chosen their Language.",
+      "tags": [
+        "cycle-planning",
+        "profile"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:show-today:last-beat",
+      "type": "step",
+      "name": "Read last beat",
+      "filePath": "internal/ledger/service.go",
+      "lineRange": [
+        101,
+        107
+      ],
+      "summary": "LastBeat is when the scheduler last brought the signed-in User's kitchen up to now; ok is false until it first has.",
+      "tags": [
+        "cycle-planning",
+        "ledger"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:show-today:today-slots",
+      "type": "step",
+      "name": "Lay out the day's Slots",
+      "filePath": "internal/domain/slot.go",
+      "lineRange": [
+        86,
+        117
+      ],
+      "summary": "TodayAt is the day's Slots at at, by times. A Slot is now from its time of day up to and including NowFor after, to the minute; the latest such is First.",
+      "tags": [
+        "cycle-planning",
+        "domain"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "domain:agent-runs",
+      "type": "domain",
+      "name": "Agent Runs",
+      "summary": "The engine that carries out LLM agent tasks (Recipe parsing, planning) in the background as their User. It records each Run and its Trace, streams Trace Events live, supports cancelling, and fails Runs a crash left going.",
+      "tags": [
+        "agent",
+        "llm",
+        "runs",
+        "trace",
+        "sse"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Run",
+          "Brief",
+          "Tool",
+          "Trace",
+          "Trace Event",
+          "Failure"
+        ],
+        "businessRules": [
+          "A Run is going until it succeeds, fails or is cancelled",
+          "A cancelled Run is stored cancelled before it stops, so nothing it does afterwards counts",
+          "Retryable model failures are retried with a growing wait; turns are bounded",
+          "A failing tool is reported to the model, not fatal",
+          "A panic in a tool fails the Run, not Dandori",
+          "At start, every Run still stored as going is failed",
+          "Model calls are spans with model, tokens and stop reason, never prompts or replies"
+        ],
+        "crossDomainInteractions": [
+          "Recipe Library and Cycle Planning start Runs with their own Briefs and tools",
+          "Features supply per-kind Run pages linking to what the Run left"
+        ]
+      }
+    },
+    {
+      "id": "flow:carry-out-run",
+      "type": "flow",
+      "name": "Carry Out a Run",
+      "summary": "Records a new Run and carries out its Brief in the background: the agent loop asks the model, runs requested tools and emits every step as a Trace Event until the model ends its turn.",
+      "tags": [
+        "agent-runs",
+        "event"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "Engine.Start called by a feature (parse or planning Run)",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "step:carry-out-run:start",
+      "type": "step",
+      "name": "Record and start Run",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        118,
+        147
+      ],
+      "summary": "Start records a new Run of kind for the signed-in User, asked asked, and carries out b in the background as that User. The tools of b find the Run's id with IDFrom.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:execute",
+      "type": "step",
+      "name": "Execute in span",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        149,
+        207
+      ],
+      "summary": "Method of Engine: execute helper.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:carry-out",
+      "type": "step",
+      "name": "Carry out, recovering panics",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        287,
+        299
+      ],
+      "summary": "carryOut carries out b with the agent loop. A panic, say in a tool, fails the Run rather than Dandori.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:loop",
+      "type": "step",
+      "name": "Run agent loop",
+      "filePath": "internal/agent/loop.go",
+      "lineRange": [
+        26,
+        86
+      ],
+      "summary": "Run carries out b, emitting every step to tr, until the model ends its turn without calling a tool. It fails with a *Failure, or ctx's error once ctx is cancelled.",
+      "tags": [
+        "agent-runs",
+        "agent"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:send",
+      "type": "step",
+      "name": "Ask model with retries",
+      "filePath": "internal/agent/loop.go",
+      "lineRange": [
+        89,
+        112
+      ],
+      "summary": "send asks the model, retrying failures worth retrying with a growing wait.",
+      "tags": [
+        "agent-runs",
+        "agent"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:traced-call",
+      "type": "step",
+      "name": "Trace model call",
+      "filePath": "internal/runs/service_spans.go",
+      "lineRange": [
+        22,
+        43
+      ],
+      "summary": "Method of tracedLLM: Send helper.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:run-tools",
+      "type": "step",
+      "name": "Run tool calls",
+      "filePath": "internal/agent/loop.go",
+      "lineRange": [
+        117,
+        150
+      ],
+      "summary": "runTools runs the tool calls of the model's turn, in order, and returns their results. A failing tool is reported to the model, not fatal, unless it fails with a *Failure, which fails the Run.",
+      "tags": [
+        "agent-runs",
+        "agent"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:carry-out-run:emit",
+      "type": "step",
+      "name": "Emit Trace Event",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        346,
+        367
+      ],
+      "summary": "Emit implements agent.Trace.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:follow-run",
+      "type": "flow",
+      "name": "Follow a Run Live",
+      "summary": "Shows a Run's page with its Trace so far and streams new Trace Events as server-sent events until it ends.",
+      "tags": [
+        "agent-runs",
+        "http"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Run page and SSE stream (runs.Handlers.Show, Stream)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:follow-run:show",
+      "type": "step",
+      "name": "Serve Run page",
+      "filePath": "internal/runs/web_handlers.go",
+      "lineRange": [
+        67,
+        101
+      ],
+      "summary": "Serves a Run's page with its Trace so far.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:follow-run:find",
+      "type": "step",
+      "name": "Find Run with Trace",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        321,
+        327
+      ],
+      "summary": "Find is the signed-in User's Run id with its Trace, found false when they have none.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:follow-run:stream",
+      "type": "step",
+      "name": "Stream Trace Events",
+      "filePath": "internal/runs/web_handlers.go",
+      "lineRange": [
+        140,
+        224
+      ],
+      "summary": "Streams a Run's Trace Events as server-sent events from the last id seen until the Run ends.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:follow-run:trace-after",
+      "type": "step",
+      "name": "Replay stored events",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        260,
+        266
+      ],
+      "summary": "TraceAfter is the stored Trace Events of the signed-in User's Run id after the seq-th.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:follow-run:follow",
+      "type": "step",
+      "name": "Follow live events",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        271,
+        277
+      ],
+      "summary": "Follow follows the Run id's Trace Events from now on, while it goes in this process: the channel closes once the Run has ended, or falls behind, and stop stops following. ok is false when the Run isn't going here.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:follow-run:write-sse",
+      "type": "step",
+      "name": "Write SSE frame",
+      "filePath": "internal/runs/web_handlers.go",
+      "lineRange": [
+        227,
+        239
+      ],
+      "summary": "Writes one server-sent event frame.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:cancel-run",
+      "type": "flow",
+      "name": "Cancel a Run",
+      "summary": "Cancels a going Run, storing it cancelled before it stops.",
+      "tags": [
+        "agent-runs",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP POST cancel Run (runs.Handlers.Cancel)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:cancel-run:submit-cancel",
+      "type": "step",
+      "name": "Submit cancel",
+      "filePath": "internal/runs/web_handlers.go",
+      "lineRange": [
+        119,
+        134
+      ],
+      "summary": "Cancels a going Run and returns to its page.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:cancel-run:cancel",
+      "type": "step",
+      "name": "Cancel going Run",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        213,
+        235
+      ],
+      "summary": "Cancel cancels the signed-in User's Run id if it is going, storing it cancelled before it stops, so nothing it does from now on counts, then waits a moment for it to stop, so its Trace says it ended. found is false when they have no such Run; one that has ended stays as it ended.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:list-runs",
+      "type": "flow",
+      "name": "List Runs",
+      "summary": "Lists the User's Runs newest first, each linked through its kind's page to what it left.",
+      "tags": [
+        "agent-runs",
+        "http"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "HTTP GET Runs (runs.Handlers.List)",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:list-runs:list",
+      "type": "step",
+      "name": "Serve Runs list",
+      "filePath": "internal/runs/web_handlers.go",
+      "lineRange": [
+        104,
+        115
+      ],
+      "summary": "Serves the User's Runs, newest first.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:list-runs:engine-list",
+      "type": "step",
+      "name": "List Runs",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        251,
+        257
+      ],
+      "summary": "List is the signed-in User's Runs, newest first, without their Traces.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:list-runs:parse-page",
+      "type": "step",
+      "name": "Describe parse Runs",
+      "filePath": "internal/recipes/web_handlers.go",
+      "lineRange": [
+        215,
+        225
+      ],
+      "summary": "Describes parse Runs for the Runs pages, linking to the Draft they left.",
+      "tags": [
+        "agent-runs",
+        "recipes"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:list-runs:planning-page",
+      "type": "step",
+      "name": "Describe planning Runs",
+      "filePath": "internal/planning/web_handlers.go",
+      "lineRange": [
+        40,
+        48
+      ],
+      "summary": "Describes planning Runs for the Runs pages, linking a succeeded one to the Cycle page.",
+      "tags": [
+        "agent-runs",
+        "planning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:recover-runs-at-start",
+      "type": "flow",
+      "name": "Fail Runs Left Going at Start",
+      "summary": "At startup, every Run still stored as going was left by a crash and is failed.",
+      "tags": [
+        "agent-runs",
+        "cli"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "dandori serve startup (app.New)",
+        "entryType": "cli"
+      }
+    },
+    {
+      "id": "step:recover-runs-at-start:serve",
+      "type": "step",
+      "name": "Start server",
+      "filePath": "cmd/dandori/main.go",
+      "lineRange": [
+        107,
+        136
+      ],
+      "summary": "Starts the app and its scheduler, listens on addr and serves HTTP until the context ends, then shuts the server down gracefully.",
+      "tags": [
+        "agent-runs",
+        "dandori"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:recover-runs-at-start:build-app",
+      "type": "step",
+      "name": "Build App",
+      "filePath": "internal/app/app.go",
+      "lineRange": [
+        80,
+        113
+      ],
+      "summary": "Builds the App: opens the pgx pool, wires every feature Service, pings and migrates the database, and fails Runs left going from a previous process.",
+      "tags": [
+        "agent-runs",
+        "app"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:recover-runs-at-start:fail-left",
+      "type": "step",
+      "name": "Fail Runs left going",
+      "filePath": "internal/runs/service_engine.go",
+      "lineRange": [
+        97,
+        108
+      ],
+      "summary": "FailLeftGoing fails every Run, of every User, still stored as going, as a crash leaves one: Dandori runs as one process, so at its start no Run is. Each Run's Trace ends as a graceful stop's does.",
+      "tags": [
+        "agent-runs",
+        "runs"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "domain:identity-access",
+      "target": "flow:sign-in-with-magic-link",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:sign-in-with-magic-link",
+      "target": "step:sign-in-with-magic-link:request-magic-link",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:sign-in-with-magic-link",
+      "target": "step:sign-in-with-magic-link:send-magic-link",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:sign-in-with-magic-link",
+      "target": "step:sign-in-with-magic-link:show-confirmation",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:sign-in-with-magic-link",
+      "target": "step:sign-in-with-magic-link:confirm-link",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:sign-in-with-magic-link",
+      "target": "step:sign-in-with-magic-link:redeem-token",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:sign-in-with-magic-link",
+      "target": "step:sign-in-with-magic-link:set-session-cookie",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:identity-access",
+      "target": "flow:authenticate-request",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:authenticate-request",
+      "target": "step:authenticate-request:read-cookies",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:authenticate-request",
+      "target": "step:authenticate-request:authenticate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:authenticate-request",
+      "target": "step:authenticate-request:guard-route",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:identity-access",
+      "target": "flow:sign-out",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:sign-out",
+      "target": "step:sign-out:handle-sign-out",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:sign-out",
+      "target": "step:sign-out:revoke-session",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:profile-goals",
+      "target": "flow:choose-language",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:require-language",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:show-choice",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:choose",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:parse-language",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:check-can-change",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:save-language",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:choose-language",
+      "target": "step:choose-language:remember-cookie",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:profile-goals",
+      "target": "flow:save-targets",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:save-targets",
+      "target": "step:save-targets:submit-targets",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:save-targets",
+      "target": "step:save-targets:parse-targets",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:save-targets",
+      "target": "step:save-targets:save-targets",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:save-targets",
+      "target": "step:save-targets:answer-refused",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:profile-goals",
+      "target": "flow:save-slot-times",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:save-slot-times",
+      "target": "step:save-slot-times:submit-times",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:save-slot-times",
+      "target": "step:save-slot-times:parse-time",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:save-slot-times",
+      "target": "step:save-slot-times:parse-slot-times",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:save-slot-times",
+      "target": "step:save-slot-times:save-slot-times",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:profile-goals",
+      "target": "flow:save-meal-out-and-foods",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:save-meal-out-and-foods",
+      "target": "step:save-meal-out-and-foods:submit-meal-out",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:save-meal-out-and-foods",
+      "target": "step:save-meal-out-and-foods:parse-meal-out",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:save-meal-out-and-foods",
+      "target": "step:save-meal-out-and-foods:save-meal-out",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:save-meal-out-and-foods",
+      "target": "step:save-meal-out-and-foods:submit-foods",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:save-meal-out-and-foods",
+      "target": "step:save-meal-out-and-foods:normalise-foods",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:save-meal-out-and-foods",
+      "target": "step:save-meal-out-and-foods:save-foods",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:profile-goals",
+      "target": "flow:save-appliances-and-brief",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:save-appliances-and-brief",
+      "target": "step:save-appliances-and-brief:submit-appliances",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:save-appliances-and-brief",
+      "target": "step:save-appliances-and-brief:parse-appliances",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:save-appliances-and-brief",
+      "target": "step:save-appliances-and-brief:save-appliances",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:save-appliances-and-brief",
+      "target": "step:save-appliances-and-brief:submit-brief",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:save-appliances-and-brief",
+      "target": "step:save-appliances-and-brief:save-brief",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:ingredients",
+      "target": "flow:add-ingredient",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:suggest-on-blur",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:submit-add",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:check-problems",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:normalise-name",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:find-closest",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:save-ingredient",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:add-ingredient",
+      "target": "step:add-ingredient:continue-to-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:ingredients",
+      "target": "flow:edit-ingredient",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:edit-ingredient",
+      "target": "step:edit-ingredient:submit-edit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:edit-ingredient",
+      "target": "step:edit-ingredient:save-edit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:edit-ingredient",
+      "target": "step:edit-ingredient:count-to-nothing",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:edit-ingredient",
+      "target": "step:edit-ingredient:build-counts",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:edit-ingredient",
+      "target": "step:edit-ingredient:notify-staple",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:ingredients",
+      "target": "flow:delete-ingredient",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:delete-ingredient",
+      "target": "step:delete-ingredient:confirm-delete",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:delete-ingredient",
+      "target": "step:delete-ingredient:submit-delete",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:delete-ingredient",
+      "target": "step:delete-ingredient:check-recipes",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:delete-ingredient",
+      "target": "step:delete-ingredient:delete",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:ingredients",
+      "target": "flow:search-ingredients",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:search-ingredients",
+      "target": "step:search-ingredients:show-page",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:search-ingredients",
+      "target": "step:search-ingredients:live-list",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:search-ingredients",
+      "target": "step:search-ingredients:listing",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:search-ingredients",
+      "target": "step:search-ingredients:search-names",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:recipe-library",
+      "target": "flow:write-recipe",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:show-form",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:ingredient-row",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:save-form",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:validate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:add-recipe",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:save-ingredients",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:write-recipe",
+      "target": "step:write-recipe:edit-recipe",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:recipe-library",
+      "target": "flow:parse-pasted-recipe",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:parse-pasted-recipe",
+      "target": "step:parse-pasted-recipe:paste",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:parse-pasted-recipe",
+      "target": "step:parse-pasted-recipe:start-parse",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:parse-pasted-recipe",
+      "target": "step:parse-pasted-recipe:parse-brief",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:parse-pasted-recipe",
+      "target": "step:parse-pasted-recipe:start-run",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:parse-pasted-recipe",
+      "target": "step:parse-pasted-recipe:to-recipe",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:parse-pasted-recipe",
+      "target": "step:parse-pasted-recipe:link-draft",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:recipe-library",
+      "target": "flow:review-recipe-draft",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:review-recipe-draft",
+      "target": "step:review-recipe-draft:show-draft",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:review-recipe-draft",
+      "target": "step:review-recipe-draft:find-draft",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:review-recipe-draft",
+      "target": "step:review-recipe-draft:accept",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:review-recipe-draft",
+      "target": "step:review-recipe-draft:accept-draft",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:review-recipe-draft",
+      "target": "step:review-recipe-draft:discard",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:review-recipe-draft",
+      "target": "step:review-recipe-draft:discard-draft",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:recipe-library",
+      "target": "flow:browse-library",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:browse-library",
+      "target": "step:browse-library:library",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:browse-library",
+      "target": "step:browse-library:search",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:browse-library",
+      "target": "step:browse-library:show",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:browse-library",
+      "target": "step:browse-library:confirm-removal",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:browse-library",
+      "target": "step:browse-library:delete",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:kitchen-ledger",
+      "target": "flow:view-kitchen",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:view-kitchen",
+      "target": "step:view-kitchen:up-to-now",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:view-kitchen",
+      "target": "step:view-kitchen:show",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:view-kitchen",
+      "target": "step:view-kitchen:contents",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:view-kitchen",
+      "target": "step:view-kitchen:fold-ledger",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:view-kitchen",
+      "target": "step:view-kitchen:group-lots",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:view-kitchen",
+      "target": "step:view-kitchen:movements",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:kitchen-ledger",
+      "target": "flow:count-stock-item",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:start-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:countable",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:submit-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:parse-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:record-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:write-ledger",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:count-stock-item",
+      "target": "step:count-stock-item:build-movement",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:kitchen-ledger",
+      "target": "flow:move-stock-item",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:move-stock-item",
+      "target": "step:move-stock-item:start-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:move-stock-item",
+      "target": "step:move-stock-item:submit-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:move-stock-item",
+      "target": "step:move-stock-item:parse-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:move-stock-item",
+      "target": "step:move-stock-item:record-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:move-stock-item",
+      "target": "step:move-stock-item:check-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:move-stock-item",
+      "target": "step:move-stock-item:write-ledger",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:kitchen-ledger",
+      "target": "flow:add-portions",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:add-portions",
+      "target": "step:add-portions:submit-portions",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:add-portions",
+      "target": "step:add-portions:parse-portions",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:add-portions",
+      "target": "step:add-portions:record-portions",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:add-portions",
+      "target": "step:add-portions:build-movement",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:add-portions",
+      "target": "step:add-portions:write-ledger",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:kitchen-ledger",
+      "target": "flow:count-or-move-portion-lot",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:start-lot-form",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:submit-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:parse-lot-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:submit-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:write-lot",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:build-count",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:build-move",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:count-or-move-portion-lot",
+      "target": "step:count-or-move-portion-lot:check-fits",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:kitchen-ledger",
+      "target": "flow:scheduler-beat",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:scheduler-beat",
+      "target": "step:scheduler-beat:schedule",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:scheduler-beat",
+      "target": "step:scheduler-beat:tick",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:scheduler-beat",
+      "target": "step:scheduler-beat:beat",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:scheduler-beat",
+      "target": "step:scheduler-beat:up-to-now",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "flow:open-cycle",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:open-cycle",
+      "target": "step:open-cycle:show-open",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:open-cycle",
+      "target": "step:open-cycle:refusal",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:open-cycle",
+      "target": "step:open-cycle:submit-open",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:open-cycle",
+      "target": "step:open-cycle:parse-cycle",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:open-cycle",
+      "target": "step:open-cycle:open",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "flow:drop-cycle",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:drop-cycle",
+      "target": "step:drop-cycle:confirm-drop",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:drop-cycle",
+      "target": "step:drop-cycle:submit-drop",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:drop-cycle",
+      "target": "step:drop-cycle:find-upcoming",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:drop-cycle",
+      "target": "step:drop-cycle:drop",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "flow:plan-cycle",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:kitchen-check",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:confirm-plan",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:start-planning",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:build-prompt",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:list-slots",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:check-draft",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:hard-rules",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:submit-proposal",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "flow:view-cycle",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:view-cycle",
+      "target": "step:view-cycle:show",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:view-cycle",
+      "target": "step:view-cycle:now",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:view-cycle",
+      "target": "step:view-cycle:statuses",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:view-cycle",
+      "target": "step:view-cycle:planning-of",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:view-cycle",
+      "target": "step:view-cycle:resolve",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "flow:show-today",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:show-today",
+      "target": "step:show-today:show",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:show-today",
+      "target": "step:show-today:at",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:show-today",
+      "target": "step:show-today:slot-times",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:show-today",
+      "target": "step:show-today:last-beat",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:show-today",
+      "target": "step:show-today:today-slots",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:agent-runs",
+      "target": "flow:carry-out-run",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:start",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.1
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:execute",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:carry-out",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:loop",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:send",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:traced-call",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:run-tools",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "flow:carry-out-run",
+      "target": "step:carry-out-run:emit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:agent-runs",
+      "target": "flow:follow-run",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:follow-run",
+      "target": "step:follow-run:show",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:follow-run",
+      "target": "step:follow-run:find",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:follow-run",
+      "target": "step:follow-run:stream",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:follow-run",
+      "target": "step:follow-run:trace-after",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:follow-run",
+      "target": "step:follow-run:follow",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:follow-run",
+      "target": "step:follow-run:write-sse",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:agent-runs",
+      "target": "flow:cancel-run",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:cancel-run",
+      "target": "step:cancel-run:submit-cancel",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:cancel-run",
+      "target": "step:cancel-run:cancel",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:agent-runs",
+      "target": "flow:list-runs",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:list-runs",
+      "target": "step:list-runs:list",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:list-runs",
+      "target": "step:list-runs:engine-list",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:list-runs",
+      "target": "step:list-runs:parse-page",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:list-runs",
+      "target": "step:list-runs:planning-page",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:agent-runs",
+      "target": "flow:recover-runs-at-start",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:recover-runs-at-start",
+      "target": "step:recover-runs-at-start:serve",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:recover-runs-at-start",
+      "target": "step:recover-runs-at-start:build-app",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:recover-runs-at-start",
+      "target": "step:recover-runs-at-start:fail-left",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:identity-access",
+      "target": "domain:profile-goals",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "The signed-in User passes to the LanguageChosen middleware, which serves pages in their Language or sends them to choose one",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:profile-goals",
+      "target": "domain:cycle-planning",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "The planner prompt reads Targets, foods, appliances and the Planning Brief; opening a Cycle needs Targets; Today reads Slot times",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:ingredients",
+      "target": "domain:kitchen-ledger",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Stock Items are quantities of Ingredients; marking a Staple counts its stock to nothing; Ingredients with Movements can't be deleted",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:recipe-library",
+      "target": "domain:ingredients",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Recipes resolve and add Ingredients in their transaction; an Ingredient a Recipe lists can't be deleted",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:recipe-library",
+      "target": "domain:agent-runs",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Pasted text starts a parse Run whose tool stores the Recipe Draft",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "domain:agent-runs",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Planning starts a planning Run with check_plan and submit_plan tools",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "domain:kitchen-ledger",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Kitchen Check and planner prompt read what the kitchen holds; Today reads the last beat",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:cycle-planning",
+      "target": "domain:recipe-library",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "The planner prompt includes the Recipe Library",
+      "weight": 0.6
+    }
+  ],
+  "layers": [],
+  "tour": []
+}

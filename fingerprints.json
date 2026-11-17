@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "4beb90901db15e622a2be94cc0356832c3491a47",
-  "generatedAt": "2026-11-17T10:22:09.754Z",
+  "gitCommitHash": "28daec61b0bb825d0e57ad687ced76b37f80b969",
+  "generatedAt": "2026-11-17T11:14:35.760Z",
   "files": {
     ".dockerignore": {
       "filePath": ".dockerignore",
@@ -24959,12 +24959,12 @@
     },
     "mise.toml": {
       "filePath": "mise.toml",
-      "contentHash": "efa55bf9b2df0695483b415bcf19661993b402a3eafc16a207bacaa8e15adf98",
+      "contentHash": "b208afe6ae546df31467247ac9f984a22c240b5a4fa34661f88a05173211180f",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 105,
+      "totalLines": 115,
       "hasStructuralAnalysis": false
     },
     "scripts/provision.sh": {

@@ -8,4 +8,5 @@ intermediate/*
 !config.json
 !.understandignore
 !UA_ONBOARDING.md
+!domain-graph.json
 !intermediate/scan-result.json
