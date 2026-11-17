@@ -225,7 +225,7 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 	brief = cmp.Or(brief, lowCareBrief)
 	fmt.Fprintf(&b, "\nThe user's Planning Brief, their lasting wishes for how their meals are planned:\n<brief>\n%s\n</brief>\n", brief)
 	if len(notes) > 0 {
-		b.WriteString("\nThe user's Planning Notes on this Cycle, newest first: where they disagree, the newer one wins.\n")
+		b.WriteString("\nThe user's Planning Notes on this Cycle, newest first. Keep to every one: a newer note overrides an older one only where the two contradict each other.\n")
 		for _, n := range notes {
 			fmt.Fprintf(&b, "<note>\n%s\n</note>\n", n)
 		}

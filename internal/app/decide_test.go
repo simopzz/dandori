@@ -141,7 +141,7 @@ func TestRejectingWithANotePlansAgainToldEveryNoteNewestFirst(t *testing.T) {
 	s.Settle()
 	told(t, s, []string{
 		"Plan every Slot from breakfast on Fri 6 Nov on.",
-		"The user's Planning Notes on this Cycle, newest first: where they disagree, the newer one wins.\n<note>\nLess rice, please.\n</note>",
+		"The user's Planning Notes on this Cycle, newest first. Keep to every one: a newer note overrides an older one only where the two contradict each other.\n<note>\nLess rice, please.\n</note>",
 	})
 
 	s.Model.Script(fakellm.Reply("I can't."))
