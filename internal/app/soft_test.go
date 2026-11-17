@@ -94,3 +94,17 @@ func TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan(t *testing.T) {
 	s.Open("/plan")
 	s.Sees("Fri, Nov 6 1586 65 g at least 4 g at least 8 g Sat, Nov 7 360")
 }
+
+// A day a little under a Target is no soft miss, so the day table leaves it unmarked; the
+// average missing it is marked, and listed. Friday's 65 g of protein is 7% under 70 g.
+func TestADayALittleUnderATargetIsUnmarked(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.Open("/profile")
+	s.SavesTargets(apptest.Targets{Kcal: "1600", Protein: "70", Fibre: "30", Sugar: "50", Tolerance: "5"})
+	plansFriday(t, s, "Friday.")
+
+	s.Open("/plan")
+	s.Sees("Protein averages 65 g a day against 70 g")
+	s.DoesNotSee("under protein")
+	s.Sees("Fri, Nov 6 1586 65 g at least 4 g at least 8 g Average 1586 65 g missed at least 4 g at least 8 g")
+}
