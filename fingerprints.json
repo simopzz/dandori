@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "8ed22094198e06ce30483f72b0de3cd28e2490d3",
-  "generatedAt": "2026-11-16T17:42:39.647Z",
+  "gitCommitHash": "4beb90901db15e622a2be94cc0356832c3491a47",
+  "generatedAt": "2026-11-17T10:22:09.754Z",
   "files": {
     ".dockerignore": {
       "filePath": ".dockerignore",
@@ -25,12 +25,12 @@
     },
     ".githooks/pre-commit": {
       "filePath": ".githooks/pre-commit",
-      "contentHash": "ed86da265ced2da1d98782ff4356f2ad268eef9b73364ab3df0ffe4749d9b6ed",
+      "contentHash": "10fbd082c4c50c56d330b79fe7e77184d60195f443b576e278025afb9121e4b4",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 4,
+      "totalLines": 6,
       "hasStructuralAnalysis": false
     },
     ".github/workflows/ci.yml": {
@@ -45,12 +45,12 @@
     },
     ".golangci.yml": {
       "filePath": ".golangci.yml",
-      "contentHash": "dac6ccfdc757b4571398c8ad30840e0c89dff7c619b71106665d5b12a23c73e6",
+      "contentHash": "8f2f8b75008156760cee5d9050635548bd7b9591ee285c08d8478d007062ab82",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 71,
+      "totalLines": 85,
       "hasStructuralAnalysis": false
     },
     ".mcp.json": {
@@ -617,7 +617,7 @@
     },
     "docs/design.md": {
       "filePath": "docs/design.md",
-      "contentHash": "fd19c67921df04c6616f9f273d8f918c84cdae56dc1bc87503b0b3cc331996f7",
+      "contentHash": "cc40e9ffbb164f19487aee67b5f77b72173a217acb8b7c0ab9bf1c7020df0550",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -1219,7 +1219,7 @@
     },
     "internal/agent/brief.go": {
       "filePath": "internal/agent/brief.go",
-      "contentHash": "537a44af49b1416d9111e03f1403ef6513623fe97197f4a4db80b08465b42e49",
+      "contentHash": "a69f32dfdc177c82ebe4a06ab1fb8ae3e667fa20b633e4bcf1ff169d03e92c9b",
       "functions": [],
       "classes": [
         {
@@ -1266,7 +1266,7 @@
         "Brief",
         "Tool"
       ],
-      "totalLines": 31,
+      "totalLines": 32,
       "hasStructuralAnalysis": true
     },
     "internal/agent/fakellm/fakellm.go": {
@@ -1518,7 +1518,7 @@
     },
     "internal/agent/loop.go": {
       "filePath": "internal/agent/loop.go",
-      "contentHash": "93b948723b79606550514c6ed84c78b10918ca5cc7376a5e61c5b102ce0b7d1d",
+      "contentHash": "a13db668d02646635b7813dc91fd8c3ed7769e5e8fd24ea334f9693af6a0adeb",
       "functions": [
         {
           "name": "Run",
@@ -1555,7 +1555,7 @@
           ],
           "returnType": "([]Block, error)",
           "exported": false,
-          "lineCount": 31
+          "lineCount": 34
         },
         {
           "name": "outOfTokens",
@@ -1622,7 +1622,7 @@
         "Loop",
         "Run"
       ],
-      "totalLines": 158,
+      "totalLines": 162,
       "hasStructuralAnalysis": true
     },
     "internal/agent/trace.go": {
@@ -1699,7 +1699,7 @@
     },
     "internal/app/app.go": {
       "filePath": "internal/app/app.go",
-      "contentHash": "6e78f97248af36ec2ce319c59a2f9057777a2c65bede11f83d48b3c628cc545e",
+      "contentHash": "173ce956ebaf3f115002471627b036687be46ceb70894a1c22c4a25b03bec2bd",
       "functions": [
         {
           "name": "New",
@@ -1742,7 +1742,7 @@
           "params": [],
           "returnType": "http.Handler",
           "exported": true,
-          "lineCount": 106
+          "lineCount": 108
         },
         {
           "name": "traced",
@@ -1805,10 +1805,11 @@
             "Auth",
             "Runs",
             "Spans",
+            "PlanChecks",
             "FaroURL"
           ],
           "exported": true,
-          "lineCount": 16
+          "lineCount": 19
         },
         {
           "name": "App",
@@ -2019,7 +2020,7 @@
         "Schedule",
         "Handler"
       ],
-      "totalLines": 313,
+      "totalLines": 318,
       "hasStructuralAnalysis": true
     },
     "internal/app/appliances_test.go": {
@@ -2897,7 +2898,7 @@
     },
     "internal/app/cycle_test.go": {
       "filePath": "internal/app/cycle_test.go",
-      "contentHash": "e807f8c3dd37d10125e2edc2c615dd95ee5888763bcfa55f7ca9f32214f0ec96",
+      "contentHash": "62c35ae3eebc2240593b566497835e59d57a355ea020d7c96785eaf85b6f8c87",
       "functions": [
         {
           "name": "plannerOf",
@@ -2917,7 +2918,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 15
+          "lineCount": 16
         },
         {
           "name": "TestACycleEndsOnTheDateTyped",
@@ -2926,7 +2927,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 7
+          "lineCount": 8
         },
         {
           "name": "TestOpeningACycleRefusesEachFieldOnItsOwn",
@@ -2962,7 +2963,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 15
+          "lineCount": 17
         },
         {
           "name": "TestDroppingTheUpcomingCycle",
@@ -2971,7 +2972,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 12
+          "lineCount": 13
         },
         {
           "name": "TestACycleArrivedCantBeDropped",
@@ -2980,7 +2981,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 9
+          "lineCount": 10
         },
         {
           "name": "TestCycleFormsPostedAsHTMX",
@@ -3007,7 +3008,25 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 15
+          "lineCount": 16
+        },
+        {
+          "name": "TestACycleAcrossAChangeOfTheClocks",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "TestBrowserOpensAndDropsACycle",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 56
         }
       ],
       "classes": [],
@@ -3031,6 +3050,12 @@
           ]
         },
         {
+          "source": "github.com/mxschmitt/playwright-go",
+          "specifiers": [
+            "playwright-go"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/apptest",
           "specifiers": [
             "apptest"
@@ -3048,9 +3073,11 @@
         "TestACycleArrivedCantBeDropped",
         "TestCycleFormsPostedAsHTMX",
         "TestTodayOffersToOpenACycle",
-        "TestTwoUsersNeverSeeEachOthersCycles"
+        "TestTwoUsersNeverSeeEachOthersCycles",
+        "TestACycleAcrossAChangeOfTheClocks",
+        "TestBrowserOpensAndDropsACycle"
       ],
-      "totalLines": 206,
+      "totalLines": 301,
       "hasStructuralAnalysis": true
     },
     "internal/app/drafts_test.go": {
@@ -4955,6 +4982,295 @@
         "TestTheDemoLLMWritesInTheUsersLanguage"
       ],
       "totalLines": 622,
+      "hasStructuralAnalysis": true
+    },
+    "internal/app/planning_test.go": {
+      "filePath": "internal/app/planning_test.go",
+      "contentHash": "52504ac858f0b9811bf345a59548bbfee57b4f9816b9132e65bdd80efc02bb91",
+      "functions": [
+        {
+          "name": "plannerWithKitchen",
+          "owner": "",
+          "params": [
+            "t",
+            "email"
+          ],
+          "returnType": "*apptest.Scenario",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "stockKitchen",
+          "owner": "",
+          "params": [
+            "s"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "idIn",
+          "owner": "",
+          "params": [
+            "t",
+            "req",
+            "pattern"
+          ],
+          "returnType": "int64",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "fridayDraft",
+          "owner": "",
+          "params": [
+            "t",
+            "req"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "TestPlanningACycleEndsInAPendingPlanProposal",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "prompt",
+          "owner": "",
+          "params": [
+            "t",
+            "s"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "promptHolds",
+          "owner": "",
+          "params": [
+            "t",
+            "s"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "plansFriday",
+          "owner": "",
+          "params": [
+            "t",
+            "s",
+            "summary"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "TestACountOnTheKitchenCheckIsWhatThePlannerIsTold",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "TestThePlannerIsToldTheProfileTheLibraryTheBriefTheKitchenAndTheLanguage",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "TestThePlannerIsToldTheLowCareBriefAndTheLanguage",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "brokenDraft",
+          "owner": "",
+          "params": [
+            "t",
+            "req"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "TestCheckPlanReportsEachStructuralHardRule",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "TestThreeSubmitsBreakingHardRulesFailThePlanningRun",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "TestAPlanningRunEndingWithoutAPlanProposalFailsWithTheModelsLastMessage",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "TestCheckPlansCallsRunOut",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "TestASecondPlanningRunIsRefusedWhileOneIsGoingOrAPlanProposalIsPending",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 40
+        },
+        {
+          "name": "TestUsersSeeOnlyTheirOwnPlanProposals",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "TestBrowserPlansACycleThroughTheKitchenCheck",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 72
+        },
+        {
+          "name": "TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "TestAPlanProposalThatCantBeStoredFailsItsRun",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
+          "source": "strconv",
+          "specifiers": [
+            "strconv"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/mxschmitt/playwright-go",
+          "specifiers": [
+            "playwright-go"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent/fakellm",
+          "specifiers": [
+            "fakellm"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/app",
+          "specifiers": [
+            "app"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/apptest",
+          "specifiers": [
+            "apptest"
+          ]
+        }
+      ],
+      "exports": [
+        "TestPlanningACycleEndsInAPendingPlanProposal",
+        "TestACountOnTheKitchenCheckIsWhatThePlannerIsTold",
+        "TestThePlannerIsToldTheProfileTheLibraryTheBriefTheKitchenAndTheLanguage",
+        "TestThePlannerIsToldTheLowCareBriefAndTheLanguage",
+        "TestCheckPlanReportsEachStructuralHardRule",
+        "TestThreeSubmitsBreakingHardRulesFailThePlanningRun",
+        "TestAPlanningRunEndingWithoutAPlanProposalFailsWithTheModelsLastMessage",
+        "TestCheckPlansCallsRunOut",
+        "TestASecondPlanningRunIsRefusedWhileOneIsGoingOrAPlanProposalIsPending",
+        "TestUsersSeeOnlyTheirOwnPlanProposals",
+        "TestBrowserPlansACycleThroughTheKitchenCheck",
+        "TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal",
+        "TestAPlanProposalThatCantBeStoredFailsItsRun"
+      ],
+      "totalLines": 505,
       "hasStructuralAnalysis": true
     },
     "internal/app/portions_test.go": {
@@ -7187,7 +7503,7 @@
     },
     "internal/app/targets_test.go": {
       "filePath": "internal/app/targets_test.go",
-      "contentHash": "005dfb6f99b6fa4bc79ecb0be64941ad68de6c5cfa12a9e5127cb70963fbc476",
+      "contentHash": "230b50277340c9f4b3b3881b9c68632e361dc93f62fc56b18549b9b15a8a9aa6",
       "functions": [
         {
           "name": "profileOf",
@@ -8947,7 +9263,7 @@
     },
     "internal/apptest/scenario.go": {
       "filePath": "internal/apptest/scenario.go",
-      "contentHash": "954ff0251db95b79a12ce996c86f47cbaffc1ebcc24bf0ea6fd8e2352ce6d3af",
+      "contentHash": "538cb7ab3d66732ef6679d394a0bff9248619bb12f240cc1c29e90828c060ae8",
       "functions": [
         {
           "name": "NewScenario",
@@ -9414,6 +9730,20 @@
           "params": [],
           "exported": true,
           "lineCount": 8
+        },
+        {
+          "name": "PlansCycle",
+          "owner": "Scenario",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "StartsPlanning",
+          "owner": "Scenario",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
         }
       ],
       "classes": [
@@ -9464,7 +9794,9 @@
             "SavesAppliances",
             "SavesBrief",
             "OpensCycle",
-            "DropsCycle"
+            "DropsCycle",
+            "PlansCycle",
+            "StartsPlanning"
           ],
           "properties": [
             "t",
@@ -9698,9 +10030,11 @@
         "Cycle",
         "Fill",
         "OpensCycle",
-        "DropsCycle"
+        "DropsCycle",
+        "PlansCycle",
+        "StartsPlanning"
       ],
-      "totalLines": 652,
+      "totalLines": 672,
       "hasStructuralAnalysis": true
     },
     "internal/apptest/signin.go": {
@@ -10678,16 +11012,6 @@
       "totalLines": 37,
       "hasStructuralAnalysis": true
     },
-    "internal/auth/web_views.templ": {
-      "filePath": "internal/auth/web_views.templ",
-      "contentHash": "e42adef95d314fcfa82d0b20f0114a5a6d5937c253a63445296da5afb9532304",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 96,
-      "hasStructuralAnalysis": false
-    },
     "internal/clock/clock.go": {
       "filePath": "internal/clock/clock.go",
       "contentHash": "41fac846846c6478a918614e75194aafb0e15837428c3a3b2a359711ee6a5545",
@@ -11319,6 +11643,16 @@
       "totalLines": 28,
       "hasStructuralAnalysis": false
     },
+    "internal/db/migrations/00022_plan_proposal.sql": {
+      "filePath": "internal/db/migrations/00022_plan_proposal.sql",
+      "contentHash": "dcd9df3231aaabbe4c4141cbbdcede28f6fa82d300c2e4fe38660e65fada0969",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 118,
+      "hasStructuralAnalysis": false
+    },
     "internal/db/user.go": {
       "filePath": "internal/db/user.go",
       "contentHash": "1d521fd5532ced86fe1c5ab37a1e460f0407ee16843c1448dbcfbfc43a1d9c91",
@@ -11523,7 +11857,7 @@
     },
     "internal/domain/cycle.go": {
       "filePath": "internal/domain/cycle.go",
-      "contentHash": "2a09cd9dd1a139ae2f47173253857f9dc500ff8fc19b2511feca2c2d2316e483",
+      "contentHash": "b2495724d7f950eb1a5c10f08d52c1b2f42f20528366d3f10a7dc485a5086cf6",
       "functions": [
         {
           "name": "Arrives",
@@ -11543,7 +11877,7 @@
           ],
           "returnType": "(Cycle, map[string]Problem)",
           "exported": true,
-          "lineCount": 48
+          "lineCount": 49
         },
         {
           "name": "CycleStatuses",
@@ -11623,12 +11957,12 @@
         "Slots",
         "CycleOf"
       ],
-      "totalLines": 159,
+      "totalLines": 160,
       "hasStructuralAnalysis": true
     },
     "internal/domain/cycle_test.go": {
       "filePath": "internal/domain/cycle_test.go",
-      "contentHash": "ccffb6ec400fb7681e0a5f447661f41acfbfe4bd54bd14266032e8ce4f82143b",
+      "contentHash": "57f2c0e252b38497b7f21ea7a07bb7549cf02de3afb3e9e120e46ee5bf4e6263",
       "functions": [
         {
           "name": "day",
@@ -11660,7 +11994,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 66
+          "lineCount": 69
         },
         {
           "name": "TestACyclesStatus",
@@ -11688,6 +12022,15 @@
           ],
           "exported": true,
           "lineCount": 27
+        },
+        {
+          "name": "TestACycleAcrossAChangeOfTheClocks",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 43
         }
       ],
       "classes": [],
@@ -11727,9 +12070,10 @@
         "TestOpeningACycle",
         "TestACyclesStatus",
         "TestACyclesSlots",
-        "TestWhichCycleASlotBelongsTo"
+        "TestWhichCycleASlotBelongsTo",
+        "TestACycleAcrossAChangeOfTheClocks"
       ],
-      "totalLines": 169,
+      "totalLines": 219,
       "hasStructuralAnalysis": true
     },
     "internal/domain/datetime.go": {
@@ -13317,6 +13661,326 @@
       "totalLines": 56,
       "hasStructuralAnalysis": true
     },
+    "internal/domain/plan.go": {
+      "filePath": "internal/domain/plan.go",
+      "contentHash": "1f1623ffeb46bf85c3dcee9c5f9125a28d154d97b5a06c669685fa61c92fd018",
+      "functions": [
+        {
+          "name": "Name",
+          "owner": "PrepSession",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "Ingredients",
+          "owner": "PrepSession",
+          "params": [],
+          "returnType": "[]RecipeIngredient",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "scaled",
+          "owner": "",
+          "params": [
+            "ing",
+            "v"
+          ],
+          "returnType": "RecipeIngredient",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "NutritionPerPortion",
+          "owner": "PrepSession",
+          "params": [],
+          "returnType": "PortionNutrition",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "Before",
+          "owner": "Slot",
+          "params": [
+            "o"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "String",
+          "owner": "Slot",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "key",
+          "owner": "Slot",
+          "params": [],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "Equal",
+          "owner": "Slot",
+          "params": [
+            "o"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "Unreadable",
+          "owner": "Plan",
+          "params": [],
+          "returnType": "[]string",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "String",
+          "owner": "Violation",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "HardRules",
+          "owner": "",
+          "params": [
+            "p",
+            "slots",
+            "unslotted"
+          ],
+          "returnType": "[]Violation",
+          "exported": true,
+          "lineCount": 55
+        }
+      ],
+      "classes": [
+        {
+          "name": "Plan",
+          "methods": [
+            "Unreadable"
+          ],
+          "properties": [
+            "PrepSessions",
+            "Kept"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "PrepSession",
+          "methods": [
+            "Name",
+            "Ingredients",
+            "NutritionPerPortion"
+          ],
+          "properties": [
+            "At",
+            "Recipe",
+            "Size",
+            "Ingredient",
+            "Quantity",
+            "Portions"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "PlannedPortion",
+          "methods": [],
+          "properties": [
+            "Location",
+            "EatAt"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "Kept",
+          "methods": [],
+          "properties": [
+            "Portion",
+            "At"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "Violation",
+          "methods": [
+            "String"
+          ],
+          "properties": [
+            "Rule",
+            "Message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "imports": [
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "math",
+          "specifiers": [
+            "math"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        }
+      ],
+      "exports": [
+        "Plan",
+        "PrepSession",
+        "PlannedPortion",
+        "Kept",
+        "Name",
+        "Ingredients",
+        "NutritionPerPortion",
+        "Before",
+        "String",
+        "Equal",
+        "Unreadable",
+        "Violation",
+        "String",
+        "HardRules"
+      ],
+      "totalLines": 206,
+      "hasStructuralAnalysis": true
+    },
+    "internal/domain/plan_test.go": {
+      "filePath": "internal/domain/plan_test.go",
+      "contentHash": "6fc1c1592cdf6dee949c003da36e5570586d4f4def7c2d11b2cb6a15bbdbdf36",
+      "functions": [
+        {
+          "name": "eaten",
+          "owner": "",
+          "params": [
+            "s"
+          ],
+          "returnType": "domain.PlannedPortion",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "in",
+          "owner": "",
+          "params": [
+            "s"
+          ],
+          "returnType": "*domain.Slot",
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "TestAPrepSessionScalesItsIngredients",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "TestAPortionsNutritionScalesWithItsSize",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "TestADraftPlanThatCantBeRead",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "TestTheStructuralHardRules",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 45
+        },
+        {
+          "name": "TestSlotsAreEqualByDayAndKind",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/domain",
+          "specifiers": [
+            "domain"
+          ]
+        }
+      ],
+      "exports": [
+        "TestAPrepSessionScalesItsIngredients",
+        "TestAPortionsNutritionScalesWithItsSize",
+        "TestADraftPlanThatCantBeRead",
+        "TestTheStructuralHardRules",
+        "TestSlotsAreEqualByDayAndKind"
+      ],
+      "totalLines": 186,
+      "hasStructuralAnalysis": true
+    },
     "internal/domain/portion.go": {
       "filePath": "internal/domain/portion.go",
       "contentHash": "a35ef741eb8c28bbb744889724a9c83918ff4f71cbe6ef1a39800a6523d8d33d",
@@ -13747,9 +14411,37 @@
       "totalLines": 322,
       "hasStructuralAnalysis": true
     },
+    "internal/domain/profile.go": {
+      "filePath": "internal/domain/profile.go",
+      "contentHash": "ac96f39ab7a526348e15238b7c488399ce3c70a3f4cdc86b6d58f790b410a113",
+      "functions": [],
+      "classes": [
+        {
+          "name": "Profile",
+          "methods": [],
+          "properties": [
+            "Language",
+            "SlotTimes",
+            "Targets",
+            "MealOut",
+            "Exclusions",
+            "Allergies",
+            "Appliances"
+          ],
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "imports": [],
+      "exports": [
+        "Profile"
+      ],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    },
     "internal/domain/recipe.go": {
       "filePath": "internal/domain/recipe.go",
-      "contentHash": "144e069de8d0d529c970b8fd351803cfd18e8feb9ec894c7f14252157a8ce875",
+      "contentHash": "3e4f9ab6e08c462a7740e020337d94d0474215bb650d188b7c69f8aba5c34d66",
       "functions": [
         {
           "name": "ParseMinutes",
@@ -13787,7 +14479,18 @@
           "params": [],
           "returnType": "PortionNutrition",
           "exported": true,
-          "lineCount": 33
+          "lineCount": 6
+        },
+        {
+          "name": "perPortion",
+          "owner": "",
+          "params": [
+            "ingredients",
+            "portions"
+          ],
+          "returnType": "PortionNutrition",
+          "exported": false,
+          "lineCount": 30
         },
         {
           "name": "per",
@@ -13863,7 +14566,7 @@
         "Problems",
         "NutritionPerPortion"
       ],
-      "totalLines": 149,
+      "totalLines": 155,
       "hasStructuralAnalysis": true
     },
     "internal/domain/recipe_test.go": {
@@ -15495,16 +16198,6 @@
       "totalLines": 125,
       "hasStructuralAnalysis": true
     },
-    "internal/ingredients/web_views.templ": {
-      "filePath": "internal/ingredients/web_views.templ",
-      "contentHash": "a699f2cbafb3e3af53e3aef2f37a16a04a1b1d61c39191d0abaeebe7e84b2bce",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 504,
-      "hasStructuralAnalysis": false
-    },
     "internal/kitchen/service.go": {
       "filePath": "internal/kitchen/service.go",
       "contentHash": "59854e582aa82d51cf805abb3e55ca1caf41a3007548573b73c63fe8b54632eb",
@@ -16706,16 +17399,6 @@
       "totalLines": 76,
       "hasStructuralAnalysis": true
     },
-    "internal/kitchen/web_views.templ": {
-      "filePath": "internal/kitchen/web_views.templ",
-      "contentHash": "6c908170abc3c6174782c4c200bf947d2a0ee43c70432c6b31f5c13ba6f7f86d",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 694,
-      "hasStructuralAnalysis": false
-    },
     "internal/ledger/service.go": {
       "filePath": "internal/ledger/service.go",
       "contentHash": "f80728aa23646c07d746a0dc3f517537b9637a794b3cbb3f6a9edbef6a392113",
@@ -17074,14 +17757,19 @@
     },
     "internal/planning/service.go": {
       "filePath": "internal/planning/service.go",
-      "contentHash": "726735e8e4a3e0f74e62db4ec3327aaea23fdc38d78b91c5fdf32e8d6b379cea",
+      "contentHash": "089bc858e6cf8671e45a2acff59fcb71f236c17e22e5a13039e16311dd0f1b7f",
       "functions": [
         {
           "name": "New",
           "owner": "",
           "params": [
             "pool",
-            "profile"
+            "engine",
+            "prof",
+            "recs",
+            "ings",
+            "kit",
+            "checks"
           ],
           "returnType": "*Service",
           "exported": true,
@@ -17099,17 +17787,6 @@
           "lineCount": 7
         },
         {
-          "name": "NoCycle",
-          "owner": "Service",
-          "params": [
-            "ctx",
-            "now"
-          ],
-          "returnType": "(bool, error)",
-          "exported": true,
-          "lineCount": 4
-        },
-        {
           "name": "Refusal",
           "owner": "Service",
           "params": [
@@ -17122,7 +17799,7 @@
         },
         {
           "name": "refusal",
-          "owner": "Service",
+          "owner": "",
           "params": [
             "ctx",
             "tx",
@@ -17141,9 +17818,9 @@
             "typed",
             "now"
           ],
-          "returnType": "(map[string]domain.Problem, error)",
+          "returnType": "(id int64, problems map[string]domain.Problem, err error)",
           "exported": true,
-          "lineCount": 13
+          "lineCount": 14
         },
         {
           "name": "Drop",
@@ -17197,22 +17874,31 @@
           "name": "Service",
           "methods": [
             "Now",
-            "NoCycle",
             "Refusal",
-            "refusal",
             "Open",
             "Drop",
             "Upcoming"
           ],
           "properties": [
             "pool",
-            "profile"
+            "runs",
+            "profile",
+            "recipes",
+            "ingredients",
+            "kitchen",
+            "checks"
           ],
           "exported": true,
-          "lineCount": 4
+          "lineCount": 10
         }
       ],
       "imports": [
+        {
+          "source": "cmp",
+          "specifiers": [
+            "cmp"
+          ]
+        },
         {
           "source": "context",
           "specifiers": [
@@ -17256,9 +17942,33 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/ingredients",
+          "specifiers": [
+            "ingredients"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/kitchen",
+          "specifiers": [
+            "kitchen"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/profile",
           "specifiers": [
             "profile"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/recipes",
+          "specifiers": [
+            "recipes"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/runs",
+          "specifiers": [
+            "runs"
           ]
         }
       ],
@@ -17267,18 +17977,357 @@
         "Service",
         "New",
         "Now",
-        "NoCycle",
         "Refusal",
         "Open",
         "Drop",
         "Upcoming"
       ],
-      "totalLines": 133,
+      "totalLines": 143,
+      "hasStructuralAnalysis": true
+    },
+    "internal/planning/service_plan.go": {
+      "filePath": "internal/planning/service_plan.go",
+      "contentHash": "293bc109d85c4ca39b01971b2765fc750a00e7848b1d1faf374b512dc57ce48a",
+      "functions": [
+        {
+          "name": "StartPlanning",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id",
+            "now"
+          ],
+          "returnType": "(int64, error)",
+          "exported": true,
+          "lineCount": 47
+        },
+        {
+          "name": "unslotted",
+          "owner": "",
+          "params": [
+            "lots"
+          ],
+          "returnType": "[]domain.Portion",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "planPrompt",
+          "owner": "",
+          "params": [
+            "c",
+            "p",
+            "brief",
+            "now",
+            "library",
+            "known",
+            "k"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 67
+        },
+        {
+          "name": "describeNutrition",
+          "owner": "",
+          "params": [
+            "n",
+            "fibreFloor",
+            "sugarFloor"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "per",
+          "owner": "",
+          "params": [
+            "unit"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "listOrNone",
+          "owner": "",
+          "params": [
+            "items"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parenthesised",
+          "owner": "",
+          "params": [
+            "note"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "codes",
+          "owner": "",
+          "params": [
+            "kinds"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "brief",
+          "owner": "planBrief",
+          "params": [
+            "l",
+            "prompt"
+          ],
+          "returnType": "agent.Brief",
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "check",
+          "owner": "planBrief",
+          "params": [
+            "_",
+            "input"
+          ],
+          "returnType": "(string, error)",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "submit",
+          "owner": "planBrief",
+          "params": [
+            "_",
+            "input"
+          ],
+          "returnType": "(string, error)",
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "listViolations",
+          "owner": "",
+          "params": [
+            "vs"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "enumOf",
+          "owner": "",
+          "params": [
+            "kinds"
+          ],
+          "returnType": "[]byte",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "read",
+          "owner": "planBrief",
+          "params": [
+            "input"
+          ],
+          "returnType": "(domain.Plan, []string)",
+          "exported": false,
+          "lineCount": 61
+        },
+        {
+          "name": "PlanningOf",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id",
+            "zone"
+          ],
+          "returnType": "(Planning, error)",
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "resolve",
+          "owner": "storedProposal",
+          "params": [
+            "library",
+            "known",
+            "portions"
+          ],
+          "returnType": "*Proposal",
+          "exported": false,
+          "lineCount": 21
+        }
+      ],
+      "classes": [
+        {
+          "name": "planBrief",
+          "methods": [
+            "brief",
+            "check",
+            "submit",
+            "read"
+          ],
+          "properties": [
+            "slots",
+            "library",
+            "known",
+            "unslotted",
+            "checks",
+            "zone",
+            "leave",
+            "drafts",
+            "checked",
+            "broken",
+            "chosen"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "draft",
+          "methods": [],
+          "properties": [
+            "PrepSessions",
+            "Kept"
+          ],
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "Proposal",
+          "methods": [],
+          "properties": [
+            "Plan",
+            "Kept",
+            "Summary"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "Planning",
+          "methods": [],
+          "properties": [
+            "Proposal",
+            "Going"
+          ],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "imports": [
+        {
+          "source": "cmp",
+          "specifiers": [
+            "cmp"
+          ]
+        },
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "errors",
+          "specifiers": [
+            "errors"
+          ]
+        },
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/jackc/pgx/v5",
+          "specifiers": [
+            "v5"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/domain",
+          "specifiers": [
+            "domain"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/kitchen",
+          "specifiers": [
+            "kitchen"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/ledger",
+          "specifiers": [
+            "ledger"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/runs",
+          "specifiers": [
+            "runs"
+          ]
+        }
+      ],
+      "exports": [
+        "StartPlanning",
+        "Proposal",
+        "Planning",
+        "PlanningOf"
+      ],
+      "totalLines": 586,
       "hasStructuralAnalysis": true
     },
     "internal/planning/store.go": {
       "filePath": "internal/planning/store.go",
-      "contentHash": "adf86d050078ce7b19248d818fdfe24980be7c693a081c00107ae55227086b82",
+      "contentHash": "f7607127b619b9ea2bb2d5de68a42b88b07e31a997c14ace33a9f124015e5ec2",
       "functions": [
         {
           "name": "lockOpening",
@@ -17311,7 +18360,7 @@
             "q",
             "c"
           ],
-          "returnType": "error",
+          "returnType": "(id int64, err error)",
           "exported": false,
           "lineCount": 5
         },
@@ -17326,14 +18375,107 @@
           "returnType": "error",
           "exported": false,
           "lineCount": 4
+        },
+        {
+          "name": "planningBusy",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "except"
+          ],
+          "returnType": "(busy bool, err error)",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "saveCycleRun",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "runID",
+            "cycleID",
+            "first"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "goingRun",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id"
+          ],
+          "returnType": "(runID int64, err error)",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "saveProposal",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "runID",
+            "plan",
+            "summary"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 49
+        },
+        {
+          "name": "loadPending",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id",
+            "zone"
+          ],
+          "returnType": "(*storedProposal, error)",
+          "exported": false,
+          "lineCount": 56
         }
       ],
-      "classes": [],
+      "classes": [
+        {
+          "name": "storedProposal",
+          "methods": [],
+          "properties": [
+            "summary",
+            "sessions",
+            "kept"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "storedSession",
+          "methods": [],
+          "properties": [
+            "recipeID",
+            "ingredientID"
+          ],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
       "imports": [
         {
           "source": "context",
           "specifiers": [
             "context"
+          ]
+        },
+        {
+          "source": "errors",
+          "specifiers": [
+            "errors"
           ]
         },
         {
@@ -17359,16 +18501,30 @@
           "specifiers": [
             "domain"
           ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/runs",
+          "specifiers": [
+            "runs"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 69,
+      "totalLines": 220,
       "hasStructuralAnalysis": true
     },
     "internal/planning/web_handlers.go": {
       "filePath": "internal/planning/web_handlers.go",
-      "contentHash": "cd0c2889432d5bee48ec1865849dfb6ff22be5e58d3601771ee70d563aa3f7de",
+      "contentHash": "38a2e3c2dec92250c1f4dc5a24edf70c4f09b45687bec68e0c716015e5a6afc3",
       "functions": [
+        {
+          "name": "RunPage",
+          "owner": "Handlers",
+          "params": [],
+          "returnType": "runs.KindPage",
+          "exported": true,
+          "lineCount": 9
+        },
         {
           "name": "Show",
           "owner": "Handlers",
@@ -17377,7 +18533,39 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 9
+          "lineCount": 16
+        },
+        {
+          "name": "ShowCheck",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "check",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r",
+            "status",
+            "refusal"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "Plan",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 18
         },
         {
           "name": "ShowOpen",
@@ -17445,7 +18633,11 @@
         {
           "name": "Handlers",
           "methods": [
+            "RunPage",
             "Show",
+            "ShowCheck",
+            "check",
+            "Plan",
             "ShowOpen",
             "Open",
             "ShowDrop",
@@ -17455,18 +18647,31 @@
           ],
           "properties": [
             "Service",
+            "Kitchen",
             "Clock",
             "Log"
           ],
           "exported": true,
-          "lineCount": 5
+          "lineCount": 6
         }
       ],
       "imports": [
         {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
           "source": "errors",
           "specifiers": [
             "errors"
+          ]
+        },
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
           ]
         },
         {
@@ -17500,6 +18705,18 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/kitchen",
+          "specifiers": [
+            "kitchen"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/runs",
+          "specifiers": [
+            "runs"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/web",
           "specifiers": [
             "web"
@@ -17508,22 +18725,31 @@
       ],
       "exports": [
         "Handlers",
+        "RunPage",
         "Show",
+        "ShowCheck",
+        "Plan",
         "ShowOpen",
         "Open",
         "ShowDrop",
         "ShowDropSheet",
         "Drop"
       ],
-      "totalLines": 132,
+      "totalLines": 211,
       "hasStructuralAnalysis": true
     },
     "internal/planning/web_messages.go": {
       "filePath": "internal/planning/web_messages.go",
-      "contentHash": "ceaabc7544eea36ced857b5d4b2c822885a3c6274035e06923d6bf5ac6c4c735",
+      "contentHash": "83c67fb78b9a20b89497d07bab5e37677b9fcb769be5ed57a24c5d201c311d08",
       "functions": [],
       "classes": [],
       "imports": [
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
         {
           "source": "github.com/simopzz/dandori/internal/domain",
           "specifiers": [
@@ -17538,22 +18764,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 50,
+      "totalLines": 90,
       "hasStructuralAnalysis": true
-    },
-    "internal/planning/web_views.templ": {
-      "filePath": "internal/planning/web_views.templ",
-      "contentHash": "2859d4161ef60e1c8dfa3fde837edfe7c5b3b9c925fbc4928d87a298547b37ae",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 132,
-      "hasStructuralAnalysis": false
     },
     "internal/profile/service.go": {
       "filePath": "internal/profile/service.go",
-      "contentHash": "7bb462f550a5b265c26da5c1697348391759c5d62b7dba962e95f01c601f42bd",
+      "contentHash": "5a42708c39a30536ee217f0fedd0e71060622a13ba627e15f8def29879a1a4bd",
       "functions": [
         {
           "name": "New",
@@ -17713,6 +18929,16 @@
           "returnType": "error",
           "exported": true,
           "lineCount": 25
+        },
+        {
+          "name": "Profile",
+          "owner": "Service",
+          "params": [
+            "ctx"
+          ],
+          "returnType": "(p domain.Profile, err error)",
+          "exported": true,
+          "lineCount": 22
         }
       ],
       "classes": [
@@ -17732,7 +18958,8 @@
             "SetBrief",
             "Appliances",
             "SetAppliances",
-            "SetLanguage"
+            "SetLanguage",
+            "Profile"
           ],
           "properties": [
             "pool"
@@ -17801,14 +19028,15 @@
         "SetBrief",
         "Appliances",
         "SetAppliances",
-        "SetLanguage"
+        "SetLanguage",
+        "Profile"
       ],
-      "totalLines": 183,
+      "totalLines": 207,
       "hasStructuralAnalysis": true
     },
     "internal/profile/store.go": {
       "filePath": "internal/profile/store.go",
-      "contentHash": "001dc80283e472763712458e6fd2524bf4c34c9e95dd574172f9e73a44211272",
+      "contentHash": "7516c17ac06b02c770743e17c7b758be4024a0059b011a87fbc31f6186add736",
       "functions": [
         {
           "name": "loadLanguage",
@@ -17855,14 +19083,14 @@
           "lineCount": 3
         },
         {
-          "name": "loadTargets",
+          "name": "LoadTargets",
           "owner": "",
           "params": [
             "ctx",
             "q"
           ],
           "returnType": "(t domain.Targets, set bool, err error)",
-          "exported": false,
+          "exported": true,
           "lineCount": 10
         },
         {
@@ -18074,7 +19302,9 @@
           ]
         }
       ],
-      "exports": [],
+      "exports": [
+        "LoadTargets"
+      ],
       "totalLines": 199,
       "hasStructuralAnalysis": true
     },
@@ -18436,16 +19666,6 @@
       "totalLines": 118,
       "hasStructuralAnalysis": true
     },
-    "internal/profile/web_views.templ": {
-      "filePath": "internal/profile/web_views.templ",
-      "contentHash": "da3b8b5b24bd867c1c074c90015168643cb0da585844ee4191170a180af486e9",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 355,
-      "hasStructuralAnalysis": false
-    },
     "internal/recipes/service.go": {
       "filePath": "internal/recipes/service.go",
       "contentHash": "97b79fe8982a91fd3f6d1e12abc9d20572c2911e7c69a20dc6423bfb9b5a8c06",
@@ -18768,7 +19988,7 @@
     },
     "internal/recipes/service_draft.go": {
       "filePath": "internal/recipes/service_draft.go",
-      "contentHash": "cbcff71a089c97093bf780d7705ea56b4fb234b82ed175336460e4d502316ffa",
+      "contentHash": "711c2f100c5826b241f513c98b043577bfd3c1fb7f0f17cafcf04816b485cc9e",
       "functions": [
         {
           "name": "StartParse",
@@ -18935,7 +20155,7 @@
     },
     "internal/recipes/service_parse.go": {
       "filePath": "internal/recipes/service_parse.go",
-      "contentHash": "210802a1fb450586565c7adda74eb0a6ebcdbf076ccccfc71d84fd839ef6f493",
+      "contentHash": "ceb8d1d34304ed60c795dcd2c91b32389d554505ddd7abd3d4231adf821a7cdb",
       "functions": [
         {
           "name": "recipe",
@@ -19123,7 +20343,7 @@
     },
     "internal/recipes/store.go": {
       "filePath": "internal/recipes/store.go",
-      "contentHash": "a8485ee3fb069d9ba34df7c6e18cf95105b3be07ef7687351fcc80e4c13cb6b6",
+      "contentHash": "4a0691875b1b181ffd79db69b28ef69728769352b02403582542e35298f8d842",
       "functions": [
         {
           "name": "CountRecipes",
@@ -19403,7 +20623,7 @@
     },
     "internal/recipes/web_form.go": {
       "filePath": "internal/recipes/web_form.go",
-      "contentHash": "f65a6cee5edce30cfd8610fbf5b1bde62ab677c37a26061cfc5d096faef54f71",
+      "contentHash": "86b1cd0d401575da00cd5efd72f5c6042b1e1795c919e0ccd52f4c37761767ef",
       "functions": [
         {
           "name": "blankForm",
@@ -19715,7 +20935,7 @@
     },
     "internal/recipes/web_handlers.go": {
       "filePath": "internal/recipes/web_handlers.go",
-      "contentHash": "7d10073b317e99c7b0747b05d224b006d8cc574152f146492426fc582f244e3c",
+      "contentHash": "57abad08fe11052695813be6d27dac2300ce5f0f0e3eb5879eed1ff3440fb1d0",
       "functions": [
         {
           "name": "Library",
@@ -19862,14 +21082,22 @@
           "lineCount": 17
         },
         {
-          "name": "DraftPage",
+          "name": "RunPage",
+          "owner": "Handlers",
+          "params": [],
+          "returnType": "runs.KindPage",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "draftPage",
           "owner": "Handlers",
           "params": [
             "ctx",
             "runID"
           ],
           "returnType": "(string, error)",
-          "exported": true,
+          "exported": false,
           "lineCount": 10
         },
         {
@@ -20053,7 +21281,8 @@
             "deletion",
             "showRemoval",
             "Discard",
-            "DraftPage",
+            "RunPage",
+            "draftPage",
             "ShowList",
             "Show",
             "ShowNew",
@@ -20155,6 +21384,12 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/runs",
+          "specifiers": [
+            "runs"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/web",
           "specifiers": [
             "web"
@@ -20174,7 +21409,7 @@
         "ShowDelete",
         "ShowDeleteSheet",
         "Discard",
-        "DraftPage",
+        "RunPage",
         "ShowList",
         "Show",
         "ShowNew",
@@ -20186,12 +21421,12 @@
         "Edit",
         "Delete"
       ],
-      "totalLines": 483,
+      "totalLines": 497,
       "hasStructuralAnalysis": true
     },
     "internal/recipes/web_messages.go": {
       "filePath": "internal/recipes/web_messages.go",
-      "contentHash": "11ac047ac95cbd7f2791e9f248c5b0978fe77dfacb66b60ea6ee241d7de4bd50",
+      "contentHash": "58578529e54ea622c6d277c634d162f0af7f794ebf97cfb3d3fb5b8005008db8",
       "functions": [
         {
           "name": "fieldMessage",
@@ -20208,6 +21443,12 @@
       "classes": [],
       "imports": [
         {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/domain",
           "specifiers": [
             "domain"
@@ -20221,22 +21462,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 149,
+      "totalLines": 155,
       "hasStructuralAnalysis": true
-    },
-    "internal/recipes/web_views.templ": {
-      "filePath": "internal/recipes/web_views.templ",
-      "contentHash": "f4318bcd5471aa247bd5425ecf711ef3ee02c03ea6a701b26fad99e03f886aa5",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 504,
-      "hasStructuralAnalysis": false
     },
     "internal/runs/service_engine.go": {
       "filePath": "internal/runs/service_engine.go",
-      "contentHash": "79f941ca9ef903793b1bba8674f4679d9df538322146351b02c6e25ad45e31ef",
+      "contentHash": "4822f19f1de88284117296868522bdcbd87762dee0a473868109800d7f1618fa",
       "functions": [
         {
           "name": "New",
@@ -20283,11 +21514,12 @@
             "ctx",
             "kind",
             "asked",
-            "b"
+            "b",
+            "link"
           ],
           "returnType": "(int64, error)",
           "exported": true,
-          "lineCount": 28
+          "lineCount": 30
         },
         {
           "name": "execute",
@@ -20298,7 +21530,7 @@
             "b"
           ],
           "exported": false,
-          "lineCount": 49
+          "lineCount": 59
         },
         {
           "name": "Cancel",
@@ -20318,7 +21550,7 @@
             "ctx",
             "id"
           ],
-          "returnType": "(status Status, found bool, err error)",
+          "returnType": "(kind Kind, status Status, found bool, err error)",
           "exported": true,
           "lineCount": 7
         },
@@ -20375,6 +21607,16 @@
           "returnType": "(err error)",
           "exported": false,
           "lineCount": 13
+        },
+        {
+          "name": "Leaves",
+          "owner": "Engine",
+          "params": [
+            "ctx",
+            "store"
+          ],
+          "exported": true,
+          "lineCount": 5
         },
         {
           "name": "IDFrom",
@@ -20459,6 +21701,7 @@
             "Follow",
             "liveRun",
             "carryOut",
+            "Leaves",
             "Find"
           ],
           "properties": [
@@ -20496,13 +21739,14 @@
             "userID",
             "runID",
             "cancel",
+            "leaves",
             "mu",
             "seq",
             "subs",
             "done"
           ],
           "exported": false,
-          "lineCount": 11
+          "lineCount": 13
         }
       ],
       "imports": [
@@ -20622,11 +21866,12 @@
         "List",
         "TraceAfter",
         "Follow",
+        "Leaves",
         "IDFrom",
         "Find",
         "Emit"
       ],
-      "totalLines": 374,
+      "totalLines": 405,
       "hasStructuralAnalysis": true
     },
     "internal/runs/service_spans.go": {
@@ -20705,7 +21950,7 @@
     },
     "internal/runs/store.go": {
       "filePath": "internal/runs/store.go",
-      "contentHash": "9157015f9c5e135868ef698c345f62a4fab379c814542ab1d05d70ba9ba0e93c",
+      "contentHash": "cc8e7c473aa59da46a31e525615280299209b8722cc18e996d0fe7380d39bb2b",
       "functions": [
         {
           "name": "insertRun",
@@ -20781,7 +22026,7 @@
             "q",
             "id"
           ],
-          "returnType": "(status Status, found bool, err error)",
+          "returnType": "(kind Kind, status Status, found bool, err error)",
           "exported": false,
           "lineCount": 7
         },
@@ -20862,8 +22107,18 @@
     },
     "internal/runs/web_handlers.go": {
       "filePath": "internal/runs/web_handlers.go",
-      "contentHash": "96219ff9a616a30bc71870f6888f718f4e32514323d6d77f6714d9ef1ffbc2f0",
+      "contentHash": "0e8b76060aa980559b85a1871b3077229d44645f82b0900d905ef484f2c1820a",
       "functions": [
+        {
+          "name": "page",
+          "owner": "Handlers",
+          "params": [
+            "k"
+          ],
+          "returnType": "KindPage",
+          "exported": false,
+          "lineCount": 8
+        },
         {
           "name": "Show",
           "owner": "Handlers",
@@ -20902,7 +22157,7 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 84
+          "lineCount": 85
         },
         {
           "name": "writeSSE",
@@ -20919,21 +22174,24 @@
       ],
       "classes": [
         {
-          "name": "Kind",
+          "name": "KindPage",
           "methods": [],
           "properties": [
+            "Kind",
             "Name",
-            "AskedName",
-            "ResultName",
-            "Result",
-            "Again"
+            "AskedLabel",
+            "ResultLabel",
+            "ResultURL",
+            "TryAgainURL",
+            "Reasons"
           ],
           "exported": true,
-          "lineCount": 5
+          "lineCount": 24
         },
         {
           "name": "Handlers",
           "methods": [
+            "page",
             "Show",
             "List",
             "Cancel",
@@ -20999,6 +22257,12 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/clock",
           "specifiers": [
             "clock"
@@ -21018,19 +22282,19 @@
         }
       ],
       "exports": [
-        "Kind",
+        "KindPage",
         "Handlers",
         "Show",
         "List",
         "Cancel",
         "Stream"
       ],
-      "totalLines": 209,
+      "totalLines": 240,
       "hasStructuralAnalysis": true
     },
     "internal/runs/web_messages.go": {
       "filePath": "internal/runs/web_messages.go",
-      "contentHash": "af5293cffd06af1c40645eb1d6244b633cf3252a37623c8c166a3cc0c38feefb",
+      "contentHash": "dcd29a558c1725096c3b254975e0d514c7e593cfebe530ae22636d964ee4ce53",
       "functions": [],
       "classes": [],
       "imports": [
@@ -21048,18 +22312,8 @@
         }
       ],
       "exports": [],
-      "totalLines": 61,
+      "totalLines": 58,
       "hasStructuralAnalysis": true
-    },
-    "internal/runs/web_views.templ": {
-      "filePath": "internal/runs/web_views.templ",
-      "contentHash": "2f4efab913f9387ed4ee7c6e43f95badc769106c297e73a2d35adaa66e5bc1c3",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 255,
-      "hasStructuralAnalysis": false
     },
     "internal/telemetry/telemetry.go": {
       "filePath": "internal/telemetry/telemetry.go",
@@ -21521,7 +22775,7 @@
     },
     "internal/today/service.go": {
       "filePath": "internal/today/service.go",
-      "contentHash": "51cfa5b4a1f1fc225ed7bf5ff338d758816925440934072a6abf99ef2c6ff80f",
+      "contentHash": "3983fde9f7de7f65cb2b1b7bd39d453df78fb1da70bdd6545afb7875ccc8862d",
       "functions": [
         {
           "name": "New",
@@ -21529,7 +22783,7 @@
           "params": [
             "profile",
             "ledger",
-            "noCycle"
+            "planning"
           ],
           "returnType": "*Service",
           "exported": true,
@@ -21544,7 +22798,7 @@
           ],
           "returnType": "(Day, error)",
           "exported": true,
-          "lineCount": 15
+          "lineCount": 18
         }
       ],
       "classes": [
@@ -21556,7 +22810,7 @@
           "properties": [
             "profile",
             "ledger",
-            "noCycle"
+            "planning"
           ],
           "exported": true,
           "lineCount": 5
@@ -21601,6 +22855,12 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/planning",
+          "specifiers": [
+            "planning"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/profile",
           "specifiers": [
             "profile"
@@ -21613,7 +22873,7 @@
         "Day",
         "At"
       ],
-      "totalLines": 58,
+      "totalLines": 59,
       "hasStructuralAnalysis": true
     },
     "internal/today/web_handlers.go": {
@@ -21695,16 +22955,6 @@
       "exports": [],
       "totalLines": 34,
       "hasStructuralAnalysis": true
-    },
-    "internal/today/web_views.templ": {
-      "filePath": "internal/today/web_views.templ",
-      "contentHash": "63d0b80376303c9045bcd95f2ee27ba9cbe02bc4aa18a72bbcd93e2e5f69952e",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 65,
-      "hasStructuralAnalysis": false
     },
     "internal/web/answer.go": {
       "filePath": "internal/web/answer.go",
@@ -22087,16 +23337,6 @@
       ],
       "totalLines": 115,
       "hasStructuralAnalysis": true
-    },
-    "internal/web/components.templ": {
-      "filePath": "internal/web/components.templ",
-      "contentHash": "70c73a1b20f0b6a98e0dcd78ebea37f2ddd4c5763343383e89fbde6e045259a9",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 823,
-      "hasStructuralAnalysis": false
     },
     "internal/web/dates_test.go": {
       "filePath": "internal/web/dates_test.go",
@@ -22940,16 +24180,6 @@
       ],
       "totalLines": 432,
       "hasStructuralAnalysis": true
-    },
-    "internal/web/layout.templ": {
-      "filePath": "internal/web/layout.templ",
-      "contentHash": "eb6a2d231465b52474af4081e6f23883951e8ff951782e89b4ea231de54e260e",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 217,
-      "hasStructuralAnalysis": false
     },
     "internal/web/markdown.go": {
       "filePath": "internal/web/markdown.go",
