@@ -1,6 +1,7 @@
 package planning
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -15,12 +16,15 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// Why the app refuses opening a Cycle.
+// Why the app refuses opening, planning or deciding on a Cycle.
 const (
 	refusedCycle    httpx.Refusal = "Cycle refused"
 	refusedUpcoming httpx.Refusal = "a Cycle is already upcoming"
 	refusedTargets  httpx.Refusal = "the Targets aren't set"
 	refusedBusy     httpx.Refusal = "another planning Run is going or a Plan Proposal is pending"
+	refusedPast     httpx.Refusal = "the Plan Proposal's first Slot has passed"
+	refusedPlanned  httpx.Refusal = "the Cycle already has a Plan"
+	refusedNoneLeft httpx.Refusal = "no Slot of the Cycle is left to plan"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
@@ -47,23 +51,105 @@ func (h Handlers) RunPage() runs.KindPage {
 	}
 }
 
-// Show is the Cycle page: the upcoming Cycle with how planning it stands, or that
-// there's none.
+// Show is the Cycle page: the upcoming Cycle, or the current one when none is, with how
+// planning it stands, or that there's none.
 func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
+	h.cycle(w, r, http.StatusOK, nil)
+}
+
+// cycle answers with the Cycle page, with status, saying why a decision or planning was
+// refused, if it was, with any Planning Note posted still typed.
+func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, refusal error) {
 	ctx, now := r.Context(), h.Clock.Now()
-	_, upcoming, err := h.Service.Now(ctx, now)
+	current, upcoming, err := h.Service.Now(ctx, now)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the User's Cycles", err)
 		return
 	}
-	var p Planning
-	if upcoming != nil {
-		if p, err = h.Service.PlanningOf(ctx, upcoming.ID, now.Location()); err != nil {
+	v := cycleView{Cycle: cmp.Or(upcoming, current), Upcoming: upcoming != nil, Refusal: refusal, Note: r.PostFormValue("note")}
+	if v.Cycle != nil {
+		if v.Planning, err = h.Service.PlanningOf(ctx, v.Cycle.ID, now.Location()); err != nil {
 			httpx.ServerError(w, r, h.Log, "load how planning the Cycle stands", err)
 			return
 		}
+		if v.Planning.Failed != nil {
+			v.Failure = h.RunPage().Failure(ctx, *v.Planning.Failed)
+		}
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, cyclePage(now, upcoming, p))
+	httpx.Render(w, r, h.Log, status, cyclePage(now, v))
+}
+
+// Approve approves the Plan Proposal in the path, landing on the Cycle page and its
+// Plan, or answers with the Cycle page saying why it can't be.
+func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	err := h.Service.Approve(r.Context(), id, h.Clock.Now())
+	if err != nil {
+		h.refused(w, r, "approve a Plan Proposal", err)
+		return
+	}
+	web.Answer{Notice: web.T(r.Context(), msgApproved), RedirectTo: "/plan"}.Write(w, r, h.Log)
+}
+
+// Reject rejects the Plan Proposal in the path: with a Planning Note it lands on the
+// planning Run it starts, without one on the Cycle page. It answers with the Cycle page
+// saying why it can't.
+func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	runID, err := h.Service.Reject(r.Context(), id, r.PostFormValue("note"), h.Clock.Now())
+	switch {
+	case err != nil:
+		h.refused(w, r, "reject a Plan Proposal", err)
+	case runID != 0:
+		web.Answer{RedirectTo: fmt.Sprintf("/runs/%d", runID)}.Write(w, r, h.Log)
+	default:
+		web.Answer{Notice: web.T(r.Context(), msgRejected), RedirectTo: "/plan"}.Write(w, r, h.Log)
+	}
+}
+
+// PlanAgain starts another planning Run of the Cycle in the path, landing on it, or
+// answers with the Cycle page saying why it can't.
+func (h Handlers) PlanAgain(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	runID, err := h.Service.PlanAgain(r.Context(), id, h.Clock.Now())
+	if err != nil {
+		h.refused(w, r, "plan a Cycle again", err)
+		return
+	}
+	web.Answer{RedirectTo: fmt.Sprintf("/runs/%d", runID)}.Write(w, r, h.Log)
+}
+
+// refused answers a decision or a replan that failed with err, doing what: unknown when
+// there's nothing to decide or plan, the Cycle page saying why when a rule refused it.
+func (h Handlers) refused(w http.ResponseWriter, r *http.Request, what string, err error) {
+	var refusal httpx.Refusal
+	switch {
+	case errors.Is(err, ErrNoProposal), errors.Is(err, ErrNoCycle), errors.Is(err, ErrNoFailure):
+		http.NotFound(w, r)
+		return
+	case errors.Is(err, ErrStartsInThePast):
+		refusal = refusedPast
+	case errors.Is(err, ErrBusy):
+		refusal = refusedBusy
+	case errors.Is(err, ErrPlanned):
+		refusal = refusedPlanned
+	case errors.Is(err, ErrNothingLeft):
+		refusal = refusedNoneLeft
+	default:
+		httpx.ServerError(w, r, h.Log, what, err)
+		return
+	}
+	httpx.Refused(r, refusal, nil)
+	h.cycle(w, r, http.StatusUnprocessableEntity, err)
 }
 
 // ShowCheck is the Kitchen Check before planning the upcoming Cycle in the path.
@@ -79,7 +165,7 @@ func (h Handlers) check(w http.ResponseWriter, r *http.Request, status int, refu
 		return
 	}
 	ctx, now := r.Context(), h.Clock.Now()
-	c, err := h.Service.Upcoming(ctx, id, now)
+	c, err := h.Service.Find(ctx, id, now)
 	if errors.Is(err, ErrNoCycle) {
 		http.NotFound(w, r)
 		return
@@ -106,13 +192,11 @@ func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {
 	}
 	runID, err := h.Service.StartPlanning(r.Context(), id, h.Clock.Now())
 	switch {
-	case errors.Is(err, ErrNoCycle):
-		http.NotFound(w, r)
 	case errors.Is(err, ErrBusy):
 		httpx.Refused(r, refusedBusy, nil)
-		h.check(w, r, http.StatusConflict, err)
+		h.check(w, r, http.StatusUnprocessableEntity, err)
 	case err != nil:
-		httpx.ServerError(w, r, h.Log, "start planning the Cycle", err)
+		h.refused(w, r, "start planning the Cycle", err)
 	default:
 		web.Answer{RedirectTo: fmt.Sprintf("/runs/%d", runID)}.Write(w, r, h.Log)
 	}

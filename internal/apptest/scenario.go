@@ -660,6 +660,16 @@ func (s *Scenario) PlansCycle() {
 	s.Open(s.page.Path)
 }
 
+// Rejects rejects the pending Plan Proposal on the page open with the Planning Note
+// note, none when "", as a browser without htmx, and lands where that goes.
+func (s *Scenario) Rejects(note string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "reject")
+	form.Values.Set("note", note)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("rejects the Plan Proposal with the note %q: %d %s", note, s.page.StatusCode, s.page.Path))
+}
+
 // StartsPlanning confirms the Kitchen Check on the page open with its one button, as a
 // browser without htmx, and lands where that goes: the planning Run's page, the Run
 // going, or the Kitchen Check saying why it can't plan.

@@ -29,13 +29,25 @@ func window(ctx context.Context, d domain.Delivery) string {
 	return web.Tf(ctx, msgWindow, web.Date(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))
 }
 
-// cyclePage is the Cycle page: the upcoming Cycle, its pending Plan Proposal first, then
-// its Delivery tentative, a way to drop it, and a way to plan it or see it being planned;
-// or, with none, a way to open one.
-templ cyclePage(now time.Time, upcoming *Cycle, p Planning) {
+// cycleView is what the Cycle page shows: the Cycle, nil when there's none, upcoming or
+// current, how planning it stands, why its latest planning Run failed, if it did, why
+// a decision or planning was refused, if one was, and the Planning Note typed with it.
+type cycleView struct {
+	Cycle    *Cycle
+	Upcoming bool
+	Planning Planning
+	Failure  string
+	Refusal  error
+	Note     string
+}
+
+// cyclePage is the Cycle page: the Cycle, its pending Plan Proposal first, then its
+// Plan, then its Delivery, tentative while upcoming, a way to drop it, and a way to plan
+// it, see it being planned, or plan it again; or, with none, a way to open one.
+templ cyclePage(now time.Time, v cycleView) {
 	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
 		@web.PageHeader("献立", web.T(ctx, msgCycle), now)
-		if upcoming == nil {
+		if v.Cycle == nil {
 			<div class="section">
 				@web.Empty() {
 					{ web.T(ctx, msgNoCycle) }
@@ -47,41 +59,101 @@ templ cyclePage(now time.Time, upcoming *Cycle, p Planning) {
 				}
 			</div>
 		} else {
+			{{ c, p := *v.Cycle, v.Planning }}
+			@decisionAlert(v.Refusal)
 			{{ section := 1 }}
 			if p.Proposal != nil {
-				@proposalSection(*upcoming, *p.Proposal)
+				@proposalSection(section, c, *p.Proposal, p.Times, v.Note)
 				{{ section++ }}
 			}
-			@web.Section(section, web.T(ctx, msgUpcomingCycle)) {
+			if p.Plan != nil {
+				@web.Section(section, web.T(ctx, msgPlan)) {
+					@planDays(c, *p.Plan, p.Times)
+				}
+				{{ section++ }}
+			}
+			@web.Section(section, web.T(ctx, cycleHeading(v.Upcoming))) {
 				<dl>
 					<dt>{ web.T(ctx, msgDelivery) }</dt>
 					<dd>
-						{ window(ctx, upcoming.Delivery) + " " }
-						@web.Tag(false, "") {
-							{ web.T(ctx, msgTentative) }
+						{ window(ctx, c.Delivery) + " " }
+						if v.Upcoming {
+							@web.Tag(false, "") {
+								{ web.T(ctx, msgTentative) }
+							}
 						}
 					</dd>
 					<dt>{ web.T(ctx, msgEndDate) }</dt>
-					<dd>{ web.Date(ctx, upcoming.Ends) }</dd>
+					<dd>{ web.Date(ctx, c.Ends) }</dd>
 				</dl>
+				if p.Failed != nil && p.Going == 0 && p.Proposal == nil && p.Plan == nil {
+					@web.Alert() {
+						<p>{ web.Tf(ctx, msgFailed, v.Failure) }</p>
+						<a href={ templ.SafeURL(fmt.Sprintf("/runs/%d", p.Failed.ID)) }>{ web.T(ctx, msgSeeTrace) }</a>
+					}
+				}
 				@web.Actions() {
 					if p.Going != 0 {
 						@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/runs/%d", p.Going)}) {
 							{ web.T(ctx, msgBeingPlanned) }
 						}
-					} else if p.Proposal == nil {
-						@web.TextLink(templ.Attributes{"href": string(checkURL(upcoming.ID))}) {
-							{ web.T(ctx, msgPlanCycle) }
+					} else if p.Proposal == nil && p.Plan == nil {
+						if p.Failed != nil {
+							<form novalidate id="plan-again" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/again", c.ID)) }>
+								@web.Button(templ.Attributes{"type": "submit"}) {
+									{ web.T(ctx, msgPlanAgain) }
+								}
+							</form>
+						} else {
+							@web.TextLink(templ.Attributes{"href": string(checkURL(c.ID))}) {
+								{ web.T(ctx, msgPlanCycle) }
+							}
 						}
 					}
-					@web.RemoveLink(dropSheetID, dropURL(upcoming.ID), dropURL(upcoming.ID)+"/sheet") {
-						{ web.T(ctx, msgDropCycle) }
+					if v.Upcoming {
+						@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
+							{ web.T(ctx, msgDropCycle) }
+						}
 					}
 				}
 			}
-			@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
+			if v.Upcoming {
+				@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
+			}
 		}
 	}
+}
+
+// cycleHeading names the Cycle shown, upcoming or current.
+func cycleHeading(upcoming bool) web.Message {
+	if upcoming {
+		return msgUpcomingCycle
+	}
+	return msgCurrentCycle
+}
+
+// decisionAlert says why deciding on a Plan Proposal or planning was refused, if it was.
+templ decisionAlert(err error) {
+	if msg, ok := refusalOf(err); ok {
+		@web.Alert() {
+			<p>{ web.T(ctx, msg) }</p>
+		}
+	}
+}
+
+// refusalOf says why err refused deciding or planning, ok false when it didn't.
+func refusalOf(err error) (msg web.Message, ok bool) {
+	switch {
+	case errors.Is(err, ErrStartsInThePast):
+		return msgStartsInThePast, true
+	case errors.Is(err, ErrBusy):
+		return msgBusy, true
+	case errors.Is(err, ErrPlanned):
+		return msgPlanned, true
+	case errors.Is(err, ErrNothingLeft):
+		return msgNothingLeft, true
+	}
+	return web.Message{}, false
 }
 
 // checkURL is the Kitchen Check before planning the Cycle id.
@@ -112,26 +184,52 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 	}
 }
 
-// proposalSection is the pending Plan Proposal of c: the planner's summary, then each
-// day it plans, its Slots with the Portion filling each, and its Prep Sessions.
-templ proposalSection(c Cycle, p Proposal) {
-	@web.Section(1, web.T(ctx, msgPlanProposal)) {
+// proposalSection is the pending Plan Proposal of c, numbered num: the planner's
+// summary, its days, then approving it, or rejecting it with a Planning Note, note as
+// typed, or without.
+templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes, note string) {
+	@web.Section(num, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
-		for _, d := range days(c, p) {
-			<h3>{ web.Date(ctx, d.on) }</h3>
-			@web.Rows() {
-				for _, f := range d.filled {
-					@web.Row() {
-						<span class="row-title">{ web.Capitalised(web.T(ctx, web.SlotKindNames[f.kind])) } { f.name }</span>
-						if f.size != 0 {
-							<span class="row-figure">{ size(ctx, f.size) }</span>
-						}
+		@planDays(c, p, times)
+		<div class="stack">
+			<form novalidate id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/approve", p.ID)) }>
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgApprove) }
+					}
+				}
+			</form>
+			<form novalidate id="reject" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/reject", p.ID)) }>
+				@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgNoteHint), "") {
+					<textarea name="note" rows="3">{ note }</textarea>
+				}
+				@web.Actions() {
+					@web.TextButton(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgReject) }
+					}
+				}
+			</form>
+		</div>
+	}
+}
+
+// planDays are the days p plans of c: each one's Slots at their times with the Portion
+// filling each, and its Prep Sessions.
+templ planDays(c Cycle, p Proposal, times domain.SlotTimes) {
+	for _, d := range days(c, p) {
+		<h3>{ web.Date(ctx, d.on) }</h3>
+		@web.Rows() {
+			for _, f := range d.filled {
+				@web.Row() {
+					<span class="row-title">{ web.TimeOfDay(ctx, times[f.kind]) } { web.Capitalised(web.T(ctx, web.SlotKindNames[f.kind])) } { f.name }</span>
+					if f.size != 0 {
+						<span class="row-figure">{ size(ctx, f.size) }</span>
 					}
 				}
 			}
-			for _, ps := range d.sessions {
-				@prepSession(ps)
-			}
+		}
+		for _, ps := range d.sessions {
+			@prepSession(ps)
 		}
 	}
 }

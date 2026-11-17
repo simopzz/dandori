@@ -116,7 +116,8 @@ func TestADeliveryBeforeOrAfterAnotherCyclesEndIsAccepted(t *testing.T) {
 	s.OpensCycle(thursday)
 	s.At("Thu 20:00")
 	s.Open("/plan")
-	s.Sees("No Cycle is upcoming.")
+	s.Sees("01 Current Cycle")
+	s.DoesNotSee("Tentative")
 
 	s.OpensCycle(apptest.Cycle{Delivery: "11/10/2026", From: "6pm", To: "8pm"})
 	s.IsConfirmed("Cycle opened.")
@@ -235,7 +236,7 @@ func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 		s.Sees("Upcoming Cycle")
 		s.At(c.arrives)
 		s.Open("/plan")
-		s.Sees("No Cycle is upcoming.")
+		s.Sees("Current Cycle")
 	}
 }
 
