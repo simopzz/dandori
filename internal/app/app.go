@@ -48,6 +48,9 @@ type Config struct {
 	// Spans makes the spans of every request, query, beat, Run, call to the model and
 	// call to Supabase Auth; without it, none are made.
 	Spans trace.TracerProvider
+	// PlanChecks is how many times a planning Run may call check_plan;
+	// planning.DefaultChecks when 0.
+	PlanChecks int
 	// FaroURL is the Faro collector the pages send the browser's telemetry to; without
 	// it, they load no Faro.
 	FaroURL string
@@ -90,7 +93,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs)
 	a.kitchen = kitchen.New(pool, a.ingredients)
-	a.planning = planning.New(pool)
+	a.planning = planning.New(pool, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
 	a.today = today.New(a.profile, a.ledger, a.planning)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
@@ -142,13 +145,13 @@ func (a *App) Handler() http.Handler {
 	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
-	run := runs.Handlers{Engine: a.runs, Clock: a.clock, Log: a.log, Kinds: map[string]runs.Kind{
-		recipes.ParseKind: {
-			Name: recipes.ParseKindName, AskedName: recipes.PastedName,
-			ResultName: recipes.DraftName, Result: recs.DraftPage, Again: "/recipes/paste",
-		},
-	}}
-	plan := planning.Handlers{Service: a.planning, Clock: a.clock, Log: a.log}
+	plan := planning.Handlers{Service: a.planning, Kitchen: a.kitchen, Clock: a.clock, Log: a.log}
+	run := runs.Handlers{
+		Engine: a.runs,
+		Kinds:  []runs.KindPage{recs.RunPage(), plan.RunPage()},
+		Clock:  a.clock,
+		Log:    a.log,
+	}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
 	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
@@ -172,6 +175,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /plan/cycles/{id}/drop", signedIn(plan.ShowDrop))
 	mux.Handle("GET /plan/cycles/{id}/drop/sheet", signedIn(plan.ShowDropSheet))
 	mux.Handle("POST /plan/cycles/{id}/drop", signedIn(plan.Drop))
+	mux.Handle("GET /plan/cycles/{id}/check", signedIn(plan.ShowCheck))
+	mux.Handle("POST /plan/cycles/{id}/plan", signedIn(plan.Plan))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("POST /profile/targets", signedIn(prof.SaveTargets))

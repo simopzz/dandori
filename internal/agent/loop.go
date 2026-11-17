@@ -112,7 +112,8 @@ func (l Loop) send(ctx context.Context, req Request, tr Trace) (Response, error)
 }
 
 // runTools runs the tool calls of the model's turn, in order, and returns their results.
-// A failing tool is reported to the model, not fatal.
+// A failing tool is reported to the model, not fatal, unless it fails with a *Failure,
+// which fails the Run.
 func runTools(ctx context.Context, tools map[string]Tool, calls []Block, tr Trace) ([]Block, error) {
 	var results []Block
 	for _, call := range calls {
@@ -132,6 +133,9 @@ func runTools(ctx context.Context, tools map[string]Tool, calls []Block, tr Trac
 		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if failure, ok := errors.AsType[*Failure](err); ok { // the tool ends the Run
+			return nil, failure
 		}
 		if err != nil {
 			tr.Emit(TraceEvent{Kind: Refused, Tool: call.ToolName, Text: err.Error()})

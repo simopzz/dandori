@@ -1,6 +1,7 @@
 package recipes
 
 import (
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -32,9 +33,9 @@ var (
 	msgRead          = web.Message{En: "Read it", It: "Leggila"}
 	msgPasteRequired = web.Message{En: "Paste a recipe to read.", It: "Incolla una ricetta da leggere."}
 	msgPasteTooLong  = web.Message{En: "Paste at most %s characters; this is %s.", It: "Incolla al massimo %s caratteri; questa ne ha %s."}
-	ParseKindName    = web.Message{En: "Reading a Recipe", It: "Lettura di una Ricetta"}
-	PastedName       = web.Message{En: "Pasted recipe", It: "Ricetta incollata"}
-	DraftName        = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
+	msgParseKind     = web.Message{En: "Reading a Recipe", It: "Lettura di una Ricetta"}
+	msgPasted        = web.Message{En: "Pasted recipe", It: "Ricetta incollata"}
+	msgDraftName     = web.Message{En: "Recipe Draft", It: "Bozza di Ricetta"}
 	msgDraftTitle    = web.Message{En: "Recipe Draft · Dandori", It: "Bozza di Ricetta · Dandori"}
 	msgWhatYouPasted = web.Message{En: "What you pasted", It: "Cosa hai incollato"}
 	msgAccept        = web.Message{En: "Add to the Recipe Library", It: "Aggiungi al Ricettario"}
@@ -145,4 +146,9 @@ var quantityMessages = map[domain.Problem]web.Message{
 var rowNameMessages = map[domain.Problem]web.Message{
 	domain.Required:    {En: "Name the Ingredient.", It: "Indica l'Ingrediente."},
 	domain.ListedTwice: {En: "Already listed in this Recipe.", It: "Già presente in questa Ricetta."},
+}
+
+// parseReasons are why a parse Run fails beside the reasons every Run can.
+var parseReasons = map[agent.Reason]web.Message{
+	agent.NoResult: {En: "The model ended without a Recipe Draft.", It: "Il modello ha finito senza una Bozza di Ricetta."},
 }

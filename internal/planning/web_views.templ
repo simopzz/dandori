@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -28,9 +29,10 @@ func window(ctx context.Context, d domain.Delivery) string {
 	return web.Tf(ctx, msgWindow, web.Date(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))
 }
 
-// cyclePage is the Cycle page: the upcoming Cycle, with its Delivery tentative and a way
-// to drop it, or, with none, a way to open one.
-templ cyclePage(now time.Time, upcoming *Cycle) {
+// cyclePage is the Cycle page: the upcoming Cycle, its pending Plan Proposal first, then
+// its Delivery tentative, a way to drop it, and a way to plan it or see it being planned;
+// or, with none, a way to open one.
+templ cyclePage(now time.Time, upcoming *Cycle, p Planning) {
 	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
 		@web.PageHeader("献立", web.T(ctx, msgCycle), now)
 		if upcoming == nil {
@@ -45,7 +47,12 @@ templ cyclePage(now time.Time, upcoming *Cycle) {
 				}
 			</div>
 		} else {
-			@web.Section(1, web.T(ctx, msgUpcomingCycle)) {
+			{{ section := 1 }}
+			if p.Proposal != nil {
+				@proposalSection(*upcoming, *p.Proposal)
+				{{ section++ }}
+			}
+			@web.Section(section, web.T(ctx, msgUpcomingCycle)) {
 				<dl>
 					<dt>{ web.T(ctx, msgDelivery) }</dt>
 					<dd>
@@ -58,6 +65,15 @@ templ cyclePage(now time.Time, upcoming *Cycle) {
 					<dd>{ web.Date(ctx, upcoming.Ends) }</dd>
 				</dl>
 				@web.Actions() {
+					if p.Going != 0 {
+						@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/runs/%d", p.Going)}) {
+							{ web.T(ctx, msgBeingPlanned) }
+						}
+					} else if p.Proposal == nil {
+						@web.TextLink(templ.Attributes{"href": string(checkURL(upcoming.ID))}) {
+							{ web.T(ctx, msgPlanCycle) }
+						}
+					}
 					@web.RemoveLink(dropSheetID, dropURL(upcoming.ID), dropURL(upcoming.ID)+"/sheet") {
 						{ web.T(ctx, msgDropCycle) }
 					}
@@ -66,6 +82,156 @@ templ cyclePage(now time.Time, upcoming *Cycle) {
 			@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 		}
 	}
+}
+
+// checkURL is the Kitchen Check before planning the Cycle id.
+func checkURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/check", id)) }
+
+// checkPage is the Kitchen Check before planning c: why planning is refused, if it is,
+// what the kitchen holds today with a Count for each, and one button that confirms it
+// and starts planning.
+templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error) {
+	@web.Layout(web.T(ctx, msgCheckTitle), web.PlanTab) {
+		@web.PageHeader("献立", web.T(ctx, msgKitchenCheck), now) {
+			<p class="lede">{ web.Tf(ctx, msgCheckHint, web.Date(ctx, c.Delivery.On)) }</p>
+		}
+		if errors.Is(refusal, ErrBusy) {
+			@web.Alert() {
+				<p>{ web.T(ctx, msgBusy) }</p>
+				<a href="/plan">{ web.T(ctx, msgSeeCycle) }</a>
+			}
+		}
+		@kitchen.Check(now, contents)
+		<form novalidate id="plan-cycle" class="section" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/plan", c.ID)) }>
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					{ web.T(ctx, msgConfirmAndPlan) }
+				}
+			}
+		</form>
+	}
+}
+
+// proposalSection is the pending Plan Proposal of c: the planner's summary, then each
+// day it plans, its Slots with the Portion filling each, and its Prep Sessions.
+templ proposalSection(c Cycle, p Proposal) {
+	@web.Section(1, web.T(ctx, msgPlanProposal)) {
+		@web.Markdown(p.Summary)
+		for _, d := range days(c, p) {
+			<h3>{ web.Date(ctx, d.on) }</h3>
+			@web.Rows() {
+				for _, f := range d.filled {
+					@web.Row() {
+						<span class="row-title">{ web.Capitalised(web.T(ctx, web.SlotKindNames[f.kind])) } { f.name }</span>
+						if f.size != 0 {
+							<span class="row-figure">{ size(ctx, f.size) }</span>
+						}
+					}
+				}
+			}
+			for _, ps := range d.sessions {
+				@prepSession(ps)
+			}
+		}
+	}
+}
+
+// prepSession is ps: how many Portions at what size, its minutes, its Ingredients scaled,
+// and where each Portion goes.
+templ prepSession(ps domain.PrepSession) {
+	<div class="stack">
+		<h3>{ portionsOf(ctx, ps) }</h3>
+		if ps.Recipe != nil {
+			<p>{ web.Tf(ctx, msgMinutes, ps.Recipe.ActiveMinutes, ps.Recipe.TotalMinutes) }</p>
+		}
+		@web.Rows() {
+			for _, ri := range ps.Ingredients() {
+				@web.Row() {
+					<span class="row-title">{ ri.Ingredient.Name }</span>
+					<span class="row-figure">{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
+				}
+			}
+		}
+		@web.Rows() {
+			for _, pp := range ps.Portions {
+				@web.Row() {
+					<span class="row-title">{ eatenAt(ctx, pp.EatAt) }</span>
+					<span class="row-meta">{ web.Capitalised(web.T(ctx, web.InLocations[pp.Location])) }</span>
+				}
+			}
+		}
+	</div>
+}
+
+// size is a Portion size as the Language writes it: "1.25×".
+func size(ctx context.Context, s float64) string { return web.Tf(ctx, msgSize, web.Number(ctx, s)) }
+
+// portionsOf is ps's name with how many Portions it yields, and their size for a Recipe.
+func portionsOf(ctx context.Context, ps domain.PrepSession) string {
+	n := len(ps.Portions)
+	switch {
+	case ps.Recipe == nil && n == 1:
+		return web.Tf(ctx, msgOnePortion, ps.Name())
+	case ps.Recipe == nil:
+		return web.Tf(ctx, msgPortions, ps.Name(), n)
+	case n == 1:
+		return web.Tf(ctx, msgOnePortionAt, ps.Name(), size(ctx, ps.Size))
+	}
+	return web.Tf(ctx, msgPortionsAt, ps.Name(), n, size(ctx, ps.Size))
+}
+
+// eatenAt is the Slot a Portion is eaten at, or that it has none.
+func eatenAt(ctx context.Context, s *domain.Slot) string {
+	if s == nil {
+		return web.T(ctx, msgNoSlot)
+	}
+	return web.Tf(ctx, msgSlotOn, web.Capitalised(web.T(ctx, web.SlotKindNames[s.Kind])), web.Date(ctx, s.On))
+}
+
+// filledSlot is a Slot of a Plan Proposal with the Portion filling it: its name, and its
+// size when a Prep Session of a Recipe yields it.
+type filledSlot struct {
+	kind domain.SlotKind
+	name string
+	size float64
+}
+
+// planDay is one day of a Plan Proposal: its Slots filled, and its Prep Sessions.
+type planDay struct {
+	on       time.Time
+	filled   []filledSlot
+	sessions []domain.PrepSession
+}
+
+// days are the days of c that p fills a Slot or prepares food on, in order, each's Slots
+// in the order of the day.
+func days(c Cycle, p Proposal) []planDay {
+	var out []planDay
+	for on := c.Delivery.On; !on.After(c.Ends); on = on.AddDate(0, 0, 1) {
+		d := planDay{on: on}
+		for _, k := range domain.SlotKinds {
+			at := domain.Slot{On: on, Kind: k}
+			for _, ps := range p.Plan.PrepSessions {
+				for _, pp := range ps.Portions {
+					if pp.EatAt != nil && pp.EatAt.Equal(at) {
+						d.filled = append(d.filled, filledSlot{kind: k, name: ps.Name(), size: ps.Size})
+					}
+				}
+				if ps.At.Equal(at) {
+					d.sessions = append(d.sessions, ps)
+				}
+			}
+			for _, kept := range p.Plan.Kept {
+				if kept.At.Equal(at) {
+					d.filled = append(d.filled, filledSlot{kind: k, name: p.Kept[kept.Portion].Name})
+				}
+			}
+		}
+		if len(d.filled) > 0 || len(d.sessions) > 0 {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // openPage is the form opening a Cycle, f: why it is refused as a whole first, if it is,

@@ -108,10 +108,16 @@ func (r Recipe) NutritionPerPortion() PortionNutrition {
 	if r.Portions < 1 {
 		return PortionNutrition{}
 	}
-	perPortion := func(value func(Nutrition) Amount) (Amount, bool) {
+	return perPortion(r.Ingredients, float64(r.Portions))
+}
+
+// perPortion is ingredients' nutritional values divided over portions, which needn't be
+// whole, each rounded to a whole number, a floor rounded down.
+func perPortion(ingredients []RecipeIngredient, portions float64) PortionNutrition {
+	amount := func(value func(Nutrition) Amount) (Amount, bool) {
 		var total float64
 		var known, unknown bool
-		for _, ri := range r.Ingredients {
+		for _, ri := range ingredients {
 			a := value(ri.Ingredient.Nutrition)
 			if !a.Known {
 				unknown = true
@@ -124,17 +130,17 @@ func (r Recipe) NutritionPerPortion() PortionNutrition {
 			return Unknown, false
 		}
 		if unknown {
-			return Known(math.Floor(total / float64(r.Portions))), true // rounded up, it would claim more than is known
+			return Known(math.Floor(total / portions)), true // rounded up, it would claim more than is known
 		}
-		return Known(math.Round(total / float64(r.Portions))), false
+		return Known(math.Round(total / portions)), false
 	}
 	var n PortionNutrition
-	n.Kcal, _ = perPortion(func(n Nutrition) Amount { return n.Kcal })
-	n.Protein, _ = perPortion(func(n Nutrition) Amount { return n.Protein })
-	n.Carbs, _ = perPortion(func(n Nutrition) Amount { return n.Carbs })
-	n.Fat, _ = perPortion(func(n Nutrition) Amount { return n.Fat })
-	n.Fibre, n.FibreFloor = perPortion(func(n Nutrition) Amount { return n.Fibre })
-	n.Sugar, n.SugarFloor = perPortion(func(n Nutrition) Amount { return n.Sugar })
+	n.Kcal, _ = amount(func(n Nutrition) Amount { return n.Kcal })
+	n.Protein, _ = amount(func(n Nutrition) Amount { return n.Protein })
+	n.Carbs, _ = amount(func(n Nutrition) Amount { return n.Carbs })
+	n.Fat, _ = amount(func(n Nutrition) Amount { return n.Fat })
+	n.Fibre, n.FibreFloor = amount(func(n Nutrition) Amount { return n.Fibre })
+	n.Sugar, n.SugarFloor = amount(func(n Nutrition) Amount { return n.Sugar })
 	return n
 }
 

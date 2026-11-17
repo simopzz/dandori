@@ -36,9 +36,7 @@ templ page(now time.Time, contents Contents, f CountForm) {
 				@ingredients.SheetLink()
 			</p>
 		}
-		<div id={ contentsID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body, " + ingredients.Saved + " from:body" }>
-			@contentsList(now, contents)
-		</div>
+		@liveContents(now, contents)
 		@web.AddButton([]web.AddChoice{
 			{Sheet: countSheetID, Title: web.T(ctx, msgCount), Icon: "tally"},
 			{Sheet: portionsSheetID, Title: web.T(ctx, msgAddPortions), Icon: "bowl", Href: "/kitchen/portions", Src: "/kitchen/portions/sheet"},
@@ -64,6 +62,23 @@ templ page(now time.Time, contents Contents, f CountForm) {
 		}
 		@ingredients.Sheet()
 	}
+}
+
+// liveContents is what the kitchen holds, listed again after each write to the Kitchen
+// Ledger or the Ingredients.
+templ liveContents(now time.Time, contents Contents) {
+	<div id={ contentsID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body, " + ingredients.Saved + " from:body" }>
+		@contentsList(now, contents)
+	</div>
+}
+
+// Check is what the kitchen holds as the Kitchen page lists it, each with its Count, for
+// the Kitchen Check, with the sheets its links open.
+templ Check(now time.Time, contents Contents) {
+	@liveContents(now, contents)
+	@web.SideSheet(countSheetID, web.T(ctx, msgCount))
+	@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
+	@web.SideSheet(moveSheetID, web.T(ctx, msgMove))
 }
 
 // countPage is the Count form as a page of its own, for a browser without htmx: the

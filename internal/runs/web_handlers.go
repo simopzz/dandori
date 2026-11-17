@@ -10,27 +10,57 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// Kind is what a Run's page tells of its kind of Run: its name, the name of what the User
-// gives a Run of it, and the page of what it left them, named ResultName, or "" for none.
-// Again, if set, is where a failed Run's "Try again" posts what it was asked, as text.
-type Kind struct {
-	Name, AskedName, ResultName web.Message
-	Result                      func(ctx context.Context, runID int64) (string, error)
-	Again                       string
+// KindPage is what the Runs pages tell of one kind of Run. Each feature that starts a
+// kind of Run builds its own.
+type KindPage struct {
+	// Kind is the kind of Run this tells of, as the feature starts it.
+	Kind Kind
+	// Name names a Run of the kind on the Runs page and as its page's title, such as
+	// "Reading a Recipe".
+	Name web.Message
+	// AskedLabel labels the fold on a Run's page holding what the Run was asked, such as
+	// "Pasted recipe" over the recipe text. Without one, the page shows no such fold.
+	AskedLabel web.Message
+	// ResultLabel is the text of the link from a succeeded Run's page to what it left,
+	// such as "Recipe Draft".
+	ResultLabel web.Message
+	// ResultURL is where what the Run runID left is, or "" if it left nothing: the
+	// ResultLabel link goes there, and so does the page of a Run that has just
+	// succeeded. Without one, a Run's page links to nothing.
+	ResultURL func(ctx context.Context, runID int64) (string, error)
+	// TryAgainURL is where a failed Run's "Try again" button posts what the Run was
+	// asked, as the form field text, to start another. Without one, there is no button.
+	TryAgainURL string
+	// Reasons are why a Run of the kind fails, as its Trace tells it, beside the reasons
+	// every Run can fail for, such as agent.NoResult: the model ended without what the
+	// Run is for. A %s in one is what the failure said more, verbatim.
+	Reasons map[agent.Reason]web.Message
 }
 
 // Handlers serve the Runs page, a Run's page and its live Trace, and cancel a Run.
 type Handlers struct {
 	Engine *Engine
-	// Kinds are the kinds of Run, by the name they are started with.
-	Kinds map[string]Kind
+	// Kinds are what the pages tell of each kind of Run.
+	Kinds []KindPage
 	Clock clock.Clock
 	Log   *slog.Logger
+}
+
+// page is what the pages tell of the kind of Run k: nothing, for a kind no feature
+// tells of.
+func (h Handlers) page(k Kind) KindPage {
+	for _, p := range h.Kinds {
+		if p.Kind == k {
+			return p
+		}
+	}
+	return KindPage{}
 }
 
 // Show is the signed-in User's Run and its Trace so far.
@@ -49,11 +79,11 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	kind := h.Kinds[run.Kind]
+	kind := h.page(run.Kind)
 	var res result
-	if kind.Result != nil && run.Status == Succeeded {
-		res.Text = web.T(ctx, kind.ResultName)
-		if res.Href, err = kind.Result(ctx, id); err != nil {
+	if kind.ResultURL != nil && run.Status == Succeeded {
+		res.Text = web.T(ctx, kind.ResultLabel)
+		if res.Href, err = kind.ResultURL(ctx, id); err != nil {
 			httpx.ServerError(w, r, h.Log, "find what the Run left", err)
 			return
 		}
@@ -65,9 +95,9 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	again := ""
 	if run.Status == Failed {
-		again = kind.Again
+		again = kind.TryAgainURL
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, web.T(ctx, kind.Name), web.T(ctx, kind.AskedName), res, again))
+	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, kind, res, again))
 }
 
 // List is the signed-in User's Runs, newest first.
@@ -77,9 +107,9 @@ func (h Handlers) List(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "list the Runs", err)
 		return
 	}
-	names := map[string]web.Message{}
-	for name, k := range h.Kinds {
-		names[name] = k.Name
+	names := map[Kind]web.Message{}
+	for _, k := range h.Kinds {
+		names[k.Kind] = k.Name
 	}
 	httpx.Render(w, r, h.Log, http.StatusOK, runsPage(h.Clock.Now(), list, names))
 }
@@ -113,11 +143,12 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	_, found, err := h.Engine.Status(ctx, id)
+	k, _, found, err := h.Engine.Status(ctx, id)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "load the Run", err)
 		return
 	}
+	kind := h.page(k)
 	if !found {
 		http.NotFound(w, r)
 		return
@@ -141,7 +172,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 		var b bytes.Buffer
-		if err := traceEvent(ev, zone).Render(ctx, &b); err != nil {
+		if err := traceEvent(ev, zone, kind).Render(ctx, &b); err != nil {
 			h.Log.ErrorContext(ctx, "render a Trace Event", "err", err)
 			return false
 		}
@@ -182,7 +213,7 @@ func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	status, _, err := h.Engine.Status(ctx, id)
+	_, status, _, err := h.Engine.Status(ctx, id)
 	if err != nil || status == Going {
 		// It fell behind, or nothing here is running it: hang up without an end, and the
 		// browser reconnects.

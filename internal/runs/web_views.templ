@@ -16,7 +16,7 @@ import (
 // Run is one of the User's Runs with its Trace.
 type Run struct {
 	ID     int64
-	Kind   string
+	Kind   Kind
 	Status Status
 	// Asked is what the Run was asked, such as the pasted recipe: on the Runs page, its
 	// first line only.
@@ -48,7 +48,7 @@ func (r Run) lastSeq() int {
 }
 
 // runsPage lists the User's Runs, newest first, kinds naming each kind.
-templ runsPage(now time.Time, list []Run, kinds map[string]web.Message) {
+templ runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, web.T(ctx, msgRuns)), web.RunsTab) {
 		@web.PageHeader("実行", web.T(ctx, msgRuns), now)
 		<div class="section">
@@ -95,7 +95,8 @@ func headline(line string) string {
 // it and appends its Trace Events as they stream in; once it ends, it fetches itself
 // again into the body, which goes on to what the Run left. Without JavaScript, a link
 // opens it again further along.
-templ runPage(now time.Time, r Run, kind, askedName string, res result, again string) {
+templ runPage(now time.Time, r Run, k KindPage, res result, again string) {
+	{{ kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedLabel) }}
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RunsTab) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">
@@ -162,7 +163,7 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 					}
 				>
 					for _, ev := range r.Trace {
-						@traceEvent(ev, now.Location())
+						@traceEvent(ev, now.Location(), k)
 					}
 				</ol>
 			</div>
@@ -173,10 +174,10 @@ templ runPage(now time.Time, r Run, kind, askedName string, res result, again st
 // traceEvent is one Trace Event, a line of when and its fixed line in the User's
 // Language, folding its data: what the model was sent or what it or a tool said,
 // verbatim, under the model's or the tool's name.
-templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
+templ traceEvent(ev StoredTraceEvent, zone *time.Location, k KindPage) {
 	{{ d := detail(ctx, ev.TraceEvent) }}
 	<li class={ "trace-event", "trace-" + string(ev.Kind) }>
-		@web.Fold(traceLine(ev, zone), d != "") {
+		@web.Fold(traceLine(ev, zone, k), d != "") {
 			if ev.Kind == agent.Said {
 				@web.Markdown(ev.Text)
 			} else {
@@ -186,9 +187,9 @@ templ traceEvent(ev StoredTraceEvent, zone *time.Location) {
 	</li>
 }
 
-templ traceLine(ev StoredTraceEvent, zone *time.Location) {
+templ traceLine(ev StoredTraceEvent, zone *time.Location, k KindPage) {
 	<time datetime={ ev.At.Format(time.RFC3339) }>{ web.Time(ctx, ev.At.In(zone)) }</time>
-	<span class="trace-kind">{ line(ctx, ev.TraceEvent) }</span>
+	<span class="trace-kind">{ line(ctx, ev.TraceEvent, k) }</span>
 }
 
 templ label(text string) {
@@ -219,8 +220,8 @@ func detail(ctx context.Context, ev agent.TraceEvent) string {
 	return text
 }
 
-// line is ev's fixed line in the Language of ctx.
-func line(ctx context.Context, ev agent.TraceEvent) string {
+// line is ev's fixed line in the Language of ctx, in a Run of kind k.
+func line(ctx context.Context, ev agent.TraceEvent, k KindPage) string {
 	switch ev.Kind {
 	case agent.Started:
 		return web.T(ctx, msgStartedRun)
@@ -239,9 +240,13 @@ func line(ctx context.Context, ev agent.TraceEvent) string {
 	case agent.Tokens:
 		return web.Tf(ctx, msgUsed, ev.Usage.Input+ev.Usage.Output)
 	case agent.Failed:
-		reason := web.T(ctx, reasonNames[ev.Reason])
+		msg, ok := k.Reasons[ev.Reason]
+		if !ok {
+			msg = reasonNames[ev.Reason]
+		}
+		reason := web.T(ctx, msg)
 		if strings.Contains(reason, "%s") {
-			return web.Tf(ctx, reasonNames[ev.Reason], ev.Text)
+			return web.Tf(ctx, msg, ev.Text)
 		}
 		if ev.Text != "" { // a detail that is not always there, such as why the model refused
 			return reason + " " + ev.Text

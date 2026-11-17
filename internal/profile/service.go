@@ -180,3 +180,27 @@ func (s *Service) SetLanguage(ctx context.Context, l domain.Language) error {
 		return saveLanguage(ctx, tx, l)
 	})
 }
+
+// Profile is the signed-in User's Profile, read at once.
+func (s *Service) Profile(ctx context.Context) (p domain.Profile, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		if p.Language, _, err = loadLanguage(ctx, tx); err != nil {
+			return err
+		}
+		if p.SlotTimes, err = loadSlotTimes(ctx, tx); err != nil {
+			return err
+		}
+		if p.Targets, _, err = LoadTargets(ctx, tx); err != nil {
+			return err
+		}
+		if p.MealOut, err = loadMealOut(ctx, tx); err != nil {
+			return err
+		}
+		if p.Exclusions, p.Allergies, err = loadFoods(ctx, tx); err != nil {
+			return err
+		}
+		p.Appliances, err = loadAppliances(ctx, tx)
+		return err
+	})
+	return p, err
+}

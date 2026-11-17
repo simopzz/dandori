@@ -1,6 +1,7 @@
 package planning
 
 import (
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -39,6 +40,45 @@ var (
 	msgDrop         = web.Message{En: "Drop", It: "Elimina"}
 	msgDropped      = web.Message{En: "Cycle dropped.", It: "Ciclo annullato."}
 )
+
+// The Kitchen Check's Messages, the planning Run's and the Plan Proposal's.
+var (
+	msgPlanCycle    = web.Message{En: "Plan the Cycle", It: "Pianifica il Ciclo"}
+	msgBeingPlanned = web.Message{En: "Being planned: see its Trace", It: "In pianificazione: vedi la Traccia"}
+	msgKitchenCheck = web.Message{En: "Kitchen Check", It: "Controllo della cucina"}
+	msgCheckTitle   = web.Message{En: "Kitchen Check · Dandori", It: "Controllo della cucina · Dandori"}
+	msgCheckHint    = web.Message{
+		En: "The Cycle of the Delivery on %s is planned from what the kitchen holds now. Count what has drifted, then plan.",
+		It: "Il Ciclo della Consegna di %s è pianificato da ciò che la cucina contiene ora. Conta ciò che è cambiato, poi pianifica.",
+	}
+	msgConfirmAndPlan = web.Message{En: "Confirm the kitchen and plan", It: "Conferma la cucina e pianifica"}
+	msgBusy           = web.Message{
+		En: "Another planning Run is going, or a Plan Proposal is waiting for you. Plan once it is decided.",
+		It: "C'è già un Run di pianificazione in corso, o una Proposta di Piano che ti aspetta. Pianifica quando sarà decisa.",
+	}
+	msgSeeCycle     = web.Message{En: "See the Cycle", It: "Vedi il Ciclo"}
+	msgPlanProposal = web.Message{En: "Plan Proposal", It: "Proposta di Piano"}
+	msgPortions     = web.Message{En: "%s: %d Portions", It: "%s: %d Porzioni"}
+	msgOnePortion   = web.Message{En: "%s: 1 Portion", It: "%s: 1 Porzione"}
+	msgPortionsAt   = web.Message{En: "%s: %d Portions at %s", It: "%s: %d Porzioni a %s"}
+	msgOnePortionAt = web.Message{En: "%s: 1 Portion at %s", It: "%s: 1 Porzione a %s"}
+	msgSize         = web.Message{En: "%s×", It: "%s×"}
+	msgSlotOn       = web.Message{En: "%s on %s", It: "%s di %s"}
+	msgMinutes      = web.Message{En: "%d active of %d minutes", It: "%d attivi su %d minuti"}
+	msgNoSlot       = web.Message{En: "No Slot", It: "Nessun Pasto"}
+
+	msgPlanningKind = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
+)
+
+// planningReasons are why a planning Run fails beside the reasons every Run can; %s is
+// what was said more, verbatim.
+var planningReasons = map[agent.Reason]web.Message{
+	agent.NoResult: {En: "The model ended without a Plan Proposal.", It: "Il modello ha finito senza una Proposta di Piano."},
+	brokeHardRules: {
+		En: "The planner submitted three Plans breaking hard rules:\n%s",
+		It: "Il pianificatore ha proposto tre Piani che violano regole rigide:\n%s",
+	},
+}
 
 // cycleProblems say why a field of opening a Cycle is refused, in its own words.
 var cycleProblems = map[domain.Problem]web.Message{

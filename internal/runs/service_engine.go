@@ -38,6 +38,10 @@ type Config struct {
 	MaxTurns int
 }
 
+// Kind is a kind of Run, such as reading a pasted recipe: what it is started as, and
+// stored with.
+type Kind string
+
 // Status is where a Run is: going until it succeeds, fails or is cancelled.
 type Status string
 
@@ -108,16 +112,20 @@ func (e *Engine) Wait() { e.wg.Wait() }
 
 // Start records a new Run of kind for the signed-in User, asked asked, and carries out b
 // in the background as that User. The tools of b find the Run's id with IDFrom. The Run
-// is a span under ctx's, though it outlives it.
-func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (int64, error) {
+// is a span under ctx's, though it outlives it. link, if set, runs in the transaction
+// recording the Run, given its id, so what it records commits with the Run: an error
+// from it records and starts nothing.
+func (e *Engine) Start(ctx context.Context, kind Kind, asked string, b agent.Brief, link func(tx pgx.Tx, id int64) error) (int64, error) {
 	userID, ok := db.UserID(ctx)
 	if !ok {
 		return 0, errors.New("runs.Start: no signed-in User")
 	}
 	var id int64
 	err := db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		id, err = insertRun(ctx, tx, kind, asked, e.clock.Now())
-		return err
+		if id, err = insertRun(ctx, tx, kind, asked, e.clock.Now()); err != nil || link == nil {
+			return err
+		}
+		return link(tx, id)
 	})
 	if err != nil {
 		return 0, err
@@ -127,8 +135,8 @@ func (e *Engine) Start(ctx context.Context, kind, asked string, b agent.Brief) (
 	if e.ctx.Err() != nil {
 		return 0, errors.New("Dandori is shutting down") //nolint:staticcheck // the product's name
 	}
-	_, span := e.tracer.Start(ctx, "run "+kind, oteltrace.WithAttributes(
-		telemetry.RunID.Int64(id), telemetry.RunKind.String(kind), telemetry.UserID.String(userID)))
+	_, span := e.tracer.Start(ctx, "run "+string(kind), oteltrace.WithAttributes(
+		telemetry.RunID.Int64(id), telemetry.RunKind.String(string(kind)), telemetry.UserID.String(userID)))
 	runCtx := oteltrace.ContextWithSpan(context.WithValue(db.WithUser(e.ctx, userID), idKey{}, id), span)
 	runCtx, cancelRun := context.WithCancel(runCtx)
 	tr := &trace{e: e, userID: userID, runID: id, cancel: cancelRun, subs: map[chan StoredTraceEvent]struct{}{}, done: make(chan struct{})}
@@ -166,9 +174,19 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 	defer cancel()
 	var stored bool
 	err = db.AsUser(storeCtx, e.pool, func(tx pgx.Tx) (err error) {
-		stored, err = setStatus(storeCtx, tx, tr.runID, status, e.clock.Now())
-		return err
+		if stored, err = setStatus(storeCtx, tx, tr.runID, status, e.clock.Now()); err != nil || !stored || status != Succeeded || tr.leaves == nil {
+			return err
+		}
+		return tr.leaves(storeCtx, tx)
 	})
+	if err != nil && status == Succeeded && tr.leaves != nil { // what it left can't be stored: it fails
+		status, reason = Failed, agent.Crashed
+		tr.Emit(agent.TraceEvent{Kind: agent.Failed, Reason: reason, Text: err.Error()})
+		err = db.AsUser(storeCtx, e.pool, func(tx pgx.Tx) (err error) {
+			stored, err = setStatus(storeCtx, tx, tr.runID, status, e.clock.Now())
+			return err
+		})
+	}
 	if err != nil {
 		e.log.Error("store the Run's status", "run", tr.runID, "err", err)
 	} else if !stored { // the User cancelled it as it ended, and that was stored first
@@ -195,7 +213,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	var cancelled bool
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		if _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
+		if _, _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
 			return err
 		}
 		cancelled, err = setStatus(ctx, tx, id, Cancelled, e.clock.Now())
@@ -219,13 +237,14 @@ func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 // cancelWait bounds how long Cancel waits for a cancelled Run to record its end.
 const cancelWait = 2 * time.Second
 
-// Status is the status of the signed-in User's Run id, found false when they have none.
-func (e *Engine) Status(ctx context.Context, id int64) (status Status, found bool, err error) {
+// Status is the kind and status of the signed-in User's Run id, found false when they
+// have none.
+func (e *Engine) Status(ctx context.Context, id int64) (kind Kind, status Status, found bool, err error) {
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
-		status, found, err = loadStatus(ctx, tx, id)
+		kind, status, found, err = loadStatus(ctx, tx, id)
 		return err
 	})
-	return status, found, err
+	return kind, status, found, err
 }
 
 // List is the signed-in User's Runs, newest first, without their Traces.
@@ -279,6 +298,16 @@ func (e *Engine) carryOut(ctx context.Context, tr agent.Trace, b agent.Brief) (e
 	return loop.Run(ctx, b, tr)
 }
 
+// Leaves has the Run ctx is running in, as its Brief's tools or Ended find it, store
+// what it leaves with store, in the transaction storing it succeeded: what it leaves
+// commits only with its success, never with a Run the User cancelled as it ended. An
+// error from store fails the Run.
+func (e *Engine) Leaves(ctx context.Context, store func(ctx context.Context, tx pgx.Tx) error) {
+	if tr := e.liveRun(IDFrom(ctx)); tr != nil {
+		tr.leaves = store // set and read only in the Run's own goroutine
+	}
+}
+
 // idKey carries the id of the Run a Brief's tools are running in.
 type idKey struct{}
 
@@ -304,6 +333,8 @@ type trace struct {
 	userID string
 	runID  int64
 	cancel context.CancelFunc
+	// leaves stores what the Run leaves as it is stored succeeded; see Engine.Leaves.
+	leaves func(ctx context.Context, tx pgx.Tx) error
 
 	mu   sync.Mutex
 	seq  int
