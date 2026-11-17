@@ -202,13 +202,13 @@ templ targetsForm(f TargetsForm) {
 			}
 		}
 		@web.FieldRow() {
-			@targetField(msgKcal, msgKcalHint, domain.TargetKcal, f)
+			@targetField(msgKcal, msgKcalHint, string(domain.TargetKcal), f)
 			@targetField(msgTolerance, msgToleranceHint, domain.TargetTolerance, f)
 		}
 		@web.FieldRow() {
-			@targetField(msgProtein, msgFloorHint, domain.TargetProtein, f)
-			@targetField(msgFibre, msgFloorHint, domain.TargetFibre, f)
-			@targetField(msgSugar, msgCeilingHint, domain.TargetSugar, f)
+			@targetField(msgProtein, msgFloorHint, string(domain.TargetProtein), f)
+			@targetField(msgFibre, msgFloorHint, string(domain.TargetFibre), f)
+			@targetField(msgSugar, msgCeilingHint, string(domain.TargetSugar), f)
 		}
 		@web.Hint() {
 			{ web.T(ctx, msgCarbsAndFat) }

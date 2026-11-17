@@ -68,43 +68,43 @@ func TestADaysNutritionIsTheSumOfItsPortions(t *testing.T) {
 	}
 }
 
-// A value stands against its Target as shown, rounded to whole: calories within the
-// tolerance either side, protein and fibre floors, sugar a ceiling. One known only to be
-// at least so much is met only when that is already enough, missed only when that is
-// already too much, and unsure otherwise, as an unknown one is.
+// A value misses its Target as shown, rounded to whole: calories outside the tolerance
+// either side, protein and fibre under their floors, sugar over its ceiling. One known
+// only to be at least so much misses only when that is already too much; an unknown one
+// never does.
 func TestAValueAgainstItsTarget(t *testing.T) {
 	tests := []struct {
 		name   string
-		target string
+		target domain.Target
 		n      domain.PortionNutrition
-		want   domain.Verdict
+		want   bool
 	}{
-		{"calories within the tolerance", domain.TargetKcal, values(2200, 0, nil, nil, false, false), domain.Met},
-		{"calories over it", domain.TargetKcal, values(2201, 0, nil, nil, false, false), domain.Missed},
-		{"calories under it", domain.TargetKcal, values(1799, 0, nil, nil, false, false), domain.Missed},
-		{"calories rounded to the edge", domain.TargetKcal, values(1799.5, 0, nil, nil, false, false), domain.Met},
-		{"protein at its floor", domain.TargetProtein, values(0, 100, nil, nil, false, false), domain.Met},
-		{"protein under it", domain.TargetProtein, values(0, 99, nil, nil, false, false), domain.Missed},
-		{"fibre unknown", domain.TargetFibre, values(0, 0, nil, nil, false, false), domain.Unsure},
-		{"fibre at least enough", domain.TargetFibre, values(0, 0, g(30), nil, true, false), domain.Met},
-		{"fibre at least too little", domain.TargetFibre, values(0, 0, g(20), nil, true, false), domain.Unsure},
-		{"fibre too little", domain.TargetFibre, values(0, 0, g(20), nil, false, false), domain.Missed},
-		{"sugar at its ceiling", domain.TargetSugar, values(0, 0, nil, g(50), false, false), domain.Met},
-		{"sugar at least too much", domain.TargetSugar, values(0, 0, nil, g(51), false, true), domain.Missed},
-		{"sugar at least under it", domain.TargetSugar, values(0, 0, nil, g(40), false, true), domain.Unsure},
+		{"calories within the tolerance", domain.TargetKcal, values(2200, 0, nil, nil, false, false), false},
+		{"calories over it", domain.TargetKcal, values(2201, 0, nil, nil, false, false), true},
+		{"calories under it", domain.TargetKcal, values(1799, 0, nil, nil, false, false), true},
+		{"calories rounded to the edge", domain.TargetKcal, values(1799.5, 0, nil, nil, false, false), false},
+		{"protein at its floor", domain.TargetProtein, values(0, 100, nil, nil, false, false), false},
+		{"protein under it", domain.TargetProtein, values(0, 99, nil, nil, false, false), true},
+		{"fibre unknown", domain.TargetFibre, values(0, 0, nil, nil, false, false), false},
+		{"fibre at least enough", domain.TargetFibre, values(0, 0, g(30), nil, true, false), false},
+		{"fibre at least too little", domain.TargetFibre, values(0, 0, g(20), nil, true, false), false},
+		{"fibre too little", domain.TargetFibre, values(0, 0, g(20), nil, false, false), true},
+		{"sugar at its ceiling", domain.TargetSugar, values(0, 0, nil, g(50), false, false), false},
+		{"sugar at least too much", domain.TargetSugar, values(0, 0, nil, g(51), false, true), true},
+		{"sugar at least under it", domain.TargetSugar, values(0, 0, nil, g(40), false, true), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := aim.Judge(tt.target, tt.n); got != tt.want {
-				t.Errorf("Judge(%s) = %v, want %v", tt.target, got, tt.want)
+			if got := aim.Missed(tt.target, tt.n); got != tt.want {
+				t.Errorf("Missed(%s) = %v, want %v", tt.target, got, tt.want)
 			}
 		})
 	}
 }
 
 // The Targets' results over the planned days: the average against each Target, then
-// each day more than 25% off one in its direction, in whole percent. None when no day
-// is judged.
+// each day more than 25% off one in its direction, in whole percent, a day planned only
+// partly left out. None when no day is judged.
 func TestTheTargetsResults(t *testing.T) {
 	on := func(d int, n domain.PortionNutrition) domain.Day {
 		return domain.Day{On: day(d), Nutrition: n, Filled: 4}
@@ -128,6 +128,7 @@ func TestTheTargetsResults(t *testing.T) {
 		{"a day over calories", []domain.Day{on(5, values(2600, 100, g(30), g(50), false, false)), on(6, values(1800, 100, g(30), g(50), false, false))}, []domain.Miss{
 			{Rule: domain.RuleDayOff, Target: domain.TargetKcal, On: day(5), Value: 30},
 		}},
+		{"a day planned only partly isn't judged", []domain.Day{{On: day(5), Nutrition: values(500, 20, g(5), g(5), false, false), Filled: 2, Partly: true}, on(6, ok)}, nil},
 		{"protein and fibre are never over, sugar never under", []domain.Day{on(5, values(2000, 200, g(60), g(10), false, false))}, nil},
 		{"fibre at least too little is unsure", []domain.Day{on(5, values(2000, 100, g(10), g(50), true, false))}, nil},
 		{"fibre unknown on a day averages at least the rest", []domain.Day{on(5, values(2000, 100, nil, g(50), false, false)), on(6, ok)}, nil},
@@ -141,11 +142,6 @@ func TestTheTargetsResults(t *testing.T) {
 			got := aim.Misses(tt.days)
 			if !slices.EqualFunc(got, tt.want, sameMiss) {
 				t.Errorf("Misses() = %+v,\nwant %+v", got, tt.want)
-			}
-			for _, m := range got {
-				if m.Describe(aim) == "" {
-					t.Errorf("%s says nothing", m.Rule)
-				}
 			}
 		})
 	}
@@ -208,8 +204,8 @@ func TestTheSoftRulesOfAPlansStructure(t *testing.T) {
 }
 
 // A Plan's days are shown beside the seven before them, as earlier Plans fill them; a
-// first day it fills only partly shows what earlier Plans put in its other Slots, and
-// isn't judged; what earlier Plans put from its first Slot on is the Plan's to replace.
+// first day it fills only partly shows what earlier Plans put in its other Slots, and is
+// marked so; what earlier Plans put from its first Slot on is the Plan's to replace.
 func TestAPlansDaysBesideTheSevenBefore(t *testing.T) {
 	n := values(500, 30, g(5), g(5), false, false)
 	earlier := []domain.Eaten{
@@ -222,16 +218,16 @@ func TestAPlansDaysBesideTheSevenBefore(t *testing.T) {
 		name             string
 		first            domain.Slot
 		trailing, filled []int
-		judgedFrom       int
+		partly           bool
 	}{
-		{"from breakfast", slot(6, domain.Breakfast), []int{0, 0, 1, 0, 0, 0, 0}, []int{1, 1}, 6},
-		{"from lunch", slot(6, domain.Lunch), []int{0, 0, 1, 0, 0, 0, 0}, []int{2, 1}, 7},
-		{"the next day", slot(8, domain.Breakfast), []int{1, 0, 0, 0, 0, 3, 1}, []int{0}, 8},
+		{"from breakfast", slot(6, domain.Breakfast), []int{0, 0, 1, 0, 0, 0, 0}, []int{1, 1}, false},
+		{"from lunch", slot(6, domain.Lunch), []int{0, 0, 1, 0, 0, 0, 0}, []int{2, 1}, true},
+		{"the next day", slot(8, domain.Breakfast), []int{1, 0, 0, 0, 0, 3, 1}, []int{0}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			last := tt.first.On.AddDate(0, 0, len(tt.filled)-1)
-			trailing, days, judged := domain.PlanDays(earlier, planned, tt.first, last)
+			trailing, days := domain.PlanDays(earlier, planned, tt.first, last)
 			filled := func(days []domain.Day) []int {
 				var out []int
 				for _, d := range days {
@@ -245,8 +241,8 @@ func TestAPlansDaysBesideTheSevenBefore(t *testing.T) {
 			if got := filled(days); !slices.Equal(got, tt.filled) {
 				t.Errorf("days filled %v, want %v", got, tt.filled)
 			}
-			if !judged[0].On.Equal(day(tt.judgedFrom)) {
-				t.Errorf("judged from %v, want day %d", judged[0].On, tt.judgedFrom)
+			if days[0].Partly != tt.partly || slices.ContainsFunc(days[1:], func(d domain.Day) bool { return d.Partly }) {
+				t.Errorf("first day partly %v, want %v; later days never", days[0].Partly, tt.partly)
 			}
 		})
 	}

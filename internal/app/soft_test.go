@@ -28,7 +28,7 @@ func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 	s.Sees("Average over the 1 day judged: 1586 kcal (missed), 65 g protein (missed), at least 4 g fibre, at least 8 g sugar")
 	s.Sees("- Calories average 1586 a day against 2024–2376")
 	s.Sees("- Protein averages 65 g a day against 130 g")
-	s.Sees("- Fri 6 Nov: 28% under calories")
+	s.Sees("- Fri 6 Nov: 28% under kcal")
 	s.Sees("- Fri 6 Nov: 50% under protein")
 	s.Sees("- Rice bowl eaten back to back, Fri 6 Nov")
 	s.Sees("- lasagne × 2 (freezer) left unused")

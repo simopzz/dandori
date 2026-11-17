@@ -123,7 +123,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		return 0, err
 	}
 	earlier := eatenBy(approved, library, known, portions)
-	trailing, _, _ := domain.PlanDays(earlier, nil, slots[0], slots[0].On)
+	trailing, _ := domain.PlanDays(earlier, nil, slots[0], slots[0].On)
 	if note != "" {
 		notes = append([]string{note}, notes...)
 	}
@@ -286,26 +286,23 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 	for _, d := range trailing {
 		eats := "no Plan"
 		if d.Filled > 0 {
-			eats = describeDay(p.Targets, d.Nutrition, false)
+			eats = describeDay(d.Nutrition, nil)
 		}
-		fmt.Fprintf(&b, "- %s: %s\n", d.On.Format(shortDate), eats)
+		fmt.Fprintf(&b, "- %s: %s\n", d.On.Format(domain.PlannerDay), eats)
 	}
 	return strings.TrimSpace(b.String())
 }
 
-// longDate and shortDate are how the planner is told a day.
-const (
-	longDate  = "Monday 2 January 2006"
-	shortDate = "Mon 2 Jan"
-)
+// longDate is how the planner is told a day in full.
+const longDate = "Monday 2 January 2006"
 
-// describeDay is n's values of what the Targets aim at, as the planner reads them, with
-// those missing t marked when judged.
-func describeDay(t domain.Targets, n domain.PortionNutrition, judged bool) string {
+// describeDay is n's values of what the Targets aim at, as the planner reads them, those
+// missed marked, if missed says.
+func describeDay(n domain.PortionNutrition, missed func(domain.Target) bool) string {
 	parts := make([]string, len(domain.Aimed))
 	for i, target := range domain.Aimed {
 		a, floor := n.Of(target)
-		name := targetWords[target]
+		name := string(target) // a Target's code is a plain English word
 		switch {
 		case !a.Known:
 			parts[i] = name + " unknown"
@@ -318,16 +315,24 @@ func describeDay(t domain.Targets, n domain.PortionNutrition, judged bool) strin
 		if floor {
 			parts[i] = "at least " + parts[i]
 		}
-		if judged && t.Judge(target, n) == domain.Missed {
+		if missed != nil && missed(target) {
 			parts[i] += " (missed)"
 		}
 	}
 	return strings.Join(parts, ", ")
 }
 
-// targetWords name what each Target aims at, for the planner.
-var targetWords = map[string]string{
-	domain.TargetKcal: "calories", domain.TargetProtein: "protein", domain.TargetFibre: "fibre", domain.TargetSugar: "sugar",
+// dayMissed reports which Targets the day d misses as a soft rule does: by more than 25%.
+func dayMissed(t domain.Targets, d domain.Day) func(domain.Target) bool {
+	return func(target domain.Target) bool {
+		_, off := t.DayOff(target, d)
+		return off
+	}
+}
+
+// averageMissed reports which Targets the average avg misses.
+func averageMissed(t domain.Targets, avg domain.PortionNutrition) func(domain.Target) bool {
+	return func(target domain.Target) bool { return t.Missed(target, avg) }
 }
 
 // describeNutrition is n as the planner reads it, a floor said "at least".
@@ -463,26 +468,28 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 // and the soft rules it breaks, as the planner reads them, and those soft rules.
 func (pb *planBrief) results(plan domain.Plan) (string, []domain.Miss) {
 	first, last := pb.slots[0], pb.slots[len(pb.slots)-1].On
-	_, days, judged := domain.PlanDays(pb.earlier, plan.Eaten(pb.unslotted), first, last)
-	misses := append(pb.targets.Misses(judged), plan.SoftMisses(pb.held)...)
+	_, days := domain.PlanDays(pb.earlier, plan.Eaten(pb.unslotted), first, last)
+	judged := domain.Judged(days)
+	misses := append(pb.targets.Misses(days), plan.SoftMisses(pb.held)...)
 	t := pb.targets
 	lo, hi := t.Bounds(domain.TargetKcal)
 	var b strings.Builder
 	fmt.Fprintf(&b, "Each day it plans, against the Targets (%.0f–%.0f kcal, at least %d g protein, at least %d g fibre, at most %d g sugar):\n",
 		lo, hi, t.Protein, t.Fibre, t.Sugar)
-	for i, d := range days {
-		if i == 0 && len(judged) < len(days) {
-			fmt.Fprintf(&b, "- %s, partly planned, so not judged: %s\n", d.On.Format(shortDate), describeDay(t, d.Nutrition, false))
-			continue
+	for _, d := range days {
+		on := d.On.Format(domain.PlannerDay)
+		if d.Partly {
+			on += ", partly planned, so not judged"
 		}
-		fmt.Fprintf(&b, "- %s: %s\n", d.On.Format(shortDate), describeDay(t, d.Nutrition, true))
+		fmt.Fprintf(&b, "- %s: %s\n", on, describeDay(d.Nutrition, dayMissed(t, d)))
 	}
 	if n := len(judged); n > 0 {
 		days := "days"
 		if n == 1 {
 			days = "day"
 		}
-		fmt.Fprintf(&b, "Average over the %d %s judged: %s\n", n, days, describeDay(t, domain.Average(judged), true))
+		avg := domain.Average(judged)
+		fmt.Fprintf(&b, "Average over the %d %s judged: %s\n", n, days, describeDay(avg, averageMissed(t, avg)))
 	}
 	if len(misses) == 0 {
 		b.WriteString("It breaks no soft rule.")
@@ -683,15 +690,15 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 // Proposal is a Plan Proposal as its Cycle page shows it: its Plan, the Portions without
 // a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at and the
 // soft rules it breaks. A pending one has its day table too: the seven days before its
-// first Slot, the days it plans, and those judged against the Targets.
+// first Slot, and the days it plans.
 type Proposal struct {
-	ID                     int64
-	Plan                   domain.Plan
-	Kept                   map[int64]domain.Portion
-	Summary                string
-	Targets                domain.Targets
-	Misses                 []domain.Miss
-	Trailing, Days, Judged []domain.Day
+	ID             int64
+	Plan           domain.Plan
+	Kept           map[int64]domain.Portion
+	Summary        string
+	Targets        domain.Targets
+	Misses         []domain.Miss
+	Trailing, Days []domain.Day
 }
 
 // Planning is how planning a Cycle stands: its pending Plan Proposal, its Plan (the Plan
@@ -760,16 +767,16 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		return p, err
 	}
 	if pending != nil {
-		pp := pending.resolve(library, known, portions)
-		planned := pp.Plan.Eaten(portions)
+		proposal := pending.resolve(library, known, portions)
+		planned := proposal.Plan.Eaten(portions)
 		last := pending.first.On
 		for _, e := range planned {
 			if e.At.On.After(last) {
 				last = e.At.On
 			}
 		}
-		pp.Trailing, pp.Days, pp.Judged = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, last)
-		p.Proposal = pp
+		proposal.Trailing, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, last)
+		p.Proposal = proposal
 	}
 	if approved != nil {
 		p.Plan = approved.resolve(library, known, portions)

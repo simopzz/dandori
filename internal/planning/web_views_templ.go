@@ -1956,8 +1956,9 @@ func dropStep(c Cycle, back templ.SafeURL) templ.Component {
 }
 
 // dayTable is p's days against the Targets it aimed at: the seven days before it,
-// greyed, "No Plan" where no Plan covered them, then each day it plans, its misses marked
-// unless it plans that day only partly, and the average over the days judged.
+// greyed, "No Plan" where no Plan covered them, then each day it plans, and the average
+// over the days judged, each soft miss marked: a day more than 25% off a Target, an
+// average missing it.
 func dayTable(p Proposal) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1987,7 +1988,7 @@ func dayTable(p Proposal) templ.Component {
 		var templ_7745c5c3_Var97 string
 		templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgDay))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 410, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 411, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 		if templ_7745c5c3_Err != nil {
@@ -2003,9 +2004,9 @@ func dayTable(p Proposal) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var98 string
-			templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, targetHeads[target]))
+			templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, targetMessages[target].head))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 412, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 413, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 			if templ_7745c5c3_Err != nil {
@@ -2023,7 +2024,7 @@ func dayTable(p Proposal) templ.Component {
 		var templ_7745c5c3_Var99 string
 		templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgTargets))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 418, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 419, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 		if templ_7745c5c3_Err != nil {
@@ -2036,7 +2037,7 @@ func dayTable(p Proposal) templ.Component {
 		var templ_7745c5c3_Var100 string
 		templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgRange, whole(ctx, lo), whole(ctx, hi)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 419, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 420, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 		if templ_7745c5c3_Err != nil {
@@ -2049,7 +2050,7 @@ func dayTable(p Proposal) templ.Component {
 		var templ_7745c5c3_Var101 string
 		templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgAtLeast, grams(ctx, p.Targets.Protein)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 420, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 421, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 		if templ_7745c5c3_Err != nil {
@@ -2062,7 +2063,7 @@ func dayTable(p Proposal) templ.Component {
 		var templ_7745c5c3_Var102 string
 		templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgAtLeast, grams(ctx, p.Targets.Fibre)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 421, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 422, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var102))
 		if templ_7745c5c3_Err != nil {
@@ -2075,7 +2076,7 @@ func dayTable(p Proposal) templ.Component {
 		var templ_7745c5c3_Var103 string
 		templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgAtMost, grams(ctx, p.Targets.Sugar)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 422, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 423, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var103))
 		if templ_7745c5c3_Err != nil {
@@ -2093,7 +2094,7 @@ func dayTable(p Proposal) templ.Component {
 			var templ_7745c5c3_Var104 string
 			templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(web.ShortDate(ctx, d.On))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 426, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 427, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 			if templ_7745c5c3_Err != nil {
@@ -2111,7 +2112,7 @@ func dayTable(p Proposal) templ.Component {
 				var templ_7745c5c3_Var105 string
 				templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgNoPlan))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 428, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 429, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
 				if templ_7745c5c3_Err != nil {
@@ -2122,7 +2123,7 @@ func dayTable(p Proposal) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = figures(p.Targets, d.Nutrition, false).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = figures(d.Nutrition, nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2132,13 +2133,12 @@ func dayTable(p Proposal) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		for i, d := range p.Days {
-			partly := p.partly(i)
+		for _, d := range p.Days {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<tr>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if partly {
+			if d.Partly {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<td>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2175,7 +2175,7 @@ func dayTable(p Proposal) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = figures(p.Targets, d.Nutrition, !partly).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = figures(d.Nutrition, dayMissed(p.Targets, d)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2184,7 +2184,8 @@ func dayTable(p Proposal) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(p.Judged) > 0 {
+		if judged := domain.Judged(p.Days); len(judged) > 0 {
+			avg := domain.Average(judged)
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<tr><td>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2192,7 +2193,7 @@ func dayTable(p Proposal) templ.Component {
 			var templ_7745c5c3_Var108 string
 			templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAverage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 447, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 448, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
 			if templ_7745c5c3_Err != nil {
@@ -2202,7 +2203,7 @@ func dayTable(p Proposal) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = figures(p.Targets, domain.Average(p.Judged), true).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = figures(avg, averageMissed(p.Targets, avg)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2219,12 +2220,9 @@ func dayTable(p Proposal) templ.Component {
 	})
 }
 
-// partly reports whether p plans its i-th day only partly, so doesn't judge it.
-func (p Proposal) partly(i int) bool { return i == 0 && len(p.Judged) < len(p.Days) }
-
-// figures are n's values of what the Targets aim at, a cell each, those missing t marked
-// when judged.
-func figures(t domain.Targets, n domain.PortionNutrition, judged bool) templ.Component {
+// figures are n's values of what the Targets aim at, a cell each, those missed marked,
+// if missed says.
+func figures(n domain.PortionNutrition, missed func(domain.Target) bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -2250,7 +2248,7 @@ func figures(t domain.Targets, n domain.PortionNutrition, judged bool) templ.Com
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if judged && t.Judge(target, n) == domain.Missed {
+			if missed != nil && missed(target) {
 				templ_7745c5c3_Var110 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -2266,7 +2264,7 @@ func figures(t domain.Targets, n domain.PortionNutrition, judged bool) templ.Com
 					var templ_7745c5c3_Var111 string
 					templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(figure(ctx, target, n) + " ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 465, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 463, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
 					if templ_7745c5c3_Err != nil {
@@ -2279,7 +2277,7 @@ func figures(t domain.Targets, n domain.PortionNutrition, judged bool) templ.Com
 					var templ_7745c5c3_Var112 string
 					templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMissed))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 465, Col: 82}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 463, Col: 82}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var112))
 					if templ_7745c5c3_Err != nil {
@@ -2299,7 +2297,7 @@ func figures(t domain.Targets, n domain.PortionNutrition, judged bool) templ.Com
 				var templ_7745c5c3_Var113 string
 				templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.JoinStringErrs(figure(ctx, target, n))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 468, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_views.templ`, Line: 466, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var113))
 				if templ_7745c5c3_Err != nil {
@@ -2315,14 +2313,12 @@ func figures(t domain.Targets, n domain.PortionNutrition, judged bool) templ.Com
 	})
 }
 
-// targetHeads head the day table's columns.
-var targetHeads = map[string]web.Message{
-	domain.TargetKcal: msgCalories, domain.TargetProtein: msgProtein, domain.TargetFibre: msgFibre, domain.TargetSugar: msgSugar,
-}
-
-// targetNames name what each Target aims at within a line.
-var targetNames = map[string]web.Message{
-	domain.TargetKcal: msgCaloriesWord, domain.TargetProtein: msgProteinWord, domain.TargetFibre: msgFibreWord, domain.TargetSugar: msgSugarWord,
+// targetMessages head the day table's column of each Target, and name it in a line.
+var targetMessages = map[domain.Target]struct{ head, word web.Message }{
+	domain.TargetKcal:    {msgCalories, msgCaloriesWord},
+	domain.TargetProtein: {msgProtein, msgProteinWord},
+	domain.TargetFibre:   {msgFibre, msgFibreWord},
+	domain.TargetSugar:   {msgSugar, msgSugarWord},
 }
 
 // whole is v rounded to whole, as the Language writes it.
@@ -2335,7 +2331,7 @@ func grams(ctx context.Context, n int) string {
 
 // figure is n's value of target as a cell shows it: whole, in grams but for calories,
 // "at least" when only that is known, or unknown.
-func figure(ctx context.Context, target string, n domain.PortionNutrition) string {
+func figure(ctx context.Context, target domain.Target, n domain.PortionNutrition) string {
 	a, floor := n.Of(target)
 	if !a.Known {
 		return web.T(ctx, msgUnknown)
@@ -2365,13 +2361,13 @@ func missLine(ctx context.Context, m domain.Miss, t domain.Targets) string {
 			lo, hi := t.Bounds(domain.TargetKcal)
 			return web.Tf(ctx, msgCaloriesAverage, value, whole(ctx, lo), whole(ctx, hi))
 		}
-		return web.Tf(ctx, msgAverages, web.Capitalised(web.T(ctx, targetNames[m.Target])), value, grams(ctx, t.ByField()[m.Target]))
+		return web.Tf(ctx, msgAverages, web.Capitalised(web.T(ctx, targetMessages[m.Target].word)), value, grams(ctx, t.Aim(m.Target)))
 	case domain.RuleDayOff:
 		way := msgOver
 		if m.Under {
 			way = msgUnder
 		}
-		return web.Tf(ctx, way, web.ShortDate(ctx, m.On), value, web.T(ctx, targetNames[m.Target]))
+		return web.Tf(ctx, way, web.ShortDate(ctx, m.On), value, web.T(ctx, targetMessages[m.Target].word))
 	case domain.RuleBackToBack:
 		days := make([]string, len(m.Days))
 		for i, d := range m.Days {

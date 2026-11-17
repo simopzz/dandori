@@ -400,8 +400,9 @@ templ dropStep(c Cycle, back templ.SafeURL) {
 }
 
 // dayTable is p's days against the Targets it aimed at: the seven days before it,
-// greyed, "No Plan" where no Plan covered them, then each day it plans, its misses marked
-// unless it plans that day only partly, and the average over the days judged.
+// greyed, "No Plan" where no Plan covered them, then each day it plans, and the average
+// over the days judged, each soft miss marked: a day more than 25% off a Target, an
+// average missing it.
 templ dayTable(p Proposal) {
 	{{ lo, hi := p.Targets.Bounds(domain.TargetKcal) }}
 	<table>
@@ -409,7 +410,7 @@ templ dayTable(p Proposal) {
 			<tr>
 				<th scope="col">{ web.T(ctx, msgDay) }</th>
 				for _, target := range domain.Aimed {
-					<th scope="col">{ web.T(ctx, targetHeads[target]) }</th>
+					<th scope="col">{ web.T(ctx, targetMessages[target].head) }</th>
 				}
 			</tr>
 		</thead>
@@ -427,40 +428,37 @@ templ dayTable(p Proposal) {
 					if d.Filled == 0 {
 						<td colspan="4">{ web.T(ctx, msgNoPlan) }</td>
 					} else {
-						@figures(p.Targets, d.Nutrition, false)
+						@figures(d.Nutrition, nil)
 					}
 				</tr>
 			}
-			for i, d := range p.Days {
-				{{ partly := p.partly(i) }}
+			for _, d := range p.Days {
 				<tr>
-					if partly {
+					if d.Partly {
 						<td>{ web.Tf(ctx, msgPartly, web.ShortDate(ctx, d.On)) }</td>
 					} else {
 						<td>{ web.ShortDate(ctx, d.On) }</td>
 					}
-					@figures(p.Targets, d.Nutrition, !partly)
+					@figures(d.Nutrition, dayMissed(p.Targets, d))
 				</tr>
 			}
-			if len(p.Judged) > 0 {
+			if judged := domain.Judged(p.Days); len(judged) > 0 {
+				{{ avg := domain.Average(judged) }}
 				<tr>
 					<td>{ web.T(ctx, msgAverage) }</td>
-					@figures(p.Targets, domain.Average(p.Judged), true)
+					@figures(avg, averageMissed(p.Targets, avg))
 				</tr>
 			}
 		</tbody>
 	</table>
 }
 
-// partly reports whether p plans its i-th day only partly, so doesn't judge it.
-func (p Proposal) partly(i int) bool { return i == 0 && len(p.Judged) < len(p.Days) }
-
-// figures are n's values of what the Targets aim at, a cell each, those missing t marked
-// when judged.
-templ figures(t domain.Targets, n domain.PortionNutrition, judged bool) {
+// figures are n's values of what the Targets aim at, a cell each, those missed marked,
+// if missed says.
+templ figures(n domain.PortionNutrition, missed func(domain.Target) bool) {
 	for _, target := range domain.Aimed {
 		<td>
-			if judged && t.Judge(target, n) == domain.Missed {
+			if missed != nil && missed(target) {
 				@web.Tag(true, "") {
 					{ figure(ctx, target, n) + " " }<span class="sr-only">{ web.T(ctx, msgMissed) }</span>
 				}
@@ -471,14 +469,12 @@ templ figures(t domain.Targets, n domain.PortionNutrition, judged bool) {
 	}
 }
 
-// targetHeads head the day table's columns.
-var targetHeads = map[string]web.Message{
-	domain.TargetKcal: msgCalories, domain.TargetProtein: msgProtein, domain.TargetFibre: msgFibre, domain.TargetSugar: msgSugar,
-}
-
-// targetNames name what each Target aims at within a line.
-var targetNames = map[string]web.Message{
-	domain.TargetKcal: msgCaloriesWord, domain.TargetProtein: msgProteinWord, domain.TargetFibre: msgFibreWord, domain.TargetSugar: msgSugarWord,
+// targetMessages head the day table's column of each Target, and name it in a line.
+var targetMessages = map[domain.Target]struct{ head, word web.Message }{
+	domain.TargetKcal:    {msgCalories, msgCaloriesWord},
+	domain.TargetProtein: {msgProtein, msgProteinWord},
+	domain.TargetFibre:   {msgFibre, msgFibreWord},
+	domain.TargetSugar:   {msgSugar, msgSugarWord},
 }
 
 // whole is v rounded to whole, as the Language writes it.
@@ -489,7 +485,7 @@ func grams(ctx context.Context, n int) string { return web.Tf(ctx, msgGrams, web
 
 // figure is n's value of target as a cell shows it: whole, in grams but for calories,
 // "at least" when only that is known, or unknown.
-func figure(ctx context.Context, target string, n domain.PortionNutrition) string {
+func figure(ctx context.Context, target domain.Target, n domain.PortionNutrition) string {
 	a, floor := n.Of(target)
 	if !a.Known {
 		return web.T(ctx, msgUnknown)
@@ -519,13 +515,13 @@ func missLine(ctx context.Context, m domain.Miss, t domain.Targets) string {
 			lo, hi := t.Bounds(domain.TargetKcal)
 			return web.Tf(ctx, msgCaloriesAverage, value, whole(ctx, lo), whole(ctx, hi))
 		}
-		return web.Tf(ctx, msgAverages, web.Capitalised(web.T(ctx, targetNames[m.Target])), value, grams(ctx, t.ByField()[m.Target]))
+		return web.Tf(ctx, msgAverages, web.Capitalised(web.T(ctx, targetMessages[m.Target].word)), value, grams(ctx, t.Aim(m.Target)))
 	case domain.RuleDayOff:
 		way := msgOver
 		if m.Under {
 			way = msgUnder
 		}
-		return web.Tf(ctx, way, web.ShortDate(ctx, m.On), value, web.T(ctx, targetNames[m.Target]))
+		return web.Tf(ctx, way, web.ShortDate(ctx, m.On), value, web.T(ctx, targetMessages[m.Target].word))
 	case domain.RuleBackToBack:
 		days := make([]string, len(m.Days))
 		for i, d := range m.Days {

@@ -35,11 +35,13 @@ func (p Plan) Eaten(kept []Portion) []Eaten {
 }
 
 // Day is what one day's Slots eat, as far as Plans fill them: Filled is how many they
-// fill, none on a day no Plan covers.
+// fill, none on a day no Plan covers. Partly is a Plan's first day it fills only from a
+// later Slot on: shown, never judged against the Targets.
 type Day struct {
 	On        time.Time
 	Nutrition PortionNutrition
 	Filled    int
+	Partly    bool
 }
 
 // Days is each day from first to last, at midnight, with what eaten puts in its Slots.
@@ -101,11 +103,8 @@ func Average(days []Day) PortionNutrition {
 	return avg
 }
 
-// Aimed are the Targets' fields a Plan aims at, in the order they are shown.
-var Aimed = []string{TargetKcal, TargetProtein, TargetFibre, TargetSugar}
-
-// Of is n's value of the Target field target, and whether it is only at least that.
-func (n PortionNutrition) Of(target string) (Amount, bool) {
+// Of is n's value of target, and whether it is only at least that.
+func (n PortionNutrition) Of(target Target) (Amount, bool) {
 	switch target {
 	case TargetKcal:
 		return n.Kcal, false
@@ -113,25 +112,31 @@ func (n PortionNutrition) Of(target string) (Amount, bool) {
 		return n.Protein, false
 	case TargetFibre:
 		return n.Fibre, n.FibreFloor
+	case TargetSugar:
+		return n.Sugar, n.SugarFloor
 	}
-	return n.Sugar, n.SugarFloor
+	panic("unknown Target " + target)
 }
 
-// Verdict is how a value stands against its Target.
-type Verdict int
+// Aim is t's daily goal for target.
+func (t Targets) Aim(target Target) int {
+	switch target {
+	case TargetKcal:
+		return t.Kcal
+	case TargetProtein:
+		return t.Protein
+	case TargetFibre:
+		return t.Fibre
+	case TargetSugar:
+		return t.Sugar
+	}
+	panic("unknown Target " + target)
+}
 
-const (
-	Met Verdict = iota
-	Missed
-	// Unsure is a value unknown, or known only to be at least an amount that doesn't
-	// settle it.
-	Unsure
-)
-
-// Bounds are the least and the most target allows: calories within the tolerance either
-// side, protein and fibre floors, sugar a ceiling.
-func (t Targets) Bounds(target string) (lo, hi float64) {
-	aim := float64(t.ByField()[target])
+// Bounds are the least and the most target allows a day: calories within the tolerance
+// either side, protein and fibre floors with no most, sugar a ceiling with no least.
+func (t Targets) Bounds(target Target) (lo, hi float64) {
+	aim := float64(t.Aim(target))
 	switch target {
 	case TargetKcal:
 		return aim * float64(100-t.Tolerance) / 100, aim * float64(100+t.Tolerance) / 100
@@ -141,27 +146,17 @@ func (t Targets) Bounds(target string) (lo, hi float64) {
 	return aim, math.Inf(1)
 }
 
-// Judge is how n's value of target stands against t, rounded to whole as it is shown. One
-// known only to be at least an amount is met only when that is already enough, missed
-// only when that is already too much.
-func (t Targets) Judge(target string, n PortionNutrition) Verdict {
+// Missed reports whether n's value of target misses t, rounded to whole as it is shown.
+// One unknown never does, and one known only to be at least an amount does only when that
+// is already too much.
+func (t Targets) Missed(target Target, n PortionNutrition) bool {
 	a, floor := n.Of(target)
 	if !a.Known {
-		return Unsure
+		return false
 	}
 	v := math.Round(a.Value)
 	lo, hi := t.Bounds(target)
-	switch {
-	case v > hi:
-		return Missed
-	case floor && math.IsInf(hi, 1) && v >= lo:
-		return Met
-	case floor:
-		return Unsure
-	case v < lo:
-		return Missed
-	}
-	return Met
+	return v > hi || (!floor && v < lo)
 }
 
 // maxOff is how far a planned day may be off a Target, as a fraction of it.
@@ -182,7 +177,7 @@ const (
 // Unused: Count Portions of Name left without a Slot in Location.
 type Miss struct {
 	Rule         Rule
-	Target       string
+	Target       Target
 	Value        int
 	Floor, Under bool
 	On           time.Time
@@ -192,10 +187,8 @@ type Miss struct {
 	Days         []time.Time
 }
 
-// targetNames name the Targets for the planner.
-var targetNames = map[string]string{TargetKcal: "calories", TargetProtein: "protein", TargetFibre: "fibre", TargetSugar: "sugar"}
-
-// Describe is m as the planner reads it, against t.
+// Describe is m as the planner reads it, against t: the page says it in Messages, which
+// the domain can't reach.
 func (m Miss) Describe(t Targets) string {
 	least := ""
 	if m.Floor {
@@ -207,17 +200,18 @@ func (m Miss) Describe(t Targets) string {
 			lo, hi := t.Bounds(TargetKcal)
 			return fmt.Sprintf("Calories average %s%d a day against %.0f–%.0f", least, m.Value, lo, hi)
 		}
-		return fmt.Sprintf("%s averages %s%d g a day against %d g", capitalised(targetNames[m.Target]), least, m.Value, t.ByField()[m.Target])
+		name := string(m.Target) // a Target's code is a plain English word
+		return fmt.Sprintf("%s averages %s%d g a day against %d g", strings.ToUpper(name[:1])+name[1:], least, m.Value, t.Aim(m.Target))
 	case RuleDayOff:
 		way := "over"
 		if m.Under {
 			way = "under"
 		}
-		return fmt.Sprintf("%s: %s%d%% %s %s", m.On.Format("Mon 2 Jan"), least, m.Value, way, targetNames[m.Target])
+		return fmt.Sprintf("%s: %s%d%% %s %s", m.On.Format(PlannerDay), least, m.Value, way, m.Target)
 	case RuleBackToBack:
 		days := make([]string, len(m.Days))
 		for i, d := range m.Days {
-			days[i] = d.Format("Mon 2 Jan")
+			days[i] = d.Format(PlannerDay)
 		}
 		return fmt.Sprintf("%s eaten back to back, %s", m.Name, strings.Join(days, " and "))
 	}
@@ -228,27 +222,38 @@ func (m Miss) Describe(t Targets) string {
 	return fmt.Sprintf("%s (%s) left unused", name, m.Location)
 }
 
-// capitalised is s with a capital first letter, s being ASCII.
-func capitalised(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
+// PlannerDay is how the planner is told a day, as Slot.String tells it.
+const PlannerDay = "Mon 2 Jan"
 
-// Misses are the Targets t misses over days, each of whose Slots the Plan fills: the
-// average against each Target, then each day more than maxOff off one in its direction.
-// None when there is no day.
+// Judged are the days of days the Targets are judged over: those not planned partly.
+func Judged(days []Day) []Day {
+	var judged []Day
+	for _, d := range days {
+		if !d.Partly {
+			judged = append(judged, d)
+		}
+	}
+	return judged
+}
+
+// Misses are the Targets t misses over the days judged of days: the average against each
+// Target, then each day more than maxOff off one. None when no day is judged.
 func (t Targets) Misses(days []Day) []Miss {
-	if len(days) == 0 {
+	judged := Judged(days)
+	if len(judged) == 0 {
 		return nil
 	}
 	var ms []Miss
-	avg := Average(days)
+	avg := Average(judged)
 	for _, target := range Aimed {
-		if t.Judge(target, avg) == Missed {
+		if t.Missed(target, avg) {
 			a, floor := avg.Of(target)
 			ms = append(ms, Miss{Rule: RuleTargetAverage, Target: target, Value: int(math.Round(a.Value)), Floor: floor})
 		}
 	}
-	for _, d := range days {
+	for _, d := range judged {
 		for _, target := range Aimed {
-			if m, off := t.off(target, d); off {
+			if m, off := t.DayOff(target, d); off {
 				ms = append(ms, m)
 			}
 		}
@@ -256,19 +261,21 @@ func (t Targets) Misses(days []Day) []Miss {
 	return ms
 }
 
-// off is how far d is off target past maxOff, and whether it is, or can be known to be:
-// calories either way, protein and fibre under, sugar over.
-func (t Targets) off(target string, d Day) (Miss, bool) {
+// DayOff is how far d is off target past maxOff, and whether it is, or can be known to
+// be: calories either way, protein and fibre under, sugar over. A day planned only
+// partly never is.
+func (t Targets) DayOff(target Target, d Day) (Miss, bool) {
 	a, floor := d.Nutrition.Of(target)
-	if !a.Known {
+	if !a.Known || d.Partly {
 		return Miss{}, false
 	}
-	aim, v := float64(t.ByField()[target]), math.Round(a.Value)
+	aim, v := float64(t.Aim(target)), math.Round(a.Value)
+	lo, hi := t.Bounds(target)
 	m := Miss{Rule: RuleDayOff, Target: target, On: d.On, Value: int(math.Round(math.Abs(v-aim) / aim * 100)), Floor: floor}
 	switch {
-	case v > aim*(1+maxOff) && target != TargetProtein && target != TargetFibre:
+	case !math.IsInf(hi, 1) && v > aim*(1+maxOff):
 		return m, true
-	case v < aim*(1-maxOff) && !floor && target != TargetSugar:
+	case lo > 0 && !floor && v < aim*(1-maxOff):
 		m.Under = true
 		return m, true
 	}
@@ -336,9 +343,8 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 
 // PlanDays are a Plan's days from its first Slot to last, beside the seven days before
 // them: what earlier Plans put in Slots before first, earlier, and what the Plan puts in
-// its own, planned. judged are the days it plans each of whose Slots it fills, which the
-// Targets are judged over: a first day it fills only from lunch on is shown, not judged.
-func PlanDays(earlier, planned []Eaten, first Slot, last time.Time) (trailing, days, judged []Day) {
+// its own, planned. A first day it fills only from lunch on is Partly.
+func PlanDays(earlier, planned []Eaten, first Slot, last time.Time) (trailing, days []Day) {
 	all := slices.Clone(planned)
 	for _, e := range earlier {
 		if e.At.Before(first) {
@@ -347,9 +353,8 @@ func PlanDays(earlier, planned []Eaten, first Slot, last time.Time) (trailing, d
 	}
 	trailing = Days(all, first.On.AddDate(0, 0, -7), first.On.AddDate(0, 0, -1))
 	days = Days(all, first.On, last)
-	judged = days
 	if first.Kind != SlotKinds[0] && len(days) > 0 {
-		judged = days[1:]
+		days[0].Partly = true
 	}
-	return trailing, days, judged
+	return trailing, days
 }
