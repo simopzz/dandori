@@ -95,11 +95,17 @@ func goingRun(ctx context.Context, q db.Querier, id int64) (runID int64, err err
 }
 
 // submit stores plan, summed up by summary, as the pending Plan Proposal of the planning
-// Run runID, as the Run is stored succeeded: a Run cancelled meanwhile, its Cycle dropped
-// or closed, never stores it, and the unique index keeps a second one from pending.
-func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, summary string) error {
+// Run runID, with the Targets it aimed at and the soft rules it breaks, as the Run is
+// stored succeeded: a Run cancelled meanwhile, its Cycle dropped or closed, never stores
+// it, and the unique index keeps a second one from pending.
+func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, targets domain.Targets, misses []domain.Miss, summary string) error {
 	var id int64
-	if err := q.QueryRow(ctx, `INSERT INTO plan_proposal (run_id, status, summary) VALUES ($1, $2, $3) RETURNING id`, runID, Pending, summary).Scan(&id); err != nil {
+	if misses == nil {
+		misses = []domain.Miss{} // stored as [], not null
+	}
+	err := q.QueryRow(ctx, `INSERT INTO plan_proposal (run_id, status, summary, targets, misses) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		runID, Pending, summary, targets, misses).Scan(&id)
+	if err != nil {
 		return err
 	}
 	day := func(s *domain.Slot) (*string, *domain.SlotKind) {
@@ -147,11 +153,15 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, su
 	return nil
 }
 
-// storedProposal is a Plan Proposal as stored: its Prep Sessions with their Recipes and
-// Ingredients by id only.
+// storedProposal is a Plan Proposal as stored: its first Slot, the Targets it aimed at,
+// the soft rules it breaks, and its Prep Sessions with their Recipes and Ingredients by
+// id only.
 type storedProposal struct {
 	id       int64
 	summary  string
+	first    domain.Slot
+	targets  domain.Targets
+	misses   []domain.Miss
 	sessions []storedSession
 	kept     []domain.Kept
 }
@@ -161,20 +171,65 @@ type storedSession struct {
 	recipeID, ingredientID int64
 }
 
+// proposalColumns are what scanProposal reads of a plan_proposal pp and its cycle_run cr.
+const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses`
+
+// scanProposal reads proposalColumns of row, and the Plan they store, its days in zone.
+func scanProposal(ctx context.Context, q db.Querier, row pgx.Row, zone *time.Location) (*storedProposal, error) {
+	var sp storedProposal
+	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses)
+	if err != nil {
+		return nil, err
+	}
+	sp.first.On = inZone(sp.first.On, zone)
+	return &sp, loadPlan(ctx, q, &sp, zone)
+}
+
 // loadProposal reads the signed-in User's Plan Proposal of the Cycle id with status, its
 // days in zone, or nil when it has none: the pending one, or the approved one that is
 // its Plan.
 func loadProposal(ctx context.Context, q db.Querier, id int64, status ProposalStatus, zone *time.Location) (*storedProposal, error) {
-	var sp storedProposal
-	err := q.QueryRow(ctx, `
-		SELECT pp.id, pp.summary FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id
-		WHERE cr.cycle_id = $1 AND pp.status = $2`, id, status).Scan(&sp.id, &sp.summary)
+	sp, err := scanProposal(ctx, q, q.QueryRow(ctx, `
+		SELECT `+proposalColumns+` FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id
+		WHERE cr.cycle_id = $1 AND pp.status = $2`, id, status), zone)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
+	return sp, err
+}
+
+// loadApproved reads the signed-in User's approved Plan Proposals, of any Cycle, that put
+// a Portion in a Slot on or after the day from, oldest first, their days in zone.
+func loadApproved(ctx context.Context, q db.Querier, from time.Time, zone *time.Location) ([]*storedProposal, error) {
+	rows, err := q.Query(ctx, `
+		SELECT pp.id FROM plan_proposal pp
+		WHERE pp.status = $1 AND (
+			EXISTS (SELECT 1 FROM prep_session s JOIN planned_portion p ON p.prep_session_id = s.id
+				WHERE s.plan_proposal_id = pp.id AND p.eat_on >= $2)
+			OR EXISTS (SELECT 1 FROM kept_portion k WHERE k.plan_proposal_id = pp.id AND k.eat_on >= $2))
+		ORDER BY pp.id`, Approved, from.Format(time.DateOnly))
 	if err != nil {
 		return nil, err
 	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return nil, err
+	}
+	var approved []*storedProposal
+	for _, id := range ids {
+		sp, err := scanProposal(ctx, q, q.QueryRow(ctx, `
+			SELECT `+proposalColumns+` FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id WHERE pp.id = $1`, id), zone)
+		if err != nil {
+			return nil, err
+		}
+		approved = append(approved, sp)
+	}
+	return approved, nil
+}
+
+// loadPlan reads the Prep Sessions and the Portions without a Slot put in Slots of sp,
+// their days in zone.
+func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.Location) error {
 	in := func(t time.Time) time.Time { return inZone(t, zone) }
 	rows, err := q.Query(ctx, `
 		SELECT s.id, s.prepared_on, s.prepared_kind, coalesce(s.recipe_id, 0), coalesce(s.size, 0)::float8,
@@ -182,7 +237,7 @@ func loadProposal(ctx context.Context, q db.Querier, id int64, status ProposalSt
 		FROM prep_session s JOIN planned_portion p ON p.prep_session_id = s.id
 		WHERE s.plan_proposal_id = $1 ORDER BY s.id, p.position`, sp.id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var last int64
 	for rows.Next() {
@@ -195,7 +250,7 @@ func loadProposal(ctx context.Context, q db.Querier, id int64, status ProposalSt
 		err := rows.Scan(&sessionID, &ps.At.On, &ps.At.Kind, &ps.recipeID, &ps.Size, &ps.ingredientID, &quantity, &pp.Location, &eatOn, &eatKind)
 		if err != nil {
 			rows.Close()
-			return nil, err
+			return err
 		}
 		if eatOn != nil {
 			pp.EatAt = &domain.Slot{On: in(*eatOn), Kind: eatKind}
@@ -209,7 +264,7 @@ func loadProposal(ctx context.Context, q db.Querier, id int64, status ProposalSt
 		session.Portions = append(session.Portions, pp)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return err
 	}
 	rows, _ = q.Query(ctx, `SELECT portion_id, eat_on, eat_kind FROM kept_portion WHERE plan_proposal_id = $1 ORDER BY eat_on`, sp.id)
 	sp.kept, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (k domain.Kept, err error) {
@@ -217,7 +272,7 @@ func loadProposal(ctx context.Context, q db.Querier, id int64, status ProposalSt
 		k.At.On = in(k.At.On)
 		return k, err
 	})
-	return &sp, err
+	return err
 }
 
 // hasPlan reports whether the signed-in User's Cycle id has a Plan, which is the Plan

@@ -108,7 +108,8 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 
 	s.Follows("Plan Proposal")
 	s.IsAt("/plan")
-	s.Sees("01 Plan Proposal Rice bowls for Friday, with yogurt and the lasagne.")
+	s.Sees("01 Plan Proposal")
+	s.Sees("Rice bowls for Friday, with yogurt and the lasagne.")
 	s.Sees("02 Upcoming Cycle")
 	s.Sees("Friday, November 6")
 	s.Sees("Breakfast yogurt")
@@ -354,7 +355,8 @@ func TestASecondPlanningRunIsRefusedWhileOneIsGoingOrAPlanProposalIsPending(t *t
 	s.Follows("Plan the Cycle")
 	s.PlansCycle()
 	s.Open("/plan")
-	s.Sees("Plan Proposal Friday.")
+	s.Sees("Plan Proposal")
+	s.Sees("Friday.")
 	s.DoesNotSee("Plan the Cycle")
 
 	s.Open(check)
@@ -378,12 +380,14 @@ func TestUsersSeeOnlyTheirOwnPlanProposals(t *testing.T) {
 	stockKitchen(s)
 	plansFriday(t, s, "Bea's Friday.")
 	s.Open("/plan")
-	s.Sees("Plan Proposal Bea's Friday.")
+	s.Sees("Plan Proposal")
+	s.Sees("Bea's Friday.")
 	s.DoesNotSee("Ada's Friday.")
 
 	s.SwitchesTo("ada@example.com")
 	s.Open("/plan")
-	s.Sees("Plan Proposal Ada's Friday.")
+	s.Sees("Plan Proposal")
+	s.Sees("Ada's Friday.")
 	s.DoesNotSee("Bea's Friday.")
 }
 

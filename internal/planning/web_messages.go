@@ -91,6 +91,38 @@ var (
 	msgPlanAgain   = web.Message{En: "Plan again", It: "Pianifica di nuovo"}
 )
 
+// The Plan Proposal's soft misses' Messages, and its day table's.
+var (
+	msgCaloriesAverage = web.Message{En: "Calories average %s a day against %s–%s", It: "Calorie in media %s al giorno contro %s–%s"}
+	msgAverages        = web.Message{En: "%s averages %s a day against %s", It: "%s in media %s al giorno contro %s"}
+	msgUnder           = web.Message{En: "%s: %s%% under %s", It: "%s: %s%% di %s in meno"}
+	msgOver            = web.Message{En: "%s: %s%% over %s", It: "%s: %s%% di %s in più"}
+	msgBackToBack      = web.Message{En: "%s eaten back to back, %s", It: "%s mangiato di seguito, %s"}
+	msgAnd             = web.Message{En: "%s and %s", It: "%s e %s"}
+	msgUnused          = web.Message{En: "%s left unused %s", It: "%s senza Pasto %s"}
+	msgCounted         = web.Message{En: "%s × %d", It: "%s × %d"}
+	msgCaloriesWord    = web.Message{En: "calories", It: "calorie"}
+	msgProteinWord     = web.Message{En: "protein", It: "proteine"}
+	msgFibreWord       = web.Message{En: "fibre", It: "fibre"}
+	msgSugarWord       = web.Message{En: "sugar", It: "zuccheri"}
+
+	msgDay      = web.Message{En: "Day", It: "Giorno"}
+	msgCalories = web.Message{En: "Calories", It: "Calorie"}
+	msgProtein  = web.Message{En: "Protein", It: "Proteine"}
+	msgFibre    = web.Message{En: "Fibre", It: "Fibre"}
+	msgSugar    = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgTargets  = web.Message{En: "Targets", It: "Obiettivi"}
+	msgAverage  = web.Message{En: "Average", It: "Media"}
+	msgNoPlan   = web.Message{En: "No Plan", It: "Nessun Piano"}
+	msgPartly   = web.Message{En: "%s, partly planned", It: "%s, pianificato in parte"}
+	msgRange    = web.Message{En: "%s–%s", It: "%s–%s"}
+	msgAtLeast  = web.Message{En: "at least %s", It: "almeno %s"}
+	msgAtMost   = web.Message{En: "at most %s", It: "al massimo %s"}
+	msgGrams    = web.Message{En: "%s g", It: "%s g"}
+	msgUnknown  = web.Message{En: "unknown", It: "non noto"}
+	msgMissed   = web.Message{En: "missed", It: "mancato"}
+)
+
 // planningReasons are why a planning Run fails beside the reasons every Run can; %s is
 // what was said more, verbatim.
 var planningReasons = map[agent.Reason]web.Message{

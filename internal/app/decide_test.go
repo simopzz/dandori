@@ -79,13 +79,15 @@ func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 
 	s.At("Fri 08:00")
 	s.Open("/plan")
-	s.Sees("01 Plan Proposal Rice bowls for Friday.")
+	s.Sees("01 Plan Proposal")
+	s.Sees("Rice bowls for Friday.")
 	s.Submits("approve")
 	if s.Page().StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("approving a Plan Proposal starting in the past = %d, want %d", s.Page().StatusCode, http.StatusUnprocessableEntity)
 	}
 	s.Sees("This Plan Proposal starts at a Slot that has passed, so it can't be approved. Reject it with a Planning Note to have it planned again, or reject it and plan the Cycle again.")
-	s.Sees("01 Plan Proposal Rice bowls for Friday.")
+	s.Sees("01 Plan Proposal")
+	s.Sees("Rice bowls for Friday.")
 	s.Sees("02 Current Cycle")
 }
 
@@ -147,7 +149,8 @@ func TestRejectingWithANotePlansAgainToldEveryNoteNewestFirst(t *testing.T) {
 	s.Model.Script(fakellm.Reply("I can't."))
 	s.At("Fri 08:00")
 	s.Open("/plan")
-	s.Sees("Plan Proposal Less rice on Friday.")
+	s.Sees("Plan Proposal")
+	s.Sees("Less rice on Friday.")
 	s.Rejects("No lasagne.")
 	s.IsAt("/runs/3")
 	s.Settle()
@@ -187,7 +190,8 @@ func TestAFailedPlanningRunOffersToPlanAgain(t *testing.T) {
 	s.Settle()
 	told(t, s, []string{"Plan every Slot from breakfast on Fri 6 Nov on."})
 	s.Open("/plan")
-	s.Sees("01 Plan Proposal Friday after all.")
+	s.Sees("01 Plan Proposal")
+	s.Sees("Friday after all.")
 	s.DoesNotSee("Planning failed")
 }
 
@@ -236,7 +240,8 @@ func TestARefusedRejectionKeepsItsPlanningNote(t *testing.T) {
 	if got := apptest.Form(t, s.Page().Body, "reject").Values.Get("note"); got != "No lasagne." {
 		t.Errorf("the refused rejection's note = %q, want it as typed", got)
 	}
-	s.Sees("01 Plan Proposal Rice bowls for Friday.")
+	s.Sees("01 Plan Proposal")
+	s.Sees("Rice bowls for Friday.")
 }
 
 // Planning again and approving, posted as htmx, land where a plain post does: the Run,
