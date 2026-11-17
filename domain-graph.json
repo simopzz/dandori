@@ -20,8 +20,8 @@
       "OpenTelemetry"
     ],
     "description": "Dandori is a meal-planning co-pilot for a few invited Users cooking for themselves: it keeps a Kitchen Ledger of what the kitchen holds, a Recipe Library fed by LLM-parsed pastes, and plans each Cycle between supermarket Deliveries into batch-cooked Plan Proposals with a Claude agent.",
-    "analyzedAt": "2026-11-17T10:30:00Z",
-    "gitCommitHash": "4beb90901db15e622a2be94cc0356832c3491a47"
+    "analyzedAt": "2026-11-17T12:00:00Z",
+    "gitCommitHash": "28daec61b0bb825d0e57ad687ced76b37f80b969"
   },
   "nodes": [
     {
@@ -2755,6 +2755,23 @@
       "complexity": "simple"
     },
     {
+      "id": "step:plan-cycle:save-proposal",
+      "type": "step",
+      "name": "Store pending Plan Proposal",
+      "summary": "When the planning Run succeeds, the chosen draft and its summary are stored as the Cycle's pending Plan Proposal, in the transaction that ends the Run.",
+      "tags": [
+        "planning",
+        "plan-proposal",
+        "persistence"
+      ],
+      "complexity": "moderate",
+      "filePath": "internal/planning/store.go",
+      "lineRange": [
+        99,
+        147
+      ]
+    },
+    {
       "id": "flow:view-cycle",
       "type": "flow",
       "name": "View Cycle and Planning State",
@@ -4488,56 +4505,63 @@
       "target": "step:plan-cycle:kitchen-check",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.1
+      "weight": 0.11
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:confirm-plan",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.2
+      "weight": 0.22
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:start-planning",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.4
+      "weight": 0.33
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:build-prompt",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.5
+      "weight": 0.44
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:list-slots",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.6
+      "weight": 0.56
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:check-draft",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.8
+      "weight": 0.67
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:hard-rules",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 0.9
+      "weight": 0.78
     },
     {
       "source": "flow:plan-cycle",
       "target": "step:plan-cycle:submit-proposal",
       "type": "flow_step",
       "direction": "forward",
-      "weight": 1
+      "weight": 0.89
+    },
+    {
+      "source": "flow:plan-cycle",
+      "target": "step:plan-cycle:save-proposal",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
     },
     {
       "source": "domain:cycle-planning",
