@@ -44,11 +44,13 @@ type cycleView struct {
 }
 
 // cyclePage is the Cycle page: with a Plan Proposal pending, the Plan Proposal verdict
-// first; otherwise the Cycle as it stands.
+// first; with a Plan approved, the Plan from today; otherwise the Cycle as it stands.
 templ cyclePage(now time.Time, v cycleView) {
 	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
 		if v.Cycle != nil && v.Planning.Proposal != nil {
 			@proposalPage(now, v)
+		} else if v.Cycle != nil && v.Planning.Plan != nil {
+			@planPage(now, v)
 		} else {
 			@cycleBody(now, v)
 		}

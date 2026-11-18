@@ -152,6 +152,9 @@ var (
 	msgDaysOff       = web.Message{En: "%d days more than 25%% off", It: "%d giorni oltre il 25%%"}
 	msgEarlierNotes  = web.Message{En: "Earlier Planning Notes", It: "Note di pianificazione precedenti"}
 	msgRejectHint    = web.Message{En: "With a note, Dandori plans again. Without one, it only rejects.", It: "Con una nota, Dandori pianifica di nuovo. Senza, rifiuta soltanto."}
+	msgToday         = web.Message{En: "Today", It: "Oggi"}
+	msgOneDayPast    = web.Message{En: "1 day past", It: "1 giorno passato"}
+	msgDaysPast      = web.Message{En: "%d days past", It: "%d giorni passati"}
 	msgDaysBefore    = web.Message{En: "%d days before", It: "I %d giorni prima"}
 	msgOnPlan        = web.Message{En: "%d on the current Plan", It: "%d nel Piano attuale"}
 	msgWithNoPlan    = web.Message{En: "%d with no Plan", It: "%d senza Piano"}

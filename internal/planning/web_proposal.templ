@@ -20,9 +20,7 @@ import (
 templ proposalPage(now time.Time, v cycleView) {
 	{{ c, p := *v.Cycle, *v.Planning.Proposal }}
 	{{ ds := proposalDays(c, p) }}
-	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends)), now) {
-		@deliveryLine(c, v.Upcoming, ds)
-	}
+	@cycleHeader(now, c, v.Upcoming, ds)
 	@decisionAlert(v.Refusal)
 	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast))) {
 		@web.Section(2, web.T(ctx, msgDays)) {
@@ -30,22 +28,35 @@ templ proposalPage(now time.Time, v cycleView) {
 			@daysBefore(p.Trailing)
 			for _, d := range ds {
 				@web.Group(dayTitle(ctx, d), dayLine(p.Targets, d), false) {
-					@dayBody(d)
+					@dayBody(d, nil)
 				}
 			}
 		}
-		if v.Upcoming {
-			@web.Section(3, web.T(ctx, msgUpcomingCycle)) {
-				@web.Actions() {
-					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
-						{ web.T(ctx, msgDropCycle) }
-					}
-				}
-			}
-		}
+		@dropSection(c, v.Upcoming)
 	}
 	if v.Upcoming {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
+	}
+}
+
+// cycleHeader is the head of the Cycle page with a Plan: the Cycle's dates beside the
+// title, and its Delivery under it.
+templ cycleHeader(now time.Time, c Cycle, upcoming bool, ds []proposalDay) {
+	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends)), now) {
+		@deliveryLine(c, upcoming, ds)
+	}
+}
+
+// dropSection is Section 03, dropping the Cycle c, apart at the end, only while upcoming.
+templ dropSection(c Cycle, upcoming bool) {
+	if upcoming {
+		@web.Section(3, web.T(ctx, msgUpcomingCycle)) {
+			@web.Actions() {
+				@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
+					{ web.T(ctx, msgDropCycle) }
+				}
+			}
+		}
 	}
 }
 
@@ -401,14 +412,15 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its Slots, each with its Portion's size, calories and
-// protein, and where it comes from, then each Prep Session of a Recipe, which opens to
-// its Ingredients and its Portions eaten later.
-templ dayBody(d proposalDay) {
+// dayBody is what a day d holds: its Slots, each with the time of day it is at in times,
+// unless nil, its Portion's size, calories and protein, and where it comes from, then
+// each Prep Session of a Recipe, which opens to its Ingredients and the Portions it
+// leaves for later.
+templ dayBody(d proposalDay, times domain.SlotTimes) {
 	@web.RowsHead(web.T(ctx, msgSlots))
 	@web.Rows() {
 		for _, f := range d.filled {
-			@web.SlotRow(f.kind, "", f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+			@web.SlotRow(f.kind, slotTime(ctx, times, f.kind), f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
 		}
 	}
 	if slices.ContainsFunc(d.sessions, ofRecipe) {
@@ -487,4 +499,12 @@ func laterSlot(ctx context.Context, s *domain.Slot) string {
 		return web.T(ctx, msgAfterTheCycle)
 	}
 	return web.Tf(ctx, msgSlotOn, web.Capitalised(web.T(ctx, web.SlotKindNames[s.Kind])), web.ShortDate(ctx, s.On))
+}
+
+// slotTime is the time of day a Slot of kind is at in times, or "" when times is nil.
+func slotTime(ctx context.Context, times domain.SlotTimes, kind domain.SlotKind) string {
+	if times == nil {
+		return ""
+	}
+	return web.TimeOfDay(ctx, times[kind])
 }

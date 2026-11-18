@@ -711,8 +711,8 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 
 // Proposal is a Plan Proposal as its Cycle page shows it: its Plan, the Portions without
 // a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at and the
-// soft rules it breaks. A pending one has its day table too: the seven days before its
-// first Slot, and the days it plans.
+// soft rules it breaks. It has its day table too: the days it plans and, for a pending
+// one, the seven days before its first Slot.
 type Proposal struct {
 	ID             int64
 	Plan           domain.Plan
@@ -796,19 +796,27 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 	if pending != nil {
 		proposal := pending.resolve(library, known, portions)
 		planned := proposal.Plan.Eaten(portions)
-		last := pending.first.On
-		for _, e := range planned {
-			if e.At.On.After(last) {
-				last = e.At.On
-			}
-		}
-		proposal.Trailing, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, last)
+		proposal.Trailing, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, lastDay(planned, pending.first.On))
 		p.Proposal = proposal
 	}
 	if approved != nil {
-		p.Plan = approved.resolve(library, known, portions)
+		proposal := approved.resolve(library, known, portions)
+		planned := proposal.Plan.Eaten(portions)
+		_, proposal.Days = domain.PlanDays(nil, planned, approved.first, lastDay(planned, approved.first.On))
+		p.Plan = proposal
 	}
 	return p, nil
+}
+
+// lastDay is the last day planned puts a Portion in a Slot on, first when none is later.
+func lastDay(planned []domain.Eaten, first time.Time) time.Time {
+	last := first
+	for _, e := range planned {
+		if e.At.On.After(last) {
+			last = e.At.On
+		}
+	}
+	return last
 }
 
 // resolve is sp with its Recipes, Ingredients and Portions found by id among those given.
