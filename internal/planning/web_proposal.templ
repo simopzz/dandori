@@ -75,10 +75,9 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 			// A span: web.Hint is a <p>, which can't sit in the lede.
 			<span class="hint">{ web.T(ctx, msgTentativeHint) }</span>
 		}
-		if len(ds) > 0 {
-			if from, partly := ds[0].plannedFrom(); partly {
-				{ " · " + web.Tf(ctx, msgPlannedFrom, web.ShortDate(ctx, ds[0].On), web.T(ctx, web.SlotKindNames[from])) }
-			}
+		{{ first := firstFilled(ds) }}
+		if from, partly := first.plannedFrom(); partly {
+			{ " · " + web.Tf(ctx, msgPlannedFrom, web.ShortDate(ctx, first.On), web.T(ctx, web.SlotKindNames[from])) }
 		}
 	</p>
 }
@@ -379,6 +378,17 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	}
 	out[0].splits = p.Plan.FreezerSplits
 	return out
+}
+
+// firstFilled is the first of ds that fills a Slot, past a Delivery's day holding only
+// freezer splits, or none.
+func firstFilled(ds []proposalDay) proposalDay {
+	for _, d := range ds {
+		if len(d.filled) > 0 {
+			return d
+		}
+	}
+	return proposalDay{}
 }
 
 // plannedFrom is the Slot d is planned from, its first filled, and whether that is d
