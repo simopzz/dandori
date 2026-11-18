@@ -174,7 +174,8 @@ const (
 // Miss is a soft rule a Plan breaks, and where. For the Targets' rules: the Target, and
 // its average over the planned days as Value, or how far the day On is off it in percent,
 // Under it or over, Floor when only at least that. Back to back: Name eaten on Days.
-// Unused: Count Portions of Name left without a Slot in Location.
+// Unused: Count Portions of Name carried into the Cycle left without a Slot in Location,
+// of the Held there.
 type Miss struct {
 	Rule         Rule
 	Target       Target
@@ -183,7 +184,7 @@ type Miss struct {
 	On           time.Time
 	Name         string
 	Location     StorageLocation
-	Count        int
+	Count, Held  int
 	Days         []time.Time
 }
 
@@ -215,11 +216,7 @@ func (m Miss) Describe(t Targets) string {
 		}
 		return fmt.Sprintf("%s eaten back to back, %s", m.Name, strings.Join(days, " and "))
 	}
-	name := m.Name
-	if m.Count > 1 {
-		name = fmt.Sprintf("%s × %d", m.Name, m.Count)
-	}
-	return fmt.Sprintf("%s (%s) left unused", name, m.Location)
+	return fmt.Sprintf("%s: %d of %d left unused, in the %s", m.Name, m.Count, m.Held, m.Location)
 }
 
 // PlannerDay is how the planner is told a day, as Slot.String tells it.
@@ -283,8 +280,9 @@ func (t Targets) DayOff(target Target, d Day) (Miss, bool) {
 }
 
 // SoftMisses are the soft rules p breaks beside the Targets: Portions of one Prep Session
-// eaten within two days of each other, and Portions left without a Slot, held being the
-// Portion Lots the kitchen holds without one.
+// eaten within two days of each other, and Portions carried into the Cycle left without a
+// Slot, held being the Portion Lots the kitchen holds without one. Those p makes with no
+// Slot are no miss: they are MadeForAfter.
 func (p Plan) SoftMisses(held []PortionLot) []Miss {
 	var ms []Miss
 	for _, ps := range p.PrepSessions {
@@ -309,19 +307,7 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 			ms = append(ms, Miss{Rule: RuleBackToBack, Name: ps.Name(), Days: close})
 		}
 	}
-	unused := func(name string, location StorageLocation, n int) {
-		if n == 0 {
-			return
-		}
-		i := slices.IndexFunc(ms, func(m Miss) bool {
-			return m.Rule == RuleUnusedPortion && m.Location == location && portionName(m.Name) == portionName(name)
-		})
-		if i < 0 {
-			ms = append(ms, Miss{Rule: RuleUnusedPortion, Name: name, Location: location})
-			i = len(ms) - 1
-		}
-		ms[i].Count += n
-	}
+	var unused []Miss
 	for _, lot := range held {
 		left := 0
 		for _, id := range lot.IDs {
@@ -329,16 +315,33 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 				left++
 			}
 		}
-		unused(lot.Name, lot.Location, left)
+		i := slices.IndexFunc(unused, func(m Miss) bool {
+			return m.Location == lot.Location && portionName(m.Name) == portionName(lot.Name)
+		})
+		if i < 0 {
+			unused = append(unused, Miss{Rule: RuleUnusedPortion, Name: lot.Name, Location: lot.Location})
+			i = len(unused) - 1
+		}
+		unused[i].Count += left
+		unused[i].Held += len(lot.IDs)
 	}
+	return append(ms, slices.DeleteFunc(unused, func(m Miss) bool { return m.Count == 0 })...)
+}
+
+// MadeForAfter is how many Portions p's Prep Sessions make with no Slot, to eat after the
+// Cycle, and their names, each once.
+func (p Plan) MadeForAfter() (n int, names []string) {
 	for _, ps := range p.PrepSessions {
 		for _, pp := range ps.Portions {
 			if pp.EatAt == nil {
-				unused(ps.Name(), pp.Location, 1)
+				n++
+				if !slices.Contains(names, ps.Name()) {
+					names = append(names, ps.Name())
+				}
 			}
 		}
 	}
-	return ms
+	return n, names
 }
 
 // PlanDays are a Plan's days from its first Slot to last, beside the seven days before

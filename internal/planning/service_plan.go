@@ -465,7 +465,8 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 }
 
 // results are each day plan plans, the Targets' results over the days it fills whole,
-// and the soft rules it breaks, as the planner reads them, and those soft rules.
+// the soft rules it breaks and the Portions it makes for after the Cycle, as the planner
+// reads them, and those soft rules.
 func (pb *planBrief) results(plan domain.Plan) (string, []domain.Miss) {
 	first, last := pb.slots[0], pb.slots[len(pb.slots)-1].On
 	_, days := domain.PlanDays(pb.earlier, plan.Eaten(pb.unslotted), first, last)
@@ -498,6 +499,13 @@ func (pb *planBrief) results(plan domain.Plan) (string, []domain.Miss) {
 		for _, m := range misses {
 			fmt.Fprintf(&b, "- %s\n", m.Describe(t))
 		}
+	}
+	if n, names := plan.MadeForAfter(); n > 0 {
+		portions := "Portions"
+		if n == 1 {
+			portions = "Portion"
+		}
+		fmt.Fprintf(&b, "\nInformation, nothing to fix: %d %s made for after the Cycle: %s", n, portions, strings.Join(names, ", "))
 	}
 	return strings.TrimSpace(b.String()), misses
 }
