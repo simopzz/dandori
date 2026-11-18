@@ -175,7 +175,7 @@ const (
 // its average over the planned days as Value, or how far the day On is off it in percent,
 // Under it or over, Floor when only at least that. Back to back: Name eaten on Days.
 // Unused: Count Portions of Name carried into the Cycle left without a Slot in Location,
-// Of the kitchen's there.
+// of the Held there.
 type Miss struct {
 	Rule         Rule
 	Target       Target
@@ -184,7 +184,7 @@ type Miss struct {
 	On           time.Time
 	Name         string
 	Location     StorageLocation
-	Count, Of    int
+	Count, Held  int
 	Days         []time.Time
 }
 
@@ -216,7 +216,7 @@ func (m Miss) Describe(t Targets) string {
 		}
 		return fmt.Sprintf("%s eaten back to back, %s", m.Name, strings.Join(days, " and "))
 	}
-	return fmt.Sprintf("%s: %d of %d left unused, in the %s", m.Name, m.Count, m.Of, m.Location)
+	return fmt.Sprintf("%s: %d of %d left unused, in the %s", m.Name, m.Count, m.Held, m.Location)
 }
 
 // PlannerDay is how the planner is told a day, as Slot.String tells it.
@@ -307,7 +307,7 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 			ms = append(ms, Miss{Rule: RuleBackToBack, Name: ps.Name(), Days: close})
 		}
 	}
-	unused := len(ms)
+	var unused []Miss
 	for _, lot := range held {
 		left := 0
 		for _, id := range lot.IDs {
@@ -315,17 +315,17 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 				left++
 			}
 		}
-		i := slices.IndexFunc(ms[unused:], func(m Miss) bool {
+		i := slices.IndexFunc(unused, func(m Miss) bool {
 			return m.Location == lot.Location && portionName(m.Name) == portionName(lot.Name)
 		})
 		if i < 0 {
-			ms = append(ms, Miss{Rule: RuleUnusedPortion, Name: lot.Name, Location: lot.Location})
-			i = len(ms) - unused - 1
+			unused = append(unused, Miss{Rule: RuleUnusedPortion, Name: lot.Name, Location: lot.Location})
+			i = len(unused) - 1
 		}
-		ms[unused+i].Count += left
-		ms[unused+i].Of += len(lot.IDs)
+		unused[i].Count += left
+		unused[i].Held += len(lot.IDs)
 	}
-	return slices.DeleteFunc(ms, func(m Miss) bool { return m.Rule == RuleUnusedPortion && m.Count == 0 })
+	return append(ms, slices.DeleteFunc(unused, func(m Miss) bool { return m.Count == 0 })...)
 }
 
 // MadeForAfter is how many Portions p's Prep Sessions make with no Slot, to eat after the

@@ -191,18 +191,18 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 // typed, or without.
 templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes, note string) {
 	@web.Section(num, web.T(ctx, msgPlanProposal)) {
-		if n, names := p.Plan.MadeForAfter(); len(p.Misses) > 0 || n > 0 {
+		if len(p.Misses) > 0 {
 			@web.Rows() {
 				for _, m := range p.Misses {
 					@web.Row() {
 						<span class="row-title">{ missLine(ctx, m, p.Targets) }</span>
 					}
 				}
-				if n > 0 {
-					@web.Row() {
-						<span class="row-title">{ madeForAfter(ctx, n, names) }</span>
-					}
-				}
+			}
+		}
+		if n, names := p.Plan.MadeForAfter(); n > 0 {
+			@web.Hint() {
+				{ madeForAfter(ctx, n, names) }
 			}
 		}
 		@web.Markdown(p.Summary)
@@ -538,7 +538,7 @@ func missLine(ctx context.Context, m domain.Miss, t domain.Targets) string {
 		}
 		return web.Tf(ctx, msgBackToBack, m.Name, list)
 	}
-	return web.Tf(ctx, msgUnused, m.Name, m.Count, m.Of, web.T(ctx, web.InLocations[m.Location]))
+	return web.Tf(ctx, msgUnused, m.Name, m.Count, m.Held, web.T(ctx, web.InLocations[m.Location]))
 }
 
 // madeForAfter is the n Portions a Plan Proposal makes for after the Cycle, of names.

@@ -150,7 +150,7 @@ func TestTheTargetsResults(t *testing.T) {
 // sameMiss reports whether a and b are the same miss, their days compared as days.
 func sameMiss(a, b domain.Miss) bool {
 	return a.Rule == b.Rule && a.Target == b.Target && a.Value == b.Value && a.Floor == b.Floor && a.Under == b.Under &&
-		a.On.Equal(b.On) && a.Name == b.Name && a.Location == b.Location && a.Count == b.Count && a.Of == b.Of &&
+		a.On.Equal(b.On) && a.Name == b.Name && a.Location == b.Location && a.Count == b.Count && a.Held == b.Held &&
 		slices.EqualFunc(a.Days, b.Days, time.Time.Equal)
 }
 
@@ -197,7 +197,7 @@ func TestPortionsLeftWithoutASlot(t *testing.T) {
 		madeNames []string
 	}{
 		{"carried in and left unused", domain.Plan{Kept: []domain.Kept{{Portion: 2, At: slot(2, domain.Lunch)}, {Portion: 4, At: slot(3, domain.Lunch)}}}, []domain.Miss{
-			{Rule: domain.RuleUnusedPortion, Name: "lasagne", Location: domain.Freezer, Count: 2, Of: 3},
+			{Rule: domain.RuleUnusedPortion, Name: "lasagne", Location: domain.Freezer, Count: 2, Held: 3},
 		}, 0, nil},
 		{"carried in and used", domain.Plan{Kept: []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}, {Portion: 4}}}, nil, 0, nil},
 		{"made by the Plan with no Slot", domain.Plan{
