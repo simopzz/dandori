@@ -859,6 +859,7 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
   padding: var(--space-3) var(--space-4);
   background: var(--color-accent-wash);
   border-left: 4px solid var(--color-accent);
+  overflow-wrap: anywhere; /* a failure's reason may be one long unbroken string */
 }
 
 .alert > :last-child { margin-bottom: 0; }
