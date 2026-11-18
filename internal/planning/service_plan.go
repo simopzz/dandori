@@ -800,9 +800,10 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		p.Proposal = proposal
 	}
 	if approved != nil {
-		p.Plan = approved.resolve(library, known, portions)
-		planned := p.Plan.Plan.Eaten(portions)
-		_, p.Plan.Days = domain.PlanDays(nil, planned, approved.first, lastDay(planned, approved.first.On))
+		proposal := approved.resolve(library, known, portions)
+		planned := proposal.Plan.Eaten(portions)
+		_, proposal.Days = domain.PlanDays(nil, planned, approved.first, lastDay(planned, approved.first.On))
+		p.Plan = proposal
 	}
 	return p, nil
 }
