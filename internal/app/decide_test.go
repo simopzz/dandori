@@ -72,7 +72,7 @@ func fridayPlanned(t *testing.T, s *apptest.Scenario, summary string) {
 }
 
 // Once the Plan Proposal's first Slot has passed, approving it is refused, saying to
-// reject it with a Planning Note or plan again; it stays pending.
+// reject it with a Planning Note or plan again, with Reject open; it stays pending.
 func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
@@ -88,7 +88,10 @@ func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	s.Sees("This Plan Proposal starts at a Slot that has passed, so it can't be approved. Reject it with a Planning Note to have it planned again, or reject it and plan the Cycle again.")
 	s.Sees("01 Plan Proposal")
 	s.Sees("Rice bowls for Friday.")
-	s.Sees("02 Current Cycle")
+	s.Sees("02 Days")
+	if !strings.Contains(s.Page().Body, `<details class="button-fold" open`) {
+		t.Error("the refused approval says to reject with a Planning Note, but Reject is closed")
+	}
 }
 
 // A changed Slot time moves the Plan's Slots: a breakfast moved later is still to come,
@@ -167,6 +170,29 @@ func TestRejectingWithANotePlansAgainToldEveryNoteNewestFirst(t *testing.T) {
 		"Plan every Slot from lunch on Fri 6 Nov on.",
 		"<note>\nNo lasagne.\n</note>\n<note>\nLess rice, please.\n</note>",
 	})
+}
+
+// Reject opens to the Cycle's earlier Planning Notes, newest first, then the line saying
+// what a note does, then the note: none are listed before the first.
+func TestRejectShowsTheEarlierPlanningNotesNewestFirst(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Rice bowls for Friday.")
+	s.Open("/plan")
+	s.Sees("Reject With a note, Dandori plans again. Without one, it only rejects. Planning Note (optional)")
+	s.DoesNotSee("Earlier Planning Notes")
+
+	fridayPlanned(t, s, "Less rice on Friday.")
+	s.Rejects("Less rice, please.")
+	s.Settle()
+	fridayPlanned(t, s, "No lasagne on Friday.")
+	s.Open("/plan")
+	s.Rejects("No lasagne.")
+	s.Settle()
+
+	s.Open("/plan")
+	s.Sees("No lasagne on Friday.")
+	s.Sees("Reject Earlier Planning Notes No lasagne. Less rice, please. " +
+		"With a note, Dandori plans again. Without one, it only rejects. Planning Note (optional)")
 }
 
 // A failed planning Run shows its reason on the Cycle page, with a link to its Trace and

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/agent"
@@ -203,10 +204,10 @@ func tenDayDraft(t *testing.T, req agent.Request) map[string]any {
 }
 
 // Through a browser: a ten-day Plan Proposal after an approved Plan, its first day
-// planned only from lunch on, shows its soft misses, the seven days before it with the
-// approved Plan's two, and every day it plans; on a phone its day table fits, each
-// date on one line.
-func TestBrowserShowsATenDayPlanProposal(t *testing.T) {
+// planned only from lunch on, puts the verdict first: the Cycle's dates and Delivery,
+// the planner's summary, the averages with the Targets they miss marked, the soft misses
+// grouped by kind, then Approve and Reject, all before any day.
+func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 	s := tenDayKitchen(t, "ada@example.com", "English")
 	approvesTwoDays(t, s, twoDays)
 	plansTenDays(t, s, tenDays)
@@ -215,29 +216,104 @@ func TestBrowserShowsATenDayPlanProposal(t *testing.T) {
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
 	b.Open(t, "/plan")
-	b.Sees(t, "Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9")
-	b.Sees(t, "lasagne: 1 of 3 left unused, in the freezer")
-	b.Sees(t, "2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice")
-	b.Sees(t, "Tue, Nov 3")
-	b.Sees(t, "Thu, Nov 5, partly planned")
-	b.Sees(t, "Saturday, November 14")
-	for _, width := range []int{390, 1440} {
-		if err := b.SetViewportSize(width, 900); err != nil {
-			t.Fatalf("resize to %d: %v", width, err)
-		}
-		b.ShotPage(t, fmt.Sprintf("ten-days-%d", width))
+	b.SeesInTurn(t,
+		"Cycle · Thu, Nov 5 – Sat, Nov 14",
+		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm Tentative · planned from Thu, Nov 5 lunch",
+		"01 Plan Proposal",
+		tenDaySummary,
+		"Average Calories, kcal 2024–2376 Protein, g ≥ at least 130 Fibre, g ≥ at least 30 Sugar, g ≤ at most 50",
+		"calories 1826 under protein 99 under fibre at least 36+ sugar at least 52+ over",
+		"A day is marked when it is more than 25% off a Target",
+		"3 days more than 25% off Fri, Nov 6: calories under protein under Tue, Nov 10: protein under Thu, Nov 12: protein under",
+		"Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9",
+		"lasagne: 1 of 3 left unused, in the freezer",
+		"2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice",
+		"Approve Reject",
+		"02 Days",
+		"7 days before 2 on the current Plan, 5 with no Plan",
+		"Thursday, November 5 · lunch→",
+		"Saturday, November 14",
+		"03 Upcoming Cycle Drop the Cycle",
+	)
+}
+
+// Through a browser: every day of a Plan Proposal starts closed; opening Friday shows
+// its Slots, each with its Portion's calories and protein and where it comes from, then
+// its Prep Sessions of a Recipe, each opening to its Ingredients and the Portions it
+// leaves for later. The apple, one Ingredient as it is, shows only as its Slot.
+func TestBrowserOpensADayOfATenDayPlanProposal(t *testing.T) {
+	s := tenDayKitchen(t, "ada@example.com", "English")
+	plansTenDays(t, s, tenDays)
+	s.Sees("Planning a Cycle Succeeded")
+
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.Open(t, "/plan")
+	if text := b.Shown(t); strings.Contains(text, "Slots") {
+		t.Errorf("a day starts open: %s", text)
 	}
-	// On a phone the day table fits without scrolling sideways, each date on one line.
-	if err := b.SetViewportSize(390, 900); err != nil {
-		t.Fatalf("resize to 390: %v", err)
+	b.Opens(t, "Friday, November 6")
+	b.Opens(t, "Porridge")
+	b.Opens(t, "Lentil soup")
+	b.SeesInTurn(t, "Friday, November 6", "Slots",
+		"Porridge 1.25× · 519 kcal · 25 g protein Breakfast cooked",
+		"lasagne 620 kcal · 32 g protein Lunch already in the kitchen",
+		"apple 80 kcal · 0 g protein Snack in the pantry",
+		"Lentil soup 1.25× · 414 kcal · 25 g protein Dinner cooked",
+		"Prep Sessions", "Porridge 1 at 1.25× 10 min · 5 active", "Ingredients oats 62.5 g",
+		"Lentil soup 2 at 1.25× 40 min · 10 active",
+		"Ingredients red lentils", "Eaten later Lunch on Sun, Nov 8 In the fridge",
+		"Saturday, November 7",
+	)
+}
+
+// Through a browser: at 390px, in either Language and with every fold open, a ten-day
+// Plan Proposal doesn't scroll sideways; at 1440px its decision sits in a column of its
+// own, Approve in view while the days scroll past to the last.
+func TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView(t *testing.T) {
+	typed := map[string]apptest.Cycle{
+		"English":  tenDays,
+		"Italiano": {Delivery: "05/11/2026", From: "10:00", To: "12:00", Ends: "14/11/2026"},
 	}
-	fits, err := b.Evaluate(`() => {
-		const td = [...document.querySelectorAll("tbody td:first-child")].find(td => /Nov\s11/.test(td.textContent));
-		const r = document.createRange();
-		r.selectNodeContents(td);
-		return document.documentElement.scrollWidth === innerWidth && r.getClientRects().length === 1;
-	}`)
-	if err != nil || fits != true {
-		t.Errorf("at 390px the day table scrolls sideways or breaks Wed, Nov 11 (%v)", err)
+	for _, language := range []string{"English", "Italiano"} {
+		t.Run(language, func(t *testing.T) {
+			s := tenDayKitchen(t, "ada@example.com", language)
+			plansTenDays(t, s, typed[language])
+			s.Settle()
+
+			b := s.Browser(t)
+			b.SignIn(t, "ada@example.com")
+			b.Open(t, "/plan")
+			for _, width := range []int{390, 1440} {
+				if err := b.SetViewportSize(width, 900); err != nil {
+					t.Fatalf("resize to %d: %v", width, err)
+				}
+				b.ShotPage(t, fmt.Sprintf("ten-days-%s-%d", language, width))
+			}
+			if err := b.SetViewportSize(390, 900); err != nil {
+				t.Fatalf("resize to 390: %v", err)
+			}
+			fits, err := b.Evaluate(`() => {
+				document.querySelectorAll("main details").forEach(d => d.open = true);
+				return document.documentElement.scrollWidth === innerWidth;
+			}`)
+			if err != nil || fits != true {
+				t.Errorf("at 390px the Plan Proposal scrolls sideways (%v)", err)
+			}
+
+			if err := b.SetViewportSize(1440, 900); err != nil {
+				t.Fatalf("resize to 1440: %v", err)
+			}
+			inView, err := b.Evaluate(`() => {
+				document.querySelectorAll("main details").forEach(d => d.open = false);
+				const days = document.querySelectorAll("main h3");
+				days[days.length - 1].scrollIntoView();
+				const r = document.querySelector("#approve button").getBoundingClientRect();
+				return scrollY > 0 && r.top >= 0 && r.bottom <= innerHeight;
+			}`)
+			if err != nil || inView != true {
+				t.Errorf("at 1440px Approve leaves the view as the days scroll (%v)", err)
+			}
+		})
 	}
 }

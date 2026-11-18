@@ -43,11 +43,22 @@ type cycleView struct {
 	Note     string
 }
 
-// cyclePage is the Cycle page: the Cycle, its pending Plan Proposal first, then its
-// Plan, then its Delivery, tentative while upcoming, a way to drop it, and a way to plan
-// it, see it being planned, or plan it again; or, with none, a way to open one.
+// cyclePage is the Cycle page: with a Plan Proposal pending, the Plan Proposal verdict
+// first; otherwise the Cycle as it stands.
 templ cyclePage(now time.Time, v cycleView) {
 	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
+		if v.Cycle != nil && v.Planning.Proposal != nil {
+			@proposalPage(now, v)
+		} else {
+			@cycleBody(now, v)
+		}
+	}
+}
+
+// cycleBody is the Cycle page without a Plan Proposal pending: the Cycle, its Plan, then
+// its Delivery, tentative while upcoming, a way to drop it, and a way to plan it, see it
+// being planned, or plan it again; or, with none, a way to open one.
+templ cycleBody(now time.Time, v cycleView) {
 		@web.PageHeader("献立", web.T(ctx, msgCycle), now)
 		if v.Cycle == nil {
 			<div class="section">
@@ -64,10 +75,6 @@ templ cyclePage(now time.Time, v cycleView) {
 			{{ c, p := *v.Cycle, v.Planning }}
 			@decisionAlert(v.Refusal)
 			{{ section := 1 }}
-			if p.Proposal != nil {
-				@proposalSection(section, c, *p.Proposal, p.Times, v.Note)
-				{{ section++ }}
-			}
 			if p.Plan != nil {
 				@web.Section(section, web.T(ctx, msgPlan)) {
 					@planDays(c, *p.Plan, p.Times)
@@ -123,7 +130,6 @@ templ cyclePage(now time.Time, v cycleView) {
 				@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 			}
 		}
-	}
 }
 
 // cycleHeading names the Cycle shown, upcoming or current.
@@ -186,55 +192,11 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 	}
 }
 
-// proposalSection is the pending Plan Proposal of c, numbered num: the planner's
-// summary, its days, then approving it, or rejecting it with a Planning Note, note as
-// typed, or without.
-templ proposalSection(num int, c Cycle, p Proposal, times domain.SlotTimes, note string) {
-	@web.Section(num, web.T(ctx, msgPlanProposal)) {
-		if len(p.Misses) > 0 {
-			@web.Rows() {
-				for _, m := range p.Misses {
-					@web.Row() {
-						<span class="row-title">{ missLine(ctx, m, p.Targets) }</span>
-					}
-				}
-			}
-		}
-		if n, names := p.Plan.MadeForAfter(); n > 0 {
-			@web.Hint() {
-				{ madeForAfter(ctx, n, names) }
-			}
-		}
-		@web.Markdown(p.Summary)
-		@dayTable(p)
-		@planDays(c, p, times)
-		<div class="stack">
-			<form novalidate id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/approve", p.ID)) }>
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgApprove) }
-					}
-				}
-			</form>
-			<form novalidate id="reject" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/reject", p.ID)) }>
-				@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgNoteHint), "") {
-					<textarea name="note" rows="3">{ note }</textarea>
-				}
-				@web.Actions() {
-					@web.TextButton(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgReject) }
-					}
-				}
-			</form>
-		</div>
-	}
-}
-
 // planDays are the days p plans of c, each a Group under its date, closed: its Slots at
 // their times, each with the Portion filling it, then its Prep Sessions.
 templ planDays(c Cycle, p Proposal, times domain.SlotTimes) {
 	for _, d := range days(c, p) {
-		@web.Group(web.Date(ctx, d.on), "", false) {
+		@web.Group(web.Date(ctx, d.on), nil, false) {
 			@web.RowsHead(web.T(ctx, msgSlots))
 			@web.Rows() {
 				for _, f := range d.filled {
@@ -326,12 +288,15 @@ func eatenAt(ctx context.Context, s *domain.Slot) string {
 }
 
 // filledSlot is a Slot of a Plan Proposal with the Portion filling it: its name, its
-// size when a Prep Session of a Recipe yields it, and its nutrition.
+// size when a Prep Session of a Recipe yields it, its nutrition, and the Prep Session it
+// comes from, nil for a Portion already in the kitchen, with where it is kept.
 type filledSlot struct {
 	kind      domain.SlotKind
 	name      string
 	size      float64
 	nutrition domain.PortionNutrition
+	from      *domain.PrepSession
+	location  domain.StorageLocation
 }
 
 // planDay is one day of a Plan Proposal: its Slots filled, and its Prep Sessions.
@@ -349,10 +314,11 @@ func days(c Cycle, p Proposal) []planDay {
 		d := planDay{on: on}
 		for _, k := range domain.SlotKinds {
 			at := domain.Slot{On: on, Kind: k}
-			for _, ps := range p.Plan.PrepSessions {
+			for i, ps := range p.Plan.PrepSessions {
 				for _, pp := range ps.Portions {
 					if pp.EatAt != nil && pp.EatAt.Equal(at) {
-						d.filled = append(d.filled, filledSlot{kind: k, name: ps.Name(), size: ps.Size, nutrition: ps.NutritionPerPortion()})
+						d.filled = append(d.filled, filledSlot{kind: k, name: ps.Name(), size: ps.Size, nutrition: ps.NutritionPerPortion(),
+							from: &p.Plan.PrepSessions[i], location: pp.Location})
 					}
 				}
 				if ps.At.Equal(at) {
@@ -428,63 +394,6 @@ templ dropStep(c Cycle, back templ.SafeURL) {
 	@web.RemoveStep(web.Tf(ctx, msgDropAsk, web.Date(ctx, c.Delivery.On)), web.T(ctx, msgDrop), dropURL(c.ID), back, nil)
 }
 
-// dayTable is p's days against the Targets it aimed at, each column's head naming its
-// unit and the Target's bounds: the seven days before it, greyed, "No Plan" where no
-// Plan covered them, then each day it plans, and the average over the days judged,
-// each soft miss marked worth weighing: a day more than 25% off a Target, an average
-// missing it.
-templ dayTable(p Proposal) {
-	<table>
-		<thead>
-			<tr>
-				<th scope="col">{ web.T(ctx, msgDay) }</th>
-				for _, target := range domain.Aimed {
-					<th scope="col">
-						{ web.T(ctx, targetMessages[target].head) }
-						<br/>
-						@bounds(p.Targets, target)
-					</th>
-				}
-			</tr>
-		</thead>
-		<tbody>
-			for _, d := range p.Trailing {
-				<tr class="hint">
-					<td>{ cellDate(ctx, d.On) }</td>
-					if d.Filled == 0 {
-						<td colspan="4">{ web.T(ctx, msgNoPlan) }</td>
-					} else {
-						@figures(d.Nutrition, nil)
-					}
-				</tr>
-			}
-			for _, d := range p.Days {
-				<tr>
-					if d.Partly {
-						<td>{ web.Tf(ctx, msgPartly, cellDate(ctx, d.On)) }</td>
-					} else {
-						<td>{ cellDate(ctx, d.On) }</td>
-					}
-					@figures(d.Nutrition, dayMissed(p.Targets, d))
-				</tr>
-			}
-			if judged := domain.Judged(p.Days); len(judged) > 0 {
-				{{ avg := domain.Average(judged) }}
-				<tr>
-					<td>{ web.T(ctx, msgAverage) }</td>
-					@figures(avg, averageMissed(p.Targets, avg))
-				</tr>
-			}
-		</tbody>
-	</table>
-}
-
-// cellDate is day's short date as a table's first column shows it: held on one line,
-// so the column breaks only after it ("Thu, Nov 5," then "partly planned").
-func cellDate(ctx context.Context, day time.Time) string {
-	return strings.ReplaceAll(web.ShortDate(ctx, day), " ", "\u00a0")
-}
-
 // bounds are what t allows a day of target, as a column's head shows them: calories'
 // range, a floor as ≥ and a ceiling as ≤, each said in words to a screen reader.
 templ bounds(t domain.Targets, target domain.Target) {
@@ -500,24 +409,6 @@ templ bounds(t domain.Targets, target domain.Target) {
 			<span aria-hidden="true">≥</span>
 			<span class="sr-only">{ web.T(ctx, msgAtLeast) + " " }</span>
 			{ web.Number(ctx, float64(t.Aim(target))) }
-	}
-}
-
-// figures are n's values of what the Targets aim at, whole, a cell each, those missed
-// marked worth weighing, under or over, if missed says.
-templ figures(n domain.PortionNutrition, missed func(domain.Target) (bool, bool)) {
-	for _, target := range domain.Aimed {
-		{{ a, floor := n.Of(target) }}
-		{{ a.Value = math.Round(a.Value) }}
-		<td>
-			if off, under := missOf(missed, target); off {
-				@worthWeighing(under) {
-					@web.Amount(a, floor, "")
-				}
-			} else {
-				@web.Amount(a, floor, "")
-			}
-		</td>
 	}
 }
 
@@ -546,52 +437,6 @@ var targetMessages = map[domain.Target]struct{ head, word web.Message }{
 
 // whole is v rounded to whole, as the Language writes it.
 func whole(ctx context.Context, v float64) string { return web.Number(ctx, math.Round(v)) }
-
-// grams is n grams.
-func grams(ctx context.Context, n int) string {
-	return web.Tf(ctx, msgGrams, web.Number(ctx, float64(n)))
-}
-
-// missLine is m, a soft rule a Plan Proposal breaks, against the Targets t it aimed at.
-func missLine(ctx context.Context, m domain.Miss, t domain.Targets) string {
-	value := web.Number(ctx, float64(m.Value))
-	switch {
-	case m.Rule == domain.RuleTargetAverage:
-		unit := ""
-		if m.Target != domain.TargetKcal {
-			unit = web.T(ctx, msgGramsUnit)
-		}
-		value = web.AmountText(ctx, domain.Amount{Value: float64(m.Value), Known: true}, m.Floor, unit)
-	case m.Floor:
-		// A day off is a percentage, not a nutritional value: its floor is said in words.
-		value = web.T(ctx, msgAtLeast) + " " + value
-	}
-	switch m.Rule {
-	case domain.RuleTargetAverage:
-		if m.Target == domain.TargetKcal {
-			lo, hi := t.Bounds(domain.TargetKcal)
-			return web.Tf(ctx, msgCaloriesAverage, value, whole(ctx, lo), whole(ctx, hi))
-		}
-		return web.Tf(ctx, msgAverages, web.Capitalised(web.T(ctx, targetMessages[m.Target].word)), value, grams(ctx, t.Aim(m.Target)))
-	case domain.RuleDayOff:
-		way := msgOver
-		if m.Under {
-			way = msgUnder
-		}
-		return web.Tf(ctx, way, web.ShortDate(ctx, m.On), value, web.T(ctx, targetMessages[m.Target].word))
-	case domain.RuleBackToBack:
-		days := make([]string, len(m.Days))
-		for i, d := range m.Days {
-			days[i] = web.ShortDate(ctx, d)
-		}
-		list := days[0]
-		if n := len(days); n > 1 {
-			list = web.Tf(ctx, msgAnd, strings.Join(days[:n-1], ", "), days[n-1])
-		}
-		return web.Tf(ctx, msgBackToBack, m.Name, list)
-	}
-	return web.Tf(ctx, msgUnused, m.Name, m.Count, m.Held, web.T(ctx, web.InLocations[m.Location]))
-}
 
 // madeForAfter is the n Portions a Plan Proposal makes for after the Cycle, of names.
 func madeForAfter(ctx context.Context, n int, names []string) string {

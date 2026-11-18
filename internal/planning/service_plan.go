@@ -725,13 +725,15 @@ type Proposal struct {
 
 // Planning is how planning a Cycle stands: its pending Plan Proposal, its Plan (the Plan
 // Proposal approved), each nil when it has none, the id of its planning Run going, 0
-// when none is, its latest planning Run when that failed, with its Trace, and the times
-// of day its Slots are at.
+// when none is, its latest planning Run when that failed, with its Trace, the times of
+// day its Slots are at, and with a Plan Proposal pending, the Cycle's Planning Notes,
+// newest first.
 type Planning struct {
 	Proposal, Plan *Proposal
 	Going          int64
 	Failed         *runs.Run
 	Times          domain.SlotTimes
+	Notes          []string
 }
 
 // PlanningOf is how planning the signed-in User's Cycle id stands, its days in zone.
@@ -761,6 +763,9 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		}
 		if pending != nil {
 			if earlier, err = loadApproved(ctx, tx, pending.first.On.AddDate(0, 0, -7), zone); err != nil {
+				return err
+			}
+			if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
 				return err
 			}
 		}

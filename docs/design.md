@@ -70,7 +70,10 @@ titles only: the page's `h1`, `Section` and `FieldGroup` headings (and any
 `h2`), the sheet title and the wordmark. It is subset to Latin-1 and 段取り,
 so a title in Japanese falls back to the system's face. `--font-body` is Zen
 Kaku Gothic New (400, 700, latin subset) for everything else, `h3` in bold;
-Japanese text falls back to the system's Gothic.
+Japanese text falls back to the system's Gothic. `Layout` preloads all three.
+The body faces are `font-display: optional`: text rewrapping as a face swapped
+in moved the page (a layout shift), so a body face that isn't there for the
+first paint waits for the next page. The title face swaps in.
 
 A title's data, its times, quantities and User text (Today's `1:00 pm`, a
 Recipe's or an Ingredient's name), is set in the body face, where the pixel
@@ -134,8 +137,9 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 `sr-only`, the same on every page: `under` (▼), `over` (▲) and `changed` (•)
 for what is worth weighing, `repeat` for a Portion eaten back to back,
 `package` (the Kitchen's crate) for a Portion left unused, `snowflake` for one
-made for after the Cycle, and `book-open` for a new Recipe. A new kind of line
-gets its own icon here before it lands on a page.
+made for after the Cycle, `scale` for the days more than 25% off a Target, and
+`book-open` for a new Recipe. A new kind of line gets its own icon here before
+it lands on a page.
 
 ## Layout
 
@@ -264,6 +268,8 @@ elements themselves.
 | --- | --- |
 | `Layout(title, tab)` | Every full page. Renders the head and the shell, whose tabs a page before signing in and choosing a Language (`SignedOut`) leaves out. |
 | `PageHeader(ja, title, today)` | The top of every page; `today` is the app's clock's time, which the eyebrow shows as the date. Children, if any, are a `<p class="lede">` under the title. |
+| `PageHeaderBeside(ja, title, beside, today)` | A `PageHeader` whose title has `beside` after it, in the body face and smaller, what the page is of ("Cycle · Thu, Nov 5 – Sat, Nov 14"); on a phone it wraps under the title. |
+| `SideColumn(side)` | A page with a decision beside a long list (a Plan Proposal beside its days): the children are the main column, and `side` comes first on a phone; from 1200px `side` is a column of its own on the right, sticky, so its actions stay in view while the main column scrolls, and the page widens to hold both. |
 | `Section(num, title)` | A numbered group of a page's content. `num` 0 puts a small navy square in the number's place, for groups that aren't a page's own sequence, such as a side sheet's. |
 | `FieldGroup(num, legend, hint)` | A numbered group of a form's fields; `num` 0 marks it as `Section`'s does. `hint` follows the legend in brackets, as a `Field`'s does: `optional` for a group that may be left empty (a Recipe's Steps). |
 | `FieldGroupAction(id, num, legend, action)` | A `FieldGroup` with a secondary action beside its legend, for one that changes what the legend names (the Count form's `Choose another`); on a long legend it drops to the next line, at the far end. `id` is the legend text's, which alone names the group. |
@@ -271,10 +277,11 @@ elements themselves.
 | `Empty()` | What a list or a page says when it has nothing in it: it says what would be here, why it isn't, and links the one action that fills it. Today, before it has a Plan, names each thing planning needs instead, each a link named for its action. |
 | `Disclosure(summary, open)` | A group of a page's content a click away (the day's later Slots on Today, the add form above the Ingredients side sheet's list): a quiet summary line with a chevron, closed until opened, or open when it holds what the User is at, such as a refused form. |
 | `Fold(summary, holds)` | A line that opens in place to show what it holds (a Trace Event's data): a chevron at its start points right while closed and down while open, and it starts closed. Without `holds` it is the line alone, aligned with its neighbours. |
-| `Group(title, meta, open)` | A part of a `Section` that folds: a `<details>` whose summary is an `h3`, `title`, with `meta` as a soft line under it and a chevron at the end, over a 1px navy rule, weaker than a Section's and stronger than a row's hairline (a day of a Plan). Closed unless it holds what the User is at, such as a refused form. It holds `Rows`, never a deeper heading. |
+| `Group(title, meta, open)` | A part of a `Section` that folds: a `<details>` whose summary is an `h3`, `title`, with `meta`, a component or nil, under it (a soft line, or a day's `Figures` and what it cooks) and a chevron at the end, over a 1px navy rule, weaker than a Section's and stronger than a row's hairline (a day of a Plan). Closed unless it holds what the User is at, such as a refused form. It holds `Rows`, never a deeper heading. |
 | `RowsHead(label)` | A small soft caption over a `Rows`, on a 1px navy line (a day's Slots, then its Prep Sessions). |
 | `Rows()` | A list of `Row`s, `EditRow`s or `FoldRow`s. |
-| `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
+| `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. A kind of line (a soft miss) leads with its `Icon`, and its `row-meta` lines up under the title. |
+| `Figures()` | A line of figures in equal columns, the children each a cell, lined up down a `Section` under a `Figures` of their heads (class `figures figures-head` on the head line): a day's four values against the Targets, without a table, so a day's row can fold as a `Group`. A head names its value and unit over its Target ("Protein, g" over "≥ 130"); a cell holds `Amount`, its name `sr-only`. |
 | `SlotRow(kind, at, portion, size, figures, source)` | A Slot and the Portion filling it, as a `Row`: the Portion as the `row-title`; its `size` and `figures` (calories and protein through `Amount`) as the `row-figure`; the Slot's kind, its time `at` where the page shows one (Today), and `source`, a word for where the Portion comes from ("cooked", "from Thu, in the fridge", "already in the kitchen"), as its `row-meta`. Leave out what isn't shown with `""` or a nil `figures`. |
 | `IngredientRows(ingredients)` | A list of a Recipe's or a Prep Session's Ingredients, each its name and quantity in its unit, an Ingredient not yet saved with a `New` Tag. |
 | `Amount(a, floor, unit)` | Every nutritional value a page shows: the number, then `unit` unless it is `""`; a dash with `sr-only` "unknown" when it isn't known; "29+" when only a floor is known, which a screen reader says "at least 29". `AmountText` is the same as plain text, for a sentence. Never write "unknown" or "at least" for a value by hand. |
@@ -296,6 +303,7 @@ elements themselves.
 | `ActionsApart()` | An `Actions` with one more action that isn't part of the form, at the far end of the row, always in the same place (the Count form's `Movements`). |
 | `Button(attrs)` | The primary action of a form, in navy, dithering with slate on hover. One per form. On a page of forms each saved on its own, as the Profile's sections are, each shows Save and has an accessible name that says what it saves (`aria-label="Save Targets"`), so none reads as saving the page and a screen reader tells them apart. The name starts with what the button shows, so voice control's "click Save" still finds it. |
 | `TextButton(attrs)` | A secondary action, underlined text. Its target is wider than its text, which, alone, still lines up with the column; beside another, the two keep their targets apart. |
+| `TextButtonFold(label, open)` | A secondary action that needs something first, opening in place with a chevron (Reject, opening to the earlier Planning Notes, a hint and the note, and its own button). In `Actions` beside a `Button`, it opens onto a line of its own. Closed unless it holds what the User is at, such as a refused form. |
 | `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. Deleting or discarding what the User wrote asks once, naming what will go; nothing is removed by a single tap. Its Delete or Discard is a `RemoveLink` to a `RemoveStep`, whose own `DestructiveButton` does it. Cancelling a Run stays one tap: the User didn't write it. |
 | `RemoveLink(id, href, src)` | A `DestructiveButton`'s look on a `SideSheetLink`: opens the `SideSheet` `id` on the `RemoveStep` at `src`, or without htmx goes to `href`, the step as a page of its own. |

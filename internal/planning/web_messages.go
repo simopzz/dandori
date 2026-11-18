@@ -82,7 +82,6 @@ var (
 	msgApprove         = web.Message{En: "Approve", It: "Approva"}
 	msgApproved        = web.Message{En: "Plan approved.", It: "Piano approvato."}
 	msgPlanningNote    = web.Message{En: "Planning Note", It: "Nota di pianificazione"}
-	msgNoteHint        = web.Message{En: "optional: with one, it is planned again", It: "facoltativa: con una, viene ripianificato"}
 	msgReject          = web.Message{En: "Reject", It: "Rifiuta"}
 	msgRejected        = web.Message{En: "Plan Proposal rejected.", It: "Proposta di Piano rifiutata."}
 	msgStartsInThePast = web.Message{
@@ -96,34 +95,26 @@ var (
 	msgPlanAgain   = web.Message{En: "Plan again", It: "Pianifica di nuovo"}
 )
 
-// The Plan Proposal's soft misses' Messages, and its day table's.
+// The Plan Proposal's soft misses' Messages, and the heads of its figures.
 var (
-	msgCaloriesAverage = web.Message{En: "Calories average %s a day against %s–%s", It: "Calorie in media %s al giorno contro %s–%s"}
-	msgAverages        = web.Message{En: "%s averages %s a day against %s", It: "%s in media %s al giorno contro %s"}
-	msgUnder           = web.Message{En: "%s: %s%% under %s", It: "%s: %s%% di %s in meno"}
-	msgOver            = web.Message{En: "%s: %s%% over %s", It: "%s: %s%% di %s in più"}
-	msgBackToBack      = web.Message{En: "%s eaten back to back, %s", It: "%s mangiato di seguito, %s"}
-	msgAnd             = web.Message{En: "%s and %s", It: "%s e %s"}
-	msgUnused          = web.Message{En: "%s: %d of %d left unused, %s", It: "%s: %d di %d senza Pasto, %s"}
-	msgMadeForAfter    = web.Message{En: "%d Portions made for after the Cycle: %s", It: "%d Porzioni preparate per dopo il Ciclo: %s"}
-	msgOneForAfter     = web.Message{En: "1 Portion made for after the Cycle: %s", It: "1 Porzione preparata per dopo il Ciclo: %s"}
-	msgCaloriesWord    = web.Message{En: "calories", It: "calorie"}
-	msgProteinWord     = web.Message{En: "protein", It: "proteine"}
-	msgFibreWord       = web.Message{En: "fibre", It: "fibre"}
-	msgSugarWord       = web.Message{En: "sugar", It: "zuccheri"}
+	msgBackToBack   = web.Message{En: "%s eaten back to back, %s", It: "%s mangiato di seguito, %s"}
+	msgAnd          = web.Message{En: "%s and %s", It: "%s e %s"}
+	msgUnused       = web.Message{En: "%s: %d of %d left unused, %s", It: "%s: %d di %d non usate, %s"}
+	msgMadeForAfter = web.Message{En: "%d Portions made for after the Cycle: %s", It: "%d Porzioni preparate per dopo il Ciclo: %s"}
+	msgOneForAfter  = web.Message{En: "1 Portion made for after the Cycle: %s", It: "1 Porzione preparata per dopo il Ciclo: %s"}
+	msgCaloriesWord = web.Message{En: "calories", It: "calorie"}
+	msgProteinWord  = web.Message{En: "protein", It: "proteine"}
+	msgFibreWord    = web.Message{En: "fibre", It: "fibre"}
+	msgSugarWord    = web.Message{En: "sugar", It: "zuccheri"}
 
-	msgDay       = web.Message{En: "Day", It: "Giorno"}
 	msgCalories  = web.Message{En: "Calories, kcal", It: "Calorie, kcal"}
 	msgProtein   = web.Message{En: "Protein, g", It: "Proteine, g"}
 	msgFibre     = web.Message{En: "Fibre, g", It: "Fibre, g"}
 	msgSugar     = web.Message{En: "Sugar, g", It: "Zuccheri, g"}
 	msgAverage   = web.Message{En: "Average", It: "Media"}
-	msgNoPlan    = web.Message{En: "No Plan", It: "Nessun Piano"}
-	msgPartly    = web.Message{En: "%s, partly planned", It: "%s, pianificato in parte"}
 	msgRange     = web.Message{En: "%s–%s", It: "%s–%s"}
 	msgAtLeast   = web.Message{En: "at least", It: "almeno"}
 	msgAtMost    = web.Message{En: "at most", It: "al massimo"}
-	msgGrams     = web.Message{En: "%s g", It: "%s g"}
 	msgGramsUnit = web.Message{En: "g", It: "g"}
 	msgUnderWord = web.Message{En: "under", It: "sotto"}
 	msgOverWord  = web.Message{En: "over", It: "sopra"}
@@ -146,3 +137,33 @@ var cycleProblems = map[domain.Problem]web.Message{
 	domain.NotAfterDelivery: {En: "Must be after the Delivery's date.", It: "Deve essere dopo la data della Consegna."},
 	domain.TooLong:          {En: "At most 14 days after the Delivery's date.", It: "Al massimo 14 giorni dopo la data della Consegna."},
 }
+
+// The pending Plan Proposal's Messages: the Cycle's header, the averages and soft misses,
+// rejecting, and the days.
+var (
+	msgDates       = web.Message{En: "%s – %s", It: "%s – %s"}
+	msgPlannedFrom = web.Message{En: "planned from %s %s", It: "pianificato da %s, %s"}
+	msgDays        = web.Message{En: "Days", It: "Giorni"}
+	msgMarkRule    = web.Message{
+		En: "A day is marked when it is more than 25%% off a Target, the average when it misses at all. + means some Ingredients have no value.",
+		It: "Un giorno è segnato quando si scosta di oltre il 25%% da un Obiettivo, la media quando lo manca. + vuol dire che alcuni Ingredienti non hanno valori.",
+	}
+	msgOneDayOff     = web.Message{En: "1 day more than 25%% off", It: "1 giorno oltre il 25%%"}
+	msgDaysOff       = web.Message{En: "%d days more than 25%% off", It: "%d giorni oltre il 25%%"}
+	msgEarlierNotes  = web.Message{En: "Earlier Planning Notes", It: "Note di pianificazione precedenti"}
+	msgRejectHint    = web.Message{En: "With a note, Dandori plans again. Without one, it only rejects.", It: "Con una nota, Dandori pianifica di nuovo. Senza, rifiuta soltanto."}
+	msgDaysBefore    = web.Message{En: "%d days before", It: "I %d giorni prima"}
+	msgOnPlan        = web.Message{En: "%d on the current Plan", It: "%d nel Piano attuale"}
+	msgWithNoPlan    = web.Message{En: "%d with no Plan", It: "%d senza Piano"}
+	msgNoPlanOn      = web.Message{En: "%s: no Plan", It: "%s: nessun Piano"}
+	msgFromSlot      = web.Message{En: "%s · %s→", It: "%s · %s→"}
+	msgNothingCooked = web.Message{En: "Nothing to cook", It: "Niente da cucinare"}
+	msgCooked        = web.Message{En: "%s · %d min active", It: "%s · %d min attivi"}
+	msgInTheKitchen  = web.Message{En: "already in the kitchen", It: "già in cucina"}
+	msgCookedThatDay = web.Message{En: "cooked", It: "cucinata"}
+	msgCookedOn      = web.Message{En: "from %s, %s", It: "da %s, %s"}
+	msgEatenLater    = web.Message{En: "Eaten later", It: "Mangiate più avanti"}
+	msgPortionsSized = web.Message{En: "%d at %s", It: "%d da %s"}
+	msgTotalActive   = web.Message{En: "%d min · %d active", It: "%d min · %d attivi"}
+	msgAfterTheCycle = web.Message{En: "After the Cycle", It: "Dopo il Ciclo"}
+)
