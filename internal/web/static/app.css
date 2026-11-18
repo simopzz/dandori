@@ -544,6 +544,11 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 
 .fold-row .row-body { padding: 0 0 var(--space-3) var(--space-4); }
 
+/* The FoldRow's own hairline closes its last list. */
+.fold-row .row-body > .rows:last-child { margin-bottom: 0; }
+
+.fold-row .row-body > .rows:last-child > .row:last-child { border-bottom: 0; }
+
 .fold-row .row-edit svg { transition: transform 0.15s; }
 
 .fold-row[open] .row-edit svg { transform: rotate(180deg); }
