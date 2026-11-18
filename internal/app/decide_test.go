@@ -6,13 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mxschmitt/playwright-go"
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
 // Approving the pending Plan Proposal makes it the Cycle's Plan: the Cycle page shows it
-// by day, each Slot at its time, and no Plan Proposal waiting or way to plan again.
+// by day, each Slot by its kind and no time of day, which only Today shows, and no Plan
+// Proposal waiting or way to plan again.
 func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
@@ -24,8 +26,8 @@ func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 	s.Sees("Cycle · Thu, Nov 5 – Fri, Nov 6 Delivery Thu, Nov 5, 6:00 pm to 8:00 pm Tentative")
 	s.Sees("01 Plan Average " + heads + " calories 1586 under protein 65 under")
 	s.Sees("02 Days " + heads + " Friday, November 6 calories 1586 under protein 65 under")
-	s.Sees("Slots yogurt 90 kcal · 15 g protein Breakfast 8:00 am in the fridge")
-	s.Sees("Rice bowl 1.25× · 438 kcal · 9 g protein Lunch 1:00 pm cooked")
+	s.Sees("Slots yogurt 90 kcal · 15 g protein Breakfast in the fridge")
+	s.Sees("Rice bowl 1.25× · 438 kcal · 9 g protein Lunch cooked")
 	s.Sees("Rice bowl 3 at 1.25× 25 min · 10 active")
 	s.Sees("03 Upcoming Cycle Drop the Cycle")
 	s.DoesNotSee("Plan Proposal")
@@ -96,9 +98,9 @@ func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	}
 }
 
-// A changed Slot time moves the Plan's Slots: a breakfast moved later is still to come,
-// so its Plan Proposal can be approved, and the Plan shows it at its new time.
-func TestAChangedSlotTimeMovesThePlansSlots(t *testing.T) {
+// A Slot moved later by its Slot time is still to come: a Plan Proposal refused once its
+// breakfast had passed can be approved after the breakfast moves later.
+func TestASlotMovedLaterLetsItsPlanProposalBeApproved(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
 
@@ -112,7 +114,7 @@ func TestAChangedSlotTimeMovesThePlansSlots(t *testing.T) {
 	s.Open("/plan")
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")
-	s.Sees("yogurt 90 kcal · 15 g protein Breakfast 9:00 am")
+	s.Sees("yogurt 90 kcal · 15 g protein Breakfast in the fridge")
 }
 
 // Rejecting without a Planning Note starts nothing: the Cycle can be planned again
@@ -370,6 +372,61 @@ func TestBrowserMarksThePlanTabOnAPlanningRun(t *testing.T) {
 	got, err := b.Locator("a[aria-current=page] span").First().InnerText()
 	if err != nil || got != "Plan" {
 		t.Errorf("the current tab on a planning Run is %q (%v), want Plan", got, err)
+	}
+}
+
+// Through a browser, Plan again after a failed planning Run is a filled button, on the
+// Cycle page and on the Run's Trace, opening to the hint and the Planning Note; planning
+// from it tells the planner the note.
+func TestBrowserPlanAgainIsAFilledButton(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.Model.Script(fakellm.Reply("The kitchen is empty."))
+	s.OpensCycle(friday)
+	s.PlansCycle()
+	s.Settle()
+
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.Open(t, "/runs/1")
+	filled(t, b, "Plan again")
+	b.Opens(t, "Plan again")
+	b.Sees(t, planAgainHint)
+	b.Open(t, "/plan")
+	filled(t, b, "Plan again")
+	b.Shot(t, "plan-again")
+
+	b.Opens(t, "Plan again")
+	b.Sees(t, planAgainHint)
+	b.Shot(t, "plan-again-open")
+	if err := b.GetByLabel("Planning Note").Fill("No lasagne."); err != nil {
+		t.Fatalf("type the Planning Note: %v", err)
+	}
+	fridayPlanned(t, s, "Friday, no lasagne.")
+	if err := b.Locator("#plan-again").GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Plan again"}).Click(); err != nil {
+		t.Fatalf("plan again: %v", err)
+	}
+	b.FollowsRun(t)
+	told(t, s, []string{"<note>\nNo lasagne.\n</note>"})
+}
+
+// planAgainHint is what opening Plan again says a Planning Note does.
+const planAgainHint = "Dandori plans again, with or without a note. A note tells it what to change."
+
+// filled checks the fold that opens on label is a filled button, as Plan the Cycle's
+// button is, not underlined text.
+func filled(t *testing.T, b *apptest.Browser, label string) {
+	t.Helper()
+	summary := b.Locator("summary").Filter(playwright.LocatorFilterOptions{HasText: label}).First()
+	bg, err := summary.Evaluate("el => getComputedStyle(el).backgroundColor", nil)
+	if err != nil {
+		t.Fatalf("no fold %q on %s: %v", label, b.URL(), err)
+	}
+	fill, err := b.Evaluate("() => { const e = document.createElement('a'); e.className = 'btn'; document.body.append(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c }")
+	if err != nil {
+		t.Fatalf("read a Button's fill: %v", err)
+	}
+	if bg != fill {
+		t.Errorf("%s on %s isn't a filled button: background %v, a Button's %v", label, b.URL(), bg, fill)
 	}
 }
 

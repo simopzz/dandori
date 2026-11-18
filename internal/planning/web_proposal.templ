@@ -28,7 +28,7 @@ templ proposalPage(now time.Time, v cycleView) {
 			@daysBefore(p.Trailing)
 			for _, d := range ds {
 				@web.Group(dayTitle(ctx, d), dayLine(p.Targets, d), false) {
-					@dayBody(d, nil)
+					@dayBody(d)
 				}
 			}
 		}
@@ -415,15 +415,14 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its Slots, each with the time of day it is at in times,
-// unless nil, its Portion's size, calories and protein, and where it comes from, then
-// each Prep Session of a Recipe, which opens to its Ingredients and the Portions it
-// leaves for later.
-templ dayBody(d proposalDay, times domain.SlotTimes) {
+// dayBody is what a day d holds: its Slots, each with its Portion's size, calories and
+// protein, and where it comes from, then each Prep Session of a Recipe, which opens to
+// its Ingredients and the Portions it leaves for later.
+templ dayBody(d proposalDay) {
 	@web.RowsHead(web.T(ctx, msgSlots))
 	@web.Rows() {
 		for _, f := range d.filled {
-			@web.SlotRow(f.kind, slotTime(ctx, times, f.kind), f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+			@web.SlotRow(f.kind, f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
 		}
 	}
 	if slices.ContainsFunc(d.sessions, ofRecipe) {
@@ -502,12 +501,4 @@ func laterSlot(ctx context.Context, s *domain.Slot) string {
 		return web.T(ctx, msgAfterTheCycle)
 	}
 	return web.Tf(ctx, msgSlotOn, web.Capitalised(web.T(ctx, web.SlotKindNames[s.Kind])), web.ShortDate(ctx, s.On))
-}
-
-// slotTime is the time of day a Slot of kind is at in times, or "" when times is nil.
-func slotTime(ctx context.Context, times domain.SlotTimes, kind domain.SlotKind) string {
-	if times == nil {
-		return ""
-	}
-	return web.TimeOfDay(ctx, times[kind])
 }

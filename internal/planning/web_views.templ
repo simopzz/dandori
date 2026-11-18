@@ -136,10 +136,10 @@ templ runAbout(c Cycle, again bool) {
 }
 
 // planAgain is the step forward after a failed planning Run of the Cycle id: Plan again,
-// which opens in place to the line saying what a Planning Note does, the note as typed
-// and its own button, as Reject does; open when the User is at it.
+// a ButtonFold, which opens in place to the line saying what a Planning Note does, the
+// note as typed and its own button, as Reject does; open when the User is at it.
 templ planAgain(id int64, note string, open bool) {
-	@web.TextButtonFold(web.T(ctx, msgPlanAgain), open) {
+	@web.ButtonFold(web.T(ctx, msgPlanAgain), open) {
 		<form novalidate id="plan-again" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/again", id)) }>
 			@web.Hint() {
 				{ web.T(ctx, msgPlanAgainHint) }
@@ -205,29 +205,6 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 				}
 			}
 		</form>
-	}
-}
-
-// planDays are the days p plans of c, each a Group under its date, closed: its Slots at
-// their times, each with the Portion filling it, then its Prep Sessions.
-templ planDays(c Cycle, p Proposal, times domain.SlotTimes) {
-	for _, d := range days(c, p) {
-		@web.Group(web.Date(ctx, d.on), nil, false) {
-			@web.RowsHead(web.T(ctx, msgSlots))
-			@web.Rows() {
-				for _, f := range d.filled {
-					@web.SlotRow(f.kind, web.TimeOfDay(ctx, times[f.kind]), f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), "")
-				}
-			}
-			if len(d.sessions) > 0 {
-				@web.RowsHead(web.T(ctx, msgPrepSessions))
-				@web.Rows() {
-					for _, ps := range d.sessions {
-						@prepSession(ps)
-					}
-				}
-			}
-		}
 	}
 }
 

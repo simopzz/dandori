@@ -254,10 +254,10 @@ templ FoldRow(summary templ.Component) {
 	</li>
 }
 
-// SlotRow is a Slot of kind, at the time at unless it is "", and the Portion filling it,
-// portion: its size unless "", figures, its nutrition, unless nil, and source, unless
-// "", a word for where the Portion comes from ("cooked", "already in the kitchen").
-templ SlotRow(kind domain.SlotKind, at, portion, size string, figures templ.Component, source string) {
+// SlotRow is a Slot of kind and the Portion filling it, portion: its size unless "",
+// figures, its nutrition, unless nil, and source, unless "", a word for where the
+// Portion comes from ("cooked", "already in the kitchen").
+templ SlotRow(kind domain.SlotKind, portion, size string, figures templ.Component, source string) {
 	@Row() {
 		<span class="row-title">{ portion }</span>
 		if size != "" || figures != nil {
@@ -273,9 +273,6 @@ templ SlotRow(kind domain.SlotKind, at, portion, size string, figures templ.Comp
 		}
 		<span class="row-meta">
 			<span>{ Capitalised(T(ctx, SlotKindNames[kind])) }</span>
-			if at != "" {
-				<span>{ at }</span>
-			}
 			if source != "" {
 				<span>{ source }</span>
 			}
@@ -595,8 +592,23 @@ templ TextLink(attrs templ.Attributes) {
 // acting needs first, the children, such as Reject's Planning Note: closed unless open
 // says it holds what the User is at. In Actions, it opens onto a line of its own.
 templ TextButtonFold(label string, open bool) {
+	@buttonFold("btn-text", label, open) {
+		{ children... }
+	}
+}
+
+// ButtonFold is a TextButtonFold that is the primary step, a Button: Plan again after a
+// failed planning Run.
+templ ButtonFold(label string, open bool) {
+	@buttonFold("btn", label, open) {
+		{ children... }
+	}
+}
+
+// buttonFold is a ButtonFold or TextButtonFold, its summary of class.
+templ buttonFold(class, label string, open bool) {
 	<details class="button-fold" open?={ open }>
-		<summary class="btn-text">
+		<summary class={ class }>
 			{ label }
 			@Icon("chevron-down")
 		</summary>
