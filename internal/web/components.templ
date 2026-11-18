@@ -17,10 +17,22 @@ import (
 // PageHeader opens a page: an eyebrow with the page's Japanese name and
 // today's date, then the title. Children, if any, are a lede below it.
 templ PageHeader(ja, title string, today time.Time) {
+	@PageHeaderBeside(ja, title, "", today) {
+		{ children... }
+	}
+}
+
+// PageHeaderBeside is a PageHeader with beside, unless "", after the title in the
+// body face, smaller: what the page is of, such as a Cycle's dates.
+templ PageHeaderBeside(ja, title, beside string, today time.Time) {
 	<header class="page-header">
 		<p class="eyebrow"><span lang="ja">{ ja }</span> · { Date(ctx, today) }</p>
 		<h1>
 			@titleText(title)
+			if beside != "" {
+				{ " " }
+				<span class="title-beside">{ beside }</span>
+			}
 		</h1>
 		{ children... }
 	</header>
@@ -198,16 +210,19 @@ templ Seal() {
 	</span>
 }
 
-// Group is a part of a Section's content under an h3, title, with meta, a soft line,
-// under it, that opens in place: closed unless open says it holds what the User is at,
-// such as a refused form. What a Group holds is Rows, never a deeper heading.
-templ Group(title, meta string, open bool) {
+// Group is a part of a Section's content under an h3, title, with meta, unless nil,
+// under it: a soft line, or a day's Figures. It opens in place, closed unless open says
+// it holds what the User is at, such as a refused form. What a Group holds is Rows,
+// never a deeper heading.
+templ Group(title string, meta templ.Component, open bool) {
 	<details class="group" open?={ open }>
 		<summary>
 			<h3>{ title }</h3>
 			@Icon("chevron-down")
-			if meta != "" {
-				<span class="group-meta">{ meta }</span>
+			if meta != nil {
+				<span class="group-meta">
+					@meta
+				</span>
 			}
 		</summary>
 		<div class="group-body">
@@ -266,6 +281,15 @@ templ SlotRow(kind domain.SlotKind, at, portion, size string, figures templ.Comp
 			}
 		</span>
 	}
+}
+
+// Figures is a line of figures in equal columns, the children each a cell, under a
+// Figures of their heads: the same values of a day, of an average or of a row, lined up
+// down a Section without a table.
+templ Figures() {
+	<span class="figures">
+		{ children... }
+	</span>
 }
 
 // IngredientRows lists ingredients, each its name and its quantity in its unit, with a
@@ -557,6 +581,35 @@ templ TextLink(attrs templ.Attributes) {
 	<a class="btn-text" { attrs... }>
 		{ children... }
 	</a>
+}
+
+// TextButtonFold is a TextButton, label, with a chevron, that opens in place to what
+// acting needs first, the children, such as Reject's Planning Note: closed unless open
+// says it holds what the User is at. In Actions, it opens onto a line of its own.
+templ TextButtonFold(label string, open bool) {
+	<details class="button-fold" open?={ open }>
+		<summary class="btn-text">
+			{ label }
+			@Icon("chevron-down")
+		</summary>
+		<div class="button-fold-body">
+			{ children... }
+		</div>
+	</details>
+}
+
+// SideColumn is a page's main column, the children, beside side: side comes first on
+// a phone; from 1200px it is a column of its own on the right, which stays in view
+// while the main column scrolls, such as a Plan Proposal's decision beside its days.
+templ SideColumn(side templ.Component) {
+	<div class="side-columns">
+		<div class="side-column">
+			@side
+		</div>
+		<div class="main-column">
+			{ children... }
+		</div>
+	</div>
 }
 
 // DestructiveButton removes or discards something. attrs must give its type.

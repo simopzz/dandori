@@ -42,6 +42,10 @@ templ Layout(title string, current Tab) {
 			<link rel="icon" href="/static/icon-192.png"/>
 			<link rel="apple-touch-icon" href="/static/icon-192.png"/>
 			<link rel="stylesheet" href="/static/app.css"/>
+			// The body faces come early, so they show from the first paint (app.css).
+			<link rel="preload" href="/static/fonts/zen-kaku-gothic-new-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href="/static/fonts/zen-kaku-gothic-new-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href="/static/fonts/dotgothic16-subset-400-normal.woff2" as="font" type="font/woff2" crossorigin/>
 			<meta name="htmx-config" content="defaultSettleDelay:0"/>
 			if url := faroURL(ctx); url != "" {
 				<script src="/static/faro-web-sdk.min.js" defer></script>

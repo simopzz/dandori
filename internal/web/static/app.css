@@ -63,8 +63,10 @@
 }
 
 @font-face { font-family: "DotGothic16"; font-weight: 400; font-display: swap; src: url(fonts/dotgothic16-subset-400-normal.woff2) format("woff2"); }
-@font-face { font-family: "Zen Kaku Gothic New"; font-weight: 400; font-display: swap; src: url(fonts/zen-kaku-gothic-new-latin-400-normal.woff2) format("woff2"); }
-@font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; font-display: swap; src: url(fonts/zen-kaku-gothic-new-latin-700-normal.woff2) format("woff2"); }
+/* The body faces never swap in after the first paint: rewrapped text moved the page
+   (a layout shift). Layout preloads them, so they are there for it. */
+@font-face { font-family: "Zen Kaku Gothic New"; font-weight: 400; font-display: optional; src: url(fonts/zen-kaku-gothic-new-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; font-display: optional; src: url(fonts/zen-kaku-gothic-new-latin-700-normal.woff2) format("woff2"); }
 
 /* ── base ─────────────────────────────────────────────────────────────── */
 
@@ -376,6 +378,10 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
 .lede { margin: 0; color: var(--color-text-soft); }
 
+/* What a page is of, beside its title: in the body face, smaller, on the title's
+   baseline or under it on a narrow screen. */
+.title-beside { display: inline-block; font: 400 1rem/1.4 var(--font-body); letter-spacing: normal; color: var(--color-text-soft); white-space: nowrap; }
+
 /* language switch: the pages before signing in, each Language named in itself */
 
 .lang-switch {
@@ -593,6 +599,34 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 
 .group-body { padding: 0 0 var(--space-5); }
 
+.group-meta { display: grid; row-gap: var(--space-1); }
+
+/* Figures: a line of figures in equal columns, lined up with a Figures of their heads
+   above; a head's lines (a name and its unit, then the Target) stack. */
+.figures {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  column-gap: var(--space-2);
+  flex-basis: 100%;
+  font-size: 1rem;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.figures > * { justify-self: start; white-space: nowrap; }
+
+.figures-head { font-size: 0.875rem; line-height: 1.35; color: var(--color-text-soft); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-rule-strong); }
+
+.figures-head > * { display: grid; white-space: normal; }
+
+.figures-head > * > :first-child { color: var(--color-text); }
+
+/* A kind of line led by its icon: what it says under it lines up with its title. */
+.row-static > .icon { align-self: start; margin-top: 2px; }
+
+.row-static > .icon ~ .row-meta { padding-left: calc(1.25rem + var(--space-4)); }
+
 /* Why a change to a row that can't open was refused, under it. */
 .row-static > .alert { flex-basis: 100%; margin: var(--space-2) 0 0; }
 
@@ -721,6 +755,32 @@ legend.field-label { margin-bottom: var(--space-1); }
 .btn-text:has(+ .btn-text) { margin-right: 0; }
 
 a.btn-text { display: inline-flex; align-items: center; }
+
+/* TextButtonFold: a TextButton that opens in place onto a line of its own, its chevron
+   turning */
+.button-fold > summary { list-style: none; display: inline-flex; align-items: center; gap: var(--space-1); }
+
+.button-fold > summary::-webkit-details-marker { display: none; }
+
+.button-fold > summary .icon { width: 0.625rem; height: 0.625rem; transition: transform 0.15s; }
+
+.button-fold[open] { flex-basis: 100%; }
+
+.button-fold[open] > summary .icon { transform: rotate(180deg); }
+
+.button-fold-body { padding-top: var(--space-3); }
+
+/* SideColumn: from 1200px, the side column on the right, in view while the main one
+   scrolls; the page widens to hold both. */
+@media (min-width: 1200px) {
+  .page:has(.side-columns) { max-width: none; }
+
+  .side-columns { display: grid; grid-template-columns: minmax(0, 40rem) minmax(20rem, 26rem); column-gap: var(--space-7); align-items: start; }
+
+  .side-column { grid-column: 2; grid-row: 1; position: sticky; top: var(--space-5); max-height: calc(100vh - 2 * var(--space-5)); overflow-y: auto; }
+
+  .main-column { grid-column: 1; grid-row: 1; }
+}
 
 .btn-danger { color: var(--color-accent); }
 

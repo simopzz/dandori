@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -180,6 +181,10 @@ func (b *Browser) SignIn(t testing.TB, email string) {
 		t.Fatalf("open the magic link: %v", err)
 	}
 	b.Click(t, "Sign in to Dandori")
+	// Wait for the landing, so a page opened next can't cancel the sign-in.
+	if err := b.WaitForURL(regexp.MustCompile(`^[^?]*/(language)?$`)); err != nil {
+		t.Fatalf("land after signing in: %v", err)
+	}
 }
 
 // SignUp signs the invited email in for the first time and chooses English, landing
