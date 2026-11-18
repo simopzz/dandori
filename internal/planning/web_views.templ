@@ -450,7 +450,7 @@ templ dayTable(p Proposal) {
 		<tbody>
 			for _, d := range p.Trailing {
 				<tr class="hint">
-					<td>{ web.ShortDate(ctx, d.On) }</td>
+					<td>{ cellDate(ctx, d.On) }</td>
 					if d.Filled == 0 {
 						<td colspan="4">{ web.T(ctx, msgNoPlan) }</td>
 					} else {
@@ -461,9 +461,9 @@ templ dayTable(p Proposal) {
 			for _, d := range p.Days {
 				<tr>
 					if d.Partly {
-						<td>{ web.Tf(ctx, msgPartly, web.ShortDate(ctx, d.On)) }</td>
+						<td>{ web.Tf(ctx, msgPartly, cellDate(ctx, d.On)) }</td>
 					} else {
-						<td>{ web.ShortDate(ctx, d.On) }</td>
+						<td>{ cellDate(ctx, d.On) }</td>
 					}
 					@figures(d.Nutrition, dayMissed(p.Targets, d))
 				</tr>
@@ -477,6 +477,12 @@ templ dayTable(p Proposal) {
 			}
 		</tbody>
 	</table>
+}
+
+// cellDate is day's short date as a table's first column shows it: held on one line,
+// so the column breaks only after it ("Thu, Nov 5," then "partly planned").
+func cellDate(ctx context.Context, day time.Time) string {
+	return strings.ReplaceAll(web.ShortDate(ctx, day), " ", "\u00a0")
 }
 
 // bounds are what t allows a day of target, as a column's head shows them: calories'

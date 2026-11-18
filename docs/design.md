@@ -171,7 +171,9 @@ gets its own icon here before it lands on a page.
   "≥ 130"), so the cells hold numbers alone. A bound is written ≥ or ≤, with
   "at least" or "at most" for a screen reader; a value known only as a floor
   is "29+", and an unknown one a dash, both through `Amount`. Rows that repeat
-  collapse into a range ("Fri, Oct 30 – Thu, Nov 5: no Plan"). A table wider
+  collapse into a range ("Fri, Oct 30 – Thu, Nov 5: no Plan"). A date in a
+  cell stays on one line, and on a phone the columns sit 8px apart, the last
+  with no gap at the edge, so a table of four figures fits 360px. A table wider
   than the column scrolls in a box of its own, its first column sticky, never
   the page.
 - **Dates**: the long form in headings (`web.Date`, "Friday, November 6"), the
