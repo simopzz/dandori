@@ -317,3 +317,100 @@ func TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView(t *testing.T)
 		})
 	}
 }
+
+// approvesTenDays plans tenDays, approves its Plan Proposal, then moves the clock to its
+// third day, Saturday 7 November at 10 am.
+func approvesTenDays(t *testing.T, s *apptest.Scenario) {
+	t.Helper()
+	plansTenDays(t, s, tenDays)
+	s.Open("/plan")
+	s.Submits("approve")
+	s.At("Sat 10:00")
+}
+
+// Through a browser: an approved ten-day Plan seen on its third day leads as its Plan
+// Proposal did, the Cycle's dates and Delivery, then the averages and soft misses it was
+// approved with; its days start at today, marked and open, the two days past folded into
+// one line, the later days closed.
+func TestBrowserShowsAnApprovedTenDayPlanFromToday(t *testing.T) {
+	s := tenDayKitchen(t, "ada@example.com", "English")
+	approvesTenDays(t, s)
+
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.Open(t, "/plan")
+	b.SeesInTurn(t,
+		"Cycle · Thu, Nov 5 – Sat, Nov 14",
+		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm",
+		"01 Plan",
+		"Average Calories, kcal 2024–2376 Protein, g ≥ at least 130 Fibre, g ≥ at least 30 Sugar, g ≤ at most 50",
+		"calories 1826 under protein 99 under fibre at least 36+ sugar at least 52+ over",
+		"3 days more than 25% off Fri, Nov 6: calories under protein under Tue, Nov 10: protein under Thu, Nov 12: protein under",
+		"Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9",
+		"lasagne: 1 of 3 left unused, in the freezer",
+		"2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice",
+		"02 Days",
+		"2 days past",
+		"Saturday, November 7 Today",
+		"Slots",
+		"Sunday, November 8",
+		"Saturday, November 14",
+	)
+	text := b.Shown(t)
+	for _, closed := range []string{"Thursday, November 5", "Friday, November 6"} {
+		if strings.Contains(text, closed) {
+			t.Errorf("a day past is shown: %s", text)
+		}
+	}
+	if strings.Contains(text, "Approve") || strings.Contains(text, "Plan Proposal") {
+		t.Errorf("an approved Plan still reads as a Plan Proposal: %s", text)
+	}
+	b.Opens(t, "2 days past")
+	b.SeesInTurn(t, "2 days past", "Thu, Nov 5", "Fri, Nov 6", "Saturday, November 7")
+}
+
+// An approved Plan keeps the averages and soft misses it was approved with when the
+// Targets change.
+func TestChangingTheTargetsLeavesAnApprovedPlanUnchanged(t *testing.T) {
+	s := tenDayKitchen(t, "ada@example.com", "English")
+	approvesTenDays(t, s)
+	s.Open("/profile")
+	s.SavesTargets(apptest.Targets{Kcal: "1500", Protein: "60", Fibre: "3", Sugar: "100", Tolerance: "10"})
+
+	s.Open("/plan")
+	s.Sees("Average " + heads + " calories 1826 under protein 99 under")
+	s.Sees("3 days more than 25% off Fri, Nov 6: calories under")
+}
+
+// Through a browser: at 390px, in either Language and with every fold open, an approved
+// ten-day Plan doesn't scroll sideways.
+func TestBrowserAnApprovedTenDayPlanFitsAPhone(t *testing.T) {
+	typed := map[string]apptest.Cycle{
+		"English":  tenDays,
+		"Italiano": {Delivery: "05/11/2026", From: "10:00", To: "12:00", Ends: "14/11/2026"},
+	}
+	for _, language := range []string{"English", "Italiano"} {
+		t.Run(language, func(t *testing.T) {
+			s := tenDayKitchen(t, "ada@example.com", language)
+			plansTenDays(t, s, typed[language])
+			s.Open("/plan")
+			s.Submits("approve")
+			s.At("Sat 10:00")
+
+			b := s.Browser(t)
+			b.SignIn(t, "ada@example.com")
+			b.Open(t, "/plan")
+			if err := b.SetViewportSize(390, 900); err != nil {
+				t.Fatalf("resize to 390: %v", err)
+			}
+			b.ShotPage(t, "approved-plan-"+language)
+			fits, err := b.Evaluate(`() => {
+				document.querySelectorAll("main details").forEach(d => d.open = true);
+				return document.documentElement.scrollWidth === innerWidth;
+			}`)
+			if err != nil || fits != true {
+				t.Errorf("at 390px the approved Plan scrolls sideways (%v)", err)
+			}
+		})
+	}
+}
