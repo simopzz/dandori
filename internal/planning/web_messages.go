@@ -44,7 +44,6 @@ var (
 // The Kitchen Check's Messages, the planning Run's and the Plan Proposal's.
 var (
 	msgPlanCycle    = web.Message{En: "Plan the Cycle", It: "Pianifica il Ciclo"}
-	msgBeingPlanned = web.Message{En: "Being planned: see its Trace", It: "In pianificazione: vedi la Traccia"}
 	msgKitchenCheck = web.Message{En: "Kitchen Check", It: "Controllo della cucina"}
 	msgCheckTitle   = web.Message{En: "Kitchen Check · Dandori", It: "Controllo della cucina · Dandori"}
 	msgCheckHint    = web.Message{
@@ -78,7 +77,6 @@ var (
 // Deciding on a Plan Proposal's Messages, the Plan's and a failed planning Run's.
 var (
 	msgPlan            = web.Message{En: "Plan", It: "Piano"}
-	msgCurrentCycle    = web.Message{En: "Current Cycle", It: "Ciclo in corso"}
 	msgApprove         = web.Message{En: "Approve", It: "Approva"}
 	msgApproved        = web.Message{En: "Plan approved.", It: "Piano approvato."}
 	msgPlanningNote    = web.Message{En: "Planning Note", It: "Nota di pianificazione"}
@@ -93,6 +91,16 @@ var (
 	msgFailed      = web.Message{En: "Planning failed: %s", It: "La pianificazione non è riuscita: %s"}
 	msgSeeTrace    = web.Message{En: "See its Trace", It: "Vedi la Traccia"}
 	msgPlanAgain   = web.Message{En: "Plan again", It: "Pianifica di nuovo"}
+
+	msgPlanAgainHint = web.Message{
+		En: "Dandori plans again, with or without a note. A note tells it what to change.",
+		It: "Dandori pianifica di nuovo, con o senza una nota. Una nota gli dice cosa cambiare.",
+	}
+	msgCheckKitchenFirst = web.Message{En: "Check the kitchen first", It: "Controlla prima la cucina"}
+	msgBeingPlannedTag   = web.Message{En: "Being planned", It: "In pianificazione"}
+	msgSeeProgress       = web.Message{En: "See progress", It: "Vedi l'avanzamento"}
+	msgTentativeHint     = web.Message{En: "the Delivery's date may still move", It: "la data della Consegna può ancora cambiare"}
+	msgPlanningCycle     = web.Message{En: "Planning the Cycle of %s", It: "Pianificazione del Ciclo del %s"}
 )
 
 // The Plan Proposal's soft misses' Messages, and the heads of its figures.

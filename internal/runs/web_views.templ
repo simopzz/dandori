@@ -61,9 +61,7 @@ templ runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) {
 					for _, r := range list {
 						@web.Row() {
 							<a class="row-title" href={ templ.SafeURL(runURL(r.ID)) }>{ cmp.Or(headline(r.Asked), web.T(ctx, kinds[r.Kind])) }</a>
-							@web.Tag(r.Status == Failed, "") {
-								{ web.T(ctx, statusNames[r.Status]) }
-							}
+							@statusTag(r.Status)
 							<span class="row-meta">
 								<span>{ web.T(ctx, kinds[r.Kind]) }</span>
 								<span>{ web.DateTime(ctx, now, r.StartedAt.In(now.Location())) }</span>
@@ -73,6 +71,25 @@ templ runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) {
 				}
 			}
 		</div>
+	}
+}
+
+// statusTag is a Run's status as a Tag in a tone of its own: going navy, succeeded sage,
+// failed the accent, and the rest cream.
+templ statusTag(s Status) {
+	switch s {
+		case Going:
+			@web.ToneTag("going") {
+				{ web.T(ctx, statusNames[s]) }
+			}
+		case Succeeded:
+			@web.ToneTag("done") {
+				{ web.T(ctx, statusNames[s]) }
+			}
+		default:
+			@web.Tag(s == Failed, "") {
+				{ web.T(ctx, statusNames[s]) }
+			}
 	}
 }
 
@@ -95,14 +112,12 @@ func headline(line string) string {
 // it and appends its Trace Events as they stream in; once it ends, it fetches itself
 // again into the body, which goes on to what the Run left. Without JavaScript, a link
 // opens it again further along.
-templ runPage(now time.Time, r Run, k KindPage, res result, again string) {
+templ runPage(now time.Time, r Run, k KindPage, res result, again string, about templ.Component) {
 	{{ kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedLabel) }}
-	@web.Layout(web.Tf(ctx, msgRunTitle, kind), web.RunsTab) {
+	@web.Layout(web.Tf(ctx, msgRunTitle, kind), cmp.Or(k.Tab, web.RunsTab)) {
 		@web.PageHeader("実行", kind, now) {
 			<p class="lede">
-				@web.Tag(r.Status == Failed, "") {
-					{ web.T(ctx, statusNames[r.Status]) }
-				}
+				@statusTag(r.Status)
 				{ " " + web.Tf(ctx, msgStarted, web.Time(ctx, r.StartedAt.In(now.Location()))) }
 				if again != "" {
 					{ " · " }
@@ -111,6 +126,9 @@ templ runPage(now time.Time, r Run, k KindPage, res result, again string) {
 					}
 				}
 			</p>
+			if about != nil {
+				@about
+			}
 			if res.Href != "" {
 				<p class="lede">
 					@web.TextLink(templ.Attributes{"href": res.Href}) {

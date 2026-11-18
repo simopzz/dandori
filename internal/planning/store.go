@@ -303,9 +303,9 @@ func inZone(d time.Time, zone *time.Location) time.Time {
 }
 
 // saveNote records the Planning Note note on the signed-in User's Cycle id, given at
-// at, rejecting the Plan Proposal proposalID.
+// at, rejecting the Plan Proposal proposalID, none when 0.
 func saveNote(ctx context.Context, q db.Querier, id int64, note string, at time.Time, proposalID int64) error {
-	_, err := q.Exec(ctx, `INSERT INTO planning_note (cycle_id, note, given_at, plan_proposal_id) VALUES ($1, $2, $3, $4)`,
+	_, err := q.Exec(ctx, `INSERT INTO planning_note (cycle_id, note, given_at, plan_proposal_id) VALUES ($1, $2, $3, NULLIF($4, 0))`,
 		id, note, at, proposalID)
 	return err
 }
@@ -334,6 +334,16 @@ func loadLastRun(ctx context.Context, q db.Querier, id int64, zone *time.Locatio
 	}
 	last.first.On = inZone(last.first.On, zone)
 	return last, err
+}
+
+// cycleOfRun is the id of the signed-in User's Cycle the planning Run runID plans, and
+// ErrNoCycle when it plans none.
+func cycleOfRun(ctx context.Context, q db.Querier, runID int64) (id int64, err error) {
+	err = q.QueryRow(ctx, `SELECT cycle_id FROM cycle_run WHERE run_id = $1`, runID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNoCycle
+	}
+	return id, err
 }
 
 // decide sets the signed-in User's pending Plan Proposal id to status, decided at at,

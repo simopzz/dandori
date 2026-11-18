@@ -292,3 +292,81 @@ func TestPlanningAgainAndApprovingPostedAsHTMX(t *testing.T) {
 		t.Errorf("approving as htmx lands on %s, want the Cycle page saying so", got.Path)
 	}
 }
+
+// Plan again with a Planning Note tells the planner the note, and keeps it among the
+// Cycle's notes for every later Run; without one it plans as before.
+func TestPlanAgainWithAPlanningNoteSendsItToThePlanner(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.Model.Script(fakellm.Reply("The kitchen is empty."))
+	s.OpensCycle(friday)
+	s.PlansCycle()
+	s.Open("/plan")
+	s.Sees("Plan again Check the kitchen first")
+
+	fridayPlanned(t, s, "Friday, no lasagne.")
+	form := apptest.Form(t, s.Page().Body, "plan-again")
+	form.Values.Set("note", "No lasagne.")
+	s.PostForm(t, form.Action, form.Values)
+	s.Settle()
+	told(t, s, []string{"<note>\nNo lasagne.\n</note>"})
+
+	s.Open("/plan")
+	s.Sees("Earlier Planning Notes No lasagne.")
+}
+
+// A failed planning Run's Trace links back to its Cycle and offers Plan again, which a
+// going one doesn't; both name the Cycle, and the Cycle page links to a going Run as
+// being planned, with a filled Plan the Cycle button before Drop.
+func TestPlanningTracesNameTheirCycle(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.OpensCycle(friday)
+	s.Open("/plan")
+	if !strings.Contains(s.Page().Body, `class="btn" href="/plan/cycles/1/check"`) ||
+		strings.Index(s.Page().Body, "Plan the Cycle") > strings.Index(s.Page().Body, "Drop the Cycle") {
+		t.Errorf("Plan the Cycle isn't a button before Drop the Cycle:\n%s", s.Page().Body)
+	}
+
+	s.Model.Script(fakellm.Reply("The kitchen is empty."))
+	s.Follows("Plan the Cycle")
+	s.StartsPlanning()
+	s.Sees("Planning a Cycle")
+	if got := apptest.Link(t, s.Page().Body, "Planning the Cycle of Thu, Nov 5 – Fri, Nov 6"); got != "/plan" {
+		t.Errorf("the Trace's Cycle links to %q, want /plan", got)
+	}
+
+	s.Open("/runs/1")
+	s.Sees("Plan again")
+	s.Sees("Planning the Cycle of Thu, Nov 5 – Fri, Nov 6")
+	s.Open("/plan")
+	s.Sees("Planning failed")
+	if !strings.Contains(s.Page().Body, `class="btn"`) || strings.Index(s.Page().Body, "Plan again") > strings.Index(s.Page().Body, "Drop the Cycle") {
+		t.Errorf("Plan again isn't before Drop the Cycle:\n%s", s.Page().Body)
+	}
+}
+
+// No Cycle: Open a Cycle is a button.
+func TestOpeningACycleIsAButton(t *testing.T) {
+	s := plannerOf(t, "ada@example.com")
+	s.Open("/plan")
+	if !strings.Contains(s.Page().Body, `class="btn" href="/plan/open"`) {
+		t.Errorf("Open a Cycle isn't a button:\n%s", s.Page().Body)
+	}
+}
+
+// Through a browser, a planning Run's page marks the Plan tab as current.
+func TestBrowserMarksThePlanTabOnAPlanningRun(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.Model.Script(fakellm.Reply("The kitchen is empty."))
+	s.OpensCycle(friday)
+	s.PlansCycle()
+	s.Settle()
+
+	b := s.Browser(t)
+	b.SignIn(t, "ada@example.com")
+	b.Open(t, "/runs/1")
+	b.Sees(t, "Planning the Cycle of Thu, Nov 5 – Fri, Nov 6")
+	got, err := b.Locator("a[aria-current=page] span").First().InnerText()
+	if err != nil || got != "Plan" {
+		t.Errorf("the current tab on a planning Run is %q (%v), want Plan", got, err)
+	}
+}

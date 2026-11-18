@@ -17,6 +17,7 @@
   --color-accent: #b8321b;        /* vermilion seal, 5.8:1 on bg: attention only */
   --color-accent-wash: #fbe5dc;   /* salmon wash behind alerts */
   --color-tag: #f7e4c6;           /* cream behind a tag, ink on it 14:1 */
+  --color-tag-done: #d3e5cc;      /* sage behind a succeeded tag, ink on it 13:1 */
   --color-veil: #2d3352;          /* navy, dithered over the page behind a sheet */
   --color-shell: #2d3352;         /* navy tabs and rail */
   --color-on-shell: #fdfcfa;      /* the current tab, 12:1 on shell */
@@ -958,6 +959,8 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 }
 
 .tag-accent { background: var(--color-accent); color: var(--color-on-fill); }
+.tag-going { background: var(--color-fill); color: var(--color-on-fill); }
+.tag-done { background: var(--color-tag-done); }
 
 /* An icon in a tag, such as worth weighing's ▼ or ▲, at half size: one screen pixel per
    bitmap pixel. */

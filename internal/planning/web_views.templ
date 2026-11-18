@@ -57,89 +57,103 @@ templ cyclePage(now time.Time, v cycleView) {
 	}
 }
 
-// cycleBody is the Cycle page without a Plan Proposal pending: the Cycle, its Plan, then
-// its Delivery, tentative while upcoming, a way to drop it, and a way to plan it, see it
-// being planned, or plan it again; or, with none, a way to open one.
+// cycleBody is the Cycle page without a Plan Proposal or a Plan: with a Cycle, its dates
+// and Delivery under the title, why planning failed, if it did, and its one step forward,
+// a filled button: plan it, see it being planned, or plan it again; dropping it, while
+// upcoming, sits apart at the end. With none, a button to open one.
 templ cycleBody(now time.Time, v cycleView) {
+	if v.Cycle == nil {
 		@web.PageHeader("献立", web.T(ctx, msgCycle), now)
-		if v.Cycle == nil {
-			<div class="section">
-				@web.Empty() {
-					{ web.T(ctx, msgNoCycle) }
-				}
-				@web.Rows() {
-					@web.Row() {
-						<a class="row-title" href="/plan/open">{ web.T(ctx, msgOpenCycle) }</a>
-					}
-				}
-			</div>
-		} else {
-			{{ c, p := *v.Cycle, v.Planning }}
-			@decisionAlert(v.Refusal)
-			{{ section := 1 }}
-			if p.Plan != nil {
-				@web.Section(section, web.T(ctx, msgPlan)) {
-					@planDays(c, *p.Plan, p.Times)
-				}
-				{{ section++ }}
+		<div class="section">
+			@web.Empty() {
+				{ web.T(ctx, msgNoCycle) }
 			}
-			@web.Section(section, web.T(ctx, cycleHeading(v.Upcoming))) {
-				<dl>
-					<dt>{ web.T(ctx, msgDelivery) }</dt>
-					<dd>
-						{ window(ctx, c.Delivery) + " " }
-						if v.Upcoming {
-							@web.Tag(false, "") {
-								{ web.T(ctx, msgTentative) }
-							}
-						}
-					</dd>
-					<dt>{ web.T(ctx, msgEndDate) }</dt>
-					<dd>{ web.Date(ctx, c.Ends) }</dd>
-				</dl>
-				if p.Failed != nil && p.Going == 0 && p.Proposal == nil && p.Plan == nil {
-					@web.Alert() {
-						<p>{ web.Tf(ctx, msgFailed, v.Failure) }</p>
-						<a href={ templ.SafeURL(fmt.Sprintf("/runs/%d", p.Failed.ID)) }>{ web.T(ctx, msgSeeTrace) }</a>
-					}
+			@web.Actions() {
+				@web.ButtonLink(templ.Attributes{"href": "/plan/open"}) {
+					{ web.T(ctx, msgOpenCycle) }
 				}
-				@web.Actions() {
+			}
+		</div>
+	} else {
+		{{ c, p := *v.Cycle, v.Planning }}
+		@cycleHeader(now, c, v.Upcoming, nil)
+		@decisionAlert(v.Refusal)
+		<div class="section">
+			if p.Failed != nil && p.Going == 0 && p.Proposal == nil && p.Plan == nil {
+				@web.Alert() {
+					<p>{ web.Tf(ctx, msgFailed, v.Failure) }</p>
+					<a href={ templ.SafeURL(fmt.Sprintf("/runs/%d", p.Failed.ID)) }>{ web.T(ctx, msgSeeTrace) }</a>
+				}
+			}
+			@web.ActionsApart() {
+				<div class="actions">
 					if p.Going != 0 {
+						@web.ToneTag("going") {
+							{ web.T(ctx, msgBeingPlannedTag) }
+						}
 						@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/runs/%d", p.Going)}) {
-							{ web.T(ctx, msgBeingPlanned) }
+							{ web.T(ctx, msgSeeProgress) }
 						}
 					} else if p.Proposal == nil && p.Plan == nil {
 						if p.Failed != nil {
-							<form novalidate id="plan-again" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/again", c.ID)) }>
-								@web.Button(templ.Attributes{"type": "submit"}) {
-									{ web.T(ctx, msgPlanAgain) }
-								}
-							</form>
-						} else {
+							@planAgain(c.ID, v.Note, v.Note != "" || v.Refusal != nil)
 							@web.TextLink(templ.Attributes{"href": string(checkURL(c.ID))}) {
+								{ web.T(ctx, msgCheckKitchenFirst) }
+							}
+						} else {
+							@web.ButtonLink(templ.Attributes{"href": string(checkURL(c.ID))}) {
 								{ web.T(ctx, msgPlanCycle) }
 							}
 						}
 					}
-					if v.Upcoming {
-						@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
-							{ web.T(ctx, msgDropCycle) }
-						}
+				</div>
+				if v.Upcoming {
+					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
+						{ web.T(ctx, msgDropCycle) }
 					}
 				}
 			}
-			if v.Upcoming {
-				@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
-			}
+		</div>
+		if v.Upcoming {
+			@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 		}
+	}
 }
 
-// cycleHeading names the Cycle shown, upcoming or current.
-func cycleHeading(upcoming bool) web.Message {
-	if upcoming {
-		return msgUpcomingCycle
+// runAbout is what a planning Run's page tells of its Cycle c: a line naming it, linking
+// to the Cycle page, and, after a failed Run, Plan again.
+templ runAbout(c Cycle, again bool) {
+	<p class="lede">
+		@web.TextLink(templ.Attributes{"href": "/plan"}) {
+			{ web.Tf(ctx, msgPlanningCycle, web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends))) }
+		}
+	</p>
+	if again {
+		@web.Actions() {
+			@planAgain(c.ID, "", false)
+		}
 	}
-	return msgCurrentCycle
+}
+
+// planAgain is the step forward after a failed planning Run of the Cycle id: Plan again,
+// which opens in place to the line saying what a Planning Note does, the note as typed
+// and its own button, as Reject does; open when the User is at it.
+templ planAgain(id int64, note string, open bool) {
+	@web.TextButtonFold(web.T(ctx, msgPlanAgain), open) {
+		<form novalidate id="plan-again" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/again", id)) }>
+			@web.Hint() {
+				{ web.T(ctx, msgPlanAgainHint) }
+			}
+			@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgOptional), "") {
+				<textarea name="note" rows="3">{ note }</textarea>
+			}
+			@web.Actions() {
+				@web.Button(templ.Attributes{"type": "submit"}) {
+					{ web.T(ctx, msgPlanAgain) }
+				}
+			}
+		</form>
+	}
 }
 
 // decisionAlert says why deciding on a Plan Proposal or planning was refused, if it was.

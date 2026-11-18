@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/a-h/templ"
+
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -37,6 +39,12 @@ type KindPage struct {
 	// TryAgainURL is where a failed Run's "Try again" button posts what the Run was
 	// asked, as the form field text, to start another. Without one, there is no button.
 	TryAgainURL string
+	// Tab is the shell tab a Run of the kind belongs to, marked as current on its page.
+	// Without one, the Runs tab.
+	Tab web.Tab
+	// About is what the Run's page tells under its header beyond the Run, such as the
+	// Cycle it planned and what to do after it failed, or nothing.
+	About func(ctx context.Context, run Run) (templ.Component, error)
 	// Reasons are why a Run of the kind fails, as its Trace tells it, beside the reasons
 	// every Run can fail for, such as agent.NoResult: the model ended without what the
 	// Run is for. A %s in one is what the failure said more, verbatim.
@@ -93,11 +101,18 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("HX-Location", res.Href)
 		return
 	}
+	var about templ.Component
+	if kind.About != nil {
+		if about, err = kind.About(ctx, run); err != nil {
+			httpx.ServerError(w, r, h.Log, "tell what the Run is about", err)
+			return
+		}
+	}
 	again := ""
 	if run.Status == Failed {
 		again = kind.TryAgainURL
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, kind, res, again))
+	httpx.Render(w, r, h.Log, http.StatusOK, runPage(h.Clock.Now(), run, kind, res, again, about))
 }
 
 // List is the signed-in User's Runs, newest first.
