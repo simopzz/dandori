@@ -55,21 +55,23 @@ var (
 		En: "Another planning Run is going, or a Plan Proposal is waiting for you. Plan once it is decided.",
 		It: "C'è già un Run di pianificazione in corso, o una Proposta di Piano che ti aspetta. Pianifica quando sarà decisa.",
 	}
-	msgSeeCycle     = web.Message{En: "See the Cycle", It: "Vedi il Ciclo"}
-	msgPlanProposal = web.Message{En: "Plan Proposal", It: "Proposta di Piano"}
-	msgPortions     = web.Message{En: "%s: %d Portions", It: "%s: %d Porzioni"}
-	msgOnePortion   = web.Message{En: "%s: 1 Portion", It: "%s: 1 Porzione"}
-	msgPortionsAt   = web.Message{En: "%s: %d Portions at %s", It: "%s: %d Porzioni a %s"}
-	msgOnePortionAt = web.Message{En: "%s: 1 Portion at %s", It: "%s: 1 Porzione a %s"}
-	msgSize         = web.Message{En: "%s×", It: "%s×"}
-	msgSlotOn       = web.Message{En: "%s on %s", It: "%s di %s"}
-	msgMinutes      = web.Message{En: "%d active of %d minutes", It: "%d attivi su %d minuti"}
-	msgNoSlot       = web.Message{En: "No Slot", It: "Nessun Pasto"}
-	msgSlots        = web.Message{En: "Slots", It: "Pasti"}
-	msgPrepSessions = web.Message{En: "Prep Sessions", It: "Sessioni di preparazione"}
-	msgIngredients  = web.Message{En: "Ingredients", It: "Ingredienti"}
-	msgPortionsHead = web.Message{En: "Portions", It: "Porzioni"}
-	msgKcalUnit     = web.Message{En: "kcal", It: "kcal"}
+	msgSeeCycle       = web.Message{En: "See the Cycle", It: "Vedi il Ciclo"}
+	msgPlanProposal   = web.Message{En: "Plan Proposal", It: "Proposta di Piano"}
+	msgPortions       = web.Message{En: "%s: %d Portions", It: "%s: %d Porzioni"}
+	msgOnePortion     = web.Message{En: "%s: 1 Portion", It: "%s: 1 Porzione"}
+	msgPortionsAt     = web.Message{En: "%s: %d Portions at %s", It: "%s: %d Porzioni a %s"}
+	msgOnePortionAt   = web.Message{En: "%s: 1 Portion at %s", It: "%s: 1 Porzione a %s"}
+	msgSize           = web.Message{En: "%s×", It: "%s×"}
+	msgSlotOn         = web.Message{En: "%s on %s", It: "%s di %s"}
+	msgMinutes        = web.Message{En: "%d active of %d minutes", It: "%d attivi su %d minuti"}
+	msgNoSlot         = web.Message{En: "No Slot", It: "Nessun Pasto"}
+	msgSlots          = web.Message{En: "Slots", It: "Pasti"}
+	msgPrepSessions   = web.Message{En: "Prep Sessions", It: "Sessioni di preparazione"}
+	msgToFreezer      = web.Message{En: "To the freezer at put-away", It: "Nel congelatore quando riponi la Consegna"}
+	msgToFreezerCount = web.Message{En: "%d to the freezer at put-away", It: "%d nel congelatore quando riponi la Consegna"}
+	msgIngredients    = web.Message{En: "Ingredients", It: "Ingredienti"}
+	msgPortionsHead   = web.Message{En: "Portions", It: "Porzioni"}
+	msgKcalUnit       = web.Message{En: "kcal", It: "kcal"}
 
 	msgPlanningKind = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
 )

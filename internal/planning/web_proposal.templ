@@ -361,7 +361,7 @@ type proposalDay struct {
 }
 
 // proposalDays are the days p plans of c, each with what fills its Slots and what is
-// prepared on it.
+// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any.
 func proposalDays(c Cycle, p Proposal) []proposalDay {
 	byDay := map[time.Time]planDay{}
 	for _, d := range days(c, p) {
@@ -371,6 +371,13 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	for i, d := range p.Days {
 		out[i] = proposalDay{Day: d, planDay: byDay[d.On]}
 	}
+	if len(p.Plan.FreezerSplits) == 0 {
+		return out
+	}
+	if len(out) == 0 || !out[0].On.Equal(c.Delivery.On) {
+		out = append([]proposalDay{{Day: domain.Day{On: c.Delivery.On}, planDay: planDay{on: c.Delivery.On}}}, out...)
+	}
+	out[0].splits = p.Plan.FreezerSplits
 	return out
 }
 
@@ -392,10 +399,19 @@ func dayTitle(ctx context.Context, d proposalDay) string {
 }
 
 // dayLine is d's row under its date: its figures, each more than 25% off a Target of t
-// marked, then what is cooked on it and its active minutes.
+// marked, then what is cooked on it and its active minutes, when a Slot of it is filled;
+// and how many freezer splits it has, if any.
 templ dayLine(t domain.Targets, d proposalDay) {
-	@figureLine(d.Nutrition, dayMissed(t, d.Day))
-	<span>{ cooked(ctx, d.sessions) }</span>
+	if len(d.filled) > 0 {
+		@figureLine(d.Nutrition, dayMissed(t, d.Day))
+		<span>{ cooked(ctx, d.sessions) }</span>
+	}
+	if n := len(d.splits); n > 0 {
+		<span>
+			@web.Icon("snowflake")
+			{ web.Tf(ctx, msgToFreezerCount, n) }
+		</span>
+	}
 }
 
 // cooked names the Recipes sessions cook, with their active minutes together, or says
@@ -415,14 +431,20 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its Slots, each with its Portion's size, calories and
-// protein, and where it comes from, then each Prep Session of a Recipe, which opens to
-// its Ingredients and the Portions it leaves for later.
+// dayBody is what a day d holds: its freezer splits, then its Slots, each with its
+// Portion's size, calories and protein, and where it comes from, then each Prep Session
+// of a Recipe, which opens to its Ingredients and the Portions it leaves for later.
 templ dayBody(d proposalDay) {
-	@web.RowsHead(web.T(ctx, msgSlots))
-	@web.Rows() {
-		for _, f := range d.filled {
-			@web.SlotRow(f.kind, f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+	if len(d.splits) > 0 {
+		@web.RowsHead(web.T(ctx, msgToFreezer))
+		@web.IngredientRows(d.splits)
+	}
+	if len(d.filled) > 0 {
+		@web.RowsHead(web.T(ctx, msgSlots))
+		@web.Rows() {
+			for _, f := range d.filled {
+				@web.SlotRow(f.kind, f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+			}
 		}
 	}
 	if slices.ContainsFunc(d.sessions, ofRecipe) {

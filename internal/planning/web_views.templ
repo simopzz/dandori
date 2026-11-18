@@ -297,6 +297,8 @@ type planDay struct {
 	on       time.Time
 	filled   []filledSlot
 	sessions []domain.PrepSession
+	// splits are the Plan's freezer splits, on its Delivery's day only.
+	splits []domain.RecipeIngredient
 }
 
 // days are the days of c that p fills a Slot or prepares food on, in order, each's Slots

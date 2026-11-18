@@ -368,14 +368,18 @@ func daysPastTitle(ctx context.Context, n int) string {
 	return web.Tf(ctx, msgDaysPast, n)
 }
 
-// splitPast splits ds into the days before today, at now, and those from it on.
+// splitPast splits ds into the days before today, at now, that fill a Slot, and those
+// from it on: a Delivery's day past with only its freezer splits has nothing left to do.
 func splitPast(ds []proposalDay, now time.Time) (past, ahead []proposalDay) {
 	for i, d := range ds {
 		if !d.On.Before(startOfDay(now)) {
-			return ds[:i], ds[i:]
+			return past, ds[i:]
+		}
+		if len(d.filled) > 0 {
+			past = append(past, d)
 		}
 	}
-	return ds, nil
+	return past, nil
 }
 
 // isToday is whether d is the day of now.

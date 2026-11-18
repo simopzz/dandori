@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -13,11 +14,14 @@ const (
 	MaxSize = 1.5
 )
 
-// Plan is Prep Sessions with the Portions they yield, and the Portions without a Slot it
-// puts in Slots: a Cycle's from a first Slot on.
+// Plan is Prep Sessions with the Portions they yield, the Portions without a Slot it puts
+// in Slots, and its freezer splits: a Cycle's from a first Slot on.
 type Plan struct {
 	PrepSessions []PrepSession
 	Kept         []Kept
+	// FreezerSplits are how much of each Ingredient goes in the freezer when the
+	// Delivery is put away.
+	FreezerSplits []RecipeIngredient
 }
 
 // PrepSession is one preparation of food at a Slot: of Recipe, its Portions all of Size,
@@ -137,6 +141,46 @@ const (
 	RuleUnknownPortion      Rule = "unknown-portion"
 	RuleOutsideCycle        Rule = "outside-cycle"
 )
+
+// The hard rules a Plan's Recipes can break: eaten at a kind of Slot they aren't for, or
+// needing an appliance the User doesn't own.
+const (
+	RuleWrongKindOfSlot   Rule = "wrong-kind-of-slot"
+	RuleApplianceNotOwned Rule = "appliance-not-owned"
+)
+
+// RecipesUnfit are the violations of p's Prep Sessions of a Recipe: each Portion eaten at
+// a kind of Slot the Recipe isn't for, and each appliance it needs that owned lacks.
+func RecipesUnfit(p Plan, owned Appliances) []Violation {
+	var vs []Violation
+	for _, ps := range p.PrepSessions {
+		if ps.Recipe == nil {
+			continue
+		}
+		for _, pp := range ps.Portions {
+			if pp.EatAt != nil && !slices.Contains(ps.Recipe.SlotKinds, pp.EatAt.Kind) {
+				vs = append(vs, Violation{Rule: RuleWrongKindOfSlot, Message: fmt.Sprintf("%s is eaten at %s, a kind of Slot it isn't for: %s",
+					ps.Name(), *pp.EatAt, joinCodes(ps.Recipe.SlotKinds))})
+			}
+		}
+		for _, k := range ps.Recipe.Appliances {
+			if _, ok := owned[k]; !ok {
+				vs = append(vs, Violation{Rule: RuleApplianceNotOwned, Message: fmt.Sprintf("%s at %s needs a %s, which the user doesn't own",
+					ps.Name(), ps.At, strings.ReplaceAll(string(k), "_", " "))})
+			}
+		}
+	}
+	return vs
+}
+
+// joinCodes is kinds by their codes, joined by commas.
+func joinCodes(kinds []SlotKind) string {
+	codes := make([]string, len(kinds))
+	for i, k := range kinds {
+		codes[i] = string(k)
+	}
+	return strings.Join(codes, ", ")
+}
 
 // The hard rules a Plan breaks by when it is: starting at a Slot already passed, and
 // filling a Slot with an Exception, which step 7's Exceptions first reach.
