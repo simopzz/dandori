@@ -97,7 +97,7 @@ func planPage(now time.Time, v cycleView) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = dayBody(d, v.Planning.Times).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = dayBody(d).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

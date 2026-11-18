@@ -24,7 +24,7 @@ templ planPage(now time.Time, v cycleView) {
 			@pastFold(p, past)
 			for _, d := range ahead {
 				@web.Group(dayTitle(ctx, d), planDayLine(p, d, now), isToday(d, now)) {
-					@dayBody(d, v.Planning.Times)
+					@dayBody(d)
 				}
 			}
 		}

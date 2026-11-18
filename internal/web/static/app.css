@@ -756,8 +756,8 @@ legend.field-label { margin-bottom: var(--space-1); }
 
 a.btn-text { display: inline-flex; align-items: center; }
 
-/* TextButtonFold: a TextButton that opens in place onto a line of its own, its chevron
-   turning */
+/* TextButtonFold and ButtonFold: a TextButton or Button that opens in place onto a line
+   of its own, its chevron turning */
 .button-fold > summary { list-style: none; display: inline-flex; align-items: center; gap: var(--space-1); }
 
 .button-fold > summary::-webkit-details-marker { display: none; }

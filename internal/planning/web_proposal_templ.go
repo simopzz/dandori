@@ -101,7 +101,7 @@ func proposalPage(now time.Time, v cycleView) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = dayBody(d, nil).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = dayBody(d).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -1643,11 +1643,10 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its Slots, each with the time of day it is at in times,
-// unless nil, its Portion's size, calories and protein, and where it comes from, then
-// each Prep Session of a Recipe, which opens to its Ingredients and the Portions it
-// leaves for later.
-func dayBody(d proposalDay, times domain.SlotTimes) templ.Component {
+// dayBody is what a day d holds: its Slots, each with its Portion's size, calories and
+// protein, and where it comes from, then each Prep Session of a Recipe, which opens to
+// its Ingredients and the Portions it leaves for later.
+func dayBody(d proposalDay) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1685,7 +1684,7 @@ func dayBody(d proposalDay, times domain.SlotTimes) templ.Component {
 			}
 			ctx = templ.InitializeContext(ctx)
 			for _, f := range d.filled {
-				templ_7745c5c3_Err = web.SlotRow(f.kind, slotTime(ctx, times, f.kind), f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.SlotRow(f.kind, f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1831,7 +1830,7 @@ func cookedRow(ps domain.PrepSession) templ.Component {
 							var templ_7745c5c3_Var79 string
 							templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(laterSlot(ctx, pp.EatAt))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 471, Col: 56}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 470, Col: 56}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 							if templ_7745c5c3_Err != nil {
@@ -1844,7 +1843,7 @@ func cookedRow(ps domain.PrepSession) templ.Component {
 							var templ_7745c5c3_Var80 string
 							templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(web.Capitalised(web.T(ctx, web.InLocations[pp.Location])))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 472, Col: 88}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 471, Col: 88}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 							if templ_7745c5c3_Err != nil {
@@ -1908,7 +1907,7 @@ func cookedLine(ps domain.PrepSession) templ.Component {
 		var templ_7745c5c3_Var82 string
 		templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(ps.Name())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 483, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 482, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 		if templ_7745c5c3_Err != nil {
@@ -1921,7 +1920,7 @@ func cookedLine(ps domain.PrepSession) templ.Component {
 		var templ_7745c5c3_Var83 string
 		templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgPortionsSized, len(ps.Portions), size(ctx, ps.Size)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 484, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 483, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 		if templ_7745c5c3_Err != nil {
@@ -1934,7 +1933,7 @@ func cookedLine(ps domain.PrepSession) templ.Component {
 		var templ_7745c5c3_Var84 string
 		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 485, Col: 102}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 484, Col: 102}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 		if templ_7745c5c3_Err != nil {
@@ -1965,14 +1964,6 @@ func laterSlot(ctx context.Context, s *domain.Slot) string {
 		return web.T(ctx, msgAfterTheCycle)
 	}
 	return web.Tf(ctx, msgSlotOn, web.Capitalised(web.T(ctx, web.SlotKindNames[s.Kind])), web.ShortDate(ctx, s.On))
-}
-
-// slotTime is the time of day a Slot of kind is at in times, or "" when times is nil.
-func slotTime(ctx context.Context, times domain.SlotTimes, kind domain.SlotKind) string {
-	if times == nil {
-		return ""
-	}
-	return web.TimeOfDay(ctx, times[kind])
 }
 
 var _ = templruntime.GeneratedTemplate
