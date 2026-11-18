@@ -72,9 +72,8 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 				{ web.T(ctx, msgTentative) }
 			}
 			{ " " }
-			@web.Hint() {
-				{ web.T(ctx, msgTentativeHint) }
-			}
+			// A span: web.Hint is a <p>, which can't sit in the lede.
+			<span class="hint">{ web.T(ctx, msgTentativeHint) }</span>
 		}
 		if len(ds) > 0 {
 			if from, partly := ds[0].plannedFrom(); partly {
