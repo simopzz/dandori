@@ -299,10 +299,10 @@ templ Amount(a domain.Amount, floor bool, unit string) {
 	} else {
 		if floor {
 			<span class="sr-only">{ T(ctx, msgAtLeast) + " " }</span>
-		}
-		{ Number(ctx, a.Value) }
-		if floor {
-			<span aria-hidden="true">+</span>
+			// One line, as templ parts the lines of a template with a space.
+			{ Number(ctx, a.Value) }<span aria-hidden="true">+</span>
+		} else {
+			{ Number(ctx, a.Value) }
 		}
 		if unit != "" {
 			{ " " + unit }

@@ -91,9 +91,8 @@ var (
 	msgNoIngredients    = web.Message{En: "List at least one Ingredient.", It: "Elenca almeno un Ingrediente."}
 
 	msgMinutes     = web.Message{En: "%d min", It: "%d min"}
-	msgKcal        = web.Message{En: "%s kcal", It: "%s kcal"}
+	msgKcalUnit    = web.Message{En: "kcal", It: "kcal"}
 	msgKcalPer     = web.Message{En: "%s kcal per Portion", It: "%s kcal per Porzione"}
-	msgGrams       = web.Message{En: "%s g", It: "%s g"}
 	msgGramsUnit   = web.Message{En: "g", It: "g"}
 	msgProtein     = web.Message{En: "protein", It: "proteine"}
 	msgCarbs       = web.Message{En: "carbs", It: "carboidrati"}

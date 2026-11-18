@@ -2486,11 +2486,18 @@ func grams(ctx context.Context, n int) string {
 
 // missLine is m, a soft rule a Plan Proposal breaks, against the Targets t it aimed at.
 func missLine(ctx context.Context, m domain.Miss, t domain.Targets) string {
-	unit := ""
-	if m.Rule == domain.RuleTargetAverage && m.Target != domain.TargetKcal {
-		unit = web.T(ctx, msgGramsUnit)
+	value := web.Number(ctx, float64(m.Value))
+	switch {
+	case m.Rule == domain.RuleTargetAverage:
+		unit := ""
+		if m.Target != domain.TargetKcal {
+			unit = web.T(ctx, msgGramsUnit)
+		}
+		value = web.AmountText(ctx, domain.Amount{Value: float64(m.Value), Known: true}, m.Floor, unit)
+	case m.Floor:
+		// A day off is a percentage, not a nutritional value: its floor is said in words.
+		value = web.T(ctx, msgAtLeast) + " " + value
 	}
-	value := web.AmountText(ctx, domain.Amount{Value: float64(m.Value), Known: true}, m.Floor, unit)
 	switch m.Rule {
 	case domain.RuleTargetAverage:
 		if m.Target == domain.TargetKcal {

@@ -178,6 +178,9 @@ func TestARecipesPageShowsFibreAsAFloorWhenAnIngredientDoesntKnowIt(t *testing.T
 
 	s.WritesRecipe(r)
 	s.Sees("fibre at least 3 + g sugar – unknown")
+	if body := s.Page().Body; !strings.Contains(body, `3<span aria-hidden="true">+</span>`) {
+		t.Errorf("the floor isn't written 3+, the + against the number: %s", body)
+	}
 }
 
 // A Recipe fixes the User's Language, like any Food Term.

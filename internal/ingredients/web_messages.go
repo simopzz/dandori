@@ -38,7 +38,6 @@ var (
 	msgValuesPer    = web.Message{En: "%s, as on the label.", It: "%s, come in etichetta."}
 	msgStaple       = web.Message{En: "Staple", It: "Base"}
 	msgStapleHint   = web.Message{En: "always there, never counted", It: "sempre in casa, mai contata"}
-	msgKcalValue    = web.Message{En: "%s kcal", It: "%s kcal"}
 	msgProteinShort = web.Message{En: "protein", It: "proteine"}
 	msgCarbsShort   = web.Message{En: "carbs", It: "carboidrati"}
 	msgFatShort     = web.Message{En: "fat", It: "grassi"}

@@ -91,7 +91,7 @@ templ recipeList(recipes []domain.Recipe, q string) {
 					<span class="row-meta">
 						<span>{ kindNames(ctx, rec.SlotKinds, web.SlotKindNames) }</span>
 						<span>{ web.Tf(ctx, msgMinutes, rec.TotalMinutes) }</span>
-						<span>{ web.Tf(ctx, msgKcalPer, web.Number(ctx, rec.NutritionPerPortion().Kcal.Value)) }</span>
+						<span>{ web.Tf(ctx, msgKcalPer, web.AmountText(ctx, rec.NutritionPerPortion().Kcal, false, "")) }</span>
 					</span>
 				}
 			}
@@ -142,17 +142,19 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 // when none does.
 templ perPortion(n domain.PortionNutrition) {
 	<p class="row-meta">
-		<span>{ web.Tf(ctx, msgKcal, web.Number(ctx, n.Kcal.Value)) }</span>
-		<span>{ web.T(ctx, msgProtein) + " " + web.Tf(ctx, msgGrams, web.Number(ctx, n.Protein.Value)) }</span>
-		<span>{ web.T(ctx, msgCarbs) + " " + web.Tf(ctx, msgGrams, web.Number(ctx, n.Carbs.Value)) }</span>
-		<span>{ web.T(ctx, msgFat) + " " + web.Tf(ctx, msgGrams, web.Number(ctx, n.Fat.Value)) }</span>
-		@floored(msgFibre, n.Fibre, n.FibreFloor)
-		@floored(msgSugar, n.Sugar, n.SugarFloor)
+		<span>
+			@web.Amount(n.Kcal, false, web.T(ctx, msgKcalUnit))
+		</span>
+		@gramsOf(msgProtein, n.Protein, false)
+		@gramsOf(msgCarbs, n.Carbs, false)
+		@gramsOf(msgFat, n.Fat, false)
+		@gramsOf(msgFibre, n.Fibre, n.FibreFloor)
+		@gramsOf(msgSugar, n.Sugar, n.SugarFloor)
 	</p>
 }
 
-// floored is one value in grams that may be a floor, or unknown.
-templ floored(name web.Message, a domain.Amount, floor bool) {
+// gramsOf is the value a in grams, named name, a floor when floor says so, or unknown.
+templ gramsOf(name web.Message, a domain.Amount, floor bool) {
 	<span>
 		{ web.T(ctx, name) + " " }
 		@web.Amount(a, floor, web.T(ctx, msgGramsUnit))
