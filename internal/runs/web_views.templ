@@ -79,11 +79,11 @@ templ runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) {
 templ statusTag(s Status) {
 	switch s {
 		case Going:
-			@web.ToneTag("going") {
+			@web.ToneTag(web.Going) {
 				{ web.T(ctx, statusNames[s]) }
 			}
 		case Succeeded:
-			@web.ToneTag("done") {
+			@web.ToneTag(web.Done) {
 				{ web.T(ctx, statusNames[s]) }
 			}
 		default:

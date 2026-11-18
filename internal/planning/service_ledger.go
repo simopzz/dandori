@@ -111,7 +111,7 @@ func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Ti
 		if err := decide(ctx, tx, id, Rejected, now); err != nil {
 			return err
 		}
-		return saveNote(ctx, tx, cycleID, note, now, id)
+		return saveNote(ctx, tx, cycleID, note, now, &id)
 	})
 }
 
@@ -141,7 +141,7 @@ func (s *Service) PlanAgain(ctx context.Context, id int64, note string, now time
 		return s.start(ctx, c, last.first, now, "", nil)
 	}
 	return s.start(ctx, c, last.first, now, note, func(tx pgx.Tx) error {
-		return saveNote(ctx, tx, id, note, now, 0)
+		return saveNote(ctx, tx, id, note, now, nil)
 	})
 }
 

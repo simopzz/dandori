@@ -303,9 +303,9 @@ func inZone(d time.Time, zone *time.Location) time.Time {
 }
 
 // saveNote records the Planning Note note on the signed-in User's Cycle id, given at
-// at, rejecting the Plan Proposal proposalID, none when 0.
-func saveNote(ctx context.Context, q db.Querier, id int64, note string, at time.Time, proposalID int64) error {
-	_, err := q.Exec(ctx, `INSERT INTO planning_note (cycle_id, note, given_at, plan_proposal_id) VALUES ($1, $2, $3, NULLIF($4, 0))`,
+// at, rejecting the Plan Proposal proposalID, if any.
+func saveNote(ctx context.Context, q db.Querier, id int64, note string, at time.Time, proposalID *int64) error {
+	_, err := q.Exec(ctx, `INSERT INTO planning_note (cycle_id, note, given_at, plan_proposal_id) VALUES ($1, $2, $3, $4)`,
 		id, note, at, proposalID)
 	return err
 }

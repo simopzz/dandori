@@ -88,7 +88,7 @@ templ cycleBody(now time.Time, v cycleView) {
 			@web.ActionsApart() {
 				<div class="actions">
 					if p.Going != 0 {
-						@web.ToneTag("going") {
+						@web.ToneTag(web.Going) {
 							{ web.T(ctx, msgBeingPlannedTag) }
 						}
 						@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/runs/%d", p.Going)}) {

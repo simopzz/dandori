@@ -791,10 +791,19 @@ templ Tag(accent bool, title string) {
 	</span>
 }
 
-// ToneTag is a Tag with a tone of its own beside cream: "going" in navy, for what is
-// happening now, and "done" in sage, for what has succeeded.
-templ ToneTag(tone string) {
-	<span class={ "tag", "tag-" + tone }>
+// Tone is the colour of a ToneTag.
+type Tone string
+
+// The tones of a ToneTag: Going is navy, for what is happening now, and Done is sage,
+// for what has succeeded.
+const (
+	Going Tone = "going"
+	Done  Tone = "done"
+)
+
+// ToneTag is a Tag with a tone of its own beside cream.
+templ ToneTag(tone Tone) {
+	<span class={ "tag", "tag-" + string(tone) }>
 		{ children... }
 	</span>
 }
