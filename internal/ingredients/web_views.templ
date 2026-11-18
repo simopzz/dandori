@@ -474,16 +474,14 @@ func Invalid(err string) templ.Attributes {
 // row's details: calories, then grams of the rest, an unknown one a dash that a screen
 // reader says is unknown.
 templ NutritionFacts(per string, n domain.Nutrition) {
-	<span>{ per }: { web.Tf(ctx, msgKcalValue, web.Number(ctx, n.Kcal.Value)) }</span>
+	<span>
+		{ per + ": " }
+		@web.Amount(n.Kcal, false, web.T(ctx, msgKcalUnit))
+	</span>
 	for _, g := range gramFacts(n) {
 		<span>
 			{ web.T(ctx, g.name) + " " }
-			if g.amount.Known {
-				{ web.Tf(ctx, msgGrams, web.Number(ctx, g.amount.Value)) }
-			} else {
-				<span aria-hidden="true">–</span>
-				<span class="sr-only">{ web.T(ctx, msgUnknown) }</span>
-			}
+			@web.Amount(g.amount, false, web.T(ctx, msgGramsUnit))
 		</span>
 	}
 }

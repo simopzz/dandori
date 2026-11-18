@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"slices"
@@ -124,12 +125,14 @@ templ titleText(title string) {
 
 // Hint is a quiet paragraph explaining what follows.
 templ Hint() {
-	<p class="hint">{ children... }</p>
+	<p class="hint">{ children... }
+</p>
 }
 
 // Empty says a list has nothing in it yet.
 templ Empty() {
-	<p class="empty">{ children... }</p>
+	<p class="empty">{ children... }
+</p>
 }
 
 // Verbatim is text shown exactly as it was, such as a paste or a Trace Event's data: its
@@ -193,6 +196,131 @@ templ Seal() {
 	<span class="seal">
 		@templ.Raw(sunArt)
 	</span>
+}
+
+// Group is a part of a Section's content under an h3, title, with meta, a soft line,
+// under it, that opens in place: closed unless open says it holds what the User is at,
+// such as a refused form. What a Group holds is Rows, never a deeper heading.
+templ Group(title, meta string, open bool) {
+	<details class="group" open?={ open }>
+		<summary>
+			<h3>{ title }</h3>
+			@Icon("chevron-down")
+			if meta != "" {
+				<span class="group-meta">{ meta }</span>
+			}
+		</summary>
+		<div class="group-body">
+			{ children... }
+		</div>
+	</details>
+}
+
+// RowsHead is label, a small caption over the Rows that follow it.
+templ RowsHead(label string) {
+	<p class="rows-head">{ label }</p>
+}
+
+// FoldRow is a Row that opens in place to read what the children hold: unlike an
+// EditRow it changes nothing and isn't raised. summary is the line, laid out as a Row's.
+templ FoldRow(summary templ.Component) {
+	<li class="row">
+		<details class="fold-row">
+			<summary>
+				@summary
+				<span class="row-edit">
+					@Icon("chevron-down")
+				</span>
+			</summary>
+			<div class="row-body">
+				{ children... }
+			</div>
+		</details>
+	</li>
+}
+
+// SlotRow is a Slot of kind, at the time at unless it is "", and the Portion filling it,
+// portion: its size unless "", figures, its nutrition, unless nil, and source, unless
+// "", a word for where the Portion comes from ("cooked", "already in the kitchen").
+templ SlotRow(kind domain.SlotKind, at, portion, size string, figures templ.Component, source string) {
+	@Row() {
+		<span class="row-title">{ portion }</span>
+		if size != "" || figures != nil {
+			<span class="row-figure">
+				{ size }
+				if size != "" && figures != nil {
+					{ " · " }
+				}
+				if figures != nil {
+					@figures
+				}
+			</span>
+		}
+		<span class="row-meta">
+			<span>{ Capitalised(T(ctx, SlotKindNames[kind])) }</span>
+			if at != "" {
+				<span>{ at }</span>
+			}
+			if source != "" {
+				<span>{ source }</span>
+			}
+		</span>
+	}
+}
+
+// IngredientRows lists ingredients, each its name and its quantity in its unit, with a
+// New Tag on one not yet saved, as a Recipe Draft's new Ingredient is.
+templ IngredientRows(ingredients []domain.RecipeIngredient) {
+	@Rows() {
+		for _, ri := range ingredients {
+			@Row() {
+				<span class="row-title">
+					{ ri.Ingredient.Name }
+					if ri.Ingredient.ID == 0 {
+						{ " " }
+						@Tag(false, "") {
+							{ T(ctx, msgNew) }
+						}
+					}
+				</span>
+				<span class="row-figure">{ Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
+			}
+		}
+	}
+}
+
+// Amount is the nutritional value a, then unit unless it is "": a dash a screen reader
+// says is unknown when a isn't known, and "29+" when floor says only a floor is known,
+// which a screen reader says as "at least 29".
+templ Amount(a domain.Amount, floor bool, unit string) {
+	if !a.Known {
+		<span aria-hidden="true">–</span>
+		<span class="sr-only">{ T(ctx, msgUnknown) }</span>
+	} else {
+		if floor {
+			<span class="sr-only">{ T(ctx, msgAtLeast) + " " }</span>
+			// One line, as templ parts the lines of a template with a space.
+			{ Number(ctx, a.Value) }<span aria-hidden="true">+</span>
+		} else {
+			{ Number(ctx, a.Value) }
+		}
+		if unit != "" {
+			{ " " + unit }
+		}
+	}
+}
+
+// AmountText is Amount as plain text for a sentence: "29+ g", or a dash for a value
+// not known.
+func AmountText(ctx context.Context, a domain.Amount, floor bool, unit string) string {
+	if !a.Known {
+		return "–"
+	}
+	s := Number(ctx, a.Value)
+	if floor {
+		s += "+"
+	}
+	return strings.TrimSpace(s + " " + unit)
 }
 
 // EditRow is one line of a list that opens in place to edit: summary is
@@ -284,7 +412,13 @@ templ ListSearch(id, action, listURL, listID, label string) {
 // the browser's locale, not the User's Language.
 templ TimeField(label, name, value, err string) {
 	@Field(label, "", err) {
-		<input type="text" inputmode="numeric" autocomplete="off" required name={ name } value={ value }
+		<input
+			type="text"
+			inputmode="numeric"
+			autocomplete="off"
+			required
+			name={ name }
+			value={ value }
 			placeholder={ TimeOfDay(ctx, 13*60) }
 			if err != "" {
 				aria-invalid="true"
@@ -298,7 +432,13 @@ templ TimeField(label, name, value, err string) {
 // that may be left blank says optional, and isn't required.
 templ DateField(label, hint, name, value, err string) {
 	@Field(label, hint, err) {
-		<input type="text" inputmode="numeric" autocomplete="off" required?={ hint == "" } name={ name } value={ value }
+		<input
+			type="text"
+			inputmode="numeric"
+			autocomplete="off"
+			required?={ hint == "" }
+			name={ name }
+			value={ value }
 			placeholder={ domain.FormatDate(LanguageOf(ctx), time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)) }
 			if err != "" {
 				aria-invalid="true"
@@ -517,7 +657,8 @@ templ SegmentLink(current bool, attrs templ.Attributes) {
 			aria-current="true"
 		}
 		{ attrs... }
-	><span>{ children... }</span></a>
+	><span>{ children... }
+</span></a>
 }
 
 // Alert says something went wrong, on the accent wash.

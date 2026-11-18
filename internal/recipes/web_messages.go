@@ -90,23 +90,21 @@ var (
 	msgSlotsRequired    = web.Message{En: "Choose at least one kind of Slot.", It: "Scegli almeno un tipo di Pasto."}
 	msgNoIngredients    = web.Message{En: "List at least one Ingredient.", It: "Elenca almeno un Ingrediente."}
 
-	msgMinutes      = web.Message{En: "%d min", It: "%d min"}
-	msgKcal         = web.Message{En: "%s kcal", It: "%s kcal"}
-	msgKcalPer      = web.Message{En: "%s kcal per Portion", It: "%s kcal per Porzione"}
-	msgGrams        = web.Message{En: "%s g", It: "%s g"}
-	msgAtLeastGrams = web.Message{En: "at least %s g", It: "almeno %s g"}
-	msgUnknown      = web.Message{En: "unknown", It: "non noto"}
-	msgProtein      = web.Message{En: "protein", It: "proteine"}
-	msgCarbs        = web.Message{En: "carbs", It: "carboidrati"}
-	msgFat          = web.Message{En: "fat", It: "grassi"}
-	msgFibre        = web.Message{En: "fibre", It: "fibre"}
-	msgSugar        = web.Message{En: "sugar", It: "zuccheri"}
-	msgMakes        = web.Message{En: "Makes", It: "Dosi"}
-	msgMakesValue   = web.Message{En: "%d Portions", It: "%d Porzioni"}
-	msgMakesOne     = web.Message{En: "1 Portion", It: "1 Porzione"}
-	msgActiveShort  = web.Message{En: "Active", It: "Attivi"}
-	msgTotalShort   = web.Message{En: "Total", It: "Totale"}
-	msgNeeds        = web.Message{En: "Needs", It: "Richiede"}
+	msgMinutes     = web.Message{En: "%d min", It: "%d min"}
+	msgKcalUnit    = web.Message{En: "kcal", It: "kcal"}
+	msgKcalPer     = web.Message{En: "%s kcal per Portion", It: "%s kcal per Porzione"}
+	msgGramsUnit   = web.Message{En: "g", It: "g"}
+	msgProtein     = web.Message{En: "protein", It: "proteine"}
+	msgCarbs       = web.Message{En: "carbs", It: "carboidrati"}
+	msgFat         = web.Message{En: "fat", It: "grassi"}
+	msgFibre       = web.Message{En: "fibre", It: "fibre"}
+	msgSugar       = web.Message{En: "sugar", It: "zuccheri"}
+	msgMakes       = web.Message{En: "Makes", It: "Dosi"}
+	msgMakesValue  = web.Message{En: "%d Portions", It: "%d Porzioni"}
+	msgMakesOne    = web.Message{En: "1 Portion", It: "1 Porzione"}
+	msgActiveShort = web.Message{En: "Active", It: "Attivi"}
+	msgTotalShort  = web.Message{En: "Total", It: "Totale"}
+	msgNeeds       = web.Message{En: "Needs", It: "Richiede"}
 )
 
 // fieldMessage says why field of the Recipe is refused for problem.

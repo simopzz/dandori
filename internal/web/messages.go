@@ -22,6 +22,9 @@ var (
 	msgBack           = Message{En: "Back", It: "Indietro"}
 	msgCloseNotice    = Message{En: "Close notice", It: "Chiudi avviso"}
 	msgErrorSummary   = Message{En: "Some fields need fixing:", It: "Alcuni campi sono da correggere:"}
+	msgUnknown        = Message{En: "unknown", It: "non noto"}
+	msgAtLeast        = Message{En: "at least", It: "almeno"}
+	msgNew            = Message{En: "New", It: "Nuovo"}
 )
 
 // problems say why a typed value is refused, the same for every field.

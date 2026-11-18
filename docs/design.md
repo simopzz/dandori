@@ -34,7 +34,7 @@ that reassigns them (the test allows literals in any `:root` block).
 | `--color-on-fill` | paper | text on a fill or on the accent |
 | `--color-accent` | `#b8321b` vermilion seal | wrong, urgent or irreversible only (see below) |
 | `--color-accent-wash` | `#fbe5dc` salmon wash | behind alerts |
-| `--color-tag` | `#f7e4c6` cream | behind a `Tag` |
+| `--color-tag` | `#f7e4c6` cream | behind a `Tag`, and a value worth weighing |
 | `--color-veil` | navy | dithered over the page behind an open sheet |
 | `--color-shell` | navy | the bottom tabs and the rail |
 | `--color-on-shell` / `--color-on-shell-soft` | paper / `#b9bdd3` | the current tab / the other tabs |
@@ -45,18 +45,24 @@ that reassigns them (the test allows literals in any `:root` block).
 and a refused field's box, an urgent row's seal and its accent `Tag`,
 and destructive actions. It also stays on the `+`, which is the seal, and on
 the sun in the sky, as in the banner, which the seal echoes. Never use it for
-decoration, emphasis or structure: a page where everything is vermilion has
+decoration, emphasis, structure or a soft miss: a page where everything is vermilion has
 nothing left for an error to stand out against. It is not the current tab's
 marker: vermilion on navy is about 2:1, below the 3:1 a non-text indicator
 needs, so the marker is salmon.
+
+**Worth weighing is cream.** What the User should weigh but needn't fix, a soft
+miss or a change, is marked on a cream `Tag` with a shape that says which way:
+the `under` icon (▼) under a Target, `over` (▲) over it, `changed` (•) changed,
+each followed by its word for a screen reader (`sr-only`). Vermilion stays for a
+broken hard rule and a failure.
 
 **Navy is structure**, not attention: it fills primary buttons, the chosen
 segment and a floating Notice, draws section numbers, the stroke under them,
 section rules, field boxes and the focus ring, and is the shell. The
 banner's other colours (slate, cream, peach, salmon, snow) are only in the
 sky and the pixel art, with three exceptions named above: slate in a
-control's dither, cream behind a tag, salmon on the current tab and in the
-alert's wash.
+control's dither, cream behind a tag and a value worth weighing, salmon on the
+current tab and in the alert's wash.
 
 Type: three faces, self-hosted in `static/fonts` (SIL OFL,
 `static/fonts/OFL.txt`). `--font-title` is DotGothic16, a pixel face, for
@@ -124,6 +130,13 @@ Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
 and `aria-hidden`. One that must be smaller is drawn 10px square: any other
 size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 
+**A kind of line has a fixed icon**, its meaning in words beside it or
+`sr-only`, the same on every page: `under` (▼), `over` (▲) and `changed` (•)
+for what is worth weighing, `repeat` for a Portion eaten back to back,
+`package` (the Kitchen's crate) for a Portion left unused, `snowflake` for one
+made for after the Cycle, and `book-open` for a new Recipe. A new kind of line
+gets its own icon here before it lands on a page.
+
 ## Layout
 
 - **One calm column** (`--measure`, 42rem), with generous space above each
@@ -148,12 +161,28 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
   it in navy, a gap, then the navy rule. In a form, use `FieldGroup`, its
   fieldset twin. A page numbers all its own groups, in order; the square in
   the number's place is for a side sheet's.
+- **The heading ladder** is three steps and no more: the page's `h1` is its
+  `PageHeader`, an `h2` a `Section`, an `h3` a `Group`. Below a `Group`,
+  content is `Rows`, captioned by a `RowsHead` where a Group holds more than
+  one list.
 - **Lists are `Rows`**: lines separated by hairlines, the name first,
   quantities in tabular numbers.
+- **Tables** carry each column's unit and Target in its head ("Protein, g" over
+  "≥ 130"), so the cells hold numbers alone. A bound is written ≥ or ≤, with
+  "at least" or "at most" for a screen reader; a value known only as a floor
+  is "29+", and an unknown one a dash, both through `Amount`. Rows that repeat
+  collapse into a range ("Fri, Oct 30 – Thu, Nov 5: no Plan"). A date in a
+  cell stays on one line, and on a phone the columns sit 8px apart, the last
+  with no gap at the edge, so a table of four figures fits 360px. A table wider
+  than the column scrolls in a box of its own, its first column sticky, never
+  the page.
+- **Dates**: the long form in headings (`web.Date`, "Friday, November 6"), the
+  short form in rows and tables (`web.ShortDate`, "Fri, Nov 6"), and the year
+  only when it isn't this one (`web.ShortDateInYear`).
 - **How a row says it opens**, the same everywhere: a name that goes
   somewhere is underlined, as a link, whether to a page or a sheet (a sheet
   has a page of its own without JS); what opens inside the row (`EditRow`,
-  `Disclosure`, `Fold`) has a chevron instead.
+  `FoldRow`, `Disclosure`, `Fold`, `Group`) has a chevron instead.
 
 ## Busy
 
@@ -242,10 +271,16 @@ elements themselves.
 | `Empty()` | What a list or a page says when it has nothing in it: it says what would be here, why it isn't, and links the one action that fills it. Today, before it has a Plan, names each thing planning needs instead, each a link named for its action. |
 | `Disclosure(summary, open)` | A group of a page's content a click away (the day's later Slots on Today, the add form above the Ingredients side sheet's list): a quiet summary line with a chevron, closed until opened, or open when it holds what the User is at, such as a refused form. |
 | `Fold(summary, holds)` | A line that opens in place to show what it holds (a Trace Event's data): a chevron at its start points right while closed and down while open, and it starts closed. Without `holds` it is the line alone, aligned with its neighbours. |
-| `Rows()` | A list of `Row`s or `EditRow`s. |
+| `Group(title, meta, open)` | A part of a `Section` that folds: a `<details>` whose summary is an `h3`, `title`, with `meta` as a soft line under it and a chevron at the end, over a 1px navy rule, weaker than a Section's and stronger than a row's hairline (a day of a Plan). Closed unless it holds what the User is at, such as a refused form. It holds `Rows`, never a deeper heading. |
+| `RowsHead(label)` | A small soft caption over a `Rows`, on a 1px navy line (a day's Slots, then its Prep Sessions). |
+| `Rows()` | A list of `Row`s, `EditRow`s or `FoldRow`s. |
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. |
+| `SlotRow(kind, at, portion, size, figures, source)` | A Slot and the Portion filling it, as a `Row`: the Portion as the `row-title`; its `size` and `figures` (calories and protein through `Amount`) as the `row-figure`; the Slot's kind, its time `at` where the page shows one (Today), and `source`, a word for where the Portion comes from ("cooked", "from Thu, in the fridge", "already in the kitchen"), as its `row-meta`. Leave out what isn't shown with `""` or a nil `figures`. |
+| `IngredientRows(ingredients)` | A list of a Recipe's or a Prep Session's Ingredients, each its name and quantity in its unit, an Ingredient not yet saved with a `New` Tag. |
+| `Amount(a, floor, unit)` | Every nutritional value a page shows: the number, then `unit` unless it is `""`; a dash with `sr-only` "unknown" when it isn't known; "29+" when only a floor is known, which a screen reader says "at least 29". `AmountText` is the same as plain text, for a sentence. Never write "unknown" or "at least" for a value by hand. |
 | `Seal()` | The pixel sun before an urgent `Row`'s `row-title`. Decorative: the row's text (an accent `Tag`) says why it is urgent. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |
+| `FoldRow(summary)` | A `Row` that opens in place to read (a Prep Session, opening to its Ingredients and Portions): its summary is a Row's `row-title`, `row-figure` and `row-meta`, with a chevron that turns. Unlike an `EditRow` it changes nothing, so it says no "Change" and isn't raised. |
 | `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. A field that may be left blank says `optional`, and a value's unit (`g`, `kcal`, `minutes`) is always in the hint, never in the label or a paragraph; a paragraph says only what a group of values is per (`Per Portion.`). The label sits 4px (`--space-1`) above its own field. |
 | `SearchField(label)` | The search box over a list, the input the child: a square box with the magnifying glass inside, so it doesn't read as one of the rows. `label` is for a screen reader; the input's placeholder says it on screen. |
@@ -295,16 +330,13 @@ are styled once in `app.css`: every text input, select and textarea a square
 dense grids' cells included; tables ruled like rows, `dl` as a two-column list
 of facts.
 
-Four feature-shaped components live in `app.css` because nothing else needs
+Three feature-shaped components live in `app.css` because nothing else needs
 them yet: the Profile's `appliance-grid`, each kind's `Check` with the note on
 its model beside it under column heads (`appliance-grid-head`), or under it
 on a phone, where the heads are hidden and the note's placeholder, "Model
 (optional)", says on screen what it is, as a `SearchField`'s does, a hidden
-label naming it for a screen reader at every width; the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), the
-Run `trace` panel, and the Exceptions page's `slot-grid`, a Cycle's Slots as
-rows on a phone and a day × Slot grid on desktop, where an open Slot spans
-its day over the day's other Slots; `slot-grid.js` animates a Slot opening
-and closing.
+label naming it for a screen reader at every width; the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), and the
+Run `trace` panel.
 
 ## Accessibility baseline
 
@@ -328,7 +360,8 @@ and closing.
   transition, its line still and whole, and still goes when its time runs out.
 - Meaning is never carried by colour alone: an error says what is wrong and
   is marked `!`, an invalid field has a thicker box and
-  `aria-invalid`, an urgent row has the pixel seal *and* text, the current tab
+  `aria-invalid`, an urgent row has the pixel seal *and* text, a value worth
+  weighing has a shape *and* its word for a screen reader, the current tab
   has a bar, paper text and `aria-current`.
 - Icons, the seal and the pixel art are `aria-hidden`; what they mean is said
   in text or an `aria-label`.
@@ -348,7 +381,9 @@ and closing.
 - **Don't** restyle base elements for one feature (`.profile input`,
   `.stock-form select`): change the base style or add a component.
 - **Don't** use the accent for anything that isn't wrong, urgent or
-  irreversible.
+  irreversible: a soft miss is worth weighing, in cream.
+- **Don't** nest a heading under a `Group`, or write a nutritional value
+  without `Amount`.
 - **Don't** add rounded corners, stepped corners, shadows, smooth gradients or
   a second accent.
 - **Don't** add an icon font, a stroke icon or runtime JS for presentation

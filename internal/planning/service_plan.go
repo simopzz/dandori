@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -298,7 +299,7 @@ const longDate = "Monday 2 January 2006"
 
 // describeDay is n's values of what the Targets aim at, as the planner reads them, those
 // missed marked, if missed says.
-func describeDay(n domain.PortionNutrition, missed func(domain.Target) bool) string {
+func describeDay(n domain.PortionNutrition, missed func(domain.Target) (missed, under bool)) string {
 	parts := make([]string, len(domain.Aimed))
 	for i, target := range domain.Aimed {
 		a, floor := n.Of(target)
@@ -315,7 +316,7 @@ func describeDay(n domain.PortionNutrition, missed func(domain.Target) bool) str
 		if floor {
 			parts[i] = "at least " + parts[i]
 		}
-		if missed != nil && missed(target) {
+		if off, _ := missOf(missed, target); off {
 			parts[i] += " (missed)"
 		}
 	}
@@ -323,16 +324,29 @@ func describeDay(n domain.PortionNutrition, missed func(domain.Target) bool) str
 }
 
 // dayMissed reports which Targets the day d misses as a soft rule does: by more than 25%.
-func dayMissed(t domain.Targets, d domain.Day) func(domain.Target) bool {
-	return func(target domain.Target) bool {
-		_, off := t.DayOff(target, d)
-		return off
+func dayMissed(t domain.Targets, d domain.Day) func(domain.Target) (missed, under bool) {
+	return func(target domain.Target) (bool, bool) {
+		m, off := t.DayOff(target, d)
+		return off, m.Under
 	}
 }
 
-// averageMissed reports which Targets the average avg misses.
-func averageMissed(t domain.Targets, avg domain.PortionNutrition) func(domain.Target) bool {
-	return func(target domain.Target) bool { return t.Missed(target, avg) }
+// averageMissed reports which Targets the average avg misses, and whether under them.
+func averageMissed(t domain.Targets, avg domain.PortionNutrition) func(domain.Target) (missed, under bool) {
+	return func(target domain.Target) (bool, bool) {
+		a, _ := avg.Of(target)
+		lo, _ := t.Bounds(target)
+		return t.Missed(target, avg), math.Round(a.Value) < lo
+	}
+}
+
+// missOf is whether missed says target is missed, and if so whether under it; nothing is
+// missed when missed is nil.
+func missOf(missed func(domain.Target) (bool, bool), target domain.Target) (off, under bool) {
+	if missed == nil {
+		return false, false
+	}
+	return missed(target)
 }
 
 // describeNutrition is n as the planner reads it, a floor said "at least".

@@ -38,14 +38,11 @@ var (
 	msgValuesPer    = web.Message{En: "%s, as on the label.", It: "%s, come in etichetta."}
 	msgStaple       = web.Message{En: "Staple", It: "Base"}
 	msgStapleHint   = web.Message{En: "always there, never counted", It: "sempre in casa, mai contata"}
-	msgKcalValue    = web.Message{En: "%s kcal", It: "%s kcal"}
 	msgProteinShort = web.Message{En: "protein", It: "proteine"}
 	msgCarbsShort   = web.Message{En: "carbs", It: "carboidrati"}
 	msgFatShort     = web.Message{En: "fat", It: "grassi"}
 	msgFibreShort   = web.Message{En: "fibre", It: "fibre"}
 	msgSugarShort   = web.Message{En: "sugar", It: "zuccheri"}
-	msgGrams        = web.Message{En: "%s g", It: "%s g"}
-	msgUnknown      = web.Message{En: "unknown", It: "non noto"}
 
 	msgNameRequired     = web.Message{En: "Give it a name.", It: "Dagli un nome."}
 	msgUnitRequired     = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}

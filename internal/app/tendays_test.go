@@ -204,7 +204,8 @@ func tenDayDraft(t *testing.T, req agent.Request) map[string]any {
 
 // Through a browser: a ten-day Plan Proposal after an approved Plan, its first day
 // planned only from lunch on, shows its soft misses, the seven days before it with the
-// approved Plan's two, and every day it plans.
+// approved Plan's two, and every day it plans; on a phone its day table fits, each
+// date on one line.
 func TestBrowserShowsATenDayPlanProposal(t *testing.T) {
 	s := tenDayKitchen(t, "ada@example.com", "English")
 	approvesTwoDays(t, s, twoDays)
@@ -225,5 +226,18 @@ func TestBrowserShowsATenDayPlanProposal(t *testing.T) {
 			t.Fatalf("resize to %d: %v", width, err)
 		}
 		b.ShotPage(t, fmt.Sprintf("ten-days-%d", width))
+	}
+	// On a phone the day table fits without scrolling sideways, each date on one line.
+	if err := b.SetViewportSize(390, 900); err != nil {
+		t.Fatalf("resize to 390: %v", err)
+	}
+	fits, err := b.Evaluate(`() => {
+		const td = [...document.querySelectorAll("tbody td:first-child")].find(td => /Nov\s11/.test(td.textContent));
+		const r = document.createRange();
+		r.selectNodeContents(td);
+		return document.documentElement.scrollWidth === innerWidth && r.getClientRects().length === 1;
+	}`)
+	if err != nil || fits != true {
+		t.Errorf("at 390px the day table scrolls sideways or breaks Wed, Nov 11 (%v)", err)
 	}
 }
