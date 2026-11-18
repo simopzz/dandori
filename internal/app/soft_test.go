@@ -16,8 +16,9 @@ import (
 // 130 g protein and 30 g fibre, at most 50 g sugar.
 
 // check_plan gives the planner each day's nutrition, the Targets' results and the soft
-// misses; the Plan it submits is stored with its soft misses, which the Plan Proposal
-// shows at its top, then the day table: the seven days before it, "No Plan" where no Plan
+// misses, then the Portions made for after the Cycle as information; the Plan it submits
+// is stored with its soft misses, which the Plan Proposal shows at its top with that
+// information, then the day table: the seven days before it, "No Plan" where no Plan
 // covered them, each planned day against the Targets with each miss marked, and the
 // average, calories against their range.
 func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
@@ -31,15 +32,15 @@ func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 	s.Sees("- Fri 6 Nov: 28% under kcal")
 	s.Sees("- Fri 6 Nov: 50% under protein")
 	s.Sees("- Rice bowl eaten back to back, Fri 6 Nov")
-	s.Sees("- lasagne × 2 (freezer) left unused")
-	s.Sees("- Rice bowl (freezer) left unused")
+	s.Sees("- lasagne: 2 of 3 left unused, in the freezer")
+	s.Sees("Information, nothing to fix: 1 Portion made for after the Cycle: Rice bowl")
 
 	s.Open("/plan")
 	s.Sees("01 Plan Proposal Calories average 1586 a day against 2024–2376 " +
 		"Protein averages 65 g a day against 130 g " +
 		"Fri, Nov 6: 28% under calories Fri, Nov 6: 50% under protein " +
 		"Rice bowl eaten back to back, Fri, Nov 6 " +
-		"lasagne × 2 left unused in the freezer Rice bowl left unused in the freezer Friday.")
+		"lasagne: 2 of 3 left unused, in the freezer 1 Portion made for after the Cycle: Rice bowl Friday.")
 	s.Sees("Day Calories Protein Fibre Sugar Targets 2024–2376 at least 130 g at least 30 g at most 50 g")
 	s.Sees("Fri, Oct 30 No Plan")
 	s.Sees("Thu, Nov 5 No Plan Fri, Nov 6 1586 missed 65 g missed at least 4 g at least 8 g")

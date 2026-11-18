@@ -150,35 +150,24 @@ func TestTheTargetsResults(t *testing.T) {
 // sameMiss reports whether a and b are the same miss, their days compared as days.
 func sameMiss(a, b domain.Miss) bool {
 	return a.Rule == b.Rule && a.Target == b.Target && a.Value == b.Value && a.Floor == b.Floor && a.Under == b.Under &&
-		a.On.Equal(b.On) && a.Name == b.Name && a.Location == b.Location && a.Count == b.Count &&
+		a.On.Equal(b.On) && a.Name == b.Name && a.Location == b.Location && a.Count == b.Count && a.Of == b.Of &&
 		slices.EqualFunc(a.Days, b.Days, time.Time.Equal)
 }
 
 // The soft rules of a Plan's structure: Portions of one Prep Session eaten within two
-// days of each other, and Portions left without a Slot, the kitchen's and new ones.
+// days of each other, and Portions carried into the Cycle left without a Slot.
 func TestTheSoftRulesOfAPlansStructure(t *testing.T) {
-	session := func(at ...*domain.Slot) domain.PrepSession {
-		ps := domain.PrepSession{At: slot(2, domain.Dinner), Recipe: &chili, Size: 1}
-		for _, s := range at {
-			ps.Portions = append(ps.Portions, eaten(s))
-		}
-		return ps
-	}
-	lasagne := []domain.PortionLot{{Name: "lasagne", Location: domain.Freezer, IDs: []int64{1, 2, 3}}}
 	tests := []struct {
 		name string
 		plan domain.Plan
 		want []domain.Miss
 	}{
-		{"two days apart", domain.Plan{PrepSessions: []domain.PrepSession{session(in(slot(2, domain.Dinner)), in(slot(4, domain.Lunch)))}}, nil},
-		{"the next day", domain.Plan{PrepSessions: []domain.PrepSession{session(in(slot(3, domain.Dinner)), in(slot(4, domain.Lunch)), in(slot(7, domain.Lunch)))}}, []domain.Miss{
+		{"two days apart", domain.Plan{PrepSessions: []domain.PrepSession{chiliEaten(in(slot(2, domain.Dinner)), in(slot(4, domain.Lunch)))}}, nil},
+		{"the next day", domain.Plan{PrepSessions: []domain.PrepSession{chiliEaten(in(slot(3, domain.Dinner)), in(slot(4, domain.Lunch)), in(slot(7, domain.Lunch)))}}, []domain.Miss{
 			{Rule: domain.RuleBackToBack, Name: "Chili", Days: []time.Time{day(3), day(4)}},
 		}},
-		{"the same day", domain.Plan{PrepSessions: []domain.PrepSession{session(in(slot(2, domain.Lunch)), in(slot(2, domain.Dinner)))}}, []domain.Miss{
+		{"the same day", domain.Plan{PrepSessions: []domain.PrepSession{chiliEaten(in(slot(2, domain.Lunch)), in(slot(2, domain.Dinner)))}}, []domain.Miss{
 			{Rule: domain.RuleBackToBack, Name: "Chili", Days: []time.Time{day(2)}},
-		}},
-		{"new Portions left without a Slot", domain.Plan{PrepSessions: []domain.PrepSession{session(in(slot(2, domain.Dinner)), nil, nil)}}, []domain.Miss{
-			{Rule: domain.RuleUnusedPortion, Name: "Chili", Location: domain.Fridge, Count: 2},
 		}},
 	}
 	for _, tt := range tests {
@@ -188,19 +177,54 @@ func TestTheSoftRulesOfAPlansStructure(t *testing.T) {
 			}
 		})
 	}
-	t.Run("the kitchen's Portions left without a Slot", func(t *testing.T) {
-		plan := domain.Plan{Kept: []domain.Kept{{Portion: 2, At: slot(2, domain.Lunch)}}}
-		want := []domain.Miss{{Rule: domain.RuleUnusedPortion, Name: "lasagne", Location: domain.Freezer, Count: 2}}
-		if got := plan.SoftMisses(lasagne); !slices.EqualFunc(got, want, sameMiss) {
-			t.Errorf("SoftMisses() = %+v, want %+v", got, want)
-		}
-	})
-	t.Run("every one put in a Slot", func(t *testing.T) {
-		plan := domain.Plan{Kept: []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}}}
-		if got := plan.SoftMisses(lasagne); got != nil {
-			t.Errorf("SoftMisses() = %+v, want none", got)
-		}
-	})
+}
+
+// Of the Portions left without a Slot, only those carried into the Cycle are a miss,
+// told with how many of them the kitchen holds; those the Plan makes are made for after
+// the Cycle.
+func TestPortionsLeftWithoutASlot(t *testing.T) {
+	lasagne := []domain.PortionLot{
+		{Name: "lasagne", Location: domain.Freezer, IDs: []int64{1, 2, 3}},
+		{Name: "lasagne", Location: domain.Fridge, IDs: []int64{4}},
+	}
+	rice := domain.PrepSession{At: slot(2, domain.Dinner), Recipe: &domain.Recipe{Name: "Rice bowl"}, Size: 1,
+		Portions: []domain.PlannedPortion{{Location: domain.Freezer}}}
+	tests := []struct {
+		name      string
+		plan      domain.Plan
+		misses    []domain.Miss
+		madeFor   int
+		madeNames []string
+	}{
+		{"carried in and left unused", domain.Plan{Kept: []domain.Kept{{Portion: 2, At: slot(2, domain.Lunch)}, {Portion: 4, At: slot(3, domain.Lunch)}}}, []domain.Miss{
+			{Rule: domain.RuleUnusedPortion, Name: "lasagne", Location: domain.Freezer, Count: 2, Of: 3},
+		}, 0, nil},
+		{"carried in and used", domain.Plan{Kept: []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}, {Portion: 4}}}, nil, 0, nil},
+		{"made by the Plan with no Slot", domain.Plan{
+			Kept:         []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}, {Portion: 4}},
+			PrepSessions: []domain.PrepSession{chiliEaten(in(slot(2, domain.Dinner)), nil, nil), rice},
+		}, nil, 3, []string{"Chili", "Rice bowl"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.plan.SoftMisses(lasagne); !slices.EqualFunc(got, tt.misses, sameMiss) {
+				t.Errorf("SoftMisses() = %+v,\nwant %+v", got, tt.misses)
+			}
+			if n, names := tt.plan.MadeForAfter(); n != tt.madeFor || !slices.Equal(names, tt.madeNames) {
+				t.Errorf("MadeForAfter() = %d %v, want %d %v", n, names, tt.madeFor, tt.madeNames)
+			}
+		})
+	}
+}
+
+// chiliEaten is a Prep Session of chili at Tuesday's dinner, a Portion eaten at each of
+// at, nil kept for later.
+func chiliEaten(at ...*domain.Slot) domain.PrepSession {
+	ps := domain.PrepSession{At: slot(2, domain.Dinner), Recipe: &chili, Size: 1}
+	for _, s := range at {
+		ps.Portions = append(ps.Portions, eaten(s))
+	}
+	return ps
 }
 
 // A Plan's days are shown beside the seven before them, as earlier Plans fill them; a
