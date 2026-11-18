@@ -71,8 +71,8 @@ func PageHeader(ja, title string, today time.Time) templ.Component {
 	})
 }
 
-// PageHeaderBeside is a PageHeader with beside, unless "", after the title in the
-// body face, smaller: what the page is of, such as a Cycle's dates.
+// PageHeaderBeside is a PageHeader with beside, unless "", after the title and a dot in
+// the body face, smaller: what the page is of, such as a Cycle's dates.
 func PageHeaderBeside(ja, title, beside string, today time.Time) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -143,9 +143,9 @@ func PageHeaderBeside(ja, title, beside string, today time.Time) templ.Component
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(beside)
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs("· " + beside)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 34, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components.templ`, Line: 34, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {

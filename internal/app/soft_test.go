@@ -44,7 +44,7 @@ func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 		"Rice bowl eaten back to back, Fri, Nov 6 " +
 		"lasagne: 2 of 3 left unused, in the freezer 1 Portion made for after the Cycle: Rice bowl Approve")
 	s.Sees("02 Days " + heads + " 7 days before 7 with no Plan Fri, Oct 30 – Thu, Nov 5: no Plan " +
-		"Fri, Nov 6 calories 1586 under protein 65 under fibre at least 4 + sugar at least 8 + Rice bowl · 10 min active")
+		"Friday, November 6 calories 1586 under protein 65 under fibre at least 4 + sugar at least 8 + Rice bowl · 10 min active")
 	s.Sees("Slots yogurt 90 kcal · 15 g protein Breakfast in the fridge")
 	s.Sees("Prep Sessions Rice bowl 3 at 1.25× 25 min · 10 active Ingredients rice 375 g")
 }
@@ -99,7 +99,7 @@ func TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan(t *testing.T) {
 
 	s.Open("/plan")
 	s.Sees("7 days before 1 on the current Plan, 6 with no Plan Sat, Oct 31 – Thu, Nov 5: no Plan " +
-		"Fri, Nov 6 calories 1586 protein 65 fibre at least 4 + sugar at least 8 + Sat, Nov 7 calories 360")
+		"Fri, Nov 6 calories 1586 protein 65 fibre at least 4 + sugar at least 8 + Saturday, November 7 calories 360")
 }
 
 // A day a little under a Target is no soft miss, so its row leaves it unmarked; the
@@ -113,5 +113,5 @@ func TestADayALittleUnderATargetIsUnmarked(t *testing.T) {
 	s.Open("/plan")
 	s.Sees("calories 1586 protein 65 under fibre at least 4 + sugar at least 8 + A day is marked")
 	s.DoesNotSee("more than 25% off Fri")
-	s.Sees("Fri, Nov 6 calories 1586 protein 65 fibre at least 4 + sugar at least 8 +")
+	s.Sees("Friday, November 6 calories 1586 protein 65 fibre at least 4 + sugar at least 8 +")
 }

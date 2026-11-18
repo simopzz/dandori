@@ -22,8 +22,8 @@ templ PageHeader(ja, title string, today time.Time) {
 	}
 }
 
-// PageHeaderBeside is a PageHeader with beside, unless "", after the title in the
-// body face, smaller: what the page is of, such as a Cycle's dates.
+// PageHeaderBeside is a PageHeader with beside, unless "", after the title and a dot in
+// the body face, smaller: what the page is of, such as a Cycle's dates.
 templ PageHeaderBeside(ja, title, beside string, today time.Time) {
 	<header class="page-header">
 		<p class="eyebrow"><span lang="ja">{ ja }</span> · { Date(ctx, today) }</p>
@@ -31,7 +31,7 @@ templ PageHeaderBeside(ja, title, beside string, today time.Time) {
 			@titleText(title)
 			if beside != "" {
 				{ " " }
-				<span class="title-beside">{ beside }</span>
+				<span class="title-beside">{ "· " + beside }</span>
 			}
 		</h1>
 		{ children... }

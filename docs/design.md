@@ -70,7 +70,10 @@ titles only: the page's `h1`, `Section` and `FieldGroup` headings (and any
 `h2`), the sheet title and the wordmark. It is subset to Latin-1 and 段取り,
 so a title in Japanese falls back to the system's face. `--font-body` is Zen
 Kaku Gothic New (400, 700, latin subset) for everything else, `h3` in bold;
-Japanese text falls back to the system's Gothic.
+Japanese text falls back to the system's Gothic. `Layout` preloads all three.
+The body faces are `font-display: optional`: text rewrapping as a face swapped
+in moved the page (a layout shift), so a body face that isn't there for the
+first paint waits for the next page. The title face swaps in.
 
 A title's data, its times, quantities and User text (Today's `1:00 pm`, a
 Recipe's or an Ingredient's name), is set in the body face, where the pixel

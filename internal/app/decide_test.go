@@ -72,7 +72,7 @@ func fridayPlanned(t *testing.T, s *apptest.Scenario, summary string) {
 }
 
 // Once the Plan Proposal's first Slot has passed, approving it is refused, saying to
-// reject it with a Planning Note or plan again; it stays pending.
+// reject it with a Planning Note or plan again, with Reject open; it stays pending.
 func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
@@ -89,6 +89,9 @@ func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	s.Sees("01 Plan Proposal")
 	s.Sees("Rice bowls for Friday.")
 	s.Sees("02 Days")
+	if !strings.Contains(s.Page().Body, `<details class="button-fold" open`) {
+		t.Error("the refused approval says to reject with a Planning Note, but Reject is closed")
+	}
 }
 
 // A changed Slot time moves the Plan's Slots: a breakfast moved later is still to come,

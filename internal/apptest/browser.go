@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -272,6 +273,44 @@ func (b *Browser) Sees(t testing.TB, want string) {
 	t.Helper()
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator("main")).ToContainText(want); err != nil {
 		t.Errorf("%s does not show %q: %v", b.URL(), want, err)
+	}
+}
+
+// Shown is the text the page's main content shows, as rendered: what a closed fold hides
+// is left out, and each run of white space is one space.
+func (b *Browser) Shown(t testing.TB) string {
+	t.Helper()
+	text, err := b.Locator("main").InnerText()
+	if err != nil {
+		t.Fatalf("read the page's text: %v", err)
+	}
+	return strings.Join(strings.Fields(text), " ")
+}
+
+// SeesInTurn checks the page's main content shows each of want, as rendered, each after
+// the one before it.
+func (b *Browser) SeesInTurn(t testing.TB, want ...string) {
+	t.Helper()
+	shown := b.Shown(t)
+	rest := shown
+	for _, w := range want {
+		i := strings.Index(rest, w)
+		if i < 0 {
+			t.Fatalf("%s does not show %q after what came before it: %s", b.URL(), w, shown)
+		}
+		rest = rest[i+len(w):]
+	}
+}
+
+// Opens opens the first fold whose summary holds a line that is text, as a day's date or
+// a Prep Session's name, by clicking that summary.
+func (b *Browser) Opens(t testing.TB, text string) {
+	t.Helper()
+	summary := b.Locator("summary").Filter(playwright.LocatorFilterOptions{
+		Has: b.GetByText(text, playwright.PageGetByTextOptions{Exact: playwright.Bool(true)}),
+	})
+	if err := summary.First().Click(); err != nil {
+		t.Fatalf("open %q: %v", text, err)
 	}
 }
 

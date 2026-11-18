@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mxschmitt/playwright-go"
-
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
@@ -218,8 +216,8 @@ func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
 	b.Open(t, "/plan")
-	showsInTurn(t, shown(t, b),
-		"Cycle Thu, Nov 5 – Sat, Nov 14",
+	b.SeesInTurn(t,
+		"Cycle · Thu, Nov 5 – Sat, Nov 14",
 		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm Tentative · planned from Thu, Nov 5 lunch",
 		"01 Plan Proposal",
 		tenDaySummary,
@@ -233,8 +231,8 @@ func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 		"Approve Reject",
 		"02 Days",
 		"7 days before 2 on the current Plan, 5 with no Plan",
-		"Thu, Nov 5 · lunch→",
-		"Sat, Nov 14",
+		"Thursday, November 5 · lunch→",
+		"Saturday, November 14",
 		"03 Upcoming Cycle Drop the Cycle",
 	)
 }
@@ -251,20 +249,21 @@ func TestBrowserOpensADayOfATenDayPlanProposal(t *testing.T) {
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
 	b.Open(t, "/plan")
-	if text := shown(t, b); strings.Contains(text, "Slots") {
+	if text := b.Shown(t); strings.Contains(text, "Slots") {
 		t.Errorf("a day starts open: %s", text)
 	}
-	opens(t, b, "group", "Fri, Nov 6")
-	opens(t, b, "fold-row", "Lentil soup")
-	showsInTurn(t, shown(t, b), "Fri, Nov 6", "Slots",
+	b.Opens(t, "Friday, November 6")
+	b.Opens(t, "Porridge")
+	b.Opens(t, "Lentil soup")
+	b.SeesInTurn(t, "Friday, November 6", "Slots",
 		"Porridge 1.25× · 519 kcal · 25 g protein Breakfast cooked",
 		"lasagne 620 kcal · 32 g protein Lunch already in the kitchen",
 		"apple 80 kcal · 0 g protein Snack in the pantry",
 		"Lentil soup 1.25× · 414 kcal · 25 g protein Dinner cooked",
-		"Prep Sessions", "Porridge 1 at 1.25× 10 min · 5 active",
+		"Prep Sessions", "Porridge 1 at 1.25× 10 min · 5 active", "Ingredients oats 62.5 g",
 		"Lentil soup 2 at 1.25× 40 min · 10 active",
 		"Ingredients red lentils", "Eaten later Lunch on Sun, Nov 8 In the fridge",
-		"Sat, Nov 7",
+		"Saturday, November 7",
 	)
 }
 
@@ -307,7 +306,7 @@ func TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView(t *testing.T)
 			}
 			inView, err := b.Evaluate(`() => {
 				document.querySelectorAll("main details").forEach(d => d.open = false);
-				const days = document.querySelectorAll(".main-column .group");
+				const days = document.querySelectorAll("main h3");
 				days[days.length - 1].scrollIntoView();
 				const r = document.querySelector("#approve button").getBoundingClientRect();
 				return scrollY > 0 && r.top >= 0 && r.bottom <= innerHeight;
@@ -316,38 +315,5 @@ func TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView(t *testing.T)
 				t.Errorf("at 1440px Approve leaves the view as the days scroll (%v)", err)
 			}
 		})
-	}
-}
-
-// opens opens the first fold of class in b whose summary shows text: a day's "group",
-// or a Prep Session's "fold-row".
-func opens(t *testing.T, b *apptest.Browser, class, text string) {
-	t.Helper()
-	if err := b.Locator("."+class+" > summary", playwright.PageLocatorOptions{HasText: text}).First().Click(); err != nil {
-		t.Fatalf("open %q: %v", text, err)
-	}
-}
-
-// shown is the text main shows in b, as rendered: what a closed Group or fold hides is
-// left out, and runs of white space are one space.
-func shown(t *testing.T, b *apptest.Browser) string {
-	t.Helper()
-	text, err := b.Locator("main").InnerText()
-	if err != nil {
-		t.Fatalf("read the page's text: %v", err)
-	}
-	return strings.Join(strings.Fields(text), " ")
-}
-
-// showsInTurn checks text holds each of want, each after the one before.
-func showsInTurn(t *testing.T, text string, want ...string) {
-	t.Helper()
-	rest := text
-	for _, w := range want {
-		i := strings.Index(rest, w)
-		if i < 0 {
-			t.Fatalf("the page doesn't show %q after what came before it: %s", w, text)
-		}
-		rest = rest[i+len(w):]
 	}
 }

@@ -60,6 +60,7 @@
   --tabs-height: 3.75rem;
   --fab-size: 3.5rem;
   --measure: 42rem;
+  --icon: 1.25rem;
 }
 
 @font-face { font-family: "DotGothic16"; font-weight: 400; font-display: swap; src: url(fonts/dotgothic16-subset-400-normal.woff2) format("woff2"); }
@@ -189,7 +190,7 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
   white-space: nowrap;
 }
 
-.icon { width: 1.25rem; height: 1.25rem; flex: none; }
+.icon { width: var(--icon); height: var(--icon); flex: none; }
 
 /* dithering: two colours in a stepped pattern of square pixels, at 25, 50 or
    75%, set by --dither-on over --dither-under. It may go only in the sky, the
@@ -595,11 +596,9 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 
 .group[open] > summary > svg { transform: rotate(180deg); }
 
-.group-meta { grid-column: 1 / -1; font-size: 0.875rem; color: var(--color-text-soft); }
+.group-meta { grid-column: 1 / -1; display: grid; row-gap: var(--space-1); font-size: 0.875rem; color: var(--color-text-soft); }
 
 .group-body { padding: 0 0 var(--space-5); }
-
-.group-meta { display: grid; row-gap: var(--space-1); }
 
 /* Figures: a line of figures in equal columns, lined up with a Figures of their heads
    above; a head's lines (a name and its unit, then the Target) stack. */
@@ -623,9 +622,9 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 .figures-head > * > :first-child { color: var(--color-text); }
 
 /* A kind of line led by its icon: what it says under it lines up with its title. */
-.row-static > .icon { align-self: start; margin-top: 2px; }
+.row-static > .icon { align-self: start; margin-top: var(--space-1); }
 
-.row-static > .icon ~ .row-meta { padding-left: calc(1.25rem + var(--space-4)); }
+.row-static > .icon ~ .row-meta { padding-left: calc(var(--icon) + var(--space-4)); }
 
 /* Why a change to a row that can't open was refused, under it. */
 .row-static > .alert { flex-basis: 100%; margin: var(--space-2) 0 0; }

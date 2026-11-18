@@ -2,6 +2,7 @@ package planning
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -23,7 +24,7 @@ templ proposalPage(now time.Time, v cycleView) {
 		@deliveryLine(c, v.Upcoming, ds)
 	}
 	@decisionAlert(v.Refusal)
-	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note)) {
+	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast))) {
 		@web.Section(2, web.T(ctx, msgDays)) {
 			@figureHeads(p.Targets)
 			@daysBefore(p.Trailing)
@@ -60,8 +61,10 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 				{ web.T(ctx, msgTentative) }
 			}
 		}
-		if len(ds) > 0 && ds[0].Partly && len(ds[0].filled) > 0 {
-			{ " · " + web.Tf(ctx, msgPlannedFrom, web.ShortDate(ctx, ds[0].On), web.T(ctx, web.SlotKindNames[ds[0].filled[0].kind])) }
+		if len(ds) > 0 {
+			if from, partly := ds[0].plannedFrom(); partly {
+				{ " · " + web.Tf(ctx, msgPlannedFrom, web.ShortDate(ctx, ds[0].On), web.T(ctx, web.SlotKindNames[from])) }
+			}
 		}
 	</p>
 }
@@ -69,13 +72,13 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 // proposalSection is the Plan Proposal p as Section 01, all deciding on it needs: the
 // planner's summary, the averages against the Targets, the soft misses grouped by kind,
 // then approving it or rejecting it, notes being the Cycle's Planning Notes, newest
-// first, and note the one typed.
-templ proposalSection(p Proposal, notes []string, note string) {
+// first, and note the one typed; rejecting is open when reject says to.
+templ proposalSection(p Proposal, notes []string, note string, reject bool) {
 	@web.Section(1, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
 		@averages(p)
 		@missRows(p)
-		@decision(p, notes, note)
+		@decision(p, notes, note, reject)
 	}
 }
 
@@ -231,15 +234,16 @@ func backToBack(ctx context.Context, m domain.Miss) string {
 
 // decision is approving p, and beside it Reject, which opens in place to the Cycle's
 // earlier Planning Notes, notes, newest first, the line saying what a note does, and
-// the note, as typed: open when one was, as a refused rejection is shown again.
-templ decision(p Proposal, notes []string, note string) {
+// the note, as typed: open when open says the User is at it, as when a rejection or an
+// approval was refused.
+templ decision(p Proposal, notes []string, note string, open bool) {
 	@web.Actions() {
 		<form novalidate id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/approve", p.ID)) }>
 			@web.Button(templ.Attributes{"type": "submit"}) {
 				{ web.T(ctx, msgApprove) }
 			}
 		</form>
-		@web.TextButtonFold(web.T(ctx, msgReject), note != "") {
+		@web.TextButtonFold(web.T(ctx, msgReject), open) {
 			if len(notes) > 0 {
 				@web.RowsHead(web.T(ctx, msgEarlierNotes))
 				@web.Rows() {
@@ -356,12 +360,21 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	return out
 }
 
-// dayTitle is d's short date, and the Slot it is planned from when only partly.
-func dayTitle(ctx context.Context, d proposalDay) string {
-	if d.Partly && len(d.filled) > 0 {
-		return web.Tf(ctx, msgFromSlot, web.ShortDate(ctx, d.On), web.T(ctx, web.SlotKindNames[d.filled[0].kind]))
+// plannedFrom is the Slot d is planned from, its first filled, and whether that is d
+// being planned only partly: a Plan fills every Slot from its first on.
+func (d proposalDay) plannedFrom() (domain.SlotKind, bool) {
+	if !d.Partly || len(d.filled) == 0 {
+		return "", false
 	}
-	return web.ShortDate(ctx, d.On)
+	return d.filled[0].kind, true
+}
+
+// dayTitle is d's date, and the Slot it is planned from when only partly.
+func dayTitle(ctx context.Context, d proposalDay) string {
+	if from, partly := d.plannedFrom(); partly {
+		return web.Tf(ctx, msgFromSlot, web.Date(ctx, d.On), web.T(ctx, web.SlotKindNames[from]))
+	}
+	return web.Date(ctx, d.On)
 }
 
 // dayLine is d's row under its date: its figures, each more than 25% off a Target of t
