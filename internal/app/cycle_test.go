@@ -32,13 +32,12 @@ func TestOpeningACycleShowsItUpcoming(t *testing.T) {
 	s.IsConfirmed("Cycle opened.")
 	s.Sees("Kitchen Check")
 	s.Open("/plan")
-	s.Sees("01 Upcoming Cycle")
-	s.Sees("Delivery Thursday, November 5, 6:00 pm to 8:00 pm Tentative")
-	s.Sees("End date Sunday, November 15")
+	s.Sees("Cycle · Thu, Nov 5 – Sun, Nov 15")
+	s.Sees("Delivery Thu, Nov 5, 6:00 pm to 8:00 pm Tentative the Delivery's date may still move")
 	s.DoesNotSee("No Cycle is upcoming.")
 
 	s.Open("/plan")
-	s.Sees("Upcoming Cycle")
+	s.Sees("Tentative")
 }
 
 // An end date typed is the Cycle's.
@@ -48,7 +47,7 @@ func TestACycleEndsOnTheDateTyped(t *testing.T) {
 	c.Ends = "11/12/2026"
 	s.OpensCycle(c)
 	s.Open("/plan")
-	s.Sees("End date Thursday, November 12")
+	s.Sees("Cycle · Thu, Nov 5 – Thu, Nov 12")
 }
 
 // Each refusal is on its own field, opening nothing, with what was typed kept.
@@ -90,7 +89,7 @@ func TestOpeningACycleIsRefusedWhileOneIsUpcoming(t *testing.T) {
 	s.IsRefused()
 	s.Sees("A Cycle is already upcoming. Drop it to open another.")
 	s.Follows("See the upcoming Cycle")
-	s.Sees("Thursday, November 5")
+	s.Sees("Thu, Nov 5")
 	s.DoesNotSee("Saturday, November 7")
 }
 
@@ -116,18 +115,18 @@ func TestADeliveryBeforeOrAfterAnotherCyclesEndIsAccepted(t *testing.T) {
 	s.OpensCycle(thursday)
 	s.At("Thu 20:00")
 	s.Open("/plan")
-	s.Sees("01 Current Cycle")
+	s.Sees("Cycle · Thu, Nov 5 – Sun, Nov 15")
 	s.DoesNotSee("Tentative")
 
 	s.OpensCycle(apptest.Cycle{Delivery: "11/10/2026", From: "6pm", To: "8pm"})
 	s.IsConfirmed("Cycle opened.")
 	s.Open("/plan")
-	s.Sees("Delivery Tuesday, November 10")
+	s.Sees("Delivery Tue, Nov 10")
 	s.DropsCycle()
 	s.OpensCycle(apptest.Cycle{Delivery: "11/20/2026", From: "6pm", To: "8pm"})
 	s.IsConfirmed("Cycle opened.")
 	s.Open("/plan")
-	s.Sees("Delivery Friday, November 20")
+	s.Sees("Delivery Fri, Nov 20")
 }
 
 // Dropping the upcoming Cycle asks first, naming it, then the Cycle page no longer shows
@@ -223,8 +222,8 @@ func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 	for _, c := range []struct {
 		before, delivery, shown, ends, lastMinute, arrives string
 	}{
-		{"2027-03-26 10:00", "03/27/2027", "Delivery Saturday, March 27, 6:00 pm to 8:00 pm", "End date Tuesday, April 6", "2027-03-27 19:59", "2027-03-27 20:00"},
-		{"2027-10-29 10:00", "10/30/2027", "Delivery Saturday, October 30, 6:00 pm to 8:00 pm", "End date Tuesday, November 9", "2027-10-30 19:59", "2027-10-30 20:00"},
+		{"2027-03-26 10:00", "03/27/2027", "Delivery Sat, Mar 27, 6:00 pm to 8:00 pm", "Sat, Mar 27 – Tue, Apr 6", "2027-03-27 19:59", "2027-03-27 20:00"},
+		{"2027-10-29 10:00", "10/30/2027", "Delivery Sat, Oct 30, 6:00 pm to 8:00 pm", "Sat, Oct 30 – Tue, Nov 9", "2027-10-30 19:59", "2027-10-30 20:00"},
 	} {
 		s.At(c.before)
 		s.OpensCycle(apptest.Cycle{Delivery: c.delivery, From: "6pm", To: "8pm"})
@@ -233,10 +232,10 @@ func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 		s.Sees(c.ends)
 		s.At(c.lastMinute)
 		s.Open("/plan")
-		s.Sees("Upcoming Cycle")
+		s.Sees("Tentative")
 		s.At(c.arrives)
 		s.Open("/plan")
-		s.Sees("Current Cycle")
+		s.DoesNotSee("Tentative")
 	}
 }
 
@@ -282,8 +281,8 @@ func TestBrowserOpensAndDropsACycle(t *testing.T) {
 	b.IsConfirmed(t, "Cycle opened.")
 	b.Sees(t, "Kitchen Check")
 	b.Open(t, "/plan")
-	b.Sees(t, "Thursday, November 5, 6:00 pm to 8:00 pm")
-	b.Sees(t, "Sunday, November 15")
+	b.Sees(t, "Thu, Nov 5, 6:00 pm to 8:00 pm")
+	b.Sees(t, "Sun, Nov 15")
 	b.Shot(t, "cycle-upcoming")
 
 	follow("Drop the Cycle")

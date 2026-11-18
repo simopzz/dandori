@@ -111,15 +111,17 @@ func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Ti
 		if err := decide(ctx, tx, id, Rejected, now); err != nil {
 			return err
 		}
-		return saveNote(ctx, tx, cycleID, note, now, id)
+		return saveNote(ctx, tx, cycleID, note, now, &id)
 	})
 }
 
 // PlanAgain starts a planning Run of the signed-in User's Cycle id at now, with no
 // Kitchen Check, from the first Slot its last planning Run planned from, or the first
-// still to come once that has passed, and is the Run's id. It is ErrNoFailure unless that
-// Run failed: after any other, planning goes through the Kitchen Check.
-func (s *Service) PlanAgain(ctx context.Context, id int64, now time.Time) (int64, error) {
+// still to come once that has passed, and is the Run's id. A Planning Note is kept on the
+// Cycle and told to the Run; a blank one is none. It is ErrNoFailure unless that Run
+// failed: after any other, planning goes through the Kitchen Check.
+func (s *Service) PlanAgain(ctx context.Context, id int64, note string, now time.Time) (int64, error) {
+	note = strings.TrimSpace(note)
 	c, err := s.Find(ctx, id, now)
 	if err != nil {
 		return 0, err
@@ -135,5 +137,29 @@ func (s *Service) PlanAgain(ctx context.Context, id int64, now time.Time) (int64
 	if last.status != runs.Failed {
 		return 0, ErrNoFailure
 	}
-	return s.start(ctx, c, last.first, now, "", nil)
+	if note == "" {
+		return s.start(ctx, c, last.first, now, "", nil)
+	}
+	return s.start(ctx, c, last.first, now, note, func(tx pgx.Tx) error {
+		return saveNote(ctx, tx, id, note, now, nil)
+	})
+}
+
+// CycleOfRun is the Cycle the signed-in User's planning Run runID plans, while it is
+// upcoming or current at now, and whether that Run is the latest of its Cycle. It is
+// ErrNoCycle once the Cycle has closed or been dropped.
+func (s *Service) CycleOfRun(ctx context.Context, runID int64, now time.Time) (c Cycle, latest bool, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		id, err := cycleOfRun(ctx, tx, runID)
+		if err != nil {
+			return err
+		}
+		if c, err = findOpen(ctx, tx, id, now); err != nil {
+			return err
+		}
+		last, err := loadLastRun(ctx, tx, id, now.Location())
+		latest = last.id == runID
+		return err
+	})
+	return c, latest, err
 }

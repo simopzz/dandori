@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/a-h/templ"
+
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
@@ -44,11 +46,23 @@ type Handlers struct {
 func (h Handlers) RunPage() runs.KindPage {
 	return runs.KindPage{
 		Kind:        planningKind,
+		Tab:         web.PlanTab,
+		About:       h.about,
 		Name:        msgPlanningKind,
 		ResultLabel: msgPlanProposal,
 		ResultURL:   func(context.Context, int64) (string, error) { return "/plan", nil },
 		Reasons:     planningReasons,
 	}
+}
+
+// about is what a planning Run's page tells of its Cycle, while it is open: its name with
+// a link back, and after a failure, if the Run is the Cycle's latest, Plan again.
+func (h Handlers) about(ctx context.Context, run runs.Run) (templ.Component, error) {
+	c, latest, err := h.Service.CycleOfRun(ctx, run.ID, h.Clock.Now())
+	if errors.Is(err, ErrNoCycle) {
+		return nil, nil
+	}
+	return runAbout(c, run.Status == runs.Failed && latest), err
 }
 
 // Show is the Cycle page: the upcoming Cycle, or the current one when none is, with how
@@ -113,14 +127,14 @@ func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// PlanAgain starts another planning Run of the Cycle in the path, landing on it, or
-// answers with the Cycle page saying why it can't.
+// PlanAgain starts another planning Run of the Cycle in the path, told the Planning Note
+// posted, if any, landing on it, or answers with the Cycle page saying why it can't.
 func (h Handlers) PlanAgain(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
 		return
 	}
-	runID, err := h.Service.PlanAgain(r.Context(), id, h.Clock.Now())
+	runID, err := h.Service.PlanAgain(r.Context(), id, r.PostFormValue("note"), h.Clock.Now())
 	if err != nil {
 		h.refused(w, r, "plan a Cycle again", err)
 		return

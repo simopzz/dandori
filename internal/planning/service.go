@@ -137,17 +137,22 @@ func (s *Service) Drop(ctx context.Context, id int64, now time.Time) error {
 // Find is the signed-in User's Cycle id while it is upcoming or current at now; once it
 // has closed, or when they have none, it is ErrNoCycle.
 func (s *Service) Find(ctx context.Context, id int64, now time.Time) (c Cycle, err error) {
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		current, upcoming, err := loadNow(ctx, tx, now)
-		for _, open := range []*Cycle{current, upcoming} {
-			if open != nil && open.ID == id {
-				c = *open
-				return err
-			}
-		}
-		return cmp.Or(err, ErrNoCycle)
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		c, err = findOpen(ctx, tx, id, now)
+		return err
 	})
 	return c, err
+}
+
+// findOpen is the Cycle id while it is upcoming or current at now, else ErrNoCycle.
+func findOpen(ctx context.Context, tx pgx.Tx, id int64, now time.Time) (Cycle, error) {
+	current, upcoming, err := loadNow(ctx, tx, now)
+	for _, open := range []*Cycle{current, upcoming} {
+		if open != nil && open.ID == id {
+			return *open, err
+		}
+	}
+	return Cycle{}, cmp.Or(err, ErrNoCycle)
 }
 
 // Upcoming is the signed-in User's Cycle id while it is upcoming at now; otherwise it

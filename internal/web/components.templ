@@ -568,6 +568,14 @@ templ Button(attrs templ.Attributes) {
 	</button>
 }
 
+// ButtonLink is a Button that is a link: the step forward that only goes to another page.
+// attrs must give its href.
+templ ButtonLink(attrs templ.Attributes) {
+	<a class="btn" { attrs... }>
+		{ children... }
+	</a>
+}
+
 // TextButton is a secondary action. attrs must give its type.
 templ TextButton(attrs templ.Attributes) {
 	<button class="btn-text" { attrs... }>
@@ -779,6 +787,23 @@ templ Tag(accent bool, title string) {
 			title={ title }
 		}
 	>
+		{ children... }
+	</span>
+}
+
+// Tone is the colour of a ToneTag.
+type Tone string
+
+// The tones of a ToneTag: Going is navy, for what is happening now, and Done is sage,
+// for what has succeeded.
+const (
+	Going Tone = "going"
+	Done  Tone = "done"
+)
+
+// ToneTag is a Tag with a tone of its own beside cream.
+templ ToneTag(tone Tone) {
+	<span class={ "tag", "tag-" + string(tone) }>
 		{ children... }
 	</span>
 }

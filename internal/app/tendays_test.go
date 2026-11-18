@@ -219,7 +219,7 @@ func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 	b.Open(t, "/plan")
 	b.SeesInTurn(t,
 		"Cycle · Thu, Nov 5 – Sat, Nov 14",
-		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm Tentative · planned from Thu, Nov 5 lunch",
+		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm Tentative the Delivery's date may still move · planned from Thu, Nov 5 lunch",
 		"01 Plan Proposal",
 		tenDaySummary,
 		"Average Calories, kcal 2024–2376 Protein, g ≥ at least 130 Fibre, g ≥ at least 30 Sugar, g ≤ at most 50",

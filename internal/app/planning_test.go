@@ -325,7 +325,10 @@ func TestASecondPlanningRunIsRefusedWhileOneIsGoingOrAPlanProposalIsPending(t *t
 	<-asked
 
 	s.Open("/plan")
-	s.Sees("Being planned: see its Trace")
+	s.Sees("Being planned See progress")
+	s.Open(run)
+	s.Sees("Planning the Cycle of Thu, Nov 5 – Fri, Nov 6")
+	s.DoesNotSee("Plan again")
 	s.Open(check)
 	s.StartsPlanning()
 	if s.Page().StatusCode != http.StatusUnprocessableEntity {
