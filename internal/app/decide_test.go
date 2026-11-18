@@ -321,9 +321,11 @@ func TestPlanningTracesNameTheirCycle(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	s.OpensCycle(friday)
 	s.Open("/plan")
-	if !strings.Contains(s.Page().Body, `class="btn" href="/plan/cycles/1/check"`) ||
-		strings.Index(s.Page().Body, "Plan the Cycle") > strings.Index(s.Page().Body, "Drop the Cycle") {
-		t.Errorf("Plan the Cycle isn't a button before Drop the Cycle:\n%s", s.Page().Body)
+	if !strings.Contains(s.Page().Body, `class="btn" href="/plan/cycles/1/check"`) {
+		t.Errorf("Plan the Cycle isn't a button:\n%s", s.Page().Body)
+	}
+	if !before(s.Page().Body, "Plan the Cycle", "Drop the Cycle") {
+		t.Errorf("Plan the Cycle isn't before Drop the Cycle:\n%s", s.Page().Body)
 	}
 
 	s.Model.Script(fakellm.Reply("The kitchen is empty."))
@@ -339,7 +341,7 @@ func TestPlanningTracesNameTheirCycle(t *testing.T) {
 	s.Sees("Planning the Cycle of Thu, Nov 5 – Fri, Nov 6")
 	s.Open("/plan")
 	s.Sees("Planning failed")
-	if !strings.Contains(s.Page().Body, `class="btn"`) || strings.Index(s.Page().Body, "Plan again") > strings.Index(s.Page().Body, "Drop the Cycle") {
+	if !before(s.Page().Body, "Plan again", "Drop the Cycle") {
 		t.Errorf("Plan again isn't before Drop the Cycle:\n%s", s.Page().Body)
 	}
 }
@@ -369,4 +371,10 @@ func TestBrowserMarksThePlanTabOnAPlanningRun(t *testing.T) {
 	if err != nil || got != "Plan" {
 		t.Errorf("the current tab on a planning Run is %q (%v), want Plan", got, err)
 	}
+}
+
+// before is whether both a and b are in body, a first.
+func before(body, a, b string) bool {
+	i, j := strings.Index(body, a), strings.Index(body, b)
+	return i >= 0 && j >= 0 && i < j
 }

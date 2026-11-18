@@ -72,7 +72,9 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 				{ web.T(ctx, msgTentative) }
 			}
 			{ " " }
-			<span class="hint">{ web.T(ctx, msgTentativeHint) }</span>
+			@web.Hint() {
+				{ web.T(ctx, msgTentativeHint) }
+			}
 		}
 		if len(ds) > 0 {
 			if from, partly := ds[0].plannedFrom(); partly {

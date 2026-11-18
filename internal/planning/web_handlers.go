@@ -128,8 +128,7 @@ func (h Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 }
 
 // PlanAgain starts another planning Run of the Cycle in the path, told the Planning Note
-// posted, if any, landing on it, or
-// answers with the Cycle page saying why it can't.
+// posted, if any, landing on it, or answers with the Cycle page saying why it can't.
 func (h Handlers) PlanAgain(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
