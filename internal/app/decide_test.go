@@ -22,8 +22,8 @@ func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 	s.IsAt("/plan")
 	s.IsConfirmed("Plan approved.")
 	s.Sees("01 Plan Friday, November 6")
-	s.Sees("8:00 am Breakfast yogurt")
-	s.Sees("1:00 pm Lunch Rice bowl 1.25×")
+	s.Sees("yogurt 90 kcal · 15 g protein Breakfast 8:00 am")
+	s.Sees("Rice bowl 1.25× · 438 kcal · 9 g protein Lunch 1:00 pm")
 	s.Sees("Rice bowl: 3 Portions at 1.25×")
 	s.Sees("02 Upcoming Cycle")
 	s.DoesNotSee("Plan Proposal")
@@ -107,7 +107,7 @@ func TestAChangedSlotTimeMovesThePlansSlots(t *testing.T) {
 	s.Open("/plan")
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")
-	s.Sees("9:00 am Breakfast yogurt")
+	s.Sees("yogurt 90 kcal · 15 g protein Breakfast 9:00 am")
 }
 
 // Rejecting without a Planning Note starts nothing: the Cycle can be planned again

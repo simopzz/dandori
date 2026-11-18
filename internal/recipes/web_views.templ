@@ -131,14 +131,7 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 			@perPortion(rec.NutritionPerPortion())
 		}
 		@web.Section(2, web.T(ctx, msgIngredients)) {
-			@web.Rows() {
-				for _, ri := range rec.Ingredients {
-					@web.Row() {
-						<span class="row-title">{ ri.Ingredient.Name }</span>
-						<span class="row-figure">{ web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
-					}
-				}
-			}
+			@web.IngredientRows(rec.Ingredients)
 		}
 		@recipeSteps(rec.Steps)
 	}
@@ -162,14 +155,7 @@ templ perPortion(n domain.PortionNutrition) {
 templ floored(name web.Message, a domain.Amount, floor bool) {
 	<span>
 		{ web.T(ctx, name) + " " }
-		if !a.Known {
-			<span aria-hidden="true">–</span>
-			<span class="sr-only">{ web.T(ctx, msgUnknown) }</span>
-		} else if floor {
-			{ web.Tf(ctx, msgAtLeastGrams, web.Number(ctx, a.Value)) }
-		} else {
-			{ web.Tf(ctx, msgGrams, web.Number(ctx, a.Value)) }
-		}
+		@web.Amount(a, floor, web.T(ctx, msgGramsUnit))
 	</span>
 }
 

@@ -539,6 +539,45 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 
 .row-body { padding: var(--space-4) 0 var(--space-5); }
 
+/* FoldRow: a row that opens in place to read, not raised, its chevron turning */
+.row:has(> details.fold-row[open]) { margin: 0; padding: 0; background: none; border: 0; border-bottom: 1px solid var(--color-rule); }
+
+.fold-row .row-body { padding: 0 0 var(--space-3) var(--space-4); }
+
+.fold-row .row-edit svg { transition: transform 0.15s; }
+
+.fold-row[open] .row-edit svg { transform: rotate(180deg); }
+
+/* RowsHead: a small caption over a list, on a navy line */
+.rows-head { margin: var(--space-4) 0 0; padding-bottom: var(--space-1); font-size: 0.875rem; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); }
+
+/* Group: an h3 a Section's content folds under, over a 1px navy rule: weaker than a
+   Section's, stronger than a row's hairline */
+.group { border-bottom: 1px solid var(--color-rule-strong); }
+
+.group > summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  row-gap: var(--space-1);
+  padding: var(--space-3) 0;
+  min-height: var(--tap);
+}
+
+.group > summary::-webkit-details-marker { display: none; }
+
+.group > summary > h3 { margin: 0; }
+
+.group > summary > svg { grid-column: 2; grid-row: 1; color: var(--color-text-soft); transition: transform 0.15s; }
+
+.group[open] > summary > svg { transform: rotate(180deg); }
+
+.group-meta { grid-column: 1 / -1; font-size: 0.875rem; color: var(--color-text-soft); }
+
+.group-body { padding: 0 0 var(--space-5); }
+
 /* Why a change to a row that can't open was refused, under it. */
 .row-static > .alert { flex-basis: 100%; margin: var(--space-2) 0 0; }
 
@@ -846,6 +885,10 @@ body:has(.htmx-request) .busy-bar::before { animation: busy-march 0.6s linear in
 
 .tag-accent { background: var(--color-accent); color: var(--color-on-fill); }
 
+/* An icon in a tag, such as worth weighing's ▼ or ▲, at half size: one screen pixel per
+   bitmap pixel. */
+.tag .icon { width: 0.625rem; height: 0.625rem; margin-left: 2px; vertical-align: 0; }
+
 /* add: a square seal button and a sheet over a navy veil */
 
 .fab-group {
@@ -997,68 +1040,6 @@ html:has(dialog:modal) { overflow: hidden; }
 .draft-steps li { margin-bottom: var(--space-2); }
 
 .draft-steps textarea { field-sizing: content; min-height: var(--tap); vertical-align: top; }
-
-/* Exceptions page: a Cycle's Slots, rows on a phone, a day × Slot grid on
-   desktop */
-
-.slot-grid-head,
-.slot-gap { display: none; }
-
-@media (min-width: 900px) {
-  .slot-grid-head,
-  .slot-day {
-    display: grid;
-    grid-template-columns: 5.5rem repeat(4, minmax(0, 1fr));
-    column-gap: var(--space-3);
-  }
-
-  .slot-grid-head { font-size: 0.875rem; color: var(--color-text-soft); border-bottom: 1px solid var(--color-rule-strong); padding: var(--space-2) 0; }
-
-  .slot-day > h3 { margin: 0; padding: var(--space-3) 0; font-size: 1rem; border-bottom: 1px solid var(--color-rule); }
-
-  .slot-day > .rows { grid-column: 2 / -1; display: grid; grid-template-columns: subgrid; margin: 0; }
-
-  /* Each Slot keeps its column, all on the day's one line. */
-  .slot-day > .rows > li { grid-row: 1; }
-
-  .slot-day > .rows > li:nth-child(1) { grid-column: 1; }
-
-  .slot-day > .rows > li:nth-child(2) { grid-column: 2; }
-
-  .slot-day > .rows > li:nth-child(3) { grid-column: 3; }
-
-  .slot-day > .rows > li:nth-child(4) { grid-column: 4; }
-
-  .slot-gap { display: block; border-bottom: 1px solid var(--color-rule); }
-
-  /* An open Slot spans its day, over the day's other Slots, which stay in
-     place, hidden; the line grows to its form, pushing later days down. */
-  .slot-day > .rows > li:has(> details[open]) { grid-column: 1 / -1; }
-
-  .slot-day > .rows:has(> li > details[open]) > li:not(:has(> details[open])) { visibility: hidden; }
-
-  /* The column heads name a closed cell's Slot. */
-  .slot-day li:not(:has(> details[open])) .row-title {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .slot-day li:not(:has(> details[open])) .slot-more { display: none; }
-
-  /* Its state takes the name's place, beside the chevron. */
-  .slot-day li:not(:has(> details[open])) summary .row-meta { grid-column: 1; grid-row: 1; }
-}
-
-/* A Slot opening or closing, through slot-grid.js: its cell unfolds, its
-   contents unscaled. */
-html.slot-toggle::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease-out; overflow: clip; }
-
-html.slot-toggle::view-transition-old(*),
-html.slot-toggle::view-transition-new(*) { height: 100%; object-fit: none; object-position: left top; }
 
 /* trace panel: a Run's Trace Events */
 

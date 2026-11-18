@@ -66,6 +66,11 @@ var (
 	msgSlotOn       = web.Message{En: "%s on %s", It: "%s di %s"}
 	msgMinutes      = web.Message{En: "%d active of %d minutes", It: "%d attivi su %d minuti"}
 	msgNoSlot       = web.Message{En: "No Slot", It: "Nessun Pasto"}
+	msgSlots        = web.Message{En: "Slots", It: "Pasti"}
+	msgPrepSessions = web.Message{En: "Prep Sessions", It: "Sessioni di preparazione"}
+	msgIngredients  = web.Message{En: "Ingredients", It: "Ingredienti"}
+	msgPortionsHead = web.Message{En: "Portions", It: "Porzioni"}
+	msgKcalUnit     = web.Message{En: "kcal", It: "kcal"}
 
 	msgPlanningKind = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
 )
@@ -107,21 +112,21 @@ var (
 	msgFibreWord       = web.Message{En: "fibre", It: "fibre"}
 	msgSugarWord       = web.Message{En: "sugar", It: "zuccheri"}
 
-	msgDay      = web.Message{En: "Day", It: "Giorno"}
-	msgCalories = web.Message{En: "Calories", It: "Calorie"}
-	msgProtein  = web.Message{En: "Protein", It: "Proteine"}
-	msgFibre    = web.Message{En: "Fibre", It: "Fibre"}
-	msgSugar    = web.Message{En: "Sugar", It: "Zuccheri"}
-	msgTargets  = web.Message{En: "Targets", It: "Obiettivi"}
-	msgAverage  = web.Message{En: "Average", It: "Media"}
-	msgNoPlan   = web.Message{En: "No Plan", It: "Nessun Piano"}
-	msgPartly   = web.Message{En: "%s, partly planned", It: "%s, pianificato in parte"}
-	msgRange    = web.Message{En: "%s–%s", It: "%s–%s"}
-	msgAtLeast  = web.Message{En: "at least %s", It: "almeno %s"}
-	msgAtMost   = web.Message{En: "at most %s", It: "al massimo %s"}
-	msgGrams    = web.Message{En: "%s g", It: "%s g"}
-	msgUnknown  = web.Message{En: "unknown", It: "non noto"}
-	msgMissed   = web.Message{En: "missed", It: "mancato"}
+	msgDay       = web.Message{En: "Day", It: "Giorno"}
+	msgCalories  = web.Message{En: "Calories, kcal", It: "Calorie, kcal"}
+	msgProtein   = web.Message{En: "Protein, g", It: "Proteine, g"}
+	msgFibre     = web.Message{En: "Fibre, g", It: "Fibre, g"}
+	msgSugar     = web.Message{En: "Sugar, g", It: "Zuccheri, g"}
+	msgAverage   = web.Message{En: "Average", It: "Media"}
+	msgNoPlan    = web.Message{En: "No Plan", It: "Nessun Piano"}
+	msgPartly    = web.Message{En: "%s, partly planned", It: "%s, pianificato in parte"}
+	msgRange     = web.Message{En: "%s–%s", It: "%s–%s"}
+	msgAtLeast   = web.Message{En: "at least", It: "almeno"}
+	msgAtMost    = web.Message{En: "at most", It: "al massimo"}
+	msgGrams     = web.Message{En: "%s g", It: "%s g"}
+	msgGramsUnit = web.Message{En: "g", It: "g"}
+	msgUnderWord = web.Message{En: "under", It: "sotto"}
+	msgOverWord  = web.Message{En: "over", It: "sopra"}
 )
 
 // planningReasons are why a planning Run fails beside the reasons every Run can; %s is

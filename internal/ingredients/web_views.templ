@@ -478,12 +478,7 @@ templ NutritionFacts(per string, n domain.Nutrition) {
 	for _, g := range gramFacts(n) {
 		<span>
 			{ web.T(ctx, g.name) + " " }
-			if g.amount.Known {
-				{ web.Tf(ctx, msgGrams, web.Number(ctx, g.amount.Value)) }
-			} else {
-				<span aria-hidden="true">–</span>
-				<span class="sr-only">{ web.T(ctx, msgUnknown) }</span>
-			}
+			@web.Amount(g.amount, false, web.T(ctx, msgGramsUnit))
 		</span>
 	}
 }

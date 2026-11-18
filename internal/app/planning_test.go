@@ -112,10 +112,10 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 	s.Sees("Rice bowls for Friday, with yogurt and the lasagne.")
 	s.Sees("02 Upcoming Cycle")
 	s.Sees("Friday, November 6")
-	s.Sees("Breakfast yogurt")
-	s.Sees("Lunch Rice bowl 1.25×")
-	s.Sees("Snack lasagne")
-	s.Sees("Dinner Rice bowl 1.25×")
+	s.Sees("yogurt 90 kcal · 15 g protein Breakfast")
+	s.Sees("Rice bowl 1.25× · 438 kcal · 9 g protein Lunch")
+	s.Sees("lasagne 620 kcal · 32 g protein Snack")
+	s.Sees("Rice bowl 1.25× · 438 kcal · 9 g protein Dinner")
 	s.Sees("Rice bowl: 3 Portions at 1.25×")
 	s.Sees("rice 375 g")
 	s.Sees("10 active of 25 minutes")
@@ -393,7 +393,7 @@ func TestUsersSeeOnlyTheirOwnPlanProposals(t *testing.T) {
 
 // Through a browser: opening a Cycle lands on the Kitchen Check, whose button starts the
 // planning Run on its live Trace, which goes on to the Cycle page and its pending Plan
-// Proposal once the Run ends; approving it shows the Plan.
+// Proposal once the Run ends; approving it shows the Plan, each day opening to its Slots.
 func TestBrowserPlansACycleThroughTheKitchenCheck(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -468,7 +468,12 @@ func TestBrowserPlansACycleThroughTheKitchenCheck(t *testing.T) {
 
 	b.Click(t, "Approve")
 	b.IsConfirmed(t, "Plan approved.")
-	b.Sees(t, "8:00 am Breakfast yogurt")
+	if err := b.Locator("summary", playwright.PageLocatorOptions{HasText: "Friday, November 6"}).Click(); err != nil {
+		t.Fatalf("open Friday: %v", err)
+	}
+	if err := playwright.NewPlaywrightAssertions().Locator(b.GetByText("90 kcal").First()).ToBeVisible(); err != nil {
+		t.Errorf("Friday opened doesn't show its breakfast: %v", err)
+	}
 	b.ShotPage(t, "plan")
 }
 

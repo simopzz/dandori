@@ -18,9 +18,9 @@ import (
 // check_plan gives the planner each day's nutrition, the Targets' results and the soft
 // misses, then the Portions made for after the Cycle as information; the Plan it submits
 // is stored with its soft misses, which the Plan Proposal shows at its top with that
-// information, then the day table: the seven days before it, "No Plan" where no Plan
-// covered them, each planned day against the Targets with each miss marked, and the
-// average, calories against their range.
+// information, then the day table under heads naming each Target's unit and bounds: the
+// seven days before it, "No Plan" where no Plan covered them, each planned day with each
+// miss marked under or over, and the average, a floor written "4+".
 func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Friday.")
@@ -41,10 +41,12 @@ func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 		"Fri, Nov 6: 28% under calories Fri, Nov 6: 50% under protein " +
 		"Rice bowl eaten back to back, Fri, Nov 6 " +
 		"lasagne: 2 of 3 left unused, in the freezer 1 Portion made for after the Cycle: Rice bowl Friday.")
-	s.Sees("Day Calories Protein Fibre Sugar Targets 2024–2376 at least 130 g at least 30 g at most 50 g")
+	s.Sees("Day Calories, kcal 2024–2376 Protein, g ≥ at least 130 Fibre, g ≥ at least 30 Sugar, g ≤ at most 50")
 	s.Sees("Fri, Oct 30 No Plan")
-	s.Sees("Thu, Nov 5 No Plan Fri, Nov 6 1586 missed 65 g missed at least 4 g at least 8 g")
-	s.Sees("Average 1586 missed 65 g missed at least 4 g at least 8 g")
+	s.Sees("Thu, Nov 5 No Plan Fri, Nov 6 1586 under 65 under at least 4 + at least 8 +")
+	s.Sees("Average 1586 under 65 under at least 4 + at least 8 +")
+	s.Sees("Friday, November 6 Slots yogurt 90 kcal · 15 g protein Breakfast 8:00 am")
+	s.Sees("Rice bowl: 3 Portions at 1.25× 10 active of 25 minutes Ingredients rice 375 g")
 }
 
 // Changing the Targets once a Plan Proposal is made leaves what it shows unchanged: it
@@ -58,7 +60,7 @@ func TestChangingTheTargetsLeavesAPlanProposalUnchanged(t *testing.T) {
 	s.Open("/plan")
 	s.Sees("Calories average 1586 a day against 2024–2376")
 	s.Sees("Protein averages 65 g a day against 130 g")
-	s.Sees("Targets 2024–2376 at least 130 g at least 30 g at most 50 g")
+	s.Sees("Day Calories, kcal 2024–2376 Protein, g ≥ at least 130 Fibre, g ≥ at least 30 Sugar, g ≤ at most 50")
 }
 
 // The seven days before a Plan Proposal show what an approved Plan put in them, and the
@@ -93,7 +95,7 @@ func TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan(t *testing.T) {
 	}
 
 	s.Open("/plan")
-	s.Sees("Fri, Nov 6 1586 65 g at least 4 g at least 8 g Sat, Nov 7 360")
+	s.Sees("Fri, Nov 6 1586 65 at least 4 + at least 8 + Sat, Nov 7 360")
 }
 
 // A day a little under a Target is no soft miss, so the day table leaves it unmarked; the
@@ -107,5 +109,5 @@ func TestADayALittleUnderATargetIsUnmarked(t *testing.T) {
 	s.Open("/plan")
 	s.Sees("Protein averages 65 g a day against 70 g")
 	s.DoesNotSee("under protein")
-	s.Sees("Fri, Nov 6 1586 65 g at least 4 g at least 8 g Average 1586 65 g missed at least 4 g at least 8 g")
+	s.Sees("Fri, Nov 6 1586 65 at least 4 + at least 8 + Average 1586 65 under at least 4 + at least 8 +")
 }

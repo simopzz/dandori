@@ -44,8 +44,6 @@ var (
 	msgFatShort     = web.Message{En: "fat", It: "grassi"}
 	msgFibreShort   = web.Message{En: "fibre", It: "fibre"}
 	msgSugarShort   = web.Message{En: "sugar", It: "zuccheri"}
-	msgGrams        = web.Message{En: "%s g", It: "%s g"}
-	msgUnknown      = web.Message{En: "unknown", It: "non noto"}
 
 	msgNameRequired     = web.Message{En: "Give it a name.", It: "Dagli un nome."}
 	msgUnitRequired     = web.Message{En: "Choose g, ml or piece.", It: "Scegli g, ml o pezzo."}
