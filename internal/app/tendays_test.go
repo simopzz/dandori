@@ -3,6 +3,7 @@ package app_test
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -318,11 +319,11 @@ func TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView(t *testing.T)
 	}
 }
 
-// approvesTenDays plans tenDays, approves its Plan Proposal, then moves the clock to its
-// third day, Saturday 7 November at 10 am.
-func approvesTenDays(t *testing.T, s *apptest.Scenario) {
+// approvesTenDays plans c, tenDays as typed, approves its Plan Proposal, then moves the
+// clock to its third day, Saturday 7 November at 10 am.
+func approvesTenDays(t *testing.T, s *apptest.Scenario, c apptest.Cycle) {
 	t.Helper()
-	plansTenDays(t, s, tenDays)
+	plansTenDays(t, s, c)
 	s.Open("/plan")
 	s.Submits("approve")
 	s.At("Sat 10:00")
@@ -334,7 +335,7 @@ func approvesTenDays(t *testing.T, s *apptest.Scenario) {
 // one line, the later days closed.
 func TestBrowserShowsAnApprovedTenDayPlanFromToday(t *testing.T) {
 	s := tenDayKitchen(t, "ada@example.com", "English")
-	approvesTenDays(t, s)
+	approvesTenDays(t, s, tenDays)
 
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
@@ -356,12 +357,20 @@ func TestBrowserShowsAnApprovedTenDayPlanFromToday(t *testing.T) {
 		"Sunday, November 8",
 		"Saturday, November 14",
 	)
-	text := b.Shown(t)
-	for _, closed := range []string{"Thursday, November 5", "Friday, November 6"} {
-		if strings.Contains(text, closed) {
-			t.Errorf("a day past is shown: %s", text)
-		}
+	open, err := b.Evaluate(`() => [...document.querySelectorAll("main details.group")]
+		.map(d => d.querySelector("h3").innerText + (d.open ? " open" : " closed"))`)
+	if err != nil {
+		t.Fatalf("read which days are open: %v", err)
 	}
+	want := []any{"2 days past closed", "Saturday, November 7 open"}
+	for _, day := range []string{"Sunday, November 8", "Monday, November 9", "Tuesday, November 10", "Wednesday, November 11",
+		"Thursday, November 12", "Friday, November 13", "Saturday, November 14"} {
+		want = append(want, day+" closed")
+	}
+	if !slices.Equal(open.([]any), want) {
+		t.Errorf("the days are %v, want %v", open, want)
+	}
+	text := b.Shown(t)
 	if strings.Contains(text, "Approve") || strings.Contains(text, "Plan Proposal") {
 		t.Errorf("an approved Plan still reads as a Plan Proposal: %s", text)
 	}
@@ -373,13 +382,16 @@ func TestBrowserShowsAnApprovedTenDayPlanFromToday(t *testing.T) {
 // Targets change.
 func TestChangingTheTargetsLeavesAnApprovedPlanUnchanged(t *testing.T) {
 	s := tenDayKitchen(t, "ada@example.com", "English")
-	approvesTenDays(t, s)
+	approvesTenDays(t, s, tenDays)
 	s.Open("/profile")
 	s.SavesTargets(apptest.Targets{Kcal: "1500", Protein: "60", Fibre: "3", Sugar: "100", Tolerance: "10"})
 
 	s.Open("/plan")
 	s.Sees("Average " + heads + " calories 1826 under protein 99 under")
-	s.Sees("3 days more than 25% off Fri, Nov 6: calories under")
+	s.Sees("3 days more than 25% off Fri, Nov 6: calories under protein under Tue, Nov 10: protein under Thu, Nov 12: protein under")
+	s.Sees("calories 1826 under protein 99 under fibre at least 36 + sugar at least 52 + over")
+	s.Sees("Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9 lasagne: 1 of 3 left unused, in the freezer")
+	s.Sees("2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice")
 }
 
 // Through a browser: at 390px, in either Language and with every fold open, an approved
@@ -392,10 +404,7 @@ func TestBrowserAnApprovedTenDayPlanFitsAPhone(t *testing.T) {
 	for _, language := range []string{"English", "Italiano"} {
 		t.Run(language, func(t *testing.T) {
 			s := tenDayKitchen(t, "ada@example.com", language)
-			plansTenDays(t, s, typed[language])
-			s.Open("/plan")
-			s.Submits("approve")
-			s.At("Sat 10:00")
+			approvesTenDays(t, s, typed[language])
 
 			b := s.Browser(t)
 			b.SignIn(t, "ada@example.com")

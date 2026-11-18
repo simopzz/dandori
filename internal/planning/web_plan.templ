@@ -15,30 +15,20 @@ import (
 templ planPage(now time.Time, v cycleView) {
 	{{ c, p := *v.Cycle, *v.Planning.Plan }}
 	{{ ds := proposalDays(c, p) }}
-	{{ past, from := splitPast(ds, now) }}
-	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends)), now) {
-		@deliveryLine(c, v.Upcoming, ds)
-	}
+	{{ past, ahead := splitPast(ds, now) }}
+	@cycleHeader(now, c, v.Upcoming, ds)
 	@decisionAlert(v.Refusal)
 	@web.SideColumn(planSection(p)) {
 		@web.Section(2, web.T(ctx, msgDays)) {
 			@figureHeads(p.Targets)
-			@daysPast(p, past)
-			for _, d := range from {
+			@pastFold(p, past)
+			for _, d := range ahead {
 				@web.Group(dayTitle(ctx, d), planDayLine(p, d, now), isToday(d, now)) {
 					@dayBody(d, v.Planning.Times)
 				}
 			}
 		}
-		if v.Upcoming {
-			@web.Section(3, web.T(ctx, msgUpcomingCycle)) {
-				@web.Actions() {
-					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
-						{ web.T(ctx, msgDropCycle) }
-					}
-				}
-			}
-		}
+		@dropSection(c, v.Upcoming)
 	}
 	if v.Upcoming {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
@@ -66,9 +56,9 @@ templ planDayLine(p Proposal, d proposalDay, now time.Time) {
 	@dayLine(p.Targets, d)
 }
 
-// daysPast are the days past, folded into one Group, each a row with its figures; nothing
+// pastFold is the days past, folded into one Group, each a row with its figures; nothing
 // when none is past.
-templ daysPast(p Proposal, past []proposalDay) {
+templ pastFold(p Proposal, past []proposalDay) {
 	if len(past) > 0 {
 		@web.Group(daysPastTitle(ctx, len(past)), nil, false) {
 			@web.Rows() {
@@ -92,7 +82,7 @@ func daysPastTitle(ctx context.Context, n int) string {
 }
 
 // splitPast splits ds into the days before today, at now, and those from it on.
-func splitPast(ds []proposalDay, now time.Time) (past, from []proposalDay) {
+func splitPast(ds []proposalDay, now time.Time) (past, ahead []proposalDay) {
 	for i, d := range ds {
 		if !d.On.Before(startOfDay(now)) {
 			return ds[:i], ds[i:]
