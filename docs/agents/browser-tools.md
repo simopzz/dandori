@@ -7,6 +7,8 @@ Two MCP servers drive a browser. Pick by the question you're asking:
 | Click through a page, take a screenshot, check a change looks right in the user's own Brave | `playwright-brave` (user scope, not in this repo): it asks the user which tab to take over |
 | Find out *why*: a token from `app.css` that doesn't apply, a slow page or swap, an accessibility failure, a leak | `chrome-devtools` (`.mcp.json`): DevTools in a Chromium of its own |
 
+Under `mise run dev` the demo model only parses Recipes: a planning Run needs `DANDORI_DEMO_LLM=false`, which asks Claude. Follow a Run on its Trace, `/runs/<id>`, and stock on `/kitchen`, not in the dev database: their tables don't say what the pages do.
+
 ## chrome-devtools
 
 It launches `/usr/bin/chromium` on its first tool call (`new_page`, `navigate_page`), not before, with a profile kept in `~/.cache/chrome-devtools-mcp/chrome-profile`, so a sign-in survives between sessions. Run the app with `mise run dev` (http://127.0.0.1:8080). The first time, signing in goes through the real Supabase Auth: ask the user to finish the magic link in the window it opened.

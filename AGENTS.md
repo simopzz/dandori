@@ -40,7 +40,7 @@ Diagnosing a page in a browser, whether a style that won't apply, a slow load or
 
 ### PR screenshots
 
-A PR body shows images from the one orphan branch `pr-images`, each PR's under `<pr>/`, referenced as `<img src="https://raw.githubusercontent.com/simopzz/dandori/pr-images/<pr>/name.png" width="520">`. PRs share it: commit on top of the latest `pr-images`, fetching and committing again if the push is refused.
+A PR body shows images from the orphan branch `pr-images`: `mise run pr-image <pr> <image>...` publishes them and prints the `<img>` tags.
 
 ### Grafana
 
