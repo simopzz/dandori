@@ -31,16 +31,24 @@ func (e *NameTakenError) Error() string {
 // ErrNoRecipe is a Recipe the signed-in User hasn't got.
 var ErrNoRecipe = errors.New("the User has no such Recipe")
 
+// ErrInPlan is deleting a Recipe a Plan or a Plan Proposal prepares.
+var ErrInPlan = errors.New("a Plan or a Plan Proposal prepares the Recipe")
+
+// Prepares reports whether a Plan or a Plan Proposal of the signed-in User's prepares the
+// Recipe id. The planning feature, which depends on this one, reads it, and app wires it.
+type Prepares func(ctx context.Context, q db.Querier, id int64) (bool, error)
+
 // Service is the signed-in User's Recipes.
 type Service struct {
 	pool        *pgxpool.Pool
 	ingredients *ingredients.Service
 	runs        *runs.Engine
+	prepares    Prepares
 }
 
 // New creates the Service, its parse Runs going through engine.
-func New(pool *pgxpool.Pool, ings *ingredients.Service, engine *runs.Engine) *Service {
-	return &Service{pool: pool, ingredients: ings, runs: engine}
+func New(pool *pgxpool.Pool, ings *ingredients.Service, engine *runs.Engine, prepares Prepares) *Service {
+	return &Service{pool: pool, ingredients: ings, runs: engine, prepares: prepares}
 }
 
 // Add adds rec, which has no Problems, for the signed-in User, whose Language is l, and
@@ -98,10 +106,17 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, rec dom
 }
 
 // Delete deletes the signed-in User's Recipe id with its own rows, freeing its
-// Ingredients, and is its name, or ErrNoRecipe.
+// Ingredients, and is its name, or ErrNoRecipe. One a Plan or a Plan Proposal prepares
+// is ErrInPlan, with its name.
 func (s *Service) Delete(ctx context.Context, id int64) (name string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		name, err = deleteRecipe(ctx, tx, id)
+		if name, err = deleteRecipe(ctx, tx, id); err != nil {
+			return err
+		}
+		prepared, err := s.prepares(ctx, tx, id)
+		if err == nil && prepared {
+			return ErrInPlan // rolls the delete back
+		}
 		return err
 	})
 	return name, err

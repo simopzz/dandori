@@ -18,6 +18,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
 
@@ -135,10 +136,10 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		owned: p.Appliances, stock: stockOf(held.Held), frozen: frozenOf(held.Portions), now: s.clock.Now,
 		arrives: c.Delivery.Arrives(),
 		passed:  func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
-		leave: func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string) {
+		leave: func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted) {
 			runID := runs.IDFrom(ctx)
 			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error {
-				return submit(ctx, tx, runID, plan, p.Targets, misses, summary)
+				return submit(ctx, tx, runID, plan, p.Targets, misses, summary, drafted)
 			})
 		},
 	}
@@ -167,7 +168,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 func eatenBy(approved []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion) []domain.Eaten {
 	var eaten []domain.Eaten
 	for i, sp := range approved {
-		for _, e := range sp.resolve(library, known, portions).Plan.Eaten(portions) {
+		for _, e := range sp.resolve(library, known, portions, nil).Plan.Eaten(portions) {
 			replaced := slices.ContainsFunc(approved[i+1:], func(later *storedProposal) bool { return !e.At.Before(later.first) })
 			if !replaced {
 				eaten = append(eaten, e)
@@ -225,6 +226,7 @@ A Plan is Prep Sessions, each preparing food at one Slot (an eating occasion: br
 - When a fresh Ingredient the Delivery brings is used late in the Cycle, name a freezer split: how much of it goes in the freezer when the Delivery is put away (of 800 g chicken breast, 400 g).
 - Put the Portions without a Slot in Slots before scheduling new Prep Sessions, and use first the Stock Items that would spoil first, judged from the Ingredient and its Storage Location.
 - Prefer Recipes with few active minutes: the user spends little time cooking.
+- Draft new Recipes with draft_recipe as the Planning Brief wishes, about one a Cycle when it doesn't say: dishes the Recipe Library lacks, reusing the known Ingredients where they fit. Each gets a negative id, which a Prep Session prepares as its recipe_id. Approving the Plan adds the drafts it prepares to the user's Recipe Library.
 - Follow the user's Planning Brief as far as these rules allow.
 
 Write every food term in the user's Language, named in the prompt.
@@ -438,8 +440,9 @@ type planBrief struct {
 	arrives   time.Time // when the Cycle's Delivery arrives
 	// passed is the violation of a Plan starting at a Slot already passed, or none.
 	passed func() []domain.Violation
-	leave  func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string)
+	leave  func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted)
 
+	drafted []*recipes.Drafted // the Recipe Drafts, the first id -1, the next -2
 	drafts  []domain.Plan
 	checked int
 	broken  []string // each submit breaking a hard rule, what it broke
@@ -457,7 +460,7 @@ func (pb *planBrief) brief(l domain.Language, prompt string) agent.Brief {
 			if pb.chosen == nil {
 				return &agent.Failure{Reason: agent.NoResult, Detail: said}
 			}
-			pb.leave(ctx, *pb.chosen, pb.misses, said)
+			pb.leave(ctx, *pb.chosen, pb.misses, said, pb.drafted)
 			return nil
 		},
 		Tools: []agent.Tool{
@@ -472,6 +475,12 @@ func (pb *planBrief) brief(l domain.Language, prompt string) agent.Brief {
 				Description: fmt.Sprintf("Submit a draft checked with check_plan, by its id. One that keeps every hard rule is stored as the Plan Proposal for the user; one that breaks one comes back with what it breaks. After %d of those the Run fails.", attempts),
 				InputSchema: json.RawMessage(`{"type": "object", "properties": {"draft_id": {"type": "integer"}}, "required": ["draft_id"]}`),
 				Run:         pb.submit,
+			},
+			{
+				Name:        "draft_recipe",
+				Description: "Draft a new Recipe, written as the user's Recipe Library holds them, and get its id, a negative number, to prepare it by as a recipe_id in check_plan. Drafting a name drafted before replaces that draft, keeping its id.",
+				InputSchema: recipes.DraftSchema,
+				Run:         func(_ context.Context, input json.RawMessage) (string, error) { return pb.draft(l, input) },
 			},
 		},
 	}
@@ -569,6 +578,23 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 		return "", &agent.Failure{Reason: brokeHardRules, Detail: strings.Join(pb.broken, "\n")}
 	}
 	return "", fmt.Errorf("draft %d breaks these hard rules (submit %d of %d):\n%s", in.DraftID, len(pb.broken), attempts, listViolations(vs))
+}
+
+// draft reads input as a Recipe Draft for a User speaking l, replacing the one of the
+// same name if any, and gives its id, or says what to fix.
+func (pb *planBrief) draft(l domain.Language, input json.RawMessage) (string, error) {
+	d, err := recipes.ReadDraft(l, pb.known, pb.library, input)
+	if err != nil {
+		return "", err
+	}
+	name := domain.NormaliseRecipeName(d.Recipe.Name)
+	i := slices.IndexFunc(pb.drafted, func(e *recipes.Drafted) bool { return domain.NormaliseRecipeName(e.Recipe.Name) == name })
+	if i < 0 {
+		pb.drafted, i = append(pb.drafted, &d), len(pb.drafted)
+	} else {
+		*pb.drafted[i] = d
+	}
+	return fmt.Sprintf("Drafted Recipe %d: %s. Prepare it in check_plan with recipe_id %d.", -(i + 1), d.Recipe.Name, -(i + 1)), nil
 }
 
 // violations are the hard rules plan breaks, a first Slot already passed among them.
@@ -703,6 +729,9 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 	for i := range pb.library {
 		recipes[pb.library[i].ID] = &pb.library[i]
 	}
+	for i, drafted := range pb.drafted {
+		recipes[-int64(i+1)] = &drafted.Recipe
+	}
 	ingredients := map[int64]*domain.Ingredient{}
 	for i := range pb.known {
 		ingredients[pb.known[i].ID] = &pb.known[i]
@@ -760,9 +789,9 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 }
 
 // Proposal is a Plan Proposal as its Cycle page shows it: its Plan, the Portions without
-// a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at and the
-// soft rules it breaks. It has its day table too: the days it plans and, for a pending
-// one, the seven days before its first Slot.
+// a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at, the soft
+// rules it breaks, and the Recipe Drafts it prepares, while pending. It has its day table
+// too: the days it plans and, for a pending one, the seven days before its first Slot.
 type Proposal struct {
 	ID             int64
 	Plan           domain.Plan
@@ -770,6 +799,7 @@ type Proposal struct {
 	Summary        string
 	Targets        domain.Targets
 	Misses         []domain.Miss
+	Drafted        []recipes.Drafted
 	Trailing, Days []domain.Day
 }
 
@@ -791,7 +821,12 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 	var earlier []*storedProposal
 	var last lastRun
 	var portions []domain.Portion
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+	var drafted []recipes.Drafted
+	l, _, err := s.profile.Language(ctx)
+	if err != nil {
+		return p, err
+	}
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		if p.Going, err = goingRun(ctx, tx, id); err != nil {
 			return err
 		}
@@ -809,6 +844,9 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 				return err
 			}
 			if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
+				return err
+			}
+			if drafted, err = recipes.LoadDrafted(ctx, tx, l, pending.id); err != nil {
 				return err
 			}
 		}
@@ -837,18 +875,45 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		return p, err
 	}
 	if pending != nil {
-		proposal := pending.resolve(library, known, portions)
+		proposal := pending.resolve(library, known, portions, drafted)
 		planned := proposal.Plan.Eaten(portions)
 		proposal.Trailing, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, lastDay(planned, pending.first.On))
 		p.Proposal = proposal
 	}
 	if approved != nil {
-		proposal := approved.resolve(library, known, portions)
+		proposal := approved.resolve(library, known, portions, nil)
 		planned := proposal.Plan.Eaten(portions)
 		_, proposal.Days = domain.PlanDays(nil, planned, approved.first, lastDay(planned, approved.first.On))
 		p.Plan = proposal
 	}
 	return p, nil
+}
+
+// Drafted is the Recipe Draft id of the signed-in User's pending Plan Proposal, for them
+// speaking in their Language, or ErrNoProposal when that doesn't prepare it.
+func (s *Service) Drafted(ctx context.Context, id int64) (domain.Recipe, error) {
+	l, _, err := s.profile.Language(ctx)
+	if err != nil {
+		return domain.Recipe{}, err
+	}
+	var drafted []recipes.Drafted
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		proposalID, err := pendingID(ctx, tx)
+		if err != nil {
+			return err
+		}
+		drafted, err = recipes.LoadDrafted(ctx, tx, l, proposalID)
+		return err
+	})
+	if err != nil {
+		return domain.Recipe{}, err
+	}
+	for _, d := range drafted {
+		if d.ID == id {
+			return d.Recipe, nil
+		}
+	}
+	return domain.Recipe{}, ErrNoProposal
 }
 
 // lastDay is the last day planned puts a Portion in a Slot on, first when none is later.
@@ -862,11 +927,16 @@ func lastDay(planned []domain.Eaten, first time.Time) time.Time {
 	return last
 }
 
-// resolve is sp with its Recipes, Ingredients and Portions found by id among those given.
-func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion) *Proposal {
+// resolve is sp with its Recipes, Ingredients, Portions and Recipe Drafts found by id
+// among those given.
+func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, drafted []recipes.Drafted) *Proposal {
 	recipes := map[int64]*domain.Recipe{}
 	for i := range library {
 		recipes[library[i].ID] = &library[i]
+	}
+	drafts := map[int64]*domain.Recipe{}
+	for i := range drafted {
+		drafts[drafted[i].ID] = &drafted[i].Recipe
 	}
 	ingredients := map[int64]*domain.Ingredient{}
 	for i := range known {
@@ -874,10 +944,10 @@ func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredi
 	}
 	p := &Proposal{
 		ID: sp.id, Summary: sp.summary, Plan: domain.Plan{Kept: sp.kept}, Kept: map[int64]domain.Portion{},
-		Targets: sp.targets, Misses: sp.misses,
+		Targets: sp.targets, Misses: sp.misses, Drafted: drafted,
 	}
 	for _, ps := range sp.sessions {
-		ps.Recipe, ps.Ingredient = recipes[ps.recipeID], ingredients[ps.ingredientID]
+		ps.Recipe, ps.Ingredient = cmp.Or(recipes[ps.recipeID], drafts[ps.draftID]), ingredients[ps.ingredientID]
 		p.Plan.PrepSessions = append(p.Plan.PrepSessions, ps.PrepSession)
 	}
 	for _, fs := range sp.splits {

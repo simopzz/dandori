@@ -3,12 +3,14 @@ package planning
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
 
@@ -95,10 +97,11 @@ func goingRun(ctx context.Context, q db.Querier, id int64) (runID int64, err err
 }
 
 // submit stores plan, summed up by summary, as the pending Plan Proposal of the planning
-// Run runID, with the Targets it aimed at and the soft rules it breaks, as the Run is
-// stored succeeded: a Run cancelled meanwhile, its Cycle dropped or closed, never stores
-// it, and the unique index keeps a second one from pending.
-func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, targets domain.Targets, misses []domain.Miss, summary string) error {
+// Run runID, with the Targets it aimed at, the soft rules it breaks and those of the
+// Recipe Drafts drafted that it prepares, as the Run is stored succeeded: a Run cancelled
+// meanwhile, its Cycle dropped or closed, never stores it, and the unique index keeps a
+// second one from pending.
+func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, targets domain.Targets, misses []domain.Miss, summary string, drafted []*recipes.Drafted) error {
 	var id int64
 	if misses == nil {
 		misses = []domain.Miss{} // stored as [], not null
@@ -115,21 +118,35 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 		on := s.On.Format(time.DateOnly)
 		return &on, &s.Kind
 	}
+	saved := map[*domain.Recipe]int64{} // the Recipe Drafts stored, by the Recipe each drafts
 	for _, ps := range plan.PrepSessions {
-		var recipe, ingredient *int64
+		var recipe, draft, ingredient *int64
 		var size, quantity *float64
-		if ps.Recipe != nil {
+		switch {
+		case ps.Recipe != nil && ps.Recipe.ID == 0: // a Recipe Draft's, which has no id until it is accepted
+			if _, ok := saved[ps.Recipe]; !ok {
+				i := slices.IndexFunc(drafted, func(d *recipes.Drafted) bool { return &d.Recipe == ps.Recipe })
+				if i < 0 {
+					return errors.New("a Prep Session prepares a Recipe neither in the Recipe Library nor drafted")
+				}
+				if saved[ps.Recipe], err = recipes.SaveDrafted(ctx, q, id, *drafted[i]); err != nil {
+					return err
+				}
+			}
+			d := saved[ps.Recipe]
+			draft, size = &d, &ps.Size
+		case ps.Recipe != nil:
 			recipe, size = &ps.Recipe.ID, &ps.Size
-		} else {
+		default:
 			q := ps.Quantity.Number()
 			ingredient, quantity = &ps.Ingredient.ID, &q
 		}
 		on, kind := day(&ps.At)
 		var sessionID int64
 		err := q.QueryRow(ctx, `
-			INSERT INTO prep_session (plan_proposal_id, prepared_on, prepared_kind, recipe_id, size, ingredient_id, quantity)
-			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-			id, on, kind, recipe, size, ingredient, quantity).Scan(&sessionID)
+			INSERT INTO prep_session (plan_proposal_id, prepared_on, prepared_kind, recipe_id, recipe_draft_id, size, ingredient_id, quantity)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+			id, on, kind, recipe, draft, size, ingredient, quantity).Scan(&sessionID)
 		if err != nil {
 			return err
 		}
@@ -176,7 +193,7 @@ type storedProposal struct {
 
 type storedSession struct {
 	domain.PrepSession
-	recipeID, ingredientID int64
+	recipeID, draftID, ingredientID int64
 }
 
 // proposalColumns are what scanProposal reads of a plan_proposal pp and its cycle_run cr.
@@ -240,7 +257,7 @@ func loadApproved(ctx context.Context, q db.Querier, from time.Time, zone *time.
 func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.Location) error {
 	in := func(t time.Time) time.Time { return inZone(t, zone) }
 	rows, err := q.Query(ctx, `
-		SELECT s.id, s.prepared_on, s.prepared_kind, coalesce(s.recipe_id, 0), coalesce(s.size, 0)::float8,
+		SELECT s.id, s.prepared_on, s.prepared_kind, coalesce(s.recipe_id, 0), coalesce(s.recipe_draft_id, 0), coalesce(s.size, 0)::float8,
 			coalesce(s.ingredient_id, 0), coalesce(s.quantity, 0)::float8, p.location, p.eat_on, coalesce(p.eat_kind, '')
 		FROM prep_session s JOIN planned_portion p ON p.prep_session_id = s.id
 		WHERE s.plan_proposal_id = $1 ORDER BY s.id, p.position`, sp.id)
@@ -255,7 +272,7 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 		var pp domain.PlannedPortion
 		var eatOn *time.Time
 		var eatKind domain.SlotKind
-		err := rows.Scan(&sessionID, &ps.At.On, &ps.At.Kind, &ps.recipeID, &ps.Size, &ps.ingredientID, &quantity, &pp.Location, &eatOn, &eatKind)
+		err := rows.Scan(&sessionID, &ps.At.On, &ps.At.Kind, &ps.recipeID, &ps.draftID, &ps.Size, &ps.ingredientID, &quantity, &pp.Location, &eatOn, &eatKind)
 		if err != nil {
 			rows.Close()
 			return err
@@ -313,6 +330,30 @@ func pendingProposal(ctx context.Context, q db.Querier, id int64, zone *time.Loc
 	}
 	first.On = inZone(first.On, zone)
 	return cycleID, first, err
+}
+
+// Prepares reports whether a Plan Proposal of the signed-in User's, whatever its status,
+// prepares the Recipe id, which its Prep Sessions keep. The recipes feature, which this
+// one depends on, reads it, and app wires it.
+func Prepares(ctx context.Context, q db.Querier, id int64) (prepared bool, err error) {
+	err = q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM prep_session WHERE recipe_id = $1)`, id).Scan(&prepared)
+	return prepared, err
+}
+
+// prepareAccepted has the Prep Sessions of the Recipe Draft draftID prepare the Recipe
+// recipeID it was accepted as.
+func prepareAccepted(ctx context.Context, q db.Querier, draftID, recipeID int64) error {
+	_, err := q.Exec(ctx, `UPDATE prep_session SET recipe_id = $2, recipe_draft_id = NULL WHERE recipe_draft_id = $1`, draftID, recipeID)
+	return err
+}
+
+// pendingID is the id of the signed-in User's pending Plan Proposal, or ErrNoProposal.
+func pendingID(ctx context.Context, q db.Querier) (id int64, err error) {
+	err = q.QueryRow(ctx, `SELECT id FROM plan_proposal WHERE status = $1`, Pending).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNoProposal
+	}
+	return id, err
 }
 
 // inZone is the day d in zone, at midnight.

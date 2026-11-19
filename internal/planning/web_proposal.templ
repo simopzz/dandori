@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -22,7 +23,7 @@ templ proposalPage(now time.Time, v cycleView) {
 	{{ ds := proposalDays(c, p) }}
 	@cycleHeader(now, c, v.Upcoming, ds)
 	@decisionAlert(v.Refusal)
-	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast))) {
+	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast) || clashed(v.Refusal))) {
 		@web.Section(2, web.T(ctx, msgDays)) {
 			@figureHeads(p.Targets)
 			@daysBefore(p.Trailing)
@@ -37,6 +38,7 @@ templ proposalPage(now time.Time, v cycleView) {
 	if v.Upcoming {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 	}
+	@web.SideSheet(draftSheetID, web.T(ctx, msgNewRecipe))
 }
 
 // cycleHeader is the head of the Cycle page with a Plan: the Cycle's dates beside the
@@ -84,13 +86,15 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 
 // proposalSection is the Plan Proposal p as Section 01, all deciding on it needs: the
 // planner's summary, the averages against the Targets, the soft misses grouped by kind,
-// then approving it or rejecting it, notes being the Cycle's Planning Notes, newest
-// first, and note the one typed; rejecting is open when reject says to.
+// the Recipe Drafts it prepares, then approving it or rejecting it, notes being the
+// Cycle's Planning Notes, newest first, and note the one typed; rejecting is open when
+// reject says to.
 templ proposalSection(p Proposal, notes []string, note string, reject bool) {
 	@web.Section(1, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
 		@averages(p)
 		@missRows(p)
+		@draftedRows(p.Drafted)
 		@decision(p, notes, note, reject)
 	}
 }
@@ -199,6 +203,58 @@ templ missRows(p Proposal) {
 				}
 			}
 		}
+	}
+}
+
+// draftedRows are the Recipe Drafts a Plan Proposal prepares, a line each naming it and
+// how many new Ingredients it has, which opens it in a sheet.
+templ draftedRows(drafted []recipes.Drafted) {
+	if len(drafted) > 0 {
+		@web.Rows() {
+			for _, d := range drafted {
+				@web.Row() {
+					@web.Icon("book-open")
+					<span class="row-title">
+						@web.SideSheetLink(draftSheetID, draftURL(d.ID), draftURL(d.ID)+"/sheet") {
+							{ web.Tf(ctx, msgNewRecipeNamed, d.Recipe.Name) }
+						}
+					</span>
+					<span class="row-meta">{ newIngredients(ctx, d.Recipe) }</span>
+				}
+			}
+		}
+	}
+}
+
+// newIngredients says how many of rec's Ingredients are new, or nothing when none is.
+func newIngredients(ctx context.Context, rec domain.Recipe) string {
+	n := 0
+	for _, ri := range rec.Ingredients {
+		if ri.Ingredient.ID == 0 {
+			n++
+		}
+	}
+	switch n {
+	case 0:
+		return ""
+	case 1:
+		return web.T(ctx, msgOneNewIngredient)
+	}
+	return web.Tf(ctx, msgNewIngredients, n)
+}
+
+// draftPage is the planner's Recipe Draft rec as a page of its own, for a browser without
+// htmx: the sheet's body, under the page's header, with a link back.
+templ draftPage(now time.Time, rec domain.Recipe) {
+	@web.Layout(web.T(ctx, msgNewRecipe), web.PlanTab) {
+		@web.PageHeader("献立", web.T(ctx, msgNewRecipe), now) {
+			<p class="lede">
+				@web.TextLink(templ.Attributes{"href": "/plan"}) {
+					{ web.T(ctx, msgBackToTheProposal) }
+				}
+			</p>
+		}
+		@recipes.Planned(rec)
 	}
 }
 
@@ -473,14 +529,16 @@ templ dayBody(d proposalDay) {
 func ofRecipe(ps domain.PrepSession) bool { return ps.Recipe != nil }
 
 // source says where f's Portion comes from, eaten on the day on: cooked that day, from
-// the day it was cooked and where it is kept, where one Ingredient is kept, or already
-// in the kitchen.
+// the day it was cooked and where it is kept, where one Ingredient is kept, already in
+// the kitchen, or a new Recipe, a Recipe Draft's.
 func source(ctx context.Context, f filledSlot, on time.Time) string {
 	switch {
 	case f.from == nil:
 		return web.T(ctx, msgInTheKitchen)
 	case f.from.Recipe == nil:
 		return web.T(ctx, web.InLocations[f.location])
+	case f.from.Recipe.ID == 0:
+		return web.T(ctx, msgNewRecipeSource)
 	case f.from.At.On.Equal(on):
 		return web.T(ctx, msgCookedThatDay)
 	}
@@ -508,10 +566,18 @@ templ cookedRow(ps domain.PrepSession) {
 	}
 }
 
-// cookedLine is the line a Prep Session of a Recipe folds to: its name, its Portions and
-// their size, its minutes in all and active.
+// cookedLine is the line a Prep Session of a Recipe folds to: its name, a Recipe Draft's
+// marked new, its Portions and their size, its minutes in all and active.
 templ cookedLine(ps domain.PrepSession) {
-	<span class="row-title">{ ps.Name() }</span>
+	<span class="row-title">
+		{ ps.Name() }
+		if ps.Recipe.ID == 0 {
+			{ " " }
+			@web.Tag(false, "") {
+				{ web.T(ctx, msgNewRecipeSource) }
+			}
+		}
+	</span>
 	<span class="row-figure">{ web.Tf(ctx, msgPortionsSized, len(ps.Portions), size(ctx, ps.Size)) }</span>
 	<span class="row-meta">{ web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes) }</span>
 }

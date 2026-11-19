@@ -179,4 +179,15 @@ var (
 	msgPortionsSized = web.Message{En: "%d at %s", It: "%d da %s"}
 	msgTotalActive   = web.Message{En: "%d min · %d active", It: "%d min · %d attivi"}
 	msgAfterTheCycle = web.Message{En: "After the Cycle", It: "Dopo il Ciclo"}
+
+	msgNewRecipe         = web.Message{En: "New Recipe", It: "Nuova Ricetta"}
+	msgNewRecipeNamed    = web.Message{En: "New Recipe: %s", It: "Nuova Ricetta: %s"}
+	msgNewRecipeSource   = web.Message{En: "new Recipe", It: "nuova Ricetta"}
+	msgOneNewIngredient  = web.Message{En: "1 new Ingredient", It: "1 nuovo Ingrediente"}
+	msgNewIngredients    = web.Message{En: "%d new Ingredients", It: "%d nuovi Ingredienti"}
+	msgBackToTheProposal = web.Message{En: "Back to the Plan Proposal", It: "Torna alla Proposta di Piano"}
+	msgClash             = web.Message{
+		En: "Since the planner drafted %s, the Recipe Library has gained a Recipe or an Ingredient it clashes with, so this Plan Proposal can't be approved. Reject it with a Planning Note to have it planned again.",
+		It: "Da quando il pianificatore ha scritto la bozza di %s, il Ricettario ha una Ricetta o un Ingrediente in conflitto, quindi questa Proposta di Piano non può essere approvata. Rifiutala con una Nota di pianificazione per ripianificarla.",
+	}
 )

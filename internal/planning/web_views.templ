@@ -10,6 +10,7 @@ import (
 
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -158,6 +159,11 @@ templ planAgain(id int64, note string, open bool) {
 
 // decisionAlert says why deciding on a Plan Proposal or planning was refused, if it was.
 templ decisionAlert(err error) {
+	if clash, ok := errors.AsType[*recipes.ClashError](err); ok {
+		@web.Alert() {
+			<p>{ web.Tf(ctx, msgClash, clash.Name) }</p>
+		}
+	}
 	if msg, ok := refusalOf(err); ok {
 		@web.Alert() {
 			<p>{ web.T(ctx, msg) }</p>
@@ -178,6 +184,18 @@ func refusalOf(err error) (msg web.Message, ok bool) {
 		return msgNothingLeft, true
 	}
 	return web.Message{}, false
+}
+
+// draftSheetID is the id of the sheet a Plan Proposal's Recipe Draft opens in.
+const draftSheetID = "recipe-draft"
+
+// draftURL is the page of the planner's Recipe Draft id.
+func draftURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/drafts/%d", id)) }
+
+// clashed is whether err refused approving because a Recipe Draft clashes.
+func clashed(err error) bool {
+	_, ok := errors.AsType[*recipes.ClashError](err)
+	return ok
 }
 
 // checkURL is the Kitchen Check before planning the Cycle id.

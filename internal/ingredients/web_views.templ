@@ -470,6 +470,11 @@ func Invalid(err string) templ.Attributes {
 	return templ.Attributes{"aria-invalid": "true"}
 }
 
+// Values are ing's nutritional values, per what they are given for, as NutritionFacts.
+templ Values(ing domain.Ingredient) {
+	@NutritionFacts(web.T(ctx, perUnit[ing.Unit]), ing.Nutrition)
+}
+
 // NutritionFacts are the nutritional values n, per what per says, one span each for a
 // row's details: calories, then grams of the rest, an unknown one a dash that a screen
 // reader says is unknown.

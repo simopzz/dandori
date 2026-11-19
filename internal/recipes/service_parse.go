@@ -133,6 +133,19 @@ func unknownKinds[K ~string](got, known []K, what string) string {
 	return strings.Join(unknown, "; ")
 }
 
+// fixThese is problems, by field path, as the model is told them to fix, or nil when
+// there are none.
+func fixThese(problems map[string]string) error {
+	if len(problems) == 0 {
+		return nil
+	}
+	var lines []string
+	for _, field := range slices.Sorted(maps.Keys(problems)) {
+		lines = append(lines, field+": "+problems[field])
+	}
+	return errors.New("fix these and submit again:\n" + strings.Join(lines, "\n"))
+}
+
 // schemaFields are submit_recipe's names for the fields domain.Recipe.Problems names
 // otherwise, a row's prefixed "ingredient.".
 var schemaFields = map[string]string{
@@ -260,11 +273,7 @@ func (s *Service) parseBrief(l domain.Language, text string, known []domain.Ingr
 					return "", fmt.Errorf("the Recipe does not match the schema: %w", err)
 				}
 				if _, problems := p.recipe(l, known); len(problems) > 0 {
-					var lines []string
-					for _, field := range slices.Sorted(maps.Keys(problems)) {
-						lines = append(lines, field+": "+problems[field])
-					}
-					return "", errors.New("fix these and submit again:\n" + strings.Join(lines, "\n"))
+					return "", fixThese(problems)
 				}
 				if err := s.saveDraft(ctx, runs.IDFrom(ctx), p); err != nil {
 					return "", fmt.Errorf("store the Recipe Draft: %w", err)

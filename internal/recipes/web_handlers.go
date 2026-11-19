@@ -28,6 +28,7 @@ const (
 	refusedToConfirm       httpx.Refusal = "Recipe's new Ingredient to confirm"
 	refusedNameTaken       httpx.Refusal = "Recipe name taken"
 	refusedIngredientTaken httpx.Refusal = "Recipe's new Ingredient name taken meanwhile"
+	refusedInPlan          httpx.Refusal = "Recipe in a Plan or a Plan Proposal"
 )
 
 // Handlers serve the Recipe Library and the Recipe form.
@@ -355,6 +356,17 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	name, err := h.Service.Delete(ctx, id)
 	if errors.Is(err, ErrNoRecipe) {
 		http.NotFound(w, r)
+		return
+	}
+	if errors.Is(err, ErrInPlan) {
+		step, err := h.deletion(ctx, id)
+		if err != nil {
+			httpx.ServerError(w, r, h.Log, "load the Recipe refused deletion", err)
+			return
+		}
+		step.Refusal = web.Tf(ctx, msgInPlan, name)
+		httpx.Refused(r, refusedInPlan, nil)
+		web.Answer{Status: http.StatusUnprocessableEntity, Page: removePage(h.Clock.Now(), step), Fragment: removeStep(step, "")}.Write(w, r, h.Log)
 		return
 	}
 	if err != nil {

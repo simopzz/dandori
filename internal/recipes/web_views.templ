@@ -133,8 +133,25 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 		@web.Section(2, web.T(ctx, msgIngredients)) {
 			@web.IngredientRows(rec.Ingredients)
 		}
-		@recipeSteps(rec.Steps)
+		@recipeSteps(3, rec.Steps)
 	}
+}
+
+// Planned is the planner's Recipe Draft rec, as its Plan Proposal shows it: its name over
+// its Ingredients, each new one marked New with its proposed values, then its steps.
+templ Planned(rec domain.Recipe) {
+	@web.Section(1, web.Data(rec.Name)) {
+		@web.IngredientRowsWith(rec.Ingredients, newValues)
+	}
+	@recipeSteps(2, rec.Steps)
+}
+
+// newValues are ing's proposed values if it is new, or nil.
+func newValues(ing domain.Ingredient) templ.Component {
+	if ing.ID != 0 {
+		return nil
+	}
+	return ingredients.Values(ing)
 }
 
 // perPortion is one Portion's nutritional values, fibre and sugar a floor when some of
@@ -182,11 +199,11 @@ const knownIngredients = "known-ingredients"
 const removeSheetID = "recipe-remove"
 
 // removal is what the step asking before deleting a Recipe or discarding a Recipe Draft
-// shows: its Title, the Question naming it, the button Remove posting to Action, and the
-// page Back it leaves for.
+// shows: its Title, the Question naming it, the button Remove posting to Action, the
+// page Back it leaves for, and why removing was refused, if it was.
 type removal struct {
-	Title, Remove          web.Message
-	Question, Action, Back string
+	Title, Remove                   web.Message
+	Question, Action, Back, Refusal string
 }
 
 // removePage is the step r as a page of its own, for a browser without htmx.
@@ -197,8 +214,14 @@ templ removePage(now time.Time, r removal) {
 	}
 }
 
-// removeStep is the step r, with a link back unless back is "", as in its sheet.
+// removeStep is the step r, under why it was refused, if it was, with a link back unless
+// back is "", as in its sheet.
 templ removeStep(r removal, back templ.SafeURL) {
+	if r.Refusal != "" {
+		@web.Alert() {
+			<p>{ r.Refusal }</p>
+		}
+	}
 	@web.RemoveStep(r.Question, web.T(ctx, r.Remove), templ.SafeURL(r.Action), back, nil)
 }
 
@@ -477,10 +500,10 @@ templ recipeFacts(rec domain.Recipe) {
 	</dl>
 }
 
-// recipeSteps are a Recipe's steps, if it has any.
-templ recipeSteps(steps []string) {
+// recipeSteps are a Recipe's steps, if it has any, as Section num.
+templ recipeSteps(num int, steps []string) {
 	if len(steps) > 0 {
-		@web.Section(3, web.T(ctx, msgSteps)) {
+		@web.Section(num, web.T(ctx, msgSteps)) {
 			<ol>
 				for _, step := range steps {
 					<li>{ step }</li>
