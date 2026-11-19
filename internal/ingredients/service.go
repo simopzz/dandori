@@ -59,6 +59,9 @@ func (e *InRecipeError) Error() string {
 // would take part of the Kitchen Ledger's history with it.
 var ErrHasMovements = errors.New("movements refer to the Ingredient")
 
+// ErrInPlan is an Ingredient not deleted because a Plan or a Plan Proposal uses it.
+var ErrInPlan = errors.New("a Plan or a Plan Proposal uses the Ingredient")
+
 // ErrNoIngredient is an Ingredient the signed-in User hasn't got.
 var ErrNoIngredient = errors.New("the User has no such Ingredient")
 
@@ -67,15 +70,21 @@ var ErrNoIngredient = errors.New("the User has no such Ingredient")
 // depends on this one, reads it, and app wires it.
 type RecipesUsing func(ctx context.Context, q db.Querier, id int64) (first string, others int, err error)
 
+// UsesIngredient reports whether a Plan or a Plan Proposal of the signed-in User's uses
+// the Ingredient id. The planning feature, which depends on this one, reads it, and app
+// wires it.
+type UsesIngredient func(ctx context.Context, q db.Querier, id int64) (bool, error)
+
 // Service is the signed-in User's Ingredients.
 type Service struct {
-	pool         *pgxpool.Pool
-	recipesUsing RecipesUsing
+	pool           *pgxpool.Pool
+	recipesUsing   RecipesUsing
+	usesIngredient UsesIngredient
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, recipesUsing RecipesUsing) *Service {
-	return &Service{pool: pool, recipesUsing: recipesUsing}
+func New(pool *pgxpool.Pool, recipesUsing RecipesUsing, usesIngredient UsesIngredient) *Service {
+	return &Service{pool: pool, recipesUsing: recipesUsing, usesIngredient: usesIngredient}
 }
 
 // notInRecipe is an *InRecipeError if a Recipe lists the Ingredient id.
@@ -188,9 +197,20 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 }
 
 // Delete deletes the signed-in User's Ingredient id, and is its name. One that Movements
-// refer to is ErrHasMovements and one a Recipe lists an *InRecipeError, both of which the
-// database also holds to, and one they haven't got is ErrNoIngredient.
-func (s *Service) Delete(ctx context.Context, id int64) (name string, err error) {
+// refer to is ErrHasMovements, one a Recipe lists an *InRecipeError and one a Plan or a
+// Plan Proposal uses ErrInPlan, all of which the database also holds to, and one they
+// haven't got is ErrNoIngredient.
+func (s *Service) Delete(ctx context.Context, id int64) (string, error) {
+	name, err := s.delete(ctx, id)
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == foreignKeyViolation {
+		return s.delete(ctx, id) // something came to refer to it meanwhile: now a check finds it
+	}
+	return name, err
+}
+
+// delete is Delete without the retry: a row that comes to refer to the Ingredient while
+// it runs is the commit's foreign-key violation, returned as it is.
+func (s *Service) delete(ctx context.Context, id int64) (name string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		ing, ok, err := LoadIngredient(ctx, tx, id)
 		if err != nil {
@@ -209,23 +229,21 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 		if err := s.notInRecipe(ctx, tx, id); err != nil {
 			return err
 		}
+		planned, err := s.usesIngredient(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if planned {
+			return ErrInPlan
+		}
 		name = ing.Name
 		return deleteIngredient(ctx, tx, id)
 	})
-	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == foreignKeyViolation {
-		if pgErr.ConstraintName == recipeForeignKey {
-			return s.Delete(ctx, id) // a Recipe listed it meanwhile: now the check finds it
-		}
-		return "", ErrHasMovements
-	}
 	return name, err
 }
 
 // foreignKeyViolation is Postgres's code for a row deleted while another refers to it.
 const foreignKeyViolation = "23503"
-
-// recipeForeignKey is the constraint keeping an Ingredient a Recipe lists.
-const recipeForeignKey = "recipe_ingredient_ingredient_fkey"
 
 // Suggest is the name of the signed-in User's Ingredient that name is close to, which
 // they may have meant, or "" if there is none.
