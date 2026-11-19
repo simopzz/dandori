@@ -147,7 +147,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	asked, _, _ := strings.Cut(prompt, "\n")
 	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
 		// The planning lock first, as in Drop, so a reject and a drop never deadlock.
-		if err := lockOpening(ctx, tx); err != nil {
+		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}
 		if before != nil {

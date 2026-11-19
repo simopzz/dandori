@@ -35,7 +35,7 @@ var (
 // Runs can't both find it their turn: ErrPlanned when the Cycle has a Plan, ErrBusy while
 // another planning Run is going or a Plan Proposal pending, for any Cycle.
 func turn(ctx context.Context, tx pgx.Tx, id, runID int64) error {
-	if err := lockOpening(ctx, tx); err != nil {
+	if err := lockPlanning(ctx, tx); err != nil {
 		return err
 	}
 	planned, err := hasPlan(ctx, tx, id)

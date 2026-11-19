@@ -14,10 +14,12 @@ import (
 	"github.com/simopzz/dandori/internal/runs"
 )
 
-// lockOpening locks the signed-in User's Profile until the transaction ends, so opening
-// Cycles waits its turn.
-func lockOpening(ctx context.Context, q db.Querier) error {
-	_, err := q.Exec(ctx, `SELECT 1 FROM profile FOR UPDATE`)
+// lockPlanning takes the signed-in User's planning lock until the transaction ends, so
+// opening, dropping and planning their Cycles each wait their turn. It is an advisory
+// lock, needing no row; a hash collision with another User only makes the two wait on
+// each other.
+func lockPlanning(ctx context.Context, q db.Querier) error {
+	_, err := q.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('planning'), hashtext(current_user_id()::text))`)
 	return err
 }
 
