@@ -34,6 +34,9 @@ type Recipe struct {
 	Ingredients                 []RecipeIngredient
 }
 
+// IsDraft reports whether r is a Recipe Draft's, not in the Recipe Library yet.
+func (r Recipe) IsDraft() bool { return r.ID == 0 }
+
 // PortionNutrition is one Portion's nutritional values as a Recipe is written. FibreFloor
 // and SugarFloor say the value is at least that much, since some of its Ingredients don't
 // know it; when none does, it is Unknown.

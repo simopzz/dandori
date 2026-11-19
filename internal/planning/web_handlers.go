@@ -14,6 +14,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/httpx"
 	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/web"
 )
@@ -27,6 +28,7 @@ const (
 	refusedPast     httpx.Refusal = "the Plan Proposal's first Slot has passed"
 	refusedPlanned  httpx.Refusal = "the Cycle already has a Plan"
 	refusedNoneLeft httpx.Refusal = "no Slot of the Cycle is left to plan"
+	refusedClash    httpx.Refusal = "a Recipe Draft clashes with the Recipe Library"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
@@ -158,12 +160,43 @@ func (h Handlers) refused(w http.ResponseWriter, r *http.Request, what string, e
 		refusal = refusedPlanned
 	case errors.Is(err, ErrNothingLeft):
 		refusal = refusedNoneLeft
+	case clashed(err):
+		refusal = refusedClash
 	default:
 		httpx.ServerError(w, r, h.Log, what, err)
 		return
 	}
 	httpx.Refused(r, refusal, nil)
 	h.cycle(w, r, http.StatusUnprocessableEntity, err)
+}
+
+// ShowDraft is the pending Plan Proposal's Recipe Draft in the path, as a page.
+func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) { h.showDraft(w, r, false) }
+
+// ShowDraftSheet is ShowDraft as the body of the sheet over the Cycle page.
+func (h Handlers) ShowDraftSheet(w http.ResponseWriter, r *http.Request) { h.showDraft(w, r, true) }
+
+// showDraft answers with the Recipe Draft in the path: as its sheet's body when sheet,
+// else as a page. One the User's pending Plan Proposal doesn't prepare is unknown.
+func (h Handlers) showDraft(w http.ResponseWriter, r *http.Request, sheet bool) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	rec, err := h.Service.Drafted(r.Context(), id)
+	if errors.Is(err, ErrNoProposal) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load a Recipe Draft", err)
+		return
+	}
+	if sheet {
+		httpx.Render(w, r, h.Log, http.StatusOK, recipes.DraftedRecipe(rec))
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, draftPage(h.Clock.Now(), rec))
 }
 
 // ShowCheck is the Kitchen Check before planning the upcoming Cycle in the path.

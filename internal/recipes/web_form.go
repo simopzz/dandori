@@ -76,7 +76,7 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 		row := IngredientRow{
 			Name: ri.Ingredient.Name, Quantity: web.Number(ctx, ri.Quantity.Number()), Unit: string(ri.Ingredient.Unit),
 		}
-		if ri.Ingredient.ID == 0 { // a Recipe Draft's new Ingredient, its proposed values shown to confirm
+		if ri.Ingredient.IsNew() { // a Recipe Draft's new Ingredient, its proposed values shown to confirm
 			row.New, row.Usual, row.Staple = true, string(ri.Ingredient.Usual), ri.Ingredient.Staple
 			row.Values = ingredients.ValuesOf(ri.Ingredient.Nutrition)
 			row.Suggested, _ = domain.ClosestIngredient(web.LanguageOf(ctx), ri.Ingredient.Name, namesOf(known))

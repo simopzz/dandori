@@ -26,6 +26,7 @@ var (
 	msgDeleted      = web.Message{En: "Deleted %s.", It: "Eliminata: %s."}
 	msgDeleteRecipe = web.Message{En: "Delete the Recipe", It: "Elimina la Ricetta"}
 	msgDeleteAsk    = web.Message{En: "Delete the Recipe %s?", It: "Eliminare la Ricetta %s?"}
+	msgInPlan       = web.Message{En: "%s is in a Plan or a Plan Proposal, so it can't be deleted.", It: "%s è in un Piano o in una Proposta di Piano, quindi non si può eliminare."}
 
 	msgPaste         = web.Message{En: "Paste a recipe", It: "Incolla una ricetta"}
 	msgPasteTitle    = web.Message{En: "Paste a recipe · Dandori", It: "Incolla una ricetta · Dandori"}

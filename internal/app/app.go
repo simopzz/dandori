@@ -91,7 +91,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	}
 	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing), ledger: ledger.New(pool, log)}
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
-	a.recipes = recipes.New(pool, a.ingredients, a.runs)
+	a.recipes = recipes.New(pool, a.ingredients, a.runs, planning.Prepares)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.planning = planning.New(pool, a.clock, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
 	a.today = today.New(a.profile, a.ledger, a.planning)
@@ -180,6 +180,8 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("POST /plan/cycles/{id}/again", signedIn(plan.PlanAgain))
 	mux.Handle("POST /plan/proposals/{id}/approve", signedIn(plan.Approve))
 	mux.Handle("POST /plan/proposals/{id}/reject", signedIn(plan.Reject))
+	mux.Handle("GET /plan/drafts/{id}", signedIn(plan.ShowDraft))
+	mux.Handle("GET /plan/drafts/{id}/sheet", signedIn(plan.ShowDraftSheet))
 	mux.Handle("GET /profile", signedIn(prof.Show))
 	mux.Handle("POST /profile/language", signedIn(prof.ChangeLanguage))
 	mux.Handle("POST /profile/targets", signedIn(prof.SaveTargets))

@@ -10,6 +10,8 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
 
@@ -64,10 +66,12 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64) (stop func(conte
 }
 
 // Approve makes the signed-in User's pending Plan Proposal id their Cycle's Plan at now,
-// unless a rule blocking approval refuses it: ErrStartsInThePast once its first Slot has
-// passed. It is ErrNoProposal when it isn't pending.
+// accepting its Recipe Drafts into their Recipe Library, unless a rule blocking approval
+// refuses it: ErrStartsInThePast once its first Slot has passed, and a
+// *recipes.ClashError for a Recipe Draft that no longer fits the Recipe Library. It is
+// ErrNoProposal when it isn't pending.
 func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
-	times, err := s.profile.SlotTimes(ctx)
+	p, err := s.profile.Profile(ctx)
 	if err != nil {
 		return err
 	}
@@ -76,9 +80,30 @@ func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		for _, v := range domain.StartsInThePast(first, times, now) {
+		for _, v := range domain.StartsInThePast(first, p.SlotTimes, now) {
 			if v.Rule.BlocksApproval() {
 				return ErrStartsInThePast
+			}
+		}
+		stored, err := deleteDrafts(ctx, tx, id) // their Prep Sessions' deferred key waits for prepareAccepted
+		if err != nil {
+			return err
+		}
+		known, err := ingredients.LoadIngredients(ctx, tx)
+		if err != nil {
+			return err
+		}
+		drafted, err := readDrafts(p.Language, known, stored)
+		if err != nil {
+			return err
+		}
+		accepted, err := recipes.AcceptDrafted(ctx, tx, p.Language, drafted)
+		if err != nil {
+			return err
+		}
+		for draftID, recipeID := range accepted {
+			if err := prepareAccepted(ctx, tx, draftID, recipeID); err != nil {
+				return err
 			}
 		}
 		return decide(ctx, tx, id, Approved, now)
