@@ -150,12 +150,19 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 			return err
 		}
 	}
+	for i, fs := range plan.FreezerSplits {
+		_, err := q.Exec(ctx, `INSERT INTO freezer_split (plan_proposal_id, position, ingredient_id, quantity) VALUES ($1, $2, $3, $4)`,
+			id, i, fs.Ingredient.ID, fs.Quantity.Number())
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // storedProposal is a Plan Proposal as stored: its first Slot, the Targets it aimed at,
-// the soft rules it breaks, and its Prep Sessions with their Recipes and Ingredients by
-// id only.
+// the soft rules it breaks, and its Prep Sessions and freezer splits with their Recipes
+// and Ingredients by id only.
 type storedProposal struct {
 	id       int64
 	summary  string
@@ -164,6 +171,7 @@ type storedProposal struct {
 	misses   []domain.Miss
 	sessions []storedSession
 	kept     []domain.Kept
+	splits   []domain.RecipeIngredient
 }
 
 type storedSession struct {
@@ -227,8 +235,8 @@ func loadApproved(ctx context.Context, q db.Querier, from time.Time, zone *time.
 	return approved, nil
 }
 
-// loadPlan reads the Prep Sessions and the Portions without a Slot put in Slots of sp,
-// their days in zone.
+// loadPlan reads the Prep Sessions, the Portions without a Slot put in Slots and the
+// freezer splits of sp, their days in zone.
 func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.Location) error {
 	in := func(t time.Time) time.Time { return inZone(t, zone) }
 	rows, err := q.Query(ctx, `
@@ -271,6 +279,16 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 		err = row.Scan(&k.Portion, &k.At.On, &k.At.Kind)
 		k.At.On = in(k.At.On)
 		return k, err
+	})
+	if err != nil {
+		return err
+	}
+	rows, _ = q.Query(ctx, `SELECT ingredient_id, quantity::float8 FROM freezer_split WHERE plan_proposal_id = $1 ORDER BY position`, sp.id)
+	sp.splits, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (fs domain.RecipeIngredient, err error) {
+		var quantity float64
+		err = row.Scan(&fs.Ingredient.ID, &quantity)
+		fs.Quantity = domain.QuantityOf(quantity)
+		return fs, err
 	})
 	return err
 }

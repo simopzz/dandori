@@ -138,9 +138,9 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 `sr-only`, the same on every page: `under` (▼), `over` (▲) and `changed` (•)
 for what is worth weighing, `repeat` for a Portion eaten back to back,
 `package` (the Kitchen's crate) for a Portion left unused, `snowflake` for one
-made for after the Cycle, `scale` for the days more than 25% off a Target, and
-`book-open` for a new Recipe. A new kind of line gets its own icon here before
-it lands on a page.
+made for after the Cycle and for the freezer splits at put-away, `scale` for the
+days more than 25% off a Target, and `book-open` for a new Recipe. A new kind of
+line gets its own icon here before it lands on a page.
 
 ## Layout
 
@@ -284,7 +284,7 @@ elements themselves.
 | `Row()` | A read-only line. Lay it out with spans of class `row-title` (the name, or a link), `row-figure` (a quantity), `row-meta` (a second line of details) and a `row-action` form. A kind of line (a soft miss) leads with its `Icon`, and its `row-meta` lines up under the title. |
 | `Figures()` | A line of figures in equal columns, the children each a cell, lined up down a `Section` under a `Figures` of their heads (class `figures figures-head` on the head line): a day's four values against the Targets, without a table, so a day's row can fold as a `Group`. A head names its value and unit over its Target ("Protein, g" over "≥ 130"); a cell holds `Amount`, its name `sr-only`. |
 | `SlotRow(kind, portion, size, figures, source)` | A Slot and the Portion filling it, as a `Row`: the Portion as the `row-title`; its `size` and `figures` (calories and protein through `Amount`) as the `row-figure`; the Slot's kind and `source`, a word for where the Portion comes from ("cooked", "from Thu, in the fridge", "already in the kitchen"), as its `row-meta`. Leave out what isn't shown with `""` or a nil `figures`. |
-| `IngredientRows(ingredients)` | A list of a Recipe's or a Prep Session's Ingredients, each its name and quantity in its unit, an Ingredient not yet saved with a `New` Tag. |
+| `IngredientRows(ingredients)` | A list of a Recipe's or a Prep Session's Ingredients, or of a Plan's freezer splits at put-away, each its name and quantity in its unit, an Ingredient not yet saved with a `New` Tag. |
 | `Amount(a, floor, unit)` | Every nutritional value a page shows: the number, then `unit` unless it is `""`; a dash with `sr-only` "unknown" when it isn't known; "29+" when only a floor is known, which a screen reader says "at least 29". `AmountText` is the same as plain text, for a sentence. Never write "unknown" or "at least" for a value by hand. |
 | `Seal()` | The pixel sun before an urgent `Row`'s `row-title`. Decorative: the row's text (an accent `Tag`) says why it is urgent. |
 | `EditRow(open, summary)` | A line that opens in place (`<details>`) to edit, raised on the surface while open: `summary` is the line, children the edit form. Pass `open` when the form was rejected, so its errors show. |

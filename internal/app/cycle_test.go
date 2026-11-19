@@ -19,6 +19,8 @@ var thursday = apptest.Cycle{Delivery: "11/05/2026", From: "6pm", To: "8pm"}
 func plannerOf(t *testing.T, email string, opts ...apptest.Option) *apptest.Scenario {
 	s := profileOf(t, email, opts...)
 	s.SavesTargets(targets)
+	s.Open("/profile")
+	s.SavesAppliances([]string{"hob", "oven", "microwave"}, nil) // the Rice bowl needs a microwave
 	return s
 }
 

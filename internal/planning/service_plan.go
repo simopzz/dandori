@@ -132,7 +132,9 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		slots: slots, library: library, known: known, checks: s.checks,
 		unslotted: unslotted(held.Portions), held: held.Portions, zone: now.Location(),
 		targets: p.Targets, earlier: earlier,
-		passed: func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
+		owned: p.Appliances, stock: stockOf(held.Held), frozen: frozenOf(held.Portions), now: s.clock.Now,
+		arrives: c.Delivery.Arrives(),
+		passed:  func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
 		leave: func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string) {
 			runID := runs.IDFrom(ctx)
 			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error {
@@ -187,6 +189,26 @@ func unslotted(lots []domain.PortionLot) []domain.Portion {
 	return portions
 }
 
+// stockOf is what held holds of each Stock Item.
+func stockOf(held []kitchen.Held) map[domain.StockKey]domain.Quantity {
+	stock := map[domain.StockKey]domain.Quantity{}
+	for _, h := range held {
+		stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}] = h.Item.Held
+	}
+	return stock
+}
+
+// frozenOf are the Portions lots holds in the freezer, by id.
+func frozenOf(lots []domain.PortionLot) map[int64]bool {
+	frozen := map[int64]bool{}
+	for _, lot := range lots {
+		for _, id := range lot.IDs {
+			frozen[id] = lot.Location == domain.Freezer
+		}
+	}
+	return frozen
+}
+
 // plannerSystem is the planning Run's system prompt, the same for every User and Cycle,
 // so it is cached; %[1]d is how many Plans breaking a hard rule fail the Run.
 var plannerSystem = fmt.Sprintf(`You plan a Cycle of the user's meals: the stretch one supermarket Delivery has to last. You check drafts of its Plan, then submit one, which the user approves or rejects.
@@ -198,6 +220,9 @@ A Plan is Prep Sessions, each preparing food at one Slot (an eating occasion: br
 - A dinner Prep Session yields three Portions by default: one eaten then, one at lunch two days later, and a third two to three days after that, typically frozen. Other Prep Sessions yield what their planned eating needs, often one Portion eaten straight away.
 - A Portion is eaten at or after the Slot it is prepared at. One given no Slot is kept, and carries over past the Cycle.
 - Give each Portion a Storage Location (pantry, fridge or freezer) that fits what it is and how long it must keep.
+- Eat a Recipe's Portions only at the kinds of Slot it is for, and prepare only Recipes whose appliances the user owns.
+- Frozen food is thawed the evening before the Slot or Prep Session that needs it, after the previous day's dinner: use a frozen Portion, or stock in the freezer of an Ingredient not usually kept there, only where that evening is still to come, and eat a Portion you freeze on a later day than it is prepared. An Ingredient usually kept in the freezer (frozen peas) is used from frozen, with no thaw. A Prep Session uses the stock outside the freezer first, and what it still needs is thawed from the freezer.
+- When a fresh Ingredient the Delivery brings is used late in the Cycle, name a freezer split: how much of it goes in the freezer when the Delivery is put away (of 800 g chicken breast, 400 g).
 - Put the Portions without a Slot in Slots before scheduling new Prep Sessions, and use first the Stock Items that would spoil first, judged from the Ingredient and its Storage Location.
 - Prefer Recipes with few active minutes: the user spends little time cooking.
 - Follow the user's Planning Brief as far as these rules allow.
@@ -246,7 +271,7 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 		}
 		fmt.Fprintf(&b, "- Recipe %d: %s, %d Portions as written, each %s; %d active of %d total minutes; for %s; needs %s. Ingredients: %s.\n",
 			r.ID, r.Name, r.Portions, describeNutrition(n.Nutrition, n.FibreFloor, n.SugarFloor), r.ActiveMinutes, r.TotalMinutes,
-			strings.Join(codes(r.SlotKinds), ", "), listOrNone(codes(r.Appliances)), strings.Join(ings, ", "))
+			strings.Join(domain.Codes(r.SlotKinds), ", "), listOrNone(domain.Codes(r.Appliances)), strings.Join(ings, ", "))
 	}
 
 	b.WriteString("\nIngredients, which a Prep Session may set out as they are:\n")
@@ -391,15 +416,6 @@ func parenthesised(note string) string {
 	return "(" + note + ")"
 }
 
-// codes are kinds by their codes.
-func codes[K ~string](kinds []K) []string {
-	out := make([]string, len(kinds))
-	for i, k := range kinds {
-		out[i] = string(k)
-	}
-	return out
-}
-
 // planBrief is what one planning Run checks drafts against: the Slots it plans, the
 // Recipe Library and Ingredients their ids name, the Portions without a Slot, each and
 // in their Lots, how many check_plan calls it has, the zone its days are in, the Targets
@@ -415,6 +431,11 @@ type planBrief struct {
 	zone      *time.Location
 	targets   domain.Targets
 	earlier   []domain.Eaten
+	owned     domain.Appliances
+	stock     map[domain.StockKey]domain.Quantity // what the kitchen holds of each Stock Item
+	frozen    map[int64]bool                      // the Portions without a Slot in the freezer
+	now       func() time.Time
+	arrives   time.Time // when the Cycle's Delivery arrives
 	// passed is the violation of a Plan starting at a Slot already passed, or none.
 	passed func() []domain.Violation
 	leave  func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string)
@@ -552,7 +573,9 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 
 // violations are the hard rules plan breaks, a first Slot already passed among them.
 func (pb *planBrief) violations(plan domain.Plan) []domain.Violation {
-	return append(domain.HardRules(plan, pb.slots, pb.unslotted), pb.passed()...)
+	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), domain.RecipesUnfit(plan, pb.owned)...)
+	vs = append(vs, domain.NoEveningToThaw(plan, pb.frozen, pb.stock, pb.now(), pb.arrives)...)
+	return append(vs, pb.passed()...)
 }
 
 // listViolations is vs one a line, as the planner reads them.
@@ -608,6 +631,18 @@ var draftSchema = json.RawMessage(fmt.Sprintf(`{
         },
         "required": ["portion_id", "on", "kind"]
       }
+    },
+    "freezer_splits": {
+      "type": "array",
+      "description": "How much of an Ingredient the Delivery brings goes in the freezer when it is put away.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ingredient_id": {"type": "integer"},
+          "quantity": {"type": "number", "exclusiveMinimum": 0, "description": "In the Ingredient's unit."}
+        },
+        "required": ["ingredient_id", "quantity"]
+      }
     }
   },
   "required": ["prep_sessions"]
@@ -642,11 +677,15 @@ type draft struct {
 		On        string          `json:"on"`
 		Kind      domain.SlotKind `json:"kind"`
 	} `json:"kept"`
+	FreezerSplits []struct {
+		IngredientID int64   `json:"ingredient_id"`
+		Quantity     float64 `json:"quantity"`
+	} `json:"freezer_splits"`
 }
 
 // read is the draft Plan input, its ids resolved, or why it can't be read: an id that
 // names nothing, a Slot that isn't one, a Prep Session of both or neither a Recipe and an
-// Ingredient, and what domain.Plan.Unreadable finds.
+// Ingredient, a freezer split of nothing, and what domain.Plan.Unreadable finds.
 func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 	var d draft
 	if err := json.Unmarshal(input, &d); err != nil {
@@ -705,6 +744,17 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 	}
 	for i, k := range d.Kept {
 		plan.Kept = append(plan.Kept, domain.Kept{Portion: k.PortionID, At: slot(k.On, k.Kind, fmt.Sprintf("kept.%d", i))})
+	}
+	for i, fs := range d.FreezerSplits {
+		ing := ingredients[fs.IngredientID]
+		switch {
+		case ing == nil:
+			problems = append(problems, fmt.Sprintf("freezer_splits.%d: there is no Ingredient %d", i, fs.IngredientID))
+		case fs.Quantity <= 0:
+			problems = append(problems, fmt.Sprintf("freezer_splits.%d: give the quantity, above 0", i))
+		default:
+			plan.FreezerSplits = append(plan.FreezerSplits, domain.RecipeIngredient{Ingredient: *ing, Quantity: domain.QuantityOf(fs.Quantity)})
+		}
 	}
 	return plan, append(problems, plan.Unreadable()...)
 }
@@ -829,6 +879,11 @@ func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredi
 	for _, ps := range sp.sessions {
 		ps.Recipe, ps.Ingredient = recipes[ps.recipeID], ingredients[ps.ingredientID]
 		p.Plan.PrepSessions = append(p.Plan.PrepSessions, ps.PrepSession)
+	}
+	for _, fs := range sp.splits {
+		if ing := ingredients[fs.Ingredient.ID]; ing != nil {
+			p.Plan.FreezerSplits = append(p.Plan.FreezerSplits, domain.RecipeIngredient{Ingredient: *ing, Quantity: fs.Quantity})
+		}
 	}
 	for _, portion := range portions {
 		if slices.ContainsFunc(sp.kept, func(k domain.Kept) bool { return k.Portion == portion.ID }) {

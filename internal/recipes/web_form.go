@@ -69,8 +69,8 @@ func blankForm(known []domain.Ingredient) RecipeForm {
 func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) RecipeForm {
 	f := RecipeForm{
 		ID: rec.ID, Name: rec.Name, Portions: strconv.Itoa(rec.Portions), Active: strconv.Itoa(rec.ActiveMinutes),
-		Total: strconv.Itoa(rec.TotalMinutes), Appliances: codesOf(rec.Appliances), Steps: rec.Steps,
-		Slots: codesOf(rec.SlotKinds), Known: known, Errs: map[string]string{},
+		Total: strconv.Itoa(rec.TotalMinutes), Appliances: domain.Codes(rec.Appliances), Steps: rec.Steps,
+		Slots: domain.Codes(rec.SlotKinds), Known: known, Errs: map[string]string{},
 	}
 	for _, ri := range rec.Ingredients {
 		row := IngredientRow{

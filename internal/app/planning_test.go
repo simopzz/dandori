@@ -376,6 +376,8 @@ func TestUsersSeeOnlyTheirOwnPlanProposals(t *testing.T) {
 	s.DoesNotSee("Ada's Friday.")
 	s.Open("/profile")
 	s.SavesTargets(targets)
+	s.Open("/profile")
+	s.SavesAppliances([]string{"hob", "oven", "microwave"}, nil)
 	stockKitchen(s)
 	plansFriday(t, s, "Bea's Friday.")
 	s.Open("/plan")
