@@ -69,6 +69,12 @@ func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) 
 	return counted, err
 }
 
+// SavePortions saves how many Portions p says for the signed-in User, in q's transaction,
+// and is their ids: for the Kitchen page, which writes their Movements with them.
+func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]int64, error) {
+	return savePortions(ctx, q, p)
+}
+
 // BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it
 // has reached, it changes nothing.
 func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {

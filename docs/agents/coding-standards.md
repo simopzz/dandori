@@ -87,7 +87,9 @@ Rules code review checks against. Each says what it protects.
 - **A feature's file holds one tier, named by its prefix**: `web_`,
   `service` or `store`, as ADR-0006 states. `internal/web/tiers_test.go`
   enforces the prefixes, that only a `web_` file imports `internal/web` or
-  `internal/httpx`, and that only a `store` file calls the database.
+  `internal/httpx`, that only a `store` file calls the database, and that a
+  `store` file's exported functions are reads: a write another feature may
+  call lives in a `service` file, beside the rules it must hold.
   *Protects: SQL or a page link landing in the wrong tier shows in the file
   name and fails CI.*
 
