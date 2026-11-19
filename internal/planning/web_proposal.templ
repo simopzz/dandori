@@ -230,7 +230,7 @@ templ draftedRows(drafted []recipes.Drafted) {
 func newIngredients(ctx context.Context, rec domain.Recipe) string {
 	n := 0
 	for _, ri := range rec.Ingredients {
-		if ri.Ingredient.ID == 0 {
+		if ri.Ingredient.IsNew() {
 			n++
 		}
 	}
@@ -254,7 +254,7 @@ templ draftPage(now time.Time, rec domain.Recipe) {
 				}
 			</p>
 		}
-		@recipes.Planned(rec)
+		@recipes.DraftedRecipe(rec)
 	}
 }
 
@@ -537,7 +537,7 @@ func source(ctx context.Context, f filledSlot, on time.Time) string {
 		return web.T(ctx, msgInTheKitchen)
 	case f.from.Recipe == nil:
 		return web.T(ctx, web.InLocations[f.location])
-	case f.from.Recipe.ID == 0:
+	case f.from.Recipe.IsDraft():
 		return web.T(ctx, msgNewRecipeSource)
 	case f.from.At.On.Equal(on):
 		return web.T(ctx, msgCookedThatDay)
@@ -571,7 +571,7 @@ templ cookedRow(ps domain.PrepSession) {
 templ cookedLine(ps domain.PrepSession) {
 	<span class="row-title">
 		{ ps.Name() }
-		if ps.Recipe.ID == 0 {
+		if ps.Recipe.IsDraft() {
 			{ " " }
 			@web.Tag(false, "") {
 				{ web.T(ctx, msgNewRecipeSource) }

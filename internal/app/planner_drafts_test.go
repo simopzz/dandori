@@ -34,7 +34,11 @@ func misoSalmon() map[string]any {
 func draftedDinner(t *testing.T, req agent.Request, id int64) map[string]any {
 	t.Helper()
 	d := fridayDraft(t, req)
-	sessions := d["prep_sessions"].([]map[string]any)
+	sessions, ok := d["prep_sessions"].([]map[string]any)
+	if !ok { // not Fatalf: this runs in the Run's goroutine
+		t.Errorf("fridayDraft has no Prep Sessions to add the dinner to: %v", d)
+		return d
+	}
 	sessions[1]["portions"] = []map[string]any{
 		{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "lunch"},
 		{"location": "freezer"},
@@ -207,9 +211,26 @@ func TestApprovingIsRefusedWhenARecipeDraftClashes(t *testing.T) {
 
 	s.Open("/plan")
 	s.Submits("approve")
-	s.Sees("Since the planner drafted Miso salmon, the Recipe Library has gained a Recipe or an Ingredient it clashes with")
+	s.Sees("The new Recipe Miso salmon no longer fits your Recipe Library or Ingredients")
 	s.Open("/plan")
 	s.Sees("01 Plan Proposal")
 	s.Open("/ingredients")
 	s.DoesNotSee("salmon")
+}
+
+// Deleting a Recipe that only a rejected Plan Proposal prepares is refused too: the
+// rejected Plan Proposal keeps its Prep Sessions, and they keep their Recipe.
+func TestDeletingARecipeOnlyARejectedPlanProposalPreparesIsRefused(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Rice bowls for Friday.")
+	s.Open("/plan")
+	s.Submits("reject")
+	s.IsConfirmed("Plan Proposal rejected.")
+
+	s.Open("/recipes")
+	s.Follows("Rice bowl")
+	s.Follows("Edit")
+	s.Follows("Delete")
+	s.Submits("remove-step")
+	s.Sees("Rice bowl is in a Plan or a Plan Proposal, so it can't be deleted.")
 }

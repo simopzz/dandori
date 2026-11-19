@@ -126,7 +126,7 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 // transaction, and lists all of them on the Recipe id.
 func saveIngredients(ctx context.Context, tx pgx.Tx, l domain.Language, id int64, rec domain.Recipe) (err error) {
 	for i, ri := range rec.Ingredients {
-		if ri.Ingredient.ID != 0 {
+		if !ri.Ingredient.IsNew() {
 			continue
 		}
 		if rec.Ingredients[i].Ingredient.ID, err = ingredients.AddIn(ctx, tx, l, ri.Ingredient); err != nil {

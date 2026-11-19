@@ -1362,7 +1362,7 @@ func IngredientRowsWith(ingredients []domain.RecipeIngredient, meta func(domain.
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if ri.Ingredient.ID == 0 {
+					if ri.Ingredient.IsNew() {
 						var templ_7745c5c3_Var47 string
 						templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 						if templ_7745c5c3_Err != nil {

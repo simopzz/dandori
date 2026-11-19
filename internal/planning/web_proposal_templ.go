@@ -1124,7 +1124,7 @@ func draftedRows(drafted []recipes.Drafted) templ.Component {
 func newIngredients(ctx context.Context, rec domain.Recipe) string {
 	n := 0
 	for _, ri := range rec.Ingredients {
-		if ri.Ingredient.ID == 0 {
+		if ri.Ingredient.IsNew() {
 			n++
 		}
 	}
@@ -1225,7 +1225,7 @@ func draftPage(now time.Time, rec domain.Recipe) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = recipes.Planned(rec).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = recipes.DraftedRecipe(rec).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2050,7 +2050,7 @@ func source(ctx context.Context, f filledSlot, on time.Time) string {
 		return web.T(ctx, msgInTheKitchen)
 	case f.from.Recipe == nil:
 		return web.T(ctx, web.InLocations[f.location])
-	case f.from.Recipe.ID == 0:
+	case f.from.Recipe.IsDraft():
 		return web.T(ctx, msgNewRecipeSource)
 	case f.from.At.On.Equal(on):
 		return web.T(ctx, msgCookedThatDay)
@@ -2226,7 +2226,7 @@ func cookedLine(ps domain.PrepSession) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if ps.Recipe.ID == 0 {
+		if ps.Recipe.IsDraft() {
 			var templ_7745c5c3_Var95 string
 			templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 			if templ_7745c5c3_Err != nil {

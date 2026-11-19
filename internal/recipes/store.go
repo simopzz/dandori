@@ -249,28 +249,41 @@ func deleteDraft(ctx context.Context, q db.Querier, id int64) (name string, err 
 	return name, err
 }
 
-// storePlanned stores doc as a Recipe Draft of the Plan Proposal proposalID, and is
-// its id.
-func storePlanned(ctx context.Context, q db.Querier, proposalID int64, doc []byte) (id int64, err error) {
+// SaveDrafted stores d as a Recipe Draft of the Plan Proposal proposalID, in the caller's
+// transaction, and is its id.
+func SaveDrafted(ctx context.Context, q db.Querier, proposalID int64, d Drafted) (id int64, err error) {
 	err = q.QueryRow(ctx, `INSERT INTO recipe_draft (plan_proposal_id, document) VALUES ($1, $2) RETURNING id`,
-		proposalID, doc).Scan(&id)
+		proposalID, d.doc).Scan(&id)
 	return id, err
 }
 
-// loadPlanned are the Recipe Drafts of the Plan Proposal proposalID, in the
-// order drafted.
-func loadPlanned(ctx context.Context, q db.Querier, proposalID int64) ([]Drafted, error) {
+// LoadDrafted are the Recipe Drafts of the signed-in User's Plan Proposal proposalID, in
+// the order drafted, each Ingredient resolved by name to theirs, for them speaking l.
+func LoadDrafted(ctx context.Context, q db.Querier, l domain.Language, proposalID int64) ([]Drafted, error) {
 	rows, _ := q.Query(ctx, `SELECT id, document FROM recipe_draft WHERE plan_proposal_id = $1 ORDER BY id`, proposalID)
-	return pgx.CollectRows(rows, scanPlanned)
+	drafted, err := pgx.CollectRows(rows, scanDrafted)
+	if err != nil || len(drafted) == 0 {
+		return drafted, err
+	}
+	known, err := ingredients.LoadIngredients(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	for i := range drafted {
+		if drafted[i].Recipe, _, err = drafted[i].read(l, known); err != nil {
+			return nil, err
+		}
+	}
+	return drafted, nil
 }
 
-// deletePlanned deletes the Recipe Drafts of the Plan Proposal proposalID, and is them.
-func deletePlanned(ctx context.Context, q db.Querier, proposalID int64) ([]Drafted, error) {
+// deleteDrafted deletes the Recipe Drafts of the Plan Proposal proposalID, and is them.
+func deleteDrafted(ctx context.Context, q db.Querier, proposalID int64) ([]Drafted, error) {
 	rows, _ := q.Query(ctx, `DELETE FROM recipe_draft WHERE plan_proposal_id = $1 RETURNING id, document`, proposalID)
-	return pgx.CollectRows(rows, scanPlanned)
+	return pgx.CollectRows(rows, scanDrafted)
 }
 
-// scanPlanned reads a planner's Recipe Draft's id and document.
-func scanPlanned(row pgx.CollectableRow) (d Drafted, err error) {
+// scanDrafted reads a planner's Recipe Draft's id and document.
+func scanDrafted(row pgx.CollectableRow) (d Drafted, err error) {
 	return d, row.Scan(&d.ID, &d.doc)
 }

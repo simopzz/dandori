@@ -594,8 +594,12 @@ func (pb *planBrief) draft(l domain.Language, input json.RawMessage) (string, er
 	} else {
 		*pb.drafted[i] = d
 	}
-	return fmt.Sprintf("Drafted Recipe %d: %s. Prepare it in check_plan with recipe_id %d.", -(i + 1), d.Recipe.Name, -(i + 1)), nil
+	return fmt.Sprintf("Drafted Recipe %d: %s. Prepare it in check_plan with recipe_id %d.", draftID(i), d.Recipe.Name, draftID(i)), nil
 }
+
+// draftID is the id the planner prepares the Recipe Draft drafted at i by: negative, so
+// it is never a Recipe's.
+func draftID(i int) int64 { return -int64(i + 1) }
 
 // violations are the hard rules plan breaks, a first Slot already passed among them.
 func (pb *planBrief) violations(plan domain.Plan) []domain.Violation {
@@ -730,7 +734,7 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 		recipes[pb.library[i].ID] = &pb.library[i]
 	}
 	for i, drafted := range pb.drafted {
-		recipes[-int64(i+1)] = &drafted.Recipe
+		recipes[draftID(i)] = &drafted.Recipe
 	}
 	ingredients := map[int64]*domain.Ingredient{}
 	for i := range pb.known {

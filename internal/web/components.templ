@@ -303,7 +303,7 @@ templ IngredientRowsWith(ingredients []domain.RecipeIngredient, meta func(domain
 			@Row() {
 				<span class="row-title">
 					{ ri.Ingredient.Name }
-					if ri.Ingredient.ID == 0 {
+					if ri.Ingredient.IsNew() {
 						{ " " }
 						@Tag(false, "") {
 							{ T(ctx, msgNew) }

@@ -123,7 +123,7 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 		var recipe, draft, ingredient *int64
 		var size, quantity *float64
 		switch {
-		case ps.Recipe != nil && ps.Recipe.ID == 0: // a Recipe Draft's, which has no id until it is accepted
+		case ps.Recipe != nil && ps.Recipe.IsDraft():
 			if _, ok := saved[ps.Recipe]; !ok {
 				i := slices.IndexFunc(drafted, func(d *recipes.Drafted) bool { return &d.Recipe == ps.Recipe })
 				if i < 0 {

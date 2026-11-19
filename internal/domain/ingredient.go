@@ -47,6 +47,10 @@ type Ingredient struct {
 	Staple bool
 }
 
+// IsNew reports whether ing is not saved yet: a Recipe Draft proposes it, with
+// its values.
+func (ing Ingredient) IsNew() bool { return ing.ID == 0 }
+
 // Nutrition is an Ingredient's nutritional values: calories, and grams of the rest.
 // Fibre and sugar may be Unknown; the others an Ingredient always has.
 type Nutrition struct {

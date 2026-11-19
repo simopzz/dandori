@@ -187,7 +187,7 @@ var (
 	msgNewIngredients    = web.Message{En: "%d new Ingredients", It: "%d nuovi Ingredienti"}
 	msgBackToTheProposal = web.Message{En: "Back to the Plan Proposal", It: "Torna alla Proposta di Piano"}
 	msgClash             = web.Message{
-		En: "Since the planner drafted %s, the Recipe Library has gained a Recipe or an Ingredient it clashes with, so this Plan Proposal can't be approved. Reject it with a Planning Note to have it planned again.",
-		It: "Da quando il pianificatore ha scritto la bozza di %s, il Ricettario ha una Ricetta o un Ingrediente in conflitto, quindi questa Proposta di Piano non può essere approvata. Rifiutala con una Nota di pianificazione per ripianificarla.",
+		En: "The new Recipe %s no longer fits your Recipe Library or Ingredients, which have changed since it was drafted, so this Plan Proposal can't be approved. Reject it with a Planning Note to have it planned again.",
+		It: "La nuova Ricetta %s non è più compatibile con il tuo Ricettario o i tuoi Ingredienti, cambiati da quando è stata scritta, quindi questa Proposta di Piano non può essere approvata. Rifiutala con una Nota di pianificazione per ripianificarla.",
 	}
 )

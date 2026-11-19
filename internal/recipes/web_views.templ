@@ -137,9 +137,10 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 	}
 }
 
-// Planned is the planner's Recipe Draft rec, as its Plan Proposal shows it: its name over
-// its Ingredients, each new one marked New with its proposed values, then its steps.
-templ Planned(rec domain.Recipe) {
+// DraftedRecipe is the planner's Recipe Draft rec, as its Plan Proposal shows it: its
+// name over its Ingredients, each new one marked New with its proposed values, then
+// its steps.
+templ DraftedRecipe(rec domain.Recipe) {
 	@web.Section(1, web.Data(rec.Name)) {
 		@web.IngredientRowsWith(rec.Ingredients, newValues)
 	}
@@ -148,7 +149,7 @@ templ Planned(rec domain.Recipe) {
 
 // newValues are ing's proposed values if it is new, or nil.
 func newValues(ing domain.Ingredient) templ.Component {
-	if ing.ID != 0 {
+	if !ing.IsNew() {
 		return nil
 	}
 	return ingredients.Values(ing)

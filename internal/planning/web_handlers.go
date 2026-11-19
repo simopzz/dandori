@@ -193,7 +193,7 @@ func (h Handlers) showDraft(w http.ResponseWriter, r *http.Request, sheet bool) 
 		return
 	}
 	if sheet {
-		httpx.Render(w, r, h.Log, http.StatusOK, recipes.Planned(rec))
+		httpx.Render(w, r, h.Log, http.StatusOK, recipes.DraftedRecipe(rec))
 		return
 	}
 	httpx.Render(w, r, h.Log, http.StatusOK, draftPage(h.Clock.Now(), rec))
