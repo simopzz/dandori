@@ -52,6 +52,11 @@ func ReadDraft(l domain.Language, known []domain.Ingredient, library []domain.Re
 	if err := fixThese(problems); err != nil {
 		return Drafted{}, err
 	}
+	for i, ri := range rec.Ingredients {
+		if !ri.Ingredient.IsNew() {
+			p.Ingredients[i].New = nil // values proposed for a known Ingredient: dropped, so approving won't read them as a clash
+		}
+	}
 	doc, err := json.Marshal(p)
 	return Drafted{Recipe: rec, doc: doc}, err
 }
@@ -63,19 +68,10 @@ func (d Drafted) Document() []byte { return d.doc }
 // each Ingredient resolved by name to theirs, known.
 func ReadStored(l domain.Language, known []domain.Ingredient, id int64, doc []byte) (Drafted, error) {
 	d := Drafted{ID: id, doc: doc}
-	rec, _, err := d.read(l, known)
-	d.Recipe = rec
-	return d, err
-}
-
-// read is d's Recipe for a User speaking l, resolved against known, and its problems.
-func (d Drafted) read(l domain.Language, known []domain.Ingredient) (domain.Recipe, map[string]string, error) {
 	var p parsedRecipe
-	if err := json.Unmarshal(d.doc, &p); err != nil {
-		return domain.Recipe{}, nil, err
-	}
-	rec, problems := p.recipe(l, known)
-	return rec, problems, nil
+	err := json.Unmarshal(doc, &p)
+	d.Recipe, _ = p.recipe(l, known)
+	return d, err
 }
 
 // AcceptDrafted adds each of drafted, a Plan Proposal's Recipe Drafts for the signed-in
@@ -84,17 +80,30 @@ func (d Drafted) read(l domain.Language, known []domain.Ingredient) (domain.Reci
 // that no longer fits the Recipe Library is a *ClashError.
 func AcceptDrafted(ctx context.Context, q db.Querier, l domain.Language, drafted []Drafted) (accepted map[int64]int64, err error) {
 	accepted = map[int64]int64{}
+	added := map[string]bool{} // the Ingredients an earlier one added, by normalised name
 	for _, d := range drafted {
 		known, err := ingredients.LoadIngredients(ctx, q) // again: an earlier one may have added an Ingredient this one uses
 		if err != nil {
 			return nil, err
 		}
-		rec, problems, err := d.read(l, known)
-		if err != nil {
+		var p parsedRecipe
+		if err := json.Unmarshal(d.doc, &p); err != nil {
 			return nil, err
 		}
+		rec, problems := p.recipe(l, known)
 		if len(problems) > 0 {
 			return nil, &ClashError{Name: rec.Name}
+		}
+		for i, pi := range p.Ingredients {
+			name := domain.NormaliseIngredientName(l, pi.Name)
+			if pi.New != nil && !rec.Ingredients[i].Ingredient.IsNew() && !added[name] {
+				return nil, &ClashError{Name: rec.Name} // the User has added it since, with values of their own
+			}
+		}
+		for _, ri := range rec.Ingredients { // before addIn, which gives them their ids
+			if ri.Ingredient.IsNew() {
+				added[domain.NormaliseIngredientName(l, ri.Ingredient.Name)] = true
+			}
 		}
 		id, err := addIn(ctx, q, l, rec)
 		if _, taken := errors.AsType[*NameTakenError](err); taken {

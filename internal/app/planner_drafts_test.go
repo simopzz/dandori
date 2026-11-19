@@ -10,8 +10,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// misoSalmon is a Recipe as draft_recipe takes it: the known rice, and salmon and miso,
-// which are new.
+// misoSalmon is a Recipe as draft_recipe takes it: the known rice, for which the model
+// proposes values all the same, and salmon and miso, which are new.
 func misoSalmon() map[string]any {
 	return map[string]any{
 		"name": "Miso salmon", "portions": 2, "active_minutes": 15, "total_minutes": 25,
@@ -24,7 +24,9 @@ func misoSalmon() map[string]any {
 			{"name": "miso", "quantity": 30, "unit": "g", "new": map[string]any{
 				"kcal": 200, "protein_g": 12, "carbs_g": 26, "fat_g": 6, "fibre_g": nil, "sugar_g": nil,
 				"usual": "fridge", "staple": false}},
-			{"name": "rice", "quantity": 150, "unit": "g"},
+			{"name": "rice", "quantity": 150, "unit": "g", "new": map[string]any{
+				"kcal": 130, "protein_g": 3, "carbs_g": 28, "fat_g": 0, "fibre_g": 0, "sugar_g": 0,
+				"usual": "pantry", "staple": false}},
 		},
 	}
 }
@@ -233,4 +235,89 @@ func TestDeletingARecipeOnlyARejectedPlanProposalPreparesIsRefused(t *testing.T)
 	s.Follows("Delete")
 	s.Submits("remove-step")
 	s.Sees("Rice bowl is in a Plan or a Plan Proposal, so it can't be deleted.")
+}
+
+// A Recipe Draft's new Ingredient the User has added since, with values of their own,
+// refuses approving too: the Recipe Draft could no longer be accepted as drafted.
+func TestApprovingIsRefusedWhenARecipeDraftsNewIngredientIsAddedSince(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansMisoSalmon(t, s)
+	s.AddsIngredient(apptest.Ingredient{Name: "Miso", Unit: "g", Usual: "fridge", Kcal: "190", Protein: "11", Carbs: "25", Fat: "6"})
+
+	s.Open("/plan")
+	s.Submits("approve")
+	s.Sees("The new Recipe Miso salmon no longer fits your Recipe Library or Ingredients")
+	s.Open("/recipes")
+	s.DoesNotSee("Miso salmon")
+}
+
+// Two Recipe Drafts proposing the same new Ingredient are both accepted: the first adds
+// it, the second uses it.
+func TestApprovingAcceptsRecipeDraftsSharingANewIngredient(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	soup := misoSalmon()
+	soup["name"] = "Miso soup"
+	s.Model.Script(
+		fakellm.CallTool("draft_recipe", misoSalmon()),
+		fakellm.CallTool("draft_recipe", soup),
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			d := draftedDinner(t, req, -1)
+			sessions, _ := d["prep_sessions"].([]map[string]any)
+			d["prep_sessions"] = append(sessions, map[string]any{
+				"on": "2026-11-06", "kind": "dinner", "recipe_id": -2, "size": 1, "portions": []map[string]any{{"location": "freezer"}},
+			})
+			return fakellm.CallTool("check_plan", d)
+		}),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Miso salmon for Friday's dinner, and a miso soup for the freezer."),
+	)
+	s.OpensCycle(friday)
+	s.PlansCycle()
+	s.Sees("Planning a Cycle Succeeded")
+
+	s.Open("/plan")
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
+	s.Open("/recipes")
+	s.Sees("Miso salmon")
+	s.Sees("Miso soup")
+}
+
+// A Recipe Draft's Portion eaten on a later day says where it is kept, as any Recipe's:
+// only the Slot it is cooked for says it is a new Recipe.
+func TestARecipeDraftsPortionEatenLaterSaysWhereItIsKept(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.Model.Script(
+		fakellm.CallTool("draft_recipe", misoSalmon()),
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			d := draftedDinner(t, req, -1)
+			sessions, _ := d["prep_sessions"].([]map[string]any)
+			sessions[1]["portions"] = []map[string]any{ // the Rice bowl's third Portion: Saturday's lunch, not the freezer
+				{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "lunch"},
+				{"location": "fridge", "eat_on": "2026-11-07", "eat_kind": "lunch"},
+			}
+			sessions[2]["portions"] = []map[string]any{
+				{"location": "fridge", "eat_on": "2026-11-06", "eat_kind": "dinner"},
+				{"location": "fridge", "eat_on": "2026-11-07", "eat_kind": "dinner"},
+			}
+			d["prep_sessions"] = append(sessions, map[string]any{
+				"on": "2026-11-07", "kind": "breakfast", "ingredient_id": idIn(t, req, `Ingredient (\d+): yogurt`), "quantity": 150,
+				"portions": []map[string]any{{"location": "fridge", "eat_on": "2026-11-07", "eat_kind": "breakfast"}},
+			})
+			kept, _ := d["kept"].([]map[string]any)
+			d["kept"] = append(kept, map[string]any{"portion_id": idIn(t, req, `Portion (\d+): lasagne`) + 1, "on": "2026-11-07", "kind": "snack"})
+			return fakellm.CallTool("check_plan", d)
+		}),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Miso salmon for Friday's and Saturday's dinners."),
+	)
+	twoDays := friday
+	twoDays.Ends = "11/07/2026"
+	s.OpensCycle(twoDays)
+	s.PlansCycle()
+	s.Sees("Planning a Cycle Succeeded")
+
+	s.Open("/plan")
+	s.Sees("Miso salmon 1× · 593 kcal · 37 g protein Dinner new Recipe")
+	s.Sees("Miso salmon 1× · 593 kcal · 37 g protein Dinner from Fri, Nov 6, in the fridge")
 }
