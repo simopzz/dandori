@@ -98,10 +98,24 @@ func TestFrozenFoodNeedsAnEveningLeftToThaw(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vs := domain.NoEveningToThaw(tt.plan, frozen, tt.stock, at(3, tt.now))
+			vs := domain.NoEveningToThaw(tt.plan, frozen, tt.stock, at(3, tt.now), at(1, "07:00"))
 			if len(vs) != tt.want || slices.ContainsFunc(vs, func(v domain.Violation) bool { return v.Rule != domain.RuleNoEveningToThaw }) {
 				t.Errorf("NoEveningToThaw() = %v, want %d of %s", vs, tt.want, domain.RuleNoEveningToThaw)
 			}
 		})
+	}
+}
+
+// Before its Delivery arrives, a Prep Session with no evening left to thaw freezer stock
+// takes the Ingredient fresh from the Delivery; a frozen Portion still needs the evening.
+func TestBeforeItArrivesTheDeliveryBringsFreshWhatThereIsNoEveningToThaw(t *testing.T) {
+	now, arrives := at(3, "08:00"), at(3, "18:00")
+	cooks := domain.Plan{PrepSessions: []domain.PrepSession{setsOut(3, breast, 300)}}
+	if vs := domain.NoEveningToThaw(cooks, nil, stock(0, 400, 0), now, arrives); len(vs) != 0 {
+		t.Errorf("freezer stock today, the Delivery to come: NoEveningToThaw() = %v, want none", vs)
+	}
+	thaws := domain.Plan{Kept: []domain.Kept{{Portion: 9, At: slot(3, domain.Dinner)}}}
+	if vs := domain.NoEveningToThaw(thaws, map[int64]bool{9: true}, nil, now, arrives); len(vs) != 1 {
+		t.Errorf("a frozen Portion today, the Delivery to come: NoEveningToThaw() = %v, want 1", vs)
 	}
 }

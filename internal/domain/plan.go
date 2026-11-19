@@ -160,26 +160,26 @@ func RecipesUnfit(p Plan, owned Appliances) []Violation {
 		for _, pp := range ps.Portions {
 			if pp.EatAt != nil && !slices.Contains(ps.Recipe.SlotKinds, pp.EatAt.Kind) {
 				vs = append(vs, Violation{Rule: RuleWrongKindOfSlot, Message: fmt.Sprintf("%s is eaten at %s, a kind of Slot it isn't for: %s",
-					ps.Name(), *pp.EatAt, joinCodes(ps.Recipe.SlotKinds))})
+					ps.Name(), *pp.EatAt, strings.Join(Codes(ps.Recipe.SlotKinds), ", "))})
 			}
 		}
 		for _, k := range ps.Recipe.Appliances {
 			if _, ok := owned[k]; !ok {
-				vs = append(vs, Violation{Rule: RuleApplianceNotOwned, Message: fmt.Sprintf("%s at %s needs a %s, which the user doesn't own",
-					ps.Name(), ps.At, strings.ReplaceAll(string(k), "_", " "))})
+				vs = append(vs, Violation{Rule: RuleApplianceNotOwned, Message: fmt.Sprintf("%s at %s needs the appliance %s, which the user doesn't own",
+					ps.Name(), ps.At, k)})
 			}
 		}
 	}
 	return vs
 }
 
-// joinCodes is kinds by their codes, joined by commas.
-func joinCodes(kinds []SlotKind) string {
-	codes := make([]string, len(kinds))
+// Codes are kinds by their codes, as the database stores them and the planner reads them.
+func Codes[K ~string](kinds []K) []string {
+	out := make([]string, len(kinds))
 	for i, k := range kinds {
-		codes[i] = string(k)
+		out[i] = string(k)
 	}
-	return strings.Join(codes, ", ")
+	return out
 }
 
 // The hard rules a Plan breaks by when it is: starting at a Slot already passed, and

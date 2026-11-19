@@ -36,15 +36,6 @@ func RecipesUsing(ctx context.Context, q db.Querier, id int64) (first string, ot
 	return first, others, err
 }
 
-// codesOf is kinds by their codes, as the database stores them.
-func codesOf[K ~string](kinds []K) []string {
-	out := make([]string, len(kinds))
-	for i, k := range kinds {
-		out[i] = string(k)
-	}
-	return out
-}
-
 // kindsIn is the kinds of all whose codes are in codes, in all's order, each once.
 func kindsIn[K ~string](all []K, codes []string) []K {
 	var in []K
@@ -64,7 +55,7 @@ func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id, normalised_name) DO NOTHING
 		RETURNING id`,
-		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.SlotKinds), codesOf(rec.Appliances), rec.Steps).Scan(&id)
+		rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, domain.Codes(rec.SlotKinds), domain.Codes(rec.Appliances), rec.Steps).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -78,7 +69,7 @@ func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe
 		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
 			slot_kinds = $7, appliances = $8, steps = $9
 		WHERE id = $1`,
-		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, codesOf(rec.SlotKinds), codesOf(rec.Appliances), rec.Steps)
+		id, rec.Name, normalised, rec.Portions, rec.ActiveMinutes, rec.TotalMinutes, domain.Codes(rec.SlotKinds), domain.Codes(rec.Appliances), rec.Steps)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrNoRecipe
 	}

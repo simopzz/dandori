@@ -69,8 +69,9 @@ func take(stock map[StockKey]Quantity, key StockKey, need Quantity) Quantity {
 // NoEveningToThaw are the violations of p's frozen food with no evening left to thaw it
 // at now, the evening before a Slot passing at midnight of its day: a Portion without a
 // Slot in the freezer, as frozen says by id, put in a Slot; what p's Prep Sessions thaw
-// of stock; and a Portion p puts in the freezer eaten the day it is prepared.
-func NoEveningToThaw(p Plan, frozen map[int64]bool, stock map[StockKey]Quantity, now time.Time) []Violation {
+// of stock, unless the Delivery arriving at arrives is still to come and brings it fresh;
+// and a Portion p puts in the freezer eaten the day it is prepared.
+func NoEveningToThaw(p Plan, frozen map[int64]bool, stock map[StockKey]Quantity, now, arrives time.Time) []Violation {
 	var vs []Violation
 	add := func(format string, args ...any) {
 		vs = append(vs, Violation{Rule: RuleNoEveningToThaw, Message: fmt.Sprintf(format, args...)})
@@ -82,7 +83,7 @@ func NoEveningToThaw(p Plan, frozen map[int64]bool, stock map[StockKey]Quantity,
 		}
 	}
 	for _, t := range p.Thaws(stock) {
-		if passed(t.At) {
+		if passed(t.At) && !now.Before(arrives) {
 			add("%s needs %g %s %s thawed from the freezer, and the evening before to thaw it has passed", t.At, t.Quantity.Number(), t.Ingredient.Unit, t.Ingredient.Name)
 		}
 	}

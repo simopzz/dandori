@@ -133,7 +133,8 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		unslotted: unslotted(held.Portions), held: held.Portions, zone: now.Location(),
 		targets: p.Targets, earlier: earlier,
 		owned: p.Appliances, stock: stockOf(held.Held), frozen: frozenOf(held.Portions), now: s.clock.Now,
-		passed: func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
+		arrives: c.Delivery.Arrives(),
+		passed:  func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
 		leave: func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string) {
 			runID := runs.IDFrom(ctx)
 			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error {
@@ -270,7 +271,7 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 		}
 		fmt.Fprintf(&b, "- Recipe %d: %s, %d Portions as written, each %s; %d active of %d total minutes; for %s; needs %s. Ingredients: %s.\n",
 			r.ID, r.Name, r.Portions, describeNutrition(n.Nutrition, n.FibreFloor, n.SugarFloor), r.ActiveMinutes, r.TotalMinutes,
-			strings.Join(codes(r.SlotKinds), ", "), listOrNone(codes(r.Appliances)), strings.Join(ings, ", "))
+			strings.Join(domain.Codes(r.SlotKinds), ", "), listOrNone(domain.Codes(r.Appliances)), strings.Join(ings, ", "))
 	}
 
 	b.WriteString("\nIngredients, which a Prep Session may set out as they are:\n")
@@ -415,15 +416,6 @@ func parenthesised(note string) string {
 	return "(" + note + ")"
 }
 
-// codes are kinds by their codes.
-func codes[K ~string](kinds []K) []string {
-	out := make([]string, len(kinds))
-	for i, k := range kinds {
-		out[i] = string(k)
-	}
-	return out
-}
-
 // planBrief is what one planning Run checks drafts against: the Slots it plans, the
 // Recipe Library and Ingredients their ids name, the Portions without a Slot, each and
 // in their Lots, how many check_plan calls it has, the zone its days are in, the Targets
@@ -443,6 +435,7 @@ type planBrief struct {
 	stock     map[domain.StockKey]domain.Quantity // what the kitchen holds of each Stock Item
 	frozen    map[int64]bool                      // the Portions without a Slot in the freezer
 	now       func() time.Time
+	arrives   time.Time // when the Cycle's Delivery arrives
 	// passed is the violation of a Plan starting at a Slot already passed, or none.
 	passed func() []domain.Violation
 	leave  func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string)
@@ -581,7 +574,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 // violations are the hard rules plan breaks, a first Slot already passed among them.
 func (pb *planBrief) violations(plan domain.Plan) []domain.Violation {
 	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), domain.RecipesUnfit(plan, pb.owned)...)
-	vs = append(vs, domain.NoEveningToThaw(plan, pb.frozen, pb.stock, pb.now())...)
+	vs = append(vs, domain.NoEveningToThaw(plan, pb.frozen, pb.stock, pb.now(), pb.arrives)...)
 	return append(vs, pb.passed()...)
 }
 

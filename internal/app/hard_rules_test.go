@@ -63,7 +63,7 @@ func TestCheckPlanReportsKindsOfSlotAppliancesAndThawAndSubmitPlanRefusesThem(t 
 
 	s.Sees("Draft 1 breaks these hard rules:")
 	s.Sees("wrong-kind-of-slot: Rice bowl is eaten at breakfast on Mon 2 Nov, a kind of Slot it isn't for: lunch, dinner")
-	s.Sees("appliance-not-owned: Rice bowl at breakfast on Mon 2 Nov needs a microwave, which the user doesn't own")
+	s.Sees("appliance-not-owned: Rice bowl at breakfast on Mon 2 Nov needs the appliance microwave, which the user doesn't own")
 	s.Sees("no-evening-to-thaw: Portion 1 is frozen, and the evening before dinner on Mon 2 Nov to thaw it has passed")
 	s.Sees("draft 1 breaks these hard rules (submit 1 of 3): - wrong-kind-of-slot")
 	s.Sees("The model ended without a Plan Proposal. I give up.")
