@@ -129,7 +129,7 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 				if i < 0 {
 					return errors.New("a Prep Session prepares a Recipe neither in the Recipe Library nor drafted")
 				}
-				if saved[ps.Recipe], err = recipes.SaveDrafted(ctx, q, id, *drafted[i]); err != nil {
+				if saved[ps.Recipe], err = saveDraft(ctx, q, id, drafted[i].Document()); err != nil {
 					return err
 				}
 			}
@@ -144,7 +144,7 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 		on, kind := day(&ps.At)
 		var sessionID int64
 		err := q.QueryRow(ctx, `
-			INSERT INTO prep_session (plan_proposal_id, prepared_on, prepared_kind, recipe_id, recipe_draft_id, size, ingredient_id, quantity)
+			INSERT INTO prep_session (plan_proposal_id, prepared_on, prepared_kind, recipe_id, draft_id, size, ingredient_id, quantity)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
 			id, on, kind, recipe, draft, size, ingredient, quantity).Scan(&sessionID)
 		if err != nil {
@@ -257,7 +257,7 @@ func loadApproved(ctx context.Context, q db.Querier, from time.Time, zone *time.
 func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.Location) error {
 	in := func(t time.Time) time.Time { return inZone(t, zone) }
 	rows, err := q.Query(ctx, `
-		SELECT s.id, s.prepared_on, s.prepared_kind, coalesce(s.recipe_id, 0), coalesce(s.recipe_draft_id, 0), coalesce(s.size, 0)::float8,
+		SELECT s.id, s.prepared_on, s.prepared_kind, coalesce(s.recipe_id, 0), coalesce(s.draft_id, 0), coalesce(s.size, 0)::float8,
 			coalesce(s.ingredient_id, 0), coalesce(s.quantity, 0)::float8, p.location, p.eat_on, coalesce(p.eat_kind, '')
 		FROM prep_session s JOIN planned_portion p ON p.prep_session_id = s.id
 		WHERE s.plan_proposal_id = $1 ORDER BY s.id, p.position`, sp.id)
@@ -343,7 +343,7 @@ func Prepares(ctx context.Context, q db.Querier, id int64) (prepared bool, err e
 // prepareAccepted has the Prep Sessions of the Recipe Draft draftID prepare the Recipe
 // recipeID it was accepted as.
 func prepareAccepted(ctx context.Context, q db.Querier, draftID, recipeID int64) error {
-	_, err := q.Exec(ctx, `UPDATE prep_session SET recipe_id = $2, recipe_draft_id = NULL WHERE recipe_draft_id = $1`, draftID, recipeID)
+	_, err := q.Exec(ctx, `UPDATE prep_session SET recipe_id = $2, draft_id = NULL WHERE draft_id = $1`, draftID, recipeID)
 	return err
 }
 
@@ -354,6 +354,41 @@ func pendingID(ctx context.Context, q db.Querier) (id int64, err error) {
 		return 0, ErrNoProposal
 	}
 	return id, err
+}
+
+// storedDraft is a planner's Recipe Draft as stored with its Plan Proposal: its id, and
+// the Recipe it drafts as draft_recipe took it.
+type storedDraft struct {
+	id  int64
+	doc []byte
+}
+
+// saveDraft stores doc as a Recipe Draft of the Plan Proposal proposalID, and is its id.
+func saveDraft(ctx context.Context, q db.Querier, proposalID int64, doc []byte) (id int64, err error) {
+	err = q.QueryRow(ctx, `INSERT INTO proposal_recipe_draft (plan_proposal_id, document) VALUES ($1, $2) RETURNING id`,
+		proposalID, doc).Scan(&id)
+	return id, err
+}
+
+// loadDrafts are the Recipe Drafts of the signed-in User's Plan Proposal proposalID, in
+// the order drafted.
+func loadDrafts(ctx context.Context, q db.Querier, proposalID int64) ([]storedDraft, error) {
+	rows, _ := q.Query(ctx, `SELECT id, document FROM proposal_recipe_draft WHERE plan_proposal_id = $1 ORDER BY id`, proposalID)
+	return pgx.CollectRows(rows, scanDraft)
+}
+
+// deleteDrafts deletes the Recipe Drafts of the Plan Proposal proposalID, and is them, in
+// the order drafted.
+func deleteDrafts(ctx context.Context, q db.Querier, proposalID int64) ([]storedDraft, error) {
+	rows, _ := q.Query(ctx, `
+		WITH deleted AS (DELETE FROM proposal_recipe_draft WHERE plan_proposal_id = $1 RETURNING id, document)
+		SELECT id, document FROM deleted ORDER BY id`, proposalID)
+	return pgx.CollectRows(rows, scanDraft)
+}
+
+// scanDraft reads a Recipe Draft's id and document.
+func scanDraft(row pgx.CollectableRow) (d storedDraft, err error) {
+	return d, row.Scan(&d.id, &d.doc)
 }
 
 // inZone is the day d in zone, at midnight.

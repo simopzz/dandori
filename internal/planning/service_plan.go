@@ -825,7 +825,7 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 	var earlier []*storedProposal
 	var last lastRun
 	var portions []domain.Portion
-	var drafted []recipes.Drafted
+	var stored []storedDraft
 	l, _, err := s.profile.Language(ctx)
 	if err != nil {
 		return p, err
@@ -850,7 +850,7 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 			if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
 				return err
 			}
-			if drafted, err = recipes.LoadDrafted(ctx, tx, l, pending.id); err != nil {
+			if stored, err = loadDrafts(ctx, tx, pending.id); err != nil {
 				return err
 			}
 		}
@@ -879,6 +879,10 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		return p, err
 	}
 	if pending != nil {
+		drafted, err := readDrafts(l, known, stored)
+		if err != nil {
+			return p, err
+		}
 		proposal := pending.resolve(library, known, portions, drafted)
 		planned := proposal.Plan.Eaten(portions)
 		proposal.Trailing, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, lastDay(planned, pending.first.On))
@@ -900,24 +904,41 @@ func (s *Service) Drafted(ctx context.Context, id int64) (domain.Recipe, error) 
 	if err != nil {
 		return domain.Recipe{}, err
 	}
-	var drafted []recipes.Drafted
+	var stored []storedDraft
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		proposalID, err := pendingID(ctx, tx)
 		if err != nil {
 			return err
 		}
-		drafted, err = recipes.LoadDrafted(ctx, tx, l, proposalID)
+		stored, err = loadDrafts(ctx, tx, proposalID)
 		return err
 	})
 	if err != nil {
 		return domain.Recipe{}, err
 	}
-	for _, d := range drafted {
-		if d.ID == id {
-			return d.Recipe, nil
+	i := slices.IndexFunc(stored, func(d storedDraft) bool { return d.id == id })
+	if i < 0 {
+		return domain.Recipe{}, ErrNoProposal
+	}
+	known, err := s.ingredients.List(ctx)
+	if err != nil {
+		return domain.Recipe{}, err
+	}
+	d, err := recipes.ReadStored(l, known, id, stored[i].doc)
+	return d.Recipe, err
+}
+
+// readDrafts are the Recipe Drafts stored, read for a User speaking l against their
+// Ingredients, known.
+func readDrafts(l domain.Language, known []domain.Ingredient, stored []storedDraft) ([]recipes.Drafted, error) {
+	drafted := make([]recipes.Drafted, len(stored))
+	for i, d := range stored {
+		var err error
+		if drafted[i], err = recipes.ReadStored(l, known, d.id, d.doc); err != nil {
+			return nil, err
 		}
 	}
-	return domain.Recipe{}, ErrNoProposal
+	return drafted, nil
 }
 
 // lastDay is the last day planned puts a Portion in a Slot on, first when none is later.

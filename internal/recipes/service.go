@@ -64,20 +64,20 @@ func (s *Service) Add(ctx context.Context, l domain.Language, rec domain.Recipe)
 }
 
 // addIn is Add in the caller's transaction.
-func addIn(ctx context.Context, tx pgx.Tx, l domain.Language, rec domain.Recipe) (int64, error) {
+func addIn(ctx context.Context, q db.Querier, l domain.Language, rec domain.Recipe) (int64, error) {
 	normalised := domain.NormaliseRecipeName(rec.Name)
-	id, added, err := saveRecipe(ctx, tx, rec, normalised)
+	id, added, err := saveRecipe(ctx, q, rec, normalised)
 	if err != nil {
 		return 0, err
 	}
 	if !added {
-		taken, existing, err := loadTaken(ctx, tx, normalised, 0)
+		taken, existing, err := loadTaken(ctx, q, normalised, 0)
 		if err != nil {
 			return 0, err
 		}
 		return 0, &NameTakenError{ID: taken, Existing: existing}
 	}
-	return id, saveIngredients(ctx, tx, l, id, rec)
+	return id, saveIngredients(ctx, q, l, id, rec)
 }
 
 // Edit sets the signed-in User's Recipe id, whose Language is l, to rec, which has no
@@ -124,16 +124,16 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 
 // saveIngredients adds rec's new Ingredients for a User speaking l, in the caller's
 // transaction, and lists all of them on the Recipe id.
-func saveIngredients(ctx context.Context, tx pgx.Tx, l domain.Language, id int64, rec domain.Recipe) (err error) {
+func saveIngredients(ctx context.Context, q db.Querier, l domain.Language, id int64, rec domain.Recipe) (err error) {
 	for i, ri := range rec.Ingredients {
 		if !ri.Ingredient.IsNew() {
 			continue
 		}
-		if rec.Ingredients[i].Ingredient.ID, err = ingredients.AddIn(ctx, tx, l, ri.Ingredient); err != nil {
+		if rec.Ingredients[i].Ingredient.ID, err = ingredients.AddIn(ctx, q, l, ri.Ingredient); err != nil {
 			return err
 		}
 	}
-	return saveRecipeIngredients(ctx, tx, id, rec)
+	return saveRecipeIngredients(ctx, q, id, rec)
 }
 
 // Search is the signed-in User's Recipes whose names a search for query finds, most alike

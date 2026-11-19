@@ -6,15 +6,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
 )
 
-// The planner's Recipe Drafts: drafted in a planning Run, stored with the Plan Proposal
-// that prepares them, accepted into the Recipe Library when it is approved, and never
-// listed with the User's own Recipe Drafts.
+// The planner's Recipe Drafts: drafted in a planning Run and stored by planning with the
+// Plan Proposal that prepares them, accepted into the Recipe Library when it is approved,
+// and never listed with the User's own Recipe Drafts.
 
 // Drafted is a planner's Recipe Draft: its id once stored with its Plan Proposal, and the
 // Recipe it drafts, its new Ingredients without an id.
@@ -57,6 +56,18 @@ func ReadDraft(l domain.Language, known []domain.Ingredient, library []domain.Re
 	return Drafted{Recipe: rec, doc: doc}, err
 }
 
+// Document is d as stored, for ReadStored to read back.
+func (d Drafted) Document() []byte { return d.doc }
+
+// ReadStored is the Recipe Draft id stored as doc, its Recipe read for a User speaking l,
+// each Ingredient resolved by name to theirs, known.
+func ReadStored(l domain.Language, known []domain.Ingredient, id int64, doc []byte) (Drafted, error) {
+	d := Drafted{ID: id, doc: doc}
+	rec, _, err := d.read(l, known)
+	d.Recipe = rec
+	return d, err
+}
+
 // read is d's Recipe for a User speaking l, resolved against known, and its problems.
 func (d Drafted) read(l domain.Language, known []domain.Ingredient) (domain.Recipe, map[string]string, error) {
 	var p parsedRecipe
@@ -67,18 +78,14 @@ func (d Drafted) read(l domain.Language, known []domain.Ingredient) (domain.Reci
 	return rec, problems, nil
 }
 
-// AcceptDrafted adds each Recipe Draft of the signed-in User's Plan Proposal proposalID,
-// who speaks l, to their Recipe Library as drafted, with its new Ingredients, and deletes
-// it, in tx; accepted maps each Recipe Draft's id to its Recipe's. One that no longer
-// fits the Recipe Library is a *ClashError.
-func AcceptDrafted(ctx context.Context, tx pgx.Tx, l domain.Language, proposalID int64) (accepted map[int64]int64, err error) {
-	drafted, err := deleteDrafted(ctx, tx, proposalID)
-	if err != nil {
-		return nil, err
-	}
+// AcceptDrafted adds each of drafted, a Plan Proposal's Recipe Drafts for the signed-in
+// User, who speaks l, to their Recipe Library as drafted, with its new Ingredients, in
+// the caller's transaction; accepted maps each Recipe Draft's id to its Recipe's. One
+// that no longer fits the Recipe Library is a *ClashError.
+func AcceptDrafted(ctx context.Context, q db.Querier, l domain.Language, drafted []Drafted) (accepted map[int64]int64, err error) {
 	accepted = map[int64]int64{}
 	for _, d := range drafted {
-		known, err := ingredients.LoadIngredients(ctx, tx) // again: an earlier one may have added an Ingredient this one uses
+		known, err := ingredients.LoadIngredients(ctx, q) // again: an earlier one may have added an Ingredient this one uses
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +96,7 @@ func AcceptDrafted(ctx context.Context, tx pgx.Tx, l domain.Language, proposalID
 		if len(problems) > 0 {
 			return nil, &ClashError{Name: rec.Name}
 		}
-		id, err := addIn(ctx, tx, l, rec)
+		id, err := addIn(ctx, q, l, rec)
 		if _, taken := errors.AsType[*NameTakenError](err); taken {
 			return nil, &ClashError{Name: rec.Name}
 		}

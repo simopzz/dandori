@@ -10,6 +10,7 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
@@ -84,7 +85,19 @@ func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
 				return ErrStartsInThePast
 			}
 		}
-		accepted, err := recipes.AcceptDrafted(ctx, tx, p.Language, id)
+		stored, err := deleteDrafts(ctx, tx, id) // their Prep Sessions' deferred key waits for prepareAccepted
+		if err != nil {
+			return err
+		}
+		known, err := ingredients.LoadIngredients(ctx, tx)
+		if err != nil {
+			return err
+		}
+		drafted, err := readDrafts(p.Language, known, stored)
+		if err != nil {
+			return err
+		}
+		accepted, err := recipes.AcceptDrafted(ctx, tx, p.Language, drafted)
 		if err != nil {
 			return err
 		}
