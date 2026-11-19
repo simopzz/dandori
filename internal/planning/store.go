@@ -342,6 +342,15 @@ func Prepares(ctx context.Context, q db.Querier, id int64) (prepared bool, err e
 	return prepared, err
 }
 
+// UsesIngredient reports whether a Plan Proposal of the signed-in User's, whatever its
+// status, uses the Ingredient id, which its Prep Sessions and freezer splits keep. The
+// ingredients feature, which this one depends on, reads it, and app wires it.
+func UsesIngredient(ctx context.Context, q db.Querier, id int64) (used bool, err error) {
+	err = q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM prep_session WHERE ingredient_id = $1)
+		OR EXISTS (SELECT 1 FROM freezer_split WHERE ingredient_id = $1)`, id).Scan(&used)
+	return used, err
+}
+
 // prepareAccepted has the Prep Sessions of the Recipe Draft draftID prepare the Recipe
 // recipeID it was accepted as.
 func prepareAccepted(ctx context.Context, q db.Querier, draftID, recipeID int64) error {

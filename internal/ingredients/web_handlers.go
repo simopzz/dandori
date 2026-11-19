@@ -24,6 +24,7 @@ const (
 	refusedUnitInRecipe httpx.Refusal = "Ingredient's unit fixed by a Recipe"
 	refusedHasMovements httpx.Refusal = "Ingredient has Movements"
 	refusedInRecipe     httpx.Refusal = "Ingredient in a Recipe"
+	refusedInPlan       httpx.Refusal = "Ingredient in a Plan or a Plan Proposal"
 )
 
 // Handlers serve the Ingredients: as the side sheet's body, a fragment any page opens,
@@ -258,7 +259,8 @@ func (h Handlers) showDelete(w http.ResponseWriter, r *http.Request, sheet bool)
 }
 
 // Delete deletes the Ingredient id, answering as Edit does, and closes the sheet that
-// asked first. One Movements refer to is refused, its row open with why.
+// asked first. One Movements refer to, a Recipe lists or a Plan uses is refused, its row
+// open with why.
 func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -276,6 +278,12 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
 		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.Tf(ctx, msgDeleteInRecipe, recipesNamed(ctx, inRecipe))}, Q: q}
 		httpx.Refused(r, refusedInRecipe, nil)
+		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity, Trigger: web.CloseSheet}, view)
+		return
+	}
+	if errors.Is(err, ErrInPlan) {
+		view := sheetView{Edit: EditForm{ID: id, DeleteErr: web.T(ctx, msgDeleteInPlan)}, Q: q}
+		httpx.Refused(r, refusedInPlan, nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity, Trigger: web.CloseSheet}, view)
 		return
 	}

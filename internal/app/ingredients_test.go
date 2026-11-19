@@ -534,6 +534,38 @@ func TestDeletingAnIngredient(t *testing.T) {
 	s.Refuses(t, foreignKeyViolation, `DELETE FROM ingredient WHERE name = 'rice'`)
 }
 
+// An Ingredient a pending Plan Proposal sets out in a Prep Session is refused deletion,
+// saying a Plan uses it, not that Movements refer to it.
+func TestDeletingAnIngredientAPendingPlanProposalSetsOutIsRefused(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Rice bowls for Friday.")
+
+	s.Open("/ingredients")
+	s.DeletesIngredient("yogurt")
+	s.IsRefused()
+	s.Sees("It's in a Plan or a Plan Proposal, so it can't be deleted.")
+	s.DoesNotSee("It has Movements")
+	s.Open("/ingredients")
+	s.Sees("yogurt Fridge")
+}
+
+// An Ingredient only an approved Plan's freezer split uses is refused deletion too, and
+// the database refuses it as well.
+func TestDeletingAnIngredientAnApprovedPlansFreezerSplitUsesIsRefused(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFridayWithFreezerSplit(t, s)
+	s.Open("/plan")
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
+
+	s.Open("/ingredients")
+	s.DeletesIngredient("chicken breast")
+	s.IsRefused()
+	s.Sees("It's in a Plan or a Plan Proposal, so it can't be deleted.")
+
+	s.Refuses(t, foreignKeyViolation, `DELETE FROM ingredient WHERE name = 'chicken breast'`)
+}
+
 // Posted from the side sheet by htmx, editing and deleting answer with the sheet's body
 // alone, searched as it was: confirmed with the row closed, or refused with the row open
 // as typed and why.

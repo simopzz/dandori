@@ -65,6 +65,7 @@ var (
 	}
 	msgUnitInRecipe   = web.Message{En: "Used by %s, so its unit stays.", It: "In uso in %s, quindi l'unità resta."}
 	msgDeleteInRecipe = web.Message{En: "Used by %s, so it can't be deleted.", It: "In uso in %s, quindi non si può eliminare."}
+	msgDeleteInPlan   = web.Message{En: "It's in a Plan or a Plan Proposal, so it can't be deleted.", It: "È in un Piano o in una Proposta di Piano, quindi non si può eliminare."}
 	msgOneMoreRecipe  = web.Message{En: "%s and one more Recipe", It: "%s e un'altra Ricetta"}
 	msgMoreRecipes    = web.Message{En: "%s and %d more Recipes", It: "%s e altre %d Ricette"}
 	msgMovements      = web.Message{En: "Movements", It: "Movimenti"}

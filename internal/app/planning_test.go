@@ -156,6 +156,24 @@ func plansFriday(t *testing.T, s *apptest.Scenario, summary string) {
 	s.Sees("Planning a Cycle Succeeded")
 }
 
+// plansFridayWithFreezerSplit plans friday as plansFriday does, with chicken breast,
+// which it adds, split 400 g to the freezer.
+func plansFridayWithFreezerSplit(t *testing.T, s *apptest.Scenario) {
+	t.Helper()
+	s.AddsIngredient(chicken)
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			d := fridayDraft(t, req)
+			d["freezer_splits"] = []map[string]any{{"ingredient_id": idIn(t, req, `Ingredient (\d+): chicken breast`), "quantity": 400}}
+			return fakellm.CallTool("check_plan", d)
+		}),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Rice bowls, and chicken frozen for later."),
+	)
+	s.OpensCycle(friday)
+	s.PlansCycle()
+}
+
 // A Count made on the Kitchen Check is what the planner is told the kitchen holds.
 func TestACountOnTheKitchenCheckIsWhatThePlannerIsTold(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
