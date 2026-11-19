@@ -102,7 +102,7 @@ Rules code review checks against. Each says what it protects.
 ## Comments
 
 - **Go comments fill each line** up to the width `TestCommentsWrap` enforces,
-  in `internal/web`, with its lone-word rule: when a last line would hold one
+  in `scripts/wrap`, with its lone-word rule: when a last line would hold one
   word, break the earlier lines sooner or reword. *Protects: comments that
   read as prose, without lines that stop early.*
 

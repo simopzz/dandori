@@ -63,14 +63,15 @@ run = [
   'git diff --quiet -- "*_templ.go" || { echo "templ output changed: add the *_templ.go files"; git diff --stat -- "*_templ.go"; exit 1; }',
   "go vet ./...",
   "golangci-lint run ./...",
-  "go test -count=1 ./internal/web ./internal/clock ./internal/kitchen ./cmd/dandori",
+  "go test -count=1 ./internal/web ./internal/clock ./internal/kitchen ./cmd/dandori ./scripts/wrap",
 ]
 
 [tasks.devdb]
-description = "Start the local Postgres + pgvector dev server, which keeps its data between runs (docker needs sudo)"
+description = "Start the local Postgres + pgvector dev server, which keeps its data between runs (docker needs sudo unless it is up)"
 # pg_isready over TCP: while the image initialises its first database, its
-# temporary server listens only on the socket.
+# temporary server listens only on the socket. One already up needs no sudo.
 run = '''
+pg_isready -q -h 127.0.0.1 -p 5434 2>/dev/null && exit 0
 sudo docker start dandori-devdb >/dev/null 2>&1 || sudo docker run -d --name dandori-devdb \
   -v dandori-devdb:/var/lib/postgresql/data -e POSTGRES_PASSWORD=postgres \
   -p 127.0.0.1:5434:5432 pgvector/pgvector:pg17 >/dev/null
@@ -89,6 +90,14 @@ env = { DANDORI_DEMO_LLM = "{{ env.DANDORI_DEMO_LLM | default(value='true') }}",
 # devdb first, alone: as dependencies the two would run in parallel, and
 # generate's output would land on sudo's password prompt.
 run = [{ task = "devdb" }, { task = "generate" }, "go run ./cmd/dandori"]
+
+[tasks.wrap]
+description = "Rewrap the Go comments TestCommentsWrap fails, naming those that aren't plain prose"
+run = "go run ./scripts/wrap"
+
+[tasks.pr-image]
+description = "Publish images for a PR on the pr-images branch and print their <img> tags: mise run pr-image <pr> <image>..."
+run = "scripts/pr-image.sh"
 
 [tasks.lint]
 description = "Run golangci-lint (config in .golangci.yml)"
