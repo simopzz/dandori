@@ -80,7 +80,7 @@ func TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan(t *testing.T) {
 	s.PlansCycle()
 	s.Sees("Planning a Cycle Succeeded")
 	reqs := s.Model.Requests()
-	if p := reqs[len(reqs)-3].Messages[0].Content[0].Text; !strings.Contains(p, "- Fri 6 Nov: 1586 kcal, 65 g protein, at least 4 g fibre, at least 8 g sugar") ||
+	if p := firstTurn(reqs[len(reqs)-3]); !strings.Contains(p, "- Fri 6 Nov: 1586 kcal, 65 g protein, at least 4 g fibre, at least 8 g sugar") ||
 		!strings.Contains(p, "- Thu 5 Nov: no Plan") {
 		t.Errorf("the planner isn't told the seven days before:\n%s", p)
 	}

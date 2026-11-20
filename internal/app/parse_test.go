@@ -317,6 +317,9 @@ func TestTheParseSystemPromptVariesOnlyByLanguage(t *testing.T) {
 		t.Errorf("two Users' parse Runs had different system prompts:\n%s\n---\n%s", reqs[0].System, reqs[1].System)
 	}
 	for i, want := range [][]string{{"- rice (g)", pastedLasagne}, {"(none yet)", "Two eggs, boiled."}} {
+		if turn := reqs[i].Messages[0].Content; len(turn) != 1 || turn[0].Cached {
+			t.Errorf("parse Run %d's first turn = %+v, want the prompt alone, with no cached block", i+1, turn)
+		}
 		prompt := reqs[i].Messages[0].Content[0].Text
 		for _, w := range want {
 			if !strings.Contains(prompt, w) {

@@ -30,10 +30,14 @@ func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 		tools[t.Name] = t
 		specs = append(specs, ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
+	first := []Block{{Type: BlockText, Text: b.Prompt}}
+	if b.Cached != "" {
+		first = append([]Block{{Type: BlockText, Text: b.Cached, Cached: true}}, first...)
+	}
 	req := Request{
 		Model:    l.Model,
 		System:   b.System,
-		Messages: []Message{{Role: RoleUser, Content: []Block{{Type: BlockText, Text: b.Prompt}}}},
+		Messages: []Message{{Role: RoleUser, Content: first}},
 		Tools:    specs,
 		Effort:   b.Effort,
 	}

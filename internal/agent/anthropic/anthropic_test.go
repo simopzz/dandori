@@ -64,13 +64,50 @@ var parse = agent.Request{
 	Effort:   agent.EffortMedium,
 }
 
+// plan is a request whose first turn opens with a cached block, as a planning Run's does.
+var plan = func() agent.Request {
+	req := parse
+	req.Messages = []agent.Message{{Role: agent.RoleUser, Content: []agent.Block{
+		{Type: agent.BlockText, Text: "Profile and Recipe Library", Cached: true},
+		{Type: agent.BlockText, Text: "Plan the Cycle"},
+	}}}
+	return req
+}()
+
 func TestCacheBreakpointsAndAByteStableSystemPrompt(t *testing.T) {
+	sends(t, parse)
+}
+
+// A cached block gets the second explicit breakpoint, at its end, on every turn; what
+// follows it in the first turn gets none.
+func TestASecondBreakpointEndsTheCachedBlock(t *testing.T) {
+	for i, s := range sends(t, plan) {
+		messages, _ := s.body["messages"].([]any)
+		first, _ := messages[0].(map[string]any)["content"].([]any)
+		if len(first) != 2 {
+			t.Fatalf("turn %d: the first message's content = %v, want two blocks", i+1, first)
+		}
+		cached, prompt := first[0].(map[string]any), first[1].(map[string]any)
+		if cc, _ := cached["cache_control"].(map[string]any); cached["text"] != "Profile and Recipe Library" || cc["type"] != "ephemeral" {
+			t.Errorf("turn %d: the cached block = %v, want its text with an ephemeral cache_control", i+1, cached)
+		}
+		if _, ok := prompt["cache_control"]; ok || prompt["text"] != "Plan the Cycle" {
+			t.Errorf("turn %d: the prompt = %v, want its text with no cache_control", i+1, prompt)
+		}
+	}
+}
+
+// sends sends req, then req's next turn after the model's tool call, checking both
+// requests have the top-level breakpoint and the same system prompt with its own; it
+// returns what the fake API was sent.
+func sends(t *testing.T, req agent.Request) []sent {
+	t.Helper()
 	llm, got := api(t, 200, toolCall)
-	first, err := llm.Send(context.Background(), parse)
+	first, err := llm.Send(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second := parse
+	second := req
 	second.Messages = append(second.Messages,
 		agent.Message{Role: agent.RoleAssistant, Content: first.Content},
 		agent.Message{Role: agent.RoleUser, Content: []agent.Block{{Type: agent.BlockToolResult, ToolUseID: "tu_1", Text: "saved"}}})
@@ -100,6 +137,7 @@ func TestCacheBreakpointsAndAByteStableSystemPrompt(t *testing.T) {
 	if !strings.Contains(string((*got)[1].raw), `"signature":"sig"`) {
 		t.Errorf("the thinking block was not sent back: %s", (*got)[1].raw)
 	}
+	return *got
 }
 
 func TestFallbackAndEffort(t *testing.T) {
