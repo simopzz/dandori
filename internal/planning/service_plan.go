@@ -515,12 +515,17 @@ func (pb *planBrief) results(v domain.Verdict) string {
 			fmt.Fprintf(&b, "- %s\n", m.Describe(t))
 		}
 	}
-	if n := v.MadeForAfter; n > 0 {
+	if len(v.MadeForAfter) > 0 {
+		n, made := 0, make([]string, len(v.MadeForAfter))
+		for i, m := range v.MadeForAfter {
+			n += m.Portions
+			made[i] = fmt.Sprintf("%s: %d, in the %s", m.Name, m.Portions, m.Location)
+		}
 		portions := "Portions"
 		if n == 1 {
 			portions = "Portion"
 		}
-		fmt.Fprintf(&b, "\nInformation, nothing to fix: %d %s made for after the Cycle: %s", n, portions, strings.Join(v.AfterNames, ", "))
+		fmt.Fprintf(&b, "\nInformation, nothing to fix: %d %s made for after the Cycle: %s", n, portions, strings.Join(made, "; "))
 	}
 	return strings.TrimSpace(b.String())
 }

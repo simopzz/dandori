@@ -344,7 +344,7 @@ func TestCheckPlanReportsAVerdictAndItsCallsRunOut(t *testing.T) {
 	s.Sees("- Fri 6 Nov: 50% under protein")
 	s.Sees("- Rice bowl eaten back to back, Fri 6 Nov")
 	s.Sees("- lasagne: 2 of 3 left unused, in the freezer")
-	s.Sees("Information, nothing to fix: 1 Portion made for after the Cycle: Rice bowl")
+	s.Sees("Information, nothing to fix: 1 Portion made for after the Cycle: Rice bowl: 1, in the freezer")
 	s.Sees("Draft 2 keeps every hard rule. 0 of 2 check_plan calls left.")
 	s.Sees("the check_plan budget of 2 calls is spent: submit the best draft you have with submit_plan")
 	s.Sees("Planning a Cycle Succeeded")

@@ -4,14 +4,12 @@ import "time"
 
 // Verdict is what a draft Plan breaks and misses against the rules of the model: the
 // hard rules it Broke, the seven days before its first Slot and the days it plans, the
-// Targets and soft rules it Misses, and the Portions it makes for after the Cycle, how
-// many and what they are, each once.
+// Targets and soft rules it Misses, and the Portions it makes for after the Cycle.
 type Verdict struct {
 	Broken         []Violation
 	Trailing, Days []Day
 	Misses         []Miss
-	MadeForAfter   int
-	AfterNames     []string
+	MadeForAfter   []MadeForAfter
 }
 
 // Judge is the Verdict on plan, a draft of cycle's Slots by profile's Slot times from the
@@ -42,6 +40,6 @@ func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, lots []PortionLot
 	v.Broken = append(v.Broken, StartsInThePast(from, profile.SlotTimes, now)...)
 	v.Trailing, v.Days = PlanDays(earlier, plan.Eaten(unslotted), from, last)
 	v.Misses = append(profile.Targets.Misses(v.Days), plan.SoftMisses(lots)...)
-	v.MadeForAfter, v.AfterNames = plan.MadeForAfter()
+	v.MadeForAfter = plan.MadeForAfter()
 	return v
 }

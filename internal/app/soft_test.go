@@ -30,7 +30,7 @@ func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 		" calories 1586 under protein 65 under fibre at least 4 + sugar at least 8 + A day is marked")
 	s.Sees("1 day more than 25% off Fri, Nov 6: calories under protein under " +
 		"Rice bowl eaten back to back, Fri, Nov 6 " +
-		"lasagne: 2 of 3 left unused, in the freezer 1 Portion made for after the Cycle: Rice bowl Approve")
+		"lasagne: 2 of 3 left unused, in the freezer Rice bowl: 1 made for after the Cycle, in the freezer Approve")
 	s.Sees("02 Days " + heads + " 7 days before 7 with no Plan Fri, Oct 30 – Thu, Nov 5: no Plan " +
 		"Friday, November 6 calories 1586 under protein 65 under fibre at least 4 + sugar at least 8 + Rice bowl · 10 min active")
 	s.Sees("Slots yogurt 90 kcal · 15 g protein Breakfast in the fridge")

@@ -224,13 +224,24 @@ func TestJudgeGivesTheTargetsAndSoftRulesADraftMisses(t *testing.T) {
 	}
 }
 
-// Judge counts the Portions a draft makes with no Slot, made for after the Cycle, and
-// names what they are, each once.
+// Judge gives the Portions a draft makes with no Slot, made for after the Cycle, as the
+// kitchen will hold them: how many of each name, ignoring case and surrounding space, in
+// each Storage Location, in the order the draft first makes them.
 func TestJudgeGivesThePortionsMadeForAfterTheCycle(t *testing.T) {
 	j := friday()
-	j.plan.PrepSessions[1].Portions = append(j.plan.PrepSessions[1].Portions, domain.PlannedPortion{Location: domain.Freezer})
-	v := j.judge()
-	if v.MadeForAfter != 2 || !slices.Equal(v.AfterNames, []string{"Rice bowl"}) {
-		t.Errorf("Judge() made %d for after the Cycle, %v; want 2, [Rice bowl]", v.MadeForAfter, v.AfterNames)
+	bowl := &j.plan.PrepSessions[1]
+	bowl.Portions = append(bowl.Portions, domain.PlannedPortion{Location: domain.Fridge}, domain.PlannedPortion{Location: domain.Freezer})
+	chili := domain.Recipe{Name: "Chili"}
+	j.plan.PrepSessions = append(j.plan.PrepSessions,
+		domain.PrepSession{At: slot(6, domain.Dinner), Recipe: &chili, Size: 1, Portions: []domain.PlannedPortion{{Location: domain.Fridge}}},
+		domain.PrepSession{At: slot(6, domain.Dinner), Recipe: &domain.Recipe{Name: " rice BOWL"}, Size: 1, Portions: []domain.PlannedPortion{{Location: domain.Freezer}}},
+	)
+	want := []domain.MadeForAfter{
+		{Name: "Rice bowl", Location: domain.Freezer, Portions: 3},
+		{Name: "Rice bowl", Location: domain.Fridge, Portions: 1},
+		{Name: "Chili", Location: domain.Fridge, Portions: 1},
+	}
+	if got := j.judge().MadeForAfter; !slices.Equal(got, want) {
+		t.Errorf("Judge() made for after the Cycle %+v, want %+v", got, want)
 	}
 }
