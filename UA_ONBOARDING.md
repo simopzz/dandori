@@ -1,6 +1,6 @@
 # Onboarding to Dandori
 
-*Generated from the Understand-Anything knowledge graph at commit `28daec6`.*
+*Generated from the Understand-Anything knowledge graph at commit `996e3b9`.*
 
 ## Project overview
 
@@ -32,6 +32,9 @@ This is **v2**, a new codebase (ADR-0014). `main` is v1 and is frozen. Built so 
 - pasting a recipe, which starts an agent Run that produces a Recipe Draft for you to check, then accept or discard
 - Runs you can watch live, cancel and list
 - Cycles: open one with its Delivery, drop an upcoming one, run a Kitchen Check, and plan it into a pending Plan Proposal
+- Plan Proposals on the Cycle page, verdict first with the days folded: nutrition against the Targets, soft misses, Portions left unused, and the freezer splits and thaws the Plan needs
+- approving a Proposal into the Cycle's Plan, which is shown from today, or rejecting it with a Planning Note and planning again
+- the planner drafting new Recipes, which are shown on the Proposal and join the Library only when it is approved
 
 Read **`GLOSSARY.md`** first. The code uses its words exactly, and a guardrail test fails on the words it lists under *Avoid*.
 
@@ -62,9 +65,9 @@ Domain Core · Platform Services (clock, db, httpx, telemetry)
 | **Kitchen Ledger** | Writes Movements under the kitchen lock, counts Staples to nothing, and brings each User's kitchen up to now on each request and on the scheduler beat (ADR-0019). | `internal/ledger/service.go` |
 | **Agent Engine** | A hand-rolled LLM tool-use loop with Brief, Trace and retries (ADR-0003) behind an `LLM` port. `anthropic/` is the real Claude client, and `fakellm` is the scripted double for tests. | `internal/agent/loop.go` |
 | **Web UI** | Shared templ components and layout, bilingual Messages, `Answer` (the one response every write gives), Notices, pixel icons and art, `app.css` tokens, Faro, and the PWA files. | `internal/web/components.templ` |
-| **Domain Core** | Pure rules with no I/O: appliances, Cycles, dates and times, foods, Ingredients and fuzzy matching, Language, ledger arithmetic, Meal Out, Plans, Portions, Profile, Recipes, Slots, Targets. | `internal/domain/doc.go` |
+| **Domain Core** | Pure rules with no I/O: appliances, Cycles, dates and times, foods, Ingredients and fuzzy matching, Language, ledger arithmetic, Meal Out, Plans and their hard rules, soft rules, thaws, Portions, Profile, Recipes, Slots, Targets. | `internal/domain/doc.go` |
 | **Platform Services** | The clock (the only source of time), the pgx pool and the run-as-User transaction, HTTP helpers, OpenTelemetry setup. | `internal/clock/clock.go` |
-| **Database Schema** | Goose migrations 00001–00022, covering users, profile, kitchen, ingredient, movement, portion, recipe, run, trace_event, recipe_draft, cycle and the planning tables (cycle_run, plan_proposal, prep_session, planned_portion, kept_portion). | `00002_users.sql`, `00007_movement.sql`, `00022_plan_proposal.sql` |
+| **Database Schema** | Goose migrations 00001–00026, covering users, profile, kitchen, ingredient, movement, portion, recipe, run, trace_event, recipe_draft, cycle and the planning tables (cycle_run, plan_proposal, prep_session, planned_portion, kept_portion, planning_note, freezer_split, proposal_recipe_draft). | `00002_users.sql`, `00007_movement.sql`, `00022_plan_proposal.sql` |
 | **Seam-1 Tests & Harness** | The whole app over HTTP and in a browser, using the `apptest` harness: a Manual clock, fake Supabase Auth, the fake LLM, and a Scenario DSL. | `internal/apptest/scenario.go` |
 | **Deployment, CI & Config** | Dockerfile, compose, Caddyfile, the `ci.yml` check/build/deploy pipeline, `mise.toml` tasks, the pre-commit hook, and `provision.sh`. | `mise.toml` |
 | **Docs & Decisions** | README, vision, GLOSSARY, 21 ADRs, the agent guides in `docs/agents/`, and the design system in `docs/design.md`. | `GLOSSARY.md` |
@@ -75,30 +78,32 @@ Domain Core · Platform Services (clock, db, httpx, telemetry)
 - **Time is an input** (ADR-0014). Code reads the time only from the injected `clock.Clock`. A guardrail test fails on any `time.Now`, `time.Since` or `time.Until` outside `internal/clock`. Tests move a Manual clock and never sleep.
 - **Users share nothing** (ADR-0015). Every owned table has row-level security keyed on `current_user_id()` from the Supabase JWT. Stores run inside `db.AsUser` transactions, so Postgres enforces the isolation, not `WHERE` clauses.
 - **Package by feature, tiers by prefix** (ADR-0006). Shared packages never import features, and `app.go` holds the one route table. `internal/web/tiers_test.go` checks that each file belongs to one tier by its prefix and that only `store*` files touch the database.
+- **Every table has one owner** (ADR-0006, ADR-0019). Ownership follows the rows' lifecycle: `planning` owns `proposal_recipe_draft` because a planner's Draft is made and dropped with its Plan Proposal. A feature may write the tables of a feature below it, through an exported write taking a `db.Querier` (`ingredients.AddIn`, `recipes.AcceptDrafted`, `ledger.Write`), but never those of one above it. Reads upward go through functions `app` wires (`recipes.RecipesUsing`, `planning.UsesIngredient`). A foreign key into another feature's table never cascades: deleting an Ingredient asks the ledger, the Recipes and the Plans first. `internal/web/owners_test.go` checks all of this.
 - **Two languages, no text in templates.** Every visible string is a `web.Message{En, It}` in a `web_messages.go`, and a test checks that both translations exist with matching format verbs. Dates and times are written each Language's way. A User's Language can change only until the first Food Term is written.
 - **Boosted pages, one write answer** (ADR-0009). `hx-boost` sits on `<body>`, so handlers don't branch on `HX-Request`. A write returns a `web.Answer`: an htmx fragment with a floating Notice for htmx, or a redirect with a Notice for a plain browser. Fragments are used only where a row in a long list has to keep its place. Every form works without JavaScript.
 - **Agent Runs are visible, live and fakeable.** A Run is one agent job, started in the background as its User. Each step becomes a Trace Event stored as kind + jsonb. The Run page streams new events over server-sent events until the Run ends, and you can cancel a Run or list them all. A Brief says what each kind of Run tells the model. `internal/agent/anthropic` talks to Claude in production, with prompt caching, a refusal fallback and retryable-error classification. `fakellm` scripts the replies in tests, and `DemoLLM` answers under `mise run dev`.
-- **The agent proposes, you approve.** A parse Run never writes a Recipe. It leaves a Recipe Draft, which you check in the same form you edit Recipes with, then accept or discard. A planning Run never applies a Plan. It leaves a pending Plan Proposal, and there is at most one pending per User (ADR-0008).
-- **Cycles and planning.** A Cycle is the stretch one Delivery must last. Its status (upcoming, current, closed) is derived from the clock, never stored, and it becomes current when its Delivery window ends. The planner's prompt is built from the Profile, the Recipe Library and the kitchen contents. The model drafts with `check_plan` and finishes with `submit_plan`, and both validate the draft against the domain's hard rules (a Slot filled twice or left empty, a Portion eaten before it is prepared, an unknown Portion, a Slot outside the Cycle). Nutrition Targets are soft averages, and only hard rules stop a Proposal (ADR-0018).
+- **The agent proposes, you approve.** A parse Run never writes a Recipe. It leaves a Recipe Draft, which you check in the same form you edit Recipes with, then accept or discard. A planning Run never applies a Plan. It leaves a pending Plan Proposal, and there is at most one pending per User (ADR-0008). You approve it into the Cycle's Plan, or reject it with a Planning Note the next planning Run reads. Recipes the planner drafts belong to the Proposal: approving accepts them into the Library and rejecting discards them.
+- **Cycles and planning.** A Cycle is the stretch one Delivery must last. Its status (upcoming, current, closed) is derived from the clock, never stored, and it becomes current when its Delivery window ends. The planner's prompt is built from the Profile, the Recipe Library and the kitchen contents. The model drafts with `check_plan`, can add a Recipe with `draft_recipe`, and finishes with `submit_plan`. Each check validates the draft against the domain's hard rules: a Slot filled twice or left empty, a Portion eaten before it is prepared, an unknown Portion, a Slot outside the Cycle, the wrong kind of Slot, a missing appliance, or frozen food with no evening to thaw. Nutrition Targets are soft: `domain/soft.go` computes per-day totals, averages and misses, and the Proposal stores the Targets it aimed at and the misses it breaks. Only hard rules stop a Proposal (ADR-0018). Planning serialises on its own advisory lock per User, not on the Profile row.
 - **Appliances are a fixed list** (ADR-0020). Recipes and the Profile match appliance kinds exactly, and each kind carries a free-text model note.
-- **Guardrail tests encode the standards.** `internal/web/*_test.go` checks glossary words, colour literals (only in `app.css` `:root` tokens), htmx 4 attribute names, tiers, forms, type and comment wrapping, and `internal/clock` checks time reads. `.githooks/pre-commit` runs `mise run guardrails`, and `mise run check` runs everything CI does.
+- **Guardrail tests encode the standards.** `internal/web/*_test.go` checks glossary words, colour literals (only in `app.css` `:root` tokens), htmx 4 attribute names, tiers, table owners, forms and type. `scripts/wrap` checks comment wrapping, and `mise run wrap` rewraps what it can. `internal/clock` checks time reads. `.githooks/pre-commit` runs `mise run guardrails`, and `mise run check` runs everything CI does.
 
 ## Guided tour
 
-1. **What Dandori is.** `README.md`, `vision.md` and `GLOSSARY.md`: the product ideas, a Cycle walked through week by week, the M1/M2 roadmap, and the vocabulary everything else uses.
-2. **The single binary entry.** `cmd/dandori/main.go` reads `DANDORI_*` and the Anthropic settings, wires telemetry, picks the real Claude client or the demo LLM, connects Supabase auth and serves. Read it for a map of every runtime dependency.
-3. **The composition root and tiers.** `internal/app/app.go` (the most outgoing links in the graph), ADR-0006, and `.golangci.yml`'s depguard rules.
-4. **The pure domain core.** `internal/domain/doc.go` states the contract: callers load state, ask the domain, and persist the answer. Then read `cycle.go`, `slot.go`, `portion.go` and `plan.go`.
-5. **Database and row security.** `internal/db/db.go` (traced pool, embedded migrations, `Querier`), `user.go` (`AsUser`), and migration `00002_users` (`current_user_id()` and the `own_rows` policy).
+1. **What Dandori is.** `README.md` and `vision.md`: the product ideas, a Cycle walked through week by week, and the M1/M2 roadmap.
+2. **The ubiquitous language.** `GLOSSARY.md`: the vocabulary everything else uses, and the words to avoid.
+3. **The single binary entry.** `cmd/dandori/main.go` reads `DANDORI_*` and the Anthropic settings, wires telemetry, picks the real Claude client or the demo LLM, connects Supabase auth and serves. `internal/clock/clock.go` is the only source of time and `internal/telemetry/telemetry.go` sends spans and logs to Grafana Cloud.
+4. **The composition root and feature packages.** `internal/app/app.go` (the most outgoing links in the graph), ADR-0006 with its table-ownership rules, and `.golangci.yml`'s depguard rules.
+5. **The pure domain core.** `internal/domain/doc.go` states the contract: callers load state, ask the domain, and persist the answer. Then read `ingredient.go`, `cycle.go`, `plan.go` and `portion.go`.
 6. **The Kitchen Ledger.** ADR-0013 and ADR-0019, `internal/domain/ledger.go` for the arithmetic, then `internal/ledger/service.go` and `store.go` for the write gateway and bring-up-to-now.
-7. **Anatomy of a feature.** The kitchen: `web_handlers.go` → `service.go` (Stock Items and Portion Lots from the Ledger, each write in one transaction under the kitchen lock), with `internal/web/tiers_test.go` keeping every feature in shape.
-8. **Web shell and design.** `internal/web/answer.go` (ADR-0009), `i18n.go` (the User's Language through the request), `docs/design.md` and `static/app.css` (the Pixel ledger tokens and components).
-9. **The hand-rolled agent.** ADR-0003, then `internal/agent/agent.go` (the `LLM` port), `brief.go`, `loop.go` (tool use, retries with backoff, Trace Events) and `anthropic/anthropic.go`.
-10. **Runs and live Traces.** `internal/runs/service_engine.go` (start, record, follow, cancel, fail Runs a crash left going), `web_handlers.go` (the SSE stream), `agent/trace.go`, and `recipes/service_parse.go`, the simplest Run kind.
-11. **Planning a Cycle.** `internal/planning/service.go` (open and drop Cycles) and `service_plan.go` (the planning Run, its prompt and the `check_plan`/`submit_plan` tools), with migrations `00021_cycle` and `00022_plan_proposal`.
-12. **Today and the clock.** `internal/today/service.go` composes the Profile's Slot times, the kitchen's last beat and the current Cycle into the Day you see. `internal/clock/clock.go` has the real Clock that beats on a ticker and the Manual clock tests move.
-13. **Testing at two seams.** `docs/agents/testing.md`, `apptest.go` (an in-process app on a cloned database), `scenario.go` (the Given/When/Then DSL), `fakellm`, and `internal/app/planning_test.go`, which tests the planner end to end.
-14. **Build, ship and observe.** `mise.toml`, the `Dockerfile` (distroless, one static binary), `deploy/compose.yaml`, `.github/workflows/ci.yml` (templ drift, the full suite, then deploy), and `internal/telemetry/telemetry.go` (OTLP to Grafana Cloud).
+7. **Anatomy of a feature.** The kitchen: `web_handlers.go` → `service.go` (Stock Items and Portion Lots from the Ledger, each write in one transaction under the kitchen lock), with `internal/httpx/httpx.go` for the shared HTTP helpers and `internal/web/tiers_test.go` keeping every feature in shape.
+8. **Database and row security.** `internal/db/db.go` (traced pool, embedded migrations, `Querier`), `user.go` (`AsUser`), migration `00002_users` (`current_user_id()` and the `own_rows` policy), then `00007_movement`, `00011_portion`, `00021_cycle` and `00022_plan_proposal`.
+9. **The hand-rolled agent.** ADR-0003, then `internal/agent/brief.go`, `loop.go` (tool use, retries with backoff, Trace Events), `trace.go` and `anthropic/anthropic.go`.
+10. **Runs and live Traces.** `internal/runs/service_engine.go` (start, record, follow, cancel, fail Runs a crash left going) and migration `00014_run`.
+11. **Recipes and agent parsing.** `internal/recipes/service.go` (the Library), `store.go` and `web_handlers.go`, then `service_parse.go`, the simplest Run kind, and `service_drafted.go`, the Recipes the planner drafts.
+12. **Planning a Cycle.** `internal/planning/service.go` (open and drop Cycles), `service_plan.go` (the planning Run, its prompt and the `check_plan`/`draft_recipe`/`submit_plan` tools) and `service_ledger.go` (whose turn a planning Run is, approve, reject, plan again).
+13. **Today and the web shell.** `internal/today/service.go` composes the Profile's Slot times, the kitchen's last beat and the current Cycle into the Day you see. Then `internal/web/answer.go` (ADR-0009), `notice.go`, `docs/design.md` and `static/app.css` (the Pixel ledger tokens and components).
+14. **Testing at two seams.** `docs/agents/testing.md`, `apptest.go` (an in-process app on a cloned database), `fakeauth.go`, `scenario.go` (the Given/When/Then DSL) and `fakellm`. `internal/app/planning_test.go` and `decide_test.go` test the planner end to end.
+15. **Build, ship and observe.** `mise.toml`, the `Dockerfile` (distroless, one static binary), `deploy/compose.yaml` and `.github/workflows/ci.yml` (templ drift, the full suite, then deploy).
 
 ## File map
 
@@ -114,9 +119,9 @@ Domain Core · Platform Services (clock, db, httpx, telemetry)
 | **profile** | `service.go` (Language, Slot times, Targets, Meal Out, exclusions and allergies, appliances, Planning Brief; the Language lock), `store.go` (the profile row and the User's Food Terms) | `web_handlers.go` (the `LanguageChosen` middleware and the Profile page, saved section by section) |
 | **ingredients** | `service.go` (add, edit, delete, search and suggest; refuses taken or near-miss names, unit changes once counted, and deleting an Ingredient still in use), `store.go` | `web_handlers.go` (incl. marking a Staple), `web_form.go` (nutrition fields), `web_views.templ` |
 | **kitchen** | `service.go` (Stock Items and Portion Lots from the ledger; Counts, moves and Portions, each in one transaction) | `web_handlers.go` (incl. the `UpToNow` middleware), `web_form.go`, `web_views.templ` |
-| **recipes** | `service.go` (the Library), `service_parse.go` (the parse Run's brief and `submit_recipe` schema), `service_draft.go` (starts the Run, stores, accepts or discards the Draft), `service_demo_llm.go`, `store.go` (Recipes and Drafts) | `web_handlers.go` (incl. check, accept, discard), `web_form.go` (dynamic ingredient and step rows), `web_views.templ` |
+| **recipes** | `service.go` (the Library), `service_parse.go` (the parse Run's brief and `submit_recipe` schema), `service_draft.go` (starts the Run, stores, accepts or discards the Draft), `service_drafted.go` (the planner's `draft_recipe` input, and `AcceptDrafted` for an approved Proposal's Drafts), `service_demo_llm.go`, `store.go` (Recipes and Drafts) | `web_handlers.go` (incl. check, accept, discard), `web_form.go` (dynamic ingredient and step rows), `web_views.templ` |
 | **runs** | `service_engine.go` (Runs in the background as their User, Trace Events, followers, cancel, list), `service_spans.go` (a span per model call, never the prompts), `store.go` | `web_handlers.go` (list, page, cancel, the SSE stream), `web_views.templ` |
-| **planning** | `service.go` (the current and upcoming Cycle, why one can't be opened, open and drop), `service_plan.go` (the planning Run and pending Plan Proposals), `store.go` (Cycles, the Profile lock that serialises opening, planning-Run bookkeeping, Proposals with their Prep Sessions) | `web_handlers.go` (the Cycle page, the Kitchen Check, starting a planning Run) |
+| **planning** | `service.go` (the current and upcoming Cycle, why one can't be opened, open and drop), `service_plan.go` (the planning Run, its tools, hard and soft checks), `service_ledger.go` (whose turn a planning Run is, approve, reject, plan again), `store.go` (Cycles, the advisory planning lock, planning-Run bookkeeping, Proposals with their Prep Sessions, freezer splits, planner Recipe Drafts and Planning Notes) | `web_handlers.go` (the Cycle page, the Kitchen Check, starting a planning Run, approve, reject, plan again), `web_proposal.templ`, `web_plan.templ` |
 | **today** | `service.go` (the Day: Slot times, the last beat, the current Cycle) | `web_handlers.go`, `web_messages.go` (set-up links before any Plan exists) |
 
 ### Below the features
@@ -131,6 +136,8 @@ Domain Core · Platform Services (clock, db, httpx, telemetry)
 - `internal/domain/`:
   - `cycle.go`: a Cycle, its Delivery window and derived status
   - `plan.go`: Prep Sessions, kept Portions and the hard rules
+  - `soft.go`: per-day nutrition, Target misses and unused Portions (ADR-0018)
+  - `thaw.go`: what a Plan thaws from the freezer, and the no-evening-to-thaw rule
   - `ledger.go`
   - `portion.go`
   - `ingredient.go`, `ingredient_match.go`: one-slip and trigram fuzzy matching
@@ -149,13 +156,14 @@ Domain Core · Platform Services (clock, db, httpx, telemetry)
 - `internal/db/db.go` (pool, embedded migrations, `Querier`) and `user.go` (`AsUser`); `internal/clock/clock.go`; `internal/httpx/httpx.go`; `internal/telemetry/telemetry.go`.
 
 ### Tests
-- `internal/app/*_test.go`: Seam 1, one file per area, including `cycle_test.go`, `planning_test.go`, `profile_test.go`, `appliances_test.go`, `targets_test.go`, `meal_out_test.go`, `drafts_test.go`, `runs_test.go`, `spans_test.go` and `browser_test.go`.
+- `internal/app/*_test.go`: Seam 1, one file per area, including `cycle_test.go`, `planning_test.go`, `decide_test.go`, `hard_rules_test.go`, `soft_test.go`, `planner_drafts_test.go`, `tendays_test.go`, `profile_test.go`, `appliances_test.go`, `targets_test.go`, `meal_out_test.go`, `drafts_test.go`, `runs_test.go`, `spans_test.go` and `browser_test.go`.
 - `internal/apptest/`: `apptest.go`, `browser.go` (Playwright), `fakeauth.go` (fake Supabase Auth), `scenario.go`, and the form, link, signin and text helpers.
-- `internal/domain/*_test.go`: Seam 2, including `plan_test.go`, `cycle_test.go` and `ingredient_stress_test.go`, which runs the matcher on real kitchen names with generated typos.
+- `internal/domain/*_test.go`: Seam 2, including `plan_test.go`, `soft_test.go`, `thaw_test.go`, `cycle_test.go` and `ingredient_stress_test.go`, which runs the matcher on real kitchen names with generated typos.
 
 ### Ops and config
 - `mise.toml`: tool versions, plus the tasks:
-  - `dev`, `generate`, `build`, `lint`
+  - `dev`, `generate`, `build`, `lint`, `wrap`
+  - `pr-image`, which publishes PR screenshots to the `pr-images` branch
   - `test`, `check`, `guardrails`
   - `testdb`, `devdb`, `browsers`
   - `db:schema`
@@ -164,7 +172,7 @@ Domain Core · Platform Services (clock, db, httpx, telemetry)
 - `.golangci.yml`, `.mcp.json`, `go.mod`
 - `Dockerfile`, `.dockerignore`, `deploy/compose.yaml`, `deploy/Caddyfile`
 - `.github/workflows/ci.yml`, `.githooks/pre-commit`
-- `scripts/provision.sh`, an interactive production provisioning wizard
+- `scripts/provision.sh`, an interactive production provisioning wizard; `scripts/pr-image.sh`; `scripts/wrap/`, the comment rewrapper
 
 ## Complexity hotspots
 
@@ -175,7 +183,8 @@ These files were rated *complex*. Read the code around them before changing them
 | Wiring | `internal/app/app.go` | Every Service and route meets here. Middleware order (sign-in → language → up-to-now) matters. |
 | Ledger arithmetic | `internal/domain/ledger.go` | Replay over time, Quantities in tenths, Portion Movements. Small changes ripple into every stock figure, so pair them with `ledger_test.go` and `portion_test.go`. |
 | Ingredient model | `internal/domain/ingredient.go` | Units, Nutrition, the shared Problem vocabulary and per-Language name normalisation, which every feature relies on. |
-| Planning | `planning/service_plan.go`, `store.go` | The planner prompt, the tool schemas checked against hard rules, the Profile lock, and the one-pending-Proposal invariant. |
+| Plan rules | `internal/domain/plan.go`, `soft.go` | The hard rules that stop a Proposal and the soft nutrition misses it only reports. Pair changes with `plan_test.go` and `soft_test.go`. |
+| Planning | `planning/service_plan.go`, `store.go`, `web_handlers.go` | The planner prompt, the tool schemas checked against hard and soft rules, the advisory planning lock, the one-pending-Proposal invariant, and accepting the planner's Recipe Drafts on approval. |
 | Kitchen | `kitchen/service.go`, `web_handlers.go` | One transaction per write, stale-form refusals, Portion Lots, and htmx fragments that keep your place. |
 | Ingredients | `ingredients/service.go`, `web_handlers.go` | Near-miss suggestions, the unit lock once counted, deleting while Movements or Recipes reference the Ingredient. |
 | Recipes and Drafts | `recipes/service_parse.go`, `store.go`, `web_form.go`, `web_handlers.go` | The LLM tool schema and conversion into domain values, dynamic form rows, and draft locking on accept. |
@@ -186,6 +195,7 @@ These files were rated *complex*. Read the code around them before changing them
 | Shared UI | `web/icons.go`, `static/app.css`, `docs/design.md` | Every page depends on them, and guardrails cover colours, htmx names and text. |
 | Test harness | `apptest/apptest.go`, `browser.go`, `fakeauth.go`, `scenario.go` | Every Seam-1 test runs on it, so a change here affects the whole suite. |
 | Ops | `scripts/provision.sh` | It provisions production: DNS, server, Supabase, secrets. |
+| Table owners | `internal/web/owners_test.go` | It reads every migration and store, so a new table or a cross-feature write must follow ADR-0006's ownership rules or it fails. |
 | Vocabulary | `GLOSSARY.md` | It's a contract: `glossary_test.go` fails on avoided words in page text and Go identifiers. |
 
 ## Before your first change
