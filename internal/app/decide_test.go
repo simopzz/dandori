@@ -41,7 +41,7 @@ func lastPrompt(t *testing.T, s *apptest.Scenario) string {
 	reqs := s.Model.Requests()
 	for i := len(reqs) - 1; i >= 0; i-- {
 		if len(reqs[i].Messages) == 1 {
-			return reqs[i].Messages[0].Content[0].Text
+			return firstTurn(reqs[i])
 		}
 	}
 	t.Fatal("the model was asked nothing")

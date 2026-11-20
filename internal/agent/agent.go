@@ -100,6 +100,9 @@ type Block struct {
 	ToolName  string
 	Input     json.RawMessage
 	IsError   bool
+	// Cached marks a cache breakpoint at the end of this text block: what comes before it
+	// is cached together, apart from what follows.
+	Cached bool
 
 	// Raw is the block as the LLM adapter received it, so the adapter can send the
 	// model's own turn back unchanged. Fakes leave it empty.

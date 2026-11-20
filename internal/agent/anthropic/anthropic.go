@@ -53,7 +53,8 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 		Betas:     []sdk.AnthropicBeta{sdk.AnthropicBetaServerSideFallback2026_07_01},
 		Fallbacks: sdk.BetaFallbacksParamOfDefault(),
 		// The automatic breakpoint follows the conversation; the system prompt's own
-		// keeps it cached for every Run of its kind.
+		// keeps it cached for every Run of its kind, and a stable block's (Block.Cached)
+		// for every Run of one User.
 		CacheControl: sdk.NewBetaCacheControlEphemeralParam(),
 		OutputConfig: sdk.BetaOutputConfigParam{Effort: sdk.BetaOutputConfigEffort(req.Effort)},
 	}
@@ -175,7 +176,11 @@ func blockParam(b agent.Block) (sdk.BetaContentBlockParamUnion, error) {
 	}
 	switch b.Type {
 	case agent.BlockText:
-		return sdk.NewBetaTextBlock(b.Text), nil
+		block := sdk.NewBetaTextBlock(b.Text)
+		if b.Cached {
+			block.OfText.CacheControl = sdk.NewBetaCacheControlEphemeralParam()
+		}
+		return block, nil
 	case agent.BlockToolUse:
 		return sdk.NewBetaToolUseBlock(b.ToolUseID, b.Input, b.ToolName), nil
 	case agent.BlockToolResult:

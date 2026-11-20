@@ -121,7 +121,7 @@ func tenDayScript(t *testing.T) []fakellm.Step {
 func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
 	t.Helper()
 	var ids []int64
-	for _, m := range regexp.MustCompile(pattern).FindAllStringSubmatch(req.Messages[0].Content[0].Text, -1) {
+	for _, m := range regexp.MustCompile(pattern).FindAllStringSubmatch(firstTurn(req), -1) {
 		id, _ := strconv.ParseInt(m[1], 10, 64)
 		ids = append(ids, id)
 	}

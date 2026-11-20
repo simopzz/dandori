@@ -139,9 +139,9 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 			})
 		},
 	}
-	prompt := planPrompt(c, p, slots[0], brief, notes, now, library, known, held, trailing)
+	prompt := planPrompt(c, p, slots[0], brief, notes, now, held, trailing)
 	asked, _, _ := strings.Cut(prompt, "\n")
-	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, prompt), func(tx pgx.Tx, runID int64) error {
+	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, planStable(p, library, known), prompt), func(tx pgx.Tx, runID int64) error {
 		// The planning lock first, as in Drop, so a reject and a drop never deadlock.
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
@@ -206,21 +206,12 @@ Write every food term in the user's Language, named in the prompt.
 
 Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a summary of the Plan for the user, in their Language: two or three sentences on what it cooks and why. Give no nutrition figures and no day-by-day list: Dandori shows both.`, attempts, domain.MinSize, domain.MaxSize)
 
-// planPrompt is what a planning Run of c from the Slot from is told: the User's Language,
-// the Cycle and its Slots, today, the Profile p, the Recipe Library, the known
-// Ingredients, the Planning Brief or its low-care default, the Planning Notes newest
-// first, what the kitchen holds, k, at now, and what the trailing seven days before from
-// eat as approved Plans fill them.
-func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes []string, now time.Time, library []domain.Recipe, known []domain.Ingredient, k kitchen.Contents, trailing []domain.Day) string {
-	slots := c.Slots(p.SlotTimes)
+// planStable is the planning Run's stable block, what varies per User but rarely per Run,
+// so it is cached: the Profile p, the Recipe Library and the known Ingredients.
+func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingredient) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Plan the Cycle whose Delivery comes on %s, %s to %s, ending on %s.\n",
-		c.Delivery.On.Format(longDate), c.Delivery.From, c.Delivery.To, c.Ends.Format(longDate))
-	fmt.Fprintf(&b, "Its Slots run from %s to %s. Plan every Slot from %s on.\n", slots[0], slots[len(slots)-1], from)
-	fmt.Fprintf(&b, "Today is %s. The user's Language is %s.\n", now.Format(longDate), languageNames[p.Language])
-
 	t := p.Targets
-	b.WriteString("\nProfile:\n")
+	b.WriteString("Profile:\n")
 	fmt.Fprintf(&b, "- Targets a day: %d kcal (within %d%%), at least %d g protein, at least %d g fibre, at most %d g sugar.\n",
 		t.Kcal, t.Tolerance, t.Protein, t.Fibre, t.Sugar)
 	fmt.Fprintf(&b, "- A Meal Out is estimated at %s.\n", describeNutrition(p.MealOut, false, false))
@@ -256,6 +247,20 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 	for _, ing := range known {
 		fmt.Fprintf(&b, "- Ingredient %d: %s, in %s, usually in the %s, per %s %s\n", ing.ID, ing.Name, ing.Unit, ing.Usual, per(ing.Unit), describeNutrition(ing.Nutrition, false, false))
 	}
+	return strings.TrimSpace(b.String())
+}
+
+// planPrompt is what a planning Run of c from the Slot from is told after its stable
+// block: the Cycle and its Slots, today, the User's Language, the Planning Brief or its
+// low-care default, the Planning Notes newest first, what the kitchen holds, k, at now,
+// and what the trailing seven days before from eat as approved Plans fill them.
+func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes []string, now time.Time, k kitchen.Contents, trailing []domain.Day) string {
+	slots := c.Slots(p.SlotTimes)
+	var b strings.Builder
+	fmt.Fprintf(&b, "Plan the Cycle whose Delivery comes on %s, %s to %s, ending on %s.\n",
+		c.Delivery.On.Format(longDate), c.Delivery.From, c.Delivery.To, c.Ends.Format(longDate))
+	fmt.Fprintf(&b, "Its Slots run from %s to %s. Plan every Slot from %s on.\n", slots[0], slots[len(slots)-1], from)
+	fmt.Fprintf(&b, "Today is %s. The user's Language is %s.\n", now.Format(longDate), languageNames[p.Language])
 
 	brief = cmp.Or(brief, lowCareBrief)
 	fmt.Fprintf(&b, "\nThe user's Planning Brief, their lasting wishes for how their meals are planned:\n<brief>\n%s\n</brief>\n", brief)
@@ -419,10 +424,11 @@ type planBrief struct {
 	verdict domain.Verdict // the Verdict on chosen, stored with it
 }
 
-// brief is the planning Run's Brief, for a User speaking l, told prompt.
-func (pb *planBrief) brief(l domain.Language, prompt string) agent.Brief {
+// brief is the planning Run's Brief, for a User speaking l, told stable then prompt.
+func (pb *planBrief) brief(l domain.Language, stable, prompt string) agent.Brief {
 	return agent.Brief{
 		System: plannerSystem,
+		Stable: stable,
 		Prompt: prompt,
 		Effort: planEffort,
 		Ended: func(ctx context.Context, said string) error {
