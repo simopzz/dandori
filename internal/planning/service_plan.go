@@ -794,8 +794,10 @@ type Planning struct {
 	Notes          []string
 }
 
-// PlanningOf is how planning the signed-in User's Cycle id stands, its days in zone.
-func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location) (Planning, error) {
+// PlanningOf is how planning the signed-in User's Cycle c stands, its days in zone: its
+// Plan as far as c lasts, Until the next Cycle's Delivery arrives.
+func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) (Planning, error) {
+	id := c.ID
 	var p Planning
 	var pending, approved *storedProposal
 	var earlier []*storedProposal
@@ -867,6 +869,13 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		// Worked out again from today's Recipes, as the Verdict's days were: editing a
 		// Recipe changes only what is yet to be recorded.
 		proposal := approved.resolve(library, known, portions, nil)
+		if !c.Until.IsZero() {
+			times, err := s.profile.SlotTimes(ctx)
+			if err != nil {
+				return p, err
+			}
+			proposal.Plan = proposal.Plan.Until(c.Until, times)
+		}
 		planned := proposal.Plan.Eaten(portions)
 		_, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, approved.first, lastDay(planned, approved.first.On))
 		p.Plan = proposal
@@ -875,11 +884,12 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 }
 
 // Drafted is the Recipe Draft id of the signed-in User's pending Plan Proposal, for them
-// speaking in their Language, or ErrNoProposal when that doesn't prepare it.
-func (s *Service) Drafted(ctx context.Context, id int64) (domain.Recipe, error) {
+// speaking in their Language, with the id of the Cycle it plans, or ErrNoProposal when
+// that doesn't prepare it.
+func (s *Service) Drafted(ctx context.Context, id int64) (rec domain.Recipe, cycleID int64, err error) {
 	l, _, err := s.profile.Language(ctx)
 	if err != nil {
-		return domain.Recipe{}, err
+		return rec, 0, err
 	}
 	var stored []storedDraft
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -887,22 +897,25 @@ func (s *Service) Drafted(ctx context.Context, id int64) (domain.Recipe, error) 
 		if err != nil {
 			return err
 		}
+		if cycleID, err = cycleOfProposal(ctx, tx, proposalID); err != nil {
+			return err
+		}
 		stored, err = loadDrafts(ctx, tx, proposalID)
 		return err
 	})
 	if err != nil {
-		return domain.Recipe{}, err
+		return rec, 0, err
 	}
 	i := slices.IndexFunc(stored, func(d storedDraft) bool { return d.id == id })
 	if i < 0 {
-		return domain.Recipe{}, ErrNoProposal
+		return rec, 0, ErrNoProposal
 	}
 	known, err := s.ingredients.List(ctx)
 	if err != nil {
-		return domain.Recipe{}, err
+		return rec, 0, err
 	}
 	d, err := recipes.ReadStored(l, known, id, stored[i].doc)
-	return d.Recipe, err
+	return d.Recipe, cycleID, err
 }
 
 // readDrafts are the Recipe Drafts stored, read for a User speaking l against their

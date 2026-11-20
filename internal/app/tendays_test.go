@@ -216,7 +216,7 @@ func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
-	b.Open(t, "/plan")
+	b.Open(t, "/plan/cycles/2") // the upcoming Cycle; the two days' is current
 	b.SeesInTurn(t,
 		"Cycle · Thu, Nov 5 – Sat, Nov 14",
 		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm Tentative the Delivery's date may still move · planned from Thu, Nov 5 lunch",

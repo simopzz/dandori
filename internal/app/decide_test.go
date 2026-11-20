@@ -21,7 +21,7 @@ func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 
 	s.Open("/plan")
 	s.Submits("approve")
-	s.IsAt("/plan")
+	s.IsAt("/plan/cycles/1")
 	s.IsConfirmed("Plan approved.")
 	s.Sees("Cycle · Thu, Nov 5 – Fri, Nov 6 Delivery Thu, Nov 5, 6:00 pm to 8:00 pm Tentative")
 	s.Sees("01 Plan Average " + heads + " calories 1586 under protein 65 under")
@@ -125,7 +125,7 @@ func TestRejectingWithoutANoteStartsNothing(t *testing.T) {
 
 	s.Open("/plan")
 	s.Rejects("  ")
-	s.IsAt("/plan")
+	s.IsAt("/plan/cycles/1")
 	s.IsConfirmed("Plan Proposal rejected.")
 	s.DoesNotSee("Rice bowls for Friday.")
 	s.DoesNotSee("Being planned")
@@ -247,7 +247,7 @@ func TestDecisionsPostedAsHTMX(t *testing.T) {
 		t.Errorf("a refused approval as htmx answers %d, want 422 saying why", got.StatusCode)
 	}
 	reject = apptest.Form(t, s.Get(t, "/plan").Body, "reject")
-	if got := s.HTMXPostForm(t, reject.Action, reject.Values); got.Path != "/plan" || !strings.Contains(apptest.Text(got.Body), "Plan the Cycle") {
+	if got := s.HTMXPostForm(t, reject.Action, reject.Values); got.Path != "/plan/cycles/1" || !strings.Contains(apptest.Text(got.Body), "Plan the Cycle") {
 		t.Errorf("rejecting as htmx lands on %s, want the Cycle page", got.Path)
 	}
 	if got := s.HTMXPostForm(t, reject.Action, reject.Values); got.StatusCode != http.StatusNotFound {
@@ -290,7 +290,7 @@ func TestPlanningAgainAndApprovingPostedAsHTMX(t *testing.T) {
 	s.Settle()
 
 	approve := apptest.Form(t, s.Get(t, "/plan").Body, "approve")
-	if got := s.HTMXPostForm(t, approve.Action, approve.Values); got.Path != "/plan" || !slices.Equal(apptest.Notices(t, got.Body), []string{"Plan approved."}) {
+	if got := s.HTMXPostForm(t, approve.Action, approve.Values); got.Path != "/plan/cycles/1" || !slices.Equal(apptest.Notices(t, got.Body), []string{"Plan approved."}) {
 		t.Errorf("approving as htmx lands on %s, want the Cycle page saying so", got.Path)
 	}
 }
@@ -334,8 +334,8 @@ func TestPlanningTracesNameTheirCycle(t *testing.T) {
 	s.Follows("Plan the Cycle")
 	s.StartsPlanning()
 	s.Sees("Planning a Cycle")
-	if got := apptest.Link(t, s.Page().Body, "Planning the Cycle of Thu, Nov 5 – Fri, Nov 6"); got != "/plan" {
-		t.Errorf("the Trace's Cycle links to %q, want /plan", got)
+	if got := apptest.Link(t, s.Page().Body, "Planning the Cycle of Thu, Nov 5 – Fri, Nov 6"); got != "/plan/cycles/1" {
+		t.Errorf("the Trace's Cycle links to %q, want its page", got)
 	}
 
 	s.Open("/runs/1")

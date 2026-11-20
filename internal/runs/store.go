@@ -25,6 +25,12 @@ func setStatus(ctx context.Context, q db.Querier, id int64, status Status, at ti
 	return tag.RowsAffected() == 1, err
 }
 
+// setCause stores cause as what cancelled the Run id.
+func setCause(ctx context.Context, q db.Querier, id int64, cause json.RawMessage) error {
+	_, err := q.Exec(ctx, `UPDATE run SET cause = $2 WHERE id = $1`, id, cause)
+	return err
+}
+
 // failGoing fails every Run still going at, whatever User's it is, ending each Trace with
 // the Trace Events failed and ended.
 func failGoing(ctx context.Context, q db.Querier, at time.Time, failed, ended []byte) error {
@@ -75,8 +81,8 @@ func loadStatus(ctx context.Context, q db.Querier, id int64) (kind Kind, status 
 // loadRun is the signed-in User's Run id with its Trace.
 func loadRun(ctx context.Context, q db.Querier, id int64) (run Run, found bool, err error) {
 	run.ID = id
-	err = q.QueryRow(ctx, `SELECT kind, status, asked, started_at FROM run WHERE id = $1`, id).
-		Scan(&run.Kind, &run.Status, &run.Asked, &run.StartedAt)
+	err = q.QueryRow(ctx, `SELECT kind, status, asked, started_at, cause FROM run WHERE id = $1`, id).
+		Scan(&run.Kind, &run.Status, &run.Asked, &run.StartedAt, &run.Cause)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return run, false, nil
 	}

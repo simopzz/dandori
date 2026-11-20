@@ -89,11 +89,12 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing, planning.UsesIngredient), ledger: ledger.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing, planning.UsesIngredient)}
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs, planning.Prepares)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.planning = planning.New(pool, a.clock, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
+	a.ledger = ledger.New(pool, log, a.planning.Arrive)
 	a.today = today.New(a.profile, a.ledger, a.planning)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
@@ -172,6 +173,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /plan", signedIn(plan.Show))
 	mux.Handle("POST /plan", signedIn(plan.Open))
 	mux.Handle("GET /plan/open", signedIn(plan.ShowOpen))
+	mux.Handle("GET /plan/cycles/{id}", signedIn(plan.ShowCycle))
 	mux.Handle("GET /plan/cycles/{id}/drop", signedIn(plan.ShowDrop))
 	mux.Handle("GET /plan/cycles/{id}/drop/sheet", signedIn(plan.ShowDropSheet))
 	mux.Handle("POST /plan/cycles/{id}/drop", signedIn(plan.Drop))

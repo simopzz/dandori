@@ -117,8 +117,13 @@ func TestACyclesStatus(t *testing.T) {
 }
 
 // A Cycle's Slots run from the first Slot after its Delivery window's end to the last of
-// its end date, every kind every day.
+// its end date, every kind every day, or to the last before the next Cycle's Delivery
+// arrives, when it comes first: the later Slots of that day are the next Cycle's.
 func TestACyclesSlots(t *testing.T) {
+	early := cycle(2, "18:00", "20:00", 4)
+	early.Until = cycle(3, "14:00", "16:00", 9).Delivery.Arrives()
+	late := cycle(2, "18:00", "20:00", 3)
+	late.Until = cycle(5, "14:00", "16:00", 9).Delivery.Arrives()
 	tests := []struct {
 		name        string
 		cycle       domain.Cycle
@@ -128,6 +133,8 @@ func TestACyclesSlots(t *testing.T) {
 		{"a window ending in the afternoon", cycle(2, "14:00", "16:00", 4), slot(2, domain.Snack), slot(4, domain.Dinner), 2 + 4 + 4},
 		{"a window ending at a Slot's time", cycle(2, "18:00", "20:00", 4), slot(3, domain.Breakfast), slot(4, domain.Dinner), 8},
 		{"a window ending in the morning", cycle(2, "06:00", "07:00", 3), slot(2, domain.Breakfast), slot(3, domain.Dinner), 8},
+		{"the next Delivery arriving before the end date", early, slot(3, domain.Breakfast), slot(3, domain.Lunch), 2},
+		{"the next Delivery arriving after the end date", late, slot(3, domain.Breakfast), slot(3, domain.Dinner), 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

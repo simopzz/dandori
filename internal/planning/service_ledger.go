@@ -2,7 +2,9 @@ package planning
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -55,14 +57,78 @@ func turn(ctx context.Context, tx pgx.Tx, id, runID int64) error {
 	return nil
 }
 
-// end cancels the planning Run going for the Cycle id in tx, as something that happened
-// ends it, and is what stops it: call stop only once tx has committed.
-func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64) (stop func(context.Context), err error) {
+// cause is what ends a Plan Proposal or cancels a planning Run when the User doesn't, as
+// stored with it: the Delivery that closed its Cycle, or its Cycle dropped.
+type cause struct {
+	ClosedBy *closedBy `json:"closed_by,omitempty"`
+	Dropped  bool      `json:"dropped,omitempty"`
+}
+
+// closedBy is the Delivery that closed a Cycle: its day and window.
+type closedBy struct {
+	On   string           `json:"on"`
+	From domain.TimeOfDay `json:"from"`
+	To   domain.TimeOfDay `json:"to"`
+}
+
+// end ends, in tx, the pending Plan Proposal of the Cycle id, rejecting it at now, and
+// cancels its planning Run going, as something that happened, why, ends them, and is
+// what stops the Run: call stop only once tx has committed. Ended once, they stay so.
+func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause, now time.Time) (stop func(context.Context), err error) {
+	doc, err := json.Marshal(why)
+	if err != nil {
+		return nil, err
+	}
+	if err := endPending(ctx, tx, id, doc, now); err != nil {
+		return nil, err
+	}
 	runID, err := goingRun(ctx, tx, id)
 	if err != nil || runID == 0 {
 		return func(context.Context) {}, err
 	}
-	return s.runs.CancelIn(ctx, tx, runID)
+	return s.runs.CancelIn(ctx, tx, runID, doc)
+}
+
+// Arrive takes every Delivery of the signed-in User's whose window has ended by now as
+// arrived, in tx: a Cycle it closes has its pending Plan Proposal rejected and its
+// planning Run cancelled, naming the Delivery. It is what stops the Run: call stop only
+// once tx has committed. Run again for a moment it has reached, it changes nothing. The
+// Kitchen Ledger runs it as it brings the kitchen up to now.
+func (s *Service) Arrive(ctx context.Context, tx pgx.Tx, now time.Time) (stop func(context.Context), err error) {
+	stop = func(context.Context) {}
+	busy, err := busyCycles(ctx, tx)
+	if err != nil || len(busy) == 0 {
+		return stop, err
+	}
+	cycles, err := loadCycles(ctx, tx, now.Location())
+	if err != nil {
+		return stop, err
+	}
+	statuses := domain.CycleStatuses(plain(cycles), now)
+	var stops []func(context.Context)
+	for i, c := range cycles {
+		if statuses[i] != domain.Closed || !slices.Contains(busy, c.ID) {
+			continue
+		}
+		if len(stops) == 0 {
+			// turn's lock, so a planning Run still starting is seen, and ended.
+			if err := lockPlanning(ctx, tx); err != nil {
+				return stop, err
+			}
+		}
+		next := cycles[i+1].Delivery // closed: the next Cycle's Delivery has arrived
+		why := cause{ClosedBy: &closedBy{On: next.On.Format(time.DateOnly), From: next.From, To: next.To}}
+		end, err := s.end(ctx, tx, c.ID, why, now)
+		if err != nil {
+			return stop, err
+		}
+		stops = append(stops, end)
+	}
+	return func(ctx context.Context) {
+		for _, stop := range stops {
+			stop(ctx)
+		}
+	}, nil
 }
 
 // Approve makes the signed-in User's pending Plan Proposal id their Cycle's Plan at now,
@@ -187,4 +253,14 @@ func (s *Service) CycleOfRun(ctx context.Context, runID int64, now time.Time) (c
 		return err
 	})
 	return c, latest, err
+}
+
+// CycleOfProposal is the id of the Cycle the signed-in User's Plan Proposal id, whatever
+// its status, plans, and ErrNoProposal when they have no such Plan Proposal.
+func (s *Service) CycleOfProposal(ctx context.Context, id int64) (cycleID int64, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		cycleID, err = cycleOfProposal(ctx, tx, id)
+		return err
+	})
+	return cycleID, err
 }

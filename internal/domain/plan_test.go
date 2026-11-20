@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -228,5 +229,32 @@ func TestAPlanStartsInThePastOnceItsFirstSlotsTimeIsReached(t *testing.T) {
 				t.Errorf("StartsInThePast() = %v, want it broken %v", vs, tt.want)
 			}
 		})
+	}
+}
+
+// A Plan as far as the next Cycle's Delivery arriving early: its Prep Sessions after the
+// arrival go, its Portions eaten after it carry over without a Slot, and the Portions
+// without a Slot it put in Slots after it stay without one. What comes before stays.
+func TestAPlanUntilTheNextDeliveryArrives(t *testing.T) {
+	until := cycle(3, "14:00", "16:00", 9).Delivery.Arrives()
+	plan := domain.Plan{
+		PrepSessions: []domain.PrepSession{
+			{At: slot(3, domain.Lunch), Recipe: &chili, Size: 1, Portions: []domain.PlannedPortion{eaten(in(slot(3, domain.Lunch))), eaten(in(slot(3, domain.Dinner))), eaten(nil)}},
+			{At: slot(3, domain.Snack), Ingredient: &yogurt, Quantity: grams(150), Portions: []domain.PlannedPortion{eaten(in(slot(3, domain.Snack)))}},
+		},
+		Kept: []domain.Kept{{Portion: 1, At: slot(3, domain.Breakfast)}, {Portion: 2, At: slot(4, domain.Lunch)}},
+	}
+	got := plan.Until(until, domain.DefaultSlotTimes)
+	want := domain.Plan{
+		PrepSessions: []domain.PrepSession{
+			{At: slot(3, domain.Lunch), Recipe: &chili, Size: 1, Portions: []domain.PlannedPortion{eaten(in(slot(3, domain.Lunch))), eaten(nil), eaten(nil)}},
+		},
+		Kept: []domain.Kept{{Portion: 1, At: slot(3, domain.Breakfast)}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+	if plan.PrepSessions[0].Portions[1].EatAt == nil {
+		t.Error("cutting a Plan changed the Plan cut")
 	}
 }

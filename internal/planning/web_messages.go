@@ -105,6 +105,21 @@ var (
 	msgPlanningCycle     = web.Message{En: "Planning the Cycle of %s", It: "Pianificazione del Ciclo del %s"}
 )
 
+// The Messages of the links between the current and the upcoming Cycle.
+var (
+	msgCycles             = web.Message{En: "Cycles", It: "Cicli"}
+	msgCurrentDates       = web.Message{En: "Current · %s", It: "In corso · %s"}
+	msgUpcomingDates      = web.Message{En: "Upcoming · %s", It: "Prossimo · %s"}
+	msgProposalWaitingTag = web.Message{En: "Plan Proposal waiting", It: "Proposta di Piano in attesa"}
+	msgFailedTag          = web.Message{En: "Failed", It: "Non riuscita"}
+)
+
+// What cancelled a planning Run when the User didn't, on its page.
+var (
+	msgClosedBy     = web.Message{En: "The Delivery of %s arrived and closed its Cycle.", It: "La Consegna di %s è arrivata e ha chiuso il suo Ciclo."}
+	msgCycleDropped = web.Message{En: "Its Cycle was dropped.", It: "Il suo Ciclo è stato annullato."}
+)
+
 // The Plan Proposal's soft misses' Messages, and the heads of its figures.
 var (
 	msgBackToBack   = web.Message{En: "%s eaten back to back, %s", It: "%s mangiato di seguito, %s"}

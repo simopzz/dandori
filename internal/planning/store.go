@@ -24,32 +24,14 @@ func lockPlanning(ctx context.Context, q db.Querier) error {
 }
 
 // loadNow reads the signed-in User's current and upcoming Cycles at now, each nil when
-// they have none, its dates as days in now's zone. It has no WHERE on purpose: run in
-// db.AsUser, row-level security leaves only their rows.
+// they have none, its dates as days in now's zone, the current one lasting Until the
+// upcoming one's Delivery arrives.
 func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcoming *Cycle, err error) {
-	rows, err := q.Query(ctx, `
-		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on
-		FROM cycle ORDER BY delivery_on, window_to`)
+	cycles, err := loadCycles(ctx, q, now.Location())
 	if err != nil {
 		return nil, nil, err
 	}
-	day := func(t time.Time) time.Time {
-		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, now.Location())
-	}
-	cycles, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
-		var c Cycle
-		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends)
-		c.Delivery.On, c.Ends = day(c.Delivery.On), day(c.Ends)
-		return c, err
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	plain := make([]domain.Cycle, len(cycles))
-	for i, c := range cycles {
-		plain[i] = c.Cycle
-	}
-	for i, status := range domain.CycleStatuses(plain, now) {
+	for i, status := range domain.CycleStatuses(plain(cycles), now) {
 		switch status {
 		case domain.Current:
 			current = &cycles[i]
@@ -57,7 +39,37 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 			upcoming = &cycles[i]
 		}
 	}
+	if current != nil && upcoming != nil {
+		current.Until = upcoming.Delivery.Arrives()
+	}
 	return current, upcoming, nil
+}
+
+// loadCycles reads every Cycle of the signed-in User's, in the order of their
+// Deliveries, its dates as days in zone. It has no WHERE on purpose: run in db.AsUser,
+// row-level security leaves only their rows.
+func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle, error) {
+	rows, err := q.Query(ctx, `
+		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on
+		FROM cycle ORDER BY delivery_on, window_to`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
+		var c Cycle
+		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends)
+		c.Delivery.On, c.Ends = inZone(c.Delivery.On, zone), inZone(c.Ends, zone)
+		return c, err
+	})
+}
+
+// plain is cycles without their ids.
+func plain(cycles []Cycle) []domain.Cycle {
+	p := make([]domain.Cycle, len(cycles))
+	for i, c := range cycles {
+		p[i] = c.Cycle
+	}
+	return p
 }
 
 // saveCycle adds c to the signed-in User's Cycles, and is its id.
@@ -81,6 +93,26 @@ func planningBusy(ctx context.Context, q db.Querier, except int64) (busy bool, e
 			OR EXISTS (SELECT 1 FROM plan_proposal WHERE status = $4)`,
 		planningKind, runs.Going, except, Pending).Scan(&busy)
 	return busy, err
+}
+
+// busyCycles are the ids of the signed-in User's Cycles with a pending Plan Proposal or
+// a planning Run going.
+func busyCycles(ctx context.Context, q db.Querier) ([]int64, error) {
+	rows, _ := q.Query(ctx, `
+		SELECT DISTINCT cr.cycle_id FROM cycle_run cr JOIN run r ON r.id = cr.run_id
+		LEFT JOIN plan_proposal pp ON pp.run_id = cr.run_id
+		WHERE r.status = $1 OR pp.status = $2`, runs.Going, Pending)
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// endPending rejects at at the signed-in User's pending Plan Proposal of the Cycle id, if
+// any, as ended by cause.
+func endPending(ctx context.Context, q db.Querier, id int64, cause []byte, at time.Time) error {
+	_, err := q.Exec(ctx, `
+		UPDATE plan_proposal pp SET status = $2, decided_at = $3, ended_by = $4
+		FROM cycle_run cr WHERE cr.run_id = pp.run_id AND cr.cycle_id = $1 AND pp.status = $5`,
+		id, Rejected, at, cause, Pending)
+	return err
 }
 
 // saveCycleRun records that the Run runID plans the Cycle cycleID from the Slot first.
@@ -458,6 +490,16 @@ func cycleOfRun(ctx context.Context, q db.Querier, runID int64) (id int64, err e
 		return 0, ErrNoCycle
 	}
 	return id, err
+}
+
+// cycleOfProposal is the id of the signed-in User's Cycle their Plan Proposal id plans,
+// and ErrNoProposal when they have no such Plan Proposal.
+func cycleOfProposal(ctx context.Context, q db.Querier, id int64) (cycleID int64, err error) {
+	err = q.QueryRow(ctx, `SELECT cr.cycle_id FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id WHERE pp.id = $1`, id).Scan(&cycleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNoProposal
+	}
+	return cycleID, err
 }
 
 // decide sets the signed-in User's pending Plan Proposal id to status, decided at at,

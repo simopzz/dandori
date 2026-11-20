@@ -1,6 +1,7 @@
 package runs
 
 import (
+	"encoding/json"
 	"bytes"
 	"cmp"
 	"context"
@@ -23,6 +24,9 @@ type Run struct {
 	Asked     string
 	StartedAt time.Time
 	Trace     []StoredTraceEvent
+	// Cause is what cancelled it when the User didn't, a document its kind's page tells,
+	// or nil.
+	Cause json.RawMessage
 }
 
 // StoredTraceEvent is a Trace Event as the Run kept it, with when it happened.

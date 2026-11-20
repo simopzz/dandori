@@ -122,7 +122,7 @@ func (s *Service) Drop(ctx context.Context, id int64, now time.Time) error {
 		if _, err := findUpcoming(ctx, tx, id, now); err != nil {
 			return err
 		}
-		if stop, err = s.end(ctx, tx, id); err != nil {
+		if stop, err = s.end(ctx, tx, id, cause{Dropped: true}, now); err != nil {
 			return err
 		}
 		return deleteCycle(ctx, tx, id)
