@@ -39,38 +39,47 @@ var owners = map[string]string{
 	"proposal_recipe_draft": "planning",
 }
 
-// crossing is a feature's store writing or locking a table another feature owns, or a
-// foreign key cascading from one feature's table to another's.
-type crossing struct{ from, to string }
+// storeCrossing is a store's function, as feature.function, writing or locking a table
+// another feature owns.
+type storeCrossing struct{ function, table string }
 
-// storeExceptions are the crossings of a feature's store, from the feature to the
-// table, allowed for the reason given.
-var storeExceptions = map[crossing]string{
-	{"recipes", "run"}: "storeDraft locks the Run, so a cancel lands before or after a Recipe Draft is stored, never between; doing it through runs' API is a follow-up (#287)",
+// cascade is a foreign key from one table to another that cascades on delete.
+type cascade struct{ from, to string }
+
+// allowedStoreCrossings are the store crossings allowed, each for the reason given.
+var allowedStoreCrossings = map[storeCrossing]string{
+	{"recipes.storeDraft", "run"}: "it locks the Run, so a cancel lands before or after a Recipe Draft is stored, never between; doing it through runs' API is a follow-up (#287)",
 }
 
-// cascadeExceptions are the foreign keys cascading from one feature's table to
-// another's, allowed for the reason given.
-var cascadeExceptions = map[crossing]string{
+// allowedCascades are the cascades from one feature's table to another's allowed, each
+// for the reason given.
+var allowedCascades = map[cascade]string{
 	{"recipe_draft", "run"}: "no code deletes a Run: only deleting a User does, and that cascades everything anyway",
 	{"cycle_run", "run"}:    "no code deletes a Run: only deleting a User does, and that cascades everything anyway",
 }
 
+// table matches a table's name in SQL, quoted or not, perhaps after ONLY or a schema;
+// its group is the name.
+const table = `(?:ONLY\s+)?(?:"?\w+"?\.)?("?\w+"?)`
+
 var (
 	sqlComment = regexp.MustCompile(`--.*`)
-	tableDDL   = regexp.MustCompile(`(?is)^\s*(CREATE|ALTER)\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?("?\w+"?)`)
+	tableDDL   = regexp.MustCompile(`(?is)^\s*(CREATE|ALTER)\s+(?:(?:UNLOGGED|TEMP|TEMPORARY)\s+)?TABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?` + table)
 	// foreignKey's second group is what follows the referenced columns, up to the end
 	// of the constraint: where ON DELETE stands.
-	foreignKey = regexp.MustCompile(`(?i)REFERENCES\s+("?\w+"?)\s*(?:\([^)]*\))?([^,;)]*)`)
+	foreignKey = regexp.MustCompile(`(?i)REFERENCES\s+` + table + `\s*(?:\([^)]*\))?([^,;)]*)`)
 	cascades   = regexp.MustCompile(`(?i)ON\s+DELETE\s+CASCADE`)
-	written    = regexp.MustCompile(`(?i)\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE)\s+("?\w+"?)`)
-	notWritten = regexp.MustCompile(`(?i)\b(?:DO|FOR|FOR\s+NO\s+KEY)\s+UPDATE\b`)
+	written    = regexp.MustCompile(`(?i)\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE|MERGE\s+INTO)\s+` + table)
+	notWritten = regexp.MustCompile(`(?i)\b(?:DO|THEN|FOR|FOR\s+NO\s+KEY)\s+UPDATE\b`)
 	locks      = regexp.MustCompile(`(?i)\bFOR\s+(?:UPDATE|NO\s+KEY\s+UPDATE|SHARE|KEY\s+SHARE)\b`)
-	readFrom   = regexp.MustCompile(`(?i)\b(?:FROM|JOIN)\s+("?\w+"?)`)
+	// shortcut: readFrom takes the first table of a FROM, so FROM a, b misses b; match
+	// the whole list if a locking statement ever joins with a comma.
+	readFrom = regexp.MustCompile(`(?i)\b(?:FROM|JOIN)\s+` + table)
 )
 
-// statement is one SQL statement and where it stands.
-type statement struct{ where, sql string }
+// statement is one SQL statement, where it stands and, in a store, the function holding
+// it, as feature.function.
+type statement struct{ where, function, sql string }
 
 // tableName is name unquoted, as owners keys it.
 func tableName(name string) string { return strings.ToLower(strings.Trim(name, `"`)) }
@@ -90,7 +99,7 @@ func upStatements(t *testing.T) []statement {
 		}
 		up, _, _ := strings.Cut(string(b), "-- +goose Down")
 		for s := range strings.SplitSeq(sqlComment.ReplaceAllString(up, ""), ";") {
-			stmts = append(stmts, statement{path, s})
+			stmts = append(stmts, statement{where: path, sql: s})
 		}
 	}
 	return stmts
@@ -121,7 +130,7 @@ func TestEveryTableHasAnOwningFeature(t *testing.T) {
 // deleting a User removes everything. Which way a key points is not checked: ADR-0019
 // sanctions movement's key up to ingredient.
 func TestNoCascadeCrossesFeatures(t *testing.T) {
-	used := map[crossing]bool{}
+	used := map[cascade]bool{}
 	for _, s := range upStatements(t) {
 		m := tableDDL.FindStringSubmatch(s.sql)
 		if m == nil {
@@ -130,11 +139,21 @@ func TestNoCascadeCrossesFeatures(t *testing.T) {
 		from := tableName(m[2])
 		for _, fk := range foreignKey.FindAllStringSubmatch(s.sql, -1) {
 			to := tableName(fk[1])
+			unowned := false
+			for _, table := range []string{from, to} {
+				if _, ok := owners[table]; !ok {
+					t.Errorf("%s: a foreign key between %s and %s, but owners gives %s no feature: a table it lacks, or SQL this test misreads", s.where, from, to, table)
+					unowned = true
+				}
+			}
+			if unowned {
+				continue
+			}
 			if to == "user" || owners[from] == owners[to] || !cascades.MatchString(fk[2]) {
 				continue
 			}
-			c := crossing{from, to}
-			if _, ok := cascadeExceptions[c]; ok {
+			c := cascade{from, to}
+			if _, ok := allowedCascades[c]; ok {
 				used[c] = true
 				continue
 			}
@@ -142,7 +161,7 @@ func TestNoCascadeCrossesFeatures(t *testing.T) {
 				s.where, from, to, owners[from], owners[to])
 		}
 	}
-	checkExceptionsUsed(t, cascadeExceptions, used)
+	checkAllowedUsed(t, allowedCascades, used)
 }
 
 // A feature's store writes and locks only tables the feature owns: the target of an
@@ -153,37 +172,41 @@ func TestStoresWriteAndLockOnlyTheirOwnTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	used := map[crossing]bool{}
+	used := map[storeCrossing]bool{}
 	for _, path := range paths {
 		feature := filepath.Base(filepath.Dir(path))
 		tier, _ := fileTier(filepath.Base(path))
 		if tier != tierStore || strings.HasSuffix(path, "_test.go") || slices.Contains(shared, feature) {
 			continue
 		}
-		for _, s := range storeSQL(t, path) {
+		for _, s := range storeSQL(t, feature, path) {
 			for _, table := range touched(s.sql) {
 				owner, ok := owners[table]
-				if !ok || owner == feature {
+				if !ok {
+					t.Errorf("%s: %s writes or locks %s, which owners gives no feature: a table it lacks, or SQL this test misreads", s.where, s.function, table)
 					continue
 				}
-				c := crossing{feature, table}
-				if _, ok := storeExceptions[c]; ok {
+				if owner == feature {
+					continue
+				}
+				c := storeCrossing{s.function, table}
+				if _, ok := allowedStoreCrossings[c]; ok {
 					used[c] = true
 					continue
 				}
-				t.Errorf("%s: %s writes or locks %s, which %s owns (ADR-0006)", s.where, feature, table, owner)
+				t.Errorf("%s: %s writes or locks %s, which %s owns (ADR-0006)", s.where, s.function, table, owner)
 			}
 		}
 	}
-	checkExceptionsUsed(t, storeExceptions, used)
+	checkAllowedUsed(t, allowedStoreCrossings, used)
 }
 
-// storeSQL is the SQL of each database call in the Go file at path: the string literals
-// among its arguments.
+// storeSQL is the SQL of each database call in the functions of feature's Go file at
+// path: the string literals among its arguments.
 //
-// shortcut: SQL held in a variable or a constant outside the call is not seen; resolve
-// identifiers if a store ever builds a write that way.
-func storeSQL(t *testing.T, path string) []statement {
+// shortcut: SQL held in a variable or a constant outside the call, a CopyFrom's table and
+// a pgx.Batch's queries are not seen; read them if a store ever writes that way.
+func storeSQL(t *testing.T, feature, path string) []statement {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
@@ -191,27 +214,33 @@ func storeSQL(t *testing.T, path string) []statement {
 		t.Fatal(err)
 	}
 	var stmts []statement
-	ast.Inspect(f, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok || len(call.Args) == 0 {
-			return true
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
 		}
-		if sel, ok := call.Fun.(*ast.SelectorExpr); !ok || !slices.Contains(sqlCalls, sel.Sel.Name) {
-			return true
-		}
-		var sql strings.Builder
-		for _, arg := range call.Args {
-			ast.Inspect(arg, func(n ast.Node) bool {
-				if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-					s, _ := strconv.Unquote(lit.Value)
-					sql.WriteString(s + " ")
-				}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok || len(call.Args) == 0 {
 				return true
-			})
-		}
-		stmts = append(stmts, statement{fset.Position(call.Pos()).String(), sql.String()})
-		return true
-	})
+			}
+			if sel, ok := call.Fun.(*ast.SelectorExpr); !ok || !slices.Contains(sqlCalls, sel.Sel.Name) {
+				return true
+			}
+			var sql strings.Builder
+			for _, arg := range call.Args {
+				ast.Inspect(arg, func(n ast.Node) bool {
+					if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+						s, _ := strconv.Unquote(lit.Value)
+						sql.WriteString(s + " ")
+					}
+					return true
+				})
+			}
+			stmts = append(stmts, statement{fset.Position(call.Pos()).String(), feature + "." + fn.Name.Name, sql.String()})
+			return true
+		})
+	}
 	return stmts
 }
 
@@ -228,13 +257,13 @@ func touched(sql string) (tables []string) {
 	return tables
 }
 
-// checkExceptionsUsed fails on an exception nothing needs any more, so the list shrinks
+// checkAllowedUsed fails on an allowance nothing needs any more, so the list shrinks
 // once a leak is fixed.
-func checkExceptionsUsed(t *testing.T, exceptions map[crossing]string, used map[crossing]bool) {
+func checkAllowedUsed[K comparable](t *testing.T, allowed map[K]string, used map[K]bool) {
 	t.Helper()
-	for c := range exceptions {
+	for c := range allowed {
 		if !used[c] {
-			t.Errorf("the exception %s → %s matches nothing any more: remove it", c.from, c.to)
+			t.Errorf("%+v is allowed but matches nothing any more: remove it", c)
 		}
 	}
 }
