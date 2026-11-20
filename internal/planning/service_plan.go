@@ -416,7 +416,7 @@ type planBrief struct {
 	checked int
 	broken  []string // each submit breaking a hard rule, what it broke
 	chosen  *domain.Plan
-	verdict domain.Verdict // chosen's
+	verdict domain.Verdict // the Verdict on chosen, stored with it
 }
 
 // brief is the planning Run's Brief, for a User speaking l, told prompt.
