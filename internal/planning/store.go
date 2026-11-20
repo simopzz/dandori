@@ -106,12 +106,12 @@ func busyCycles(ctx context.Context, q db.Querier) ([]int64, error) {
 }
 
 // endPending rejects at at the signed-in User's pending Plan Proposal of the Cycle id, if
-// any, as ended by cause.
-func endPending(ctx context.Context, q db.Querier, id int64, cause []byte, at time.Time) error {
+// any, as ended by why.
+func endPending(ctx context.Context, q db.Querier, id int64, why cause, at time.Time) error {
 	_, err := q.Exec(ctx, `
 		UPDATE plan_proposal pp SET status = $2, decided_at = $3, ended_by = $4
 		FROM cycle_run cr WHERE cr.run_id = pp.run_id AND cr.cycle_id = $1 AND pp.status = $5`,
-		id, Rejected, at, cause, Pending)
+		id, Rejected, at, why, Pending)
 	return err
 }
 

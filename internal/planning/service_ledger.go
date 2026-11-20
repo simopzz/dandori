@@ -18,8 +18,8 @@ import (
 	"github.com/simopzz/dandori/internal/runs"
 )
 
-// The Plan Proposal ledger: turn, submit and decide (in the store) and end are the only
-// ways a Plan Proposal's status changes or a planning Run is cancelled.
+// The Plan Proposal ledger: turn, submit, decide and endPending (in the store) and end
+// are the only ways a Plan Proposal's status changes or a planning Run is cancelled.
 
 var (
 	// ErrPlanned is planning a Cycle that already has a Plan.
@@ -65,15 +65,12 @@ type cause struct {
 	Dropped  bool             `json:"dropped,omitempty"`
 }
 
-// end ends, in tx, the pending Plan Proposal of the Cycle id, rejecting it at now, and
-// cancels its planning Run going, as something that happened, why, ends them, and is
-// what stops the Run: call stop only once tx has committed. Ended once, they stay so.
-func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause, now time.Time) (stop func(context.Context), err error) {
+// end cancels, in tx, the planning Run going for the Cycle id, as something that
+// happened, why, ends it, and is what stops it: call stop only once tx has committed.
+// Cancelled once, it stays so.
+func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop func(context.Context), err error) {
 	doc, err := json.Marshal(why)
 	if err != nil {
-		return nil, err
-	}
-	if err := endPending(ctx, tx, id, doc, now); err != nil {
 		return nil, err
 	}
 	runID, err := goingRun(ctx, tx, id)
@@ -111,7 +108,11 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 				continue
 			}
 			next := cycles[i+1].Delivery // closed: the next Cycle's Delivery has arrived
-			stop, err := s.end(ctx, tx, cycles[i].ID, cause{ClosedBy: &next}, now)
+			why := cause{ClosedBy: &next}
+			if err := endPending(ctx, tx, cycles[i].ID, why, now); err != nil {
+				return err
+			}
+			stop, err := s.end(ctx, tx, cycles[i].ID, why)
 			if err != nil {
 				return err
 			}
