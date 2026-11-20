@@ -195,11 +195,10 @@ templ runAbout(c Cycle, again bool) {
 }
 
 // cancelledBy says what cancelled a planning Run when the User didn't, why: the Delivery
-// that closed its Cycle, its day in zone, or its Cycle dropped; nothing otherwise.
-templ cancelledBy(why cause, zone *time.Location) {
-	if why.ClosedBy != nil {
-		{{ on, _ := time.ParseInLocation(time.DateOnly, why.ClosedBy.On, zone) }}
-		<p class="lede">{ web.Tf(ctx, msgClosedBy, web.Tf(ctx, msgWindow, web.ShortDate(ctx, on), web.TimeOfDay(ctx, why.ClosedBy.From), web.TimeOfDay(ctx, why.ClosedBy.To))) }</p>
+// that closed its Cycle, or its Cycle dropped; nothing otherwise.
+templ cancelledBy(why cause) {
+	if d := why.ClosedBy; d != nil {
+		<p class="lede">{ web.Tf(ctx, msgClosedBy, web.Tf(ctx, msgWindow, web.ShortDate(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))) }</p>
 	} else if why.Dropped {
 		<p class="lede">{ web.T(ctx, msgCycleDropped) }</p>
 	}

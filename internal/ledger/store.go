@@ -11,16 +11,6 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// loadUserIDs is every User's id. Run outside db.AsUser, as the app's own role, it sees
-// them all.
-func loadUserIDs(ctx context.Context, q db.Querier) ([]string, error) {
-	rows, err := q.Query(ctx, `SELECT id::text FROM "user" ORDER BY created_at`)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, pgx.RowTo[string])
-}
-
 // saveUpTo records the signed-in User's kitchen as brought up to now, unless it already
 // is: it never moves back, and a moment reached is not written again.
 func saveUpTo(ctx context.Context, q db.Querier, now time.Time) error {

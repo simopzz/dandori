@@ -59,6 +59,18 @@ func (h Handlers) RunPage() runs.KindPage {
 	}
 }
 
+// Arrived takes the signed-in User's Deliveries arrived by now as arrived, then serves
+// next. It runs after the kitchen is brought up to now.
+func (h Handlers) Arrived(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := h.Service.Arrive(r.Context(), h.Clock.Now()); err != nil {
+			httpx.ServerError(w, r, h.Log, "take the Deliveries arrived as arrived", err)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // resultURL is the Cycle page of the Cycle the planning Run runID planned, or the Cycle
 // page once that Cycle has closed or been dropped.
 func (h Handlers) resultURL(ctx context.Context, runID int64) (string, error) {
@@ -79,10 +91,9 @@ func (h Handlers) about(ctx context.Context, run runs.Run) (templ.Component, err
 			return nil, err
 		}
 	}
-	now := h.Clock.Now()
-	c, latest, err := h.Service.CycleOfRun(ctx, run.ID, now)
+	c, latest, err := h.Service.CycleOfRun(ctx, run.ID, h.Clock.Now())
 	if errors.Is(err, ErrNoCycle) {
-		return cancelledBy(why, now.Location()), nil
+		return cancelledBy(why), nil
 	}
 	return runAbout(c, run.Status == runs.Failed && latest), err
 }
@@ -260,13 +271,13 @@ func (h Handlers) showDraft(w http.ResponseWriter, r *http.Request, sheet bool) 
 	httpx.Render(w, r, h.Log, http.StatusOK, draftPage(h.Clock.Now(), rec, cycleID))
 }
 
-// ShowCheck is the Kitchen Check before planning the upcoming Cycle in the path.
+// ShowCheck is the Kitchen Check before planning the Cycle in the path.
 func (h Handlers) ShowCheck(w http.ResponseWriter, r *http.Request) {
 	h.check(w, r, http.StatusOK, nil)
 }
 
-// check answers with the Kitchen Check of the upcoming Cycle in the path, with status,
-// saying why planning is refused, if it is. A Cycle not upcoming is unknown.
+// check answers with the Kitchen Check of the Cycle in the path, with status, saying why
+// planning is refused, if it is. A Cycle neither upcoming nor current is unknown.
 func (h Handlers) check(w http.ResponseWriter, r *http.Request, status int, refusal error) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -290,7 +301,7 @@ func (h Handlers) check(w http.ResponseWriter, r *http.Request, status int, refu
 	httpx.Render(w, r, h.Log, status, checkPage(now, c, contents, refusal))
 }
 
-// Plan confirms the Kitchen Check of the upcoming Cycle in the path and starts its
+// Plan confirms the Kitchen Check of the Cycle in the path and starts its
 // planning Run, landing on the Run's page and its live Trace, or answers with the
 // Kitchen Check saying why it can't.
 func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {

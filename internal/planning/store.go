@@ -133,8 +133,9 @@ func goingRun(ctx context.Context, q db.Querier, id int64) (runID int64, err err
 // submit stores plan, summed up by summary, as the pending Plan Proposal of the planning
 // Run runID, with the Targets it aimed at, its Verdict v's days and misses, and those of
 // the Recipe Drafts drafted that it prepares, as the Run is stored succeeded: a Run
-// cancelled meanwhile, its Cycle dropped or closed, never stores it, and the unique index
-// keeps a second one from pending.
+// cancelled meanwhile, by the User, its Cycle dropped or a Delivery taken as arrived,
+// never stores it, and the unique index keeps a second one from pending. One stored after
+// its Cycle closed, before its Delivery was taken as arrived, is rejected once it is.
 func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, targets domain.Targets, v domain.Verdict, summary string, drafted []*recipes.Drafted) error {
 	var id int64
 	misses := v.Misses

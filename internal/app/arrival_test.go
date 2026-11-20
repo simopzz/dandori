@@ -51,16 +51,37 @@ func TestTheCyclePageWithACurrentAndAnUpcomingCycle(t *testing.T) {
 	s.DoesNotSee("Upcoming ·")
 }
 
-// The upcoming Cycle's link says how planning it stands, so a Plan Proposal waiting is
-// never hidden behind the current Cycle.
+// The upcoming Cycle's link says how planning it stands, so a Plan Proposal waiting, a
+// planning Run going or one failed is never hidden behind the current Cycle.
 func TestTheUpcomingCyclesLinkSaysHowPlanningItStands(t *testing.T) {
-	s := plannerWithKitchen(t, "ada@example.com")
-	s.OpensCycle(monday)
-	s.At("Mon 20:00")
-	plansFriday(t, s, "Rice bowls for Friday.")
-	s.Open("/plan")
-	s.Sees("Current · Mon, Nov 2 – Wed, Nov 4 Upcoming · Thu, Nov 5 – Fri, Nov 6 Plan Proposal waiting")
-	s.Sees("Plan the Cycle")
+	cases := []struct {
+		name  string
+		plans func(t *testing.T, s *apptest.Scenario)
+		tag   string
+	}{
+		{"a Plan Proposal waiting", func(t *testing.T, s *apptest.Scenario) { plansFriday(t, s, "Rice bowls for Friday.") }, "Plan Proposal waiting"},
+		{"being planned", func(t *testing.T, s *apptest.Scenario) {
+			s.Model.Script(fakellm.Hang())
+			s.OpensCycle(friday)
+			s.StartsPlanning()
+		}, "Being planned"},
+		{"failed", func(t *testing.T, s *apptest.Scenario) {
+			s.Model.Script(fakellm.Reply("No Plan today."))
+			s.OpensCycle(friday)
+			s.PlansCycle()
+		}, "Failed"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := plannerWithKitchen(t, "ada@example.com")
+			s.OpensCycle(monday)
+			s.At("Mon 20:00")
+			c.plans(t, s)
+			s.Open("/plan")
+			s.Sees("Current · Mon, Nov 2 – Wed, Nov 4 Upcoming · Thu, Nov 5 – Fri, Nov 6 " + c.tag)
+			s.Sees("Cycle · Mon, Nov 2 – Wed, Nov 4")
+		})
+	}
 }
 
 // A Delivery arriving before the current Cycle ends closes it: its pending Plan Proposal
@@ -74,7 +95,7 @@ func TestAnEarlyDeliveryRejectsTheClosingCyclesPlanProposal(t *testing.T) {
 	s.At("Fri 12:00")
 	var status, closedBy string
 	s.Scan(t, &status, `SELECT status FROM plan_proposal`)
-	s.Scan(t, &closedBy, `SELECT coalesce(ended_by->'closed_by'->>'on', '') FROM plan_proposal`)
+	s.Scan(t, &closedBy, `SELECT coalesce(left(ended_by->'closed_by'->>'On', 10), '') FROM plan_proposal`)
 	if status != "rejected" || closedBy != "2026-11-06" {
 		t.Errorf("the closing Cycle's Plan Proposal is %s, ended by the Delivery of %q, want rejected by Friday's", status, closedBy)
 	}

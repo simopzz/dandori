@@ -111,7 +111,7 @@ var (
 	msgCurrentDates       = web.Message{En: "Current · %s", It: "In corso · %s"}
 	msgUpcomingDates      = web.Message{En: "Upcoming · %s", It: "Prossimo · %s"}
 	msgProposalWaitingTag = web.Message{En: "Plan Proposal waiting", It: "Proposta di Piano in attesa"}
-	msgFailedTag          = web.Message{En: "Failed", It: "Non riuscita"}
+	msgFailedTag          = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
 )
 
 // What cancelled a planning Run when the User didn't, on its page.

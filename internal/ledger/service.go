@@ -1,9 +1,9 @@
 // Package ledger is the Kitchen Ledger (ADR-0013, ADR-0019): the Movements of each User's
 // kitchen, the kitchen lock every write of them takes, and the step that brings a kitchen
 // up to now, run first on every request and by the scheduler's beat. That step will write
-// the assumed Movements whose time has passed; until a Plan gives it any, it takes the
-// Deliveries arrived as arrived and records how far it has reached. It sits below every
-// feature that writes Movements, so it imports none of them.
+// the assumed Movements whose time has passed; until a Plan gives it any, it only records
+// how far it has reached. It sits below every feature that writes Movements, so it
+// imports none of them.
 package ledger
 
 import (
@@ -21,22 +21,15 @@ import (
 // BeatEvery is how often the scheduler beats, on the clock.
 const BeatEvery = 5 * time.Minute
 
-// Arrive takes every Delivery of the signed-in User's whose window has ended by now as
-// arrived, in tx, and is what to do once tx commits. It is idempotent, as bringing the
-// kitchen up to now is. The planning feature has it, which this package can't import, so
-// app passes it in.
-type Arrive func(ctx context.Context, tx pgx.Tx, now time.Time) (after func(context.Context), err error)
-
 // Service brings kitchens up to now, on every request and the scheduler's beat.
 type Service struct {
-	pool   *pgxpool.Pool
-	log    *slog.Logger
-	arrive Arrive
+	pool *pgxpool.Pool
+	log  *slog.Logger
 }
 
-// New creates the Service, which takes the Deliveries arrived as arrived with arrive.
-func New(pool *pgxpool.Pool, log *slog.Logger, arrive Arrive) *Service {
-	return &Service{pool: pool, log: log, arrive: arrive}
+// New creates the Service.
+func New(pool *pgxpool.Pool, log *slog.Logger) *Service {
+	return &Service{pool: pool, log: log}
 }
 
 // Write holds the signed-in User's kitchen until q's transaction ends, hands write the
@@ -86,42 +79,28 @@ func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 	return savePortions(ctx, q, p)
 }
 
-// BringUpToNow brings the signed-in User's kitchen up to now, the Deliveries arrived
-// taken as arrived. Run again for a moment it has reached, it changes nothing.
+// BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it
+// has reached, it changes nothing.
 func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
-	return s.upTo(ctx, now, false)
-}
-
-// upTo brings the signed-in User's kitchen up to now, the Deliveries arrived taken as
-// arrived, recording the scheduler's beat at now if beat.
-func (s *Service) upTo(ctx context.Context, now time.Time, beat bool) error {
-	var after func(context.Context)
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
-		if after, err = s.arrive(ctx, tx, now); err != nil {
-			return err
-		}
-		if err := saveUpTo(ctx, tx, now); err != nil || !beat {
-			return err
-		}
-		return saveBeat(ctx, tx, now)
-	})
-	if err != nil {
-		return err
-	}
-	after(ctx)
-	return nil
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveUpTo(ctx, tx, now) })
 }
 
 // Beat brings every User's kitchen up to at, the scheduler's beat, and records the beat
 // for each. One User's failure is logged and doesn't stop the others.
 func (s *Service) Beat(ctx context.Context, at time.Time) {
-	users, err := loadUserIDs(ctx, s.pool)
+	users, err := db.UserIDs(ctx, s.pool)
 	if err != nil {
 		s.log.ErrorContext(ctx, "kitchen beat: list the Users", "err", err)
 		return
 	}
 	for _, id := range users {
-		if err := s.upTo(db.WithUser(ctx, id), at, true); err != nil {
+		err := db.AsUser(db.WithUser(ctx, id), s.pool, func(tx pgx.Tx) error {
+			if err := saveUpTo(ctx, tx, at); err != nil {
+				return err
+			}
+			return saveBeat(ctx, tx, at)
+		})
+		if err != nil {
 			s.log.ErrorContext(ctx, "kitchen beat", "user", id, "err", err)
 		}
 	}

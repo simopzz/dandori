@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -60,15 +61,8 @@ func turn(ctx context.Context, tx pgx.Tx, id, runID int64) error {
 // cause is what ends a Plan Proposal or cancels a planning Run when the User doesn't, as
 // stored with it: the Delivery that closed its Cycle, or its Cycle dropped.
 type cause struct {
-	ClosedBy *closedBy `json:"closed_by,omitempty"`
-	Dropped  bool      `json:"dropped,omitempty"`
-}
-
-// closedBy is the Delivery that closed a Cycle: its day and window.
-type closedBy struct {
-	On   string           `json:"on"`
-	From domain.TimeOfDay `json:"from"`
-	To   domain.TimeOfDay `json:"to"`
+	ClosedBy *domain.Delivery `json:"closed_by,omitempty"`
+	Dropped  bool             `json:"dropped,omitempty"`
 }
 
 // end ends, in tx, the pending Plan Proposal of the Cycle id, rejecting it at now, and
@@ -90,45 +84,63 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause, now t
 }
 
 // Arrive takes every Delivery of the signed-in User's whose window has ended by now as
-// arrived, in tx: a Cycle it closes has its pending Plan Proposal rejected and its
-// planning Run cancelled, naming the Delivery. It is what stops the Run: call stop only
-// once tx has committed. Run again for a moment it has reached, it changes nothing. The
-// Kitchen Ledger runs it as it brings the kitchen up to now.
-func (s *Service) Arrive(ctx context.Context, tx pgx.Tx, now time.Time) (stop func(context.Context), err error) {
-	stop = func(context.Context) {}
-	busy, err := busyCycles(ctx, tx)
-	if err != nil || len(busy) == 0 {
-		return stop, err
-	}
-	cycles, err := loadCycles(ctx, tx, now.Location())
-	if err != nil {
-		return stop, err
-	}
-	statuses := domain.CycleStatuses(plain(cycles), now)
+// arrived: a Cycle it closes has its pending Plan Proposal rejected and its planning Run
+// cancelled, naming the Delivery. Run again for a moment it has reached, it changes
+// nothing. Every request runs it, after bringing the kitchen up to now, as the beat does.
+func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 	var stops []func(context.Context)
-	for i, c := range cycles {
-		if statuses[i] != domain.Closed || !slices.Contains(busy, c.ID) {
-			continue
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		busy, err := busyCycles(ctx, tx)
+		if err != nil || len(busy) == 0 {
+			return err
 		}
-		if len(stops) == 0 {
-			// turn's lock, so a planning Run still starting is seen, and ended.
-			if err := lockPlanning(ctx, tx); err != nil {
-				return stop, err
-			}
+		// turn's lock, then busy read again: a planning Run that started meanwhile
+		// is seen.
+		if err := lockPlanning(ctx, tx); err != nil {
+			return err
 		}
-		next := cycles[i+1].Delivery // closed: the next Cycle's Delivery has arrived
-		why := cause{ClosedBy: &closedBy{On: next.On.Format(time.DateOnly), From: next.From, To: next.To}}
-		end, err := s.end(ctx, tx, c.ID, why, now)
+		if busy, err = busyCycles(ctx, tx); err != nil {
+			return err
+		}
+		cycles, err := loadCycles(ctx, tx, now.Location())
 		if err != nil {
-			return stop, err
+			return err
 		}
-		stops = append(stops, end)
+		for i, status := range domain.CycleStatuses(plain(cycles), now) {
+			if status != domain.Closed || !slices.Contains(busy, cycles[i].ID) {
+				continue
+			}
+			next := cycles[i+1].Delivery // closed: the next Cycle's Delivery has arrived
+			stop, err := s.end(ctx, tx, cycles[i].ID, cause{ClosedBy: &next}, now)
+			if err != nil {
+				return err
+			}
+			stops = append(stops, stop)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	return func(ctx context.Context) {
-		for _, stop := range stops {
-			stop(ctx)
+	for _, stop := range stops {
+		stop(ctx)
+	}
+	return nil
+}
+
+// Beat takes the Deliveries arrived by at as arrived for every User, the scheduler's
+// beat. One User's failure is logged and doesn't stop the others.
+func (s *Service) Beat(ctx context.Context, at time.Time, log *slog.Logger) {
+	users, err := db.UserIDs(ctx, s.pool)
+	if err != nil {
+		log.ErrorContext(ctx, "arrival beat: list the Users", "err", err)
+		return
+	}
+	for _, id := range users {
+		if err := s.Arrive(db.WithUser(ctx, id), at); err != nil {
+			log.ErrorContext(ctx, "arrival beat", "user", id, "err", err)
 		}
-	}, nil
+	}
 }
 
 // Approve makes the signed-in User's pending Plan Proposal id their Cycle's Plan at now,
