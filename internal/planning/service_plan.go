@@ -132,10 +132,10 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	b := planBrief{
 		cycle: c.Cycle, from: slots[0], profile: p, lots: held.Portions, stock: stockOf(held.Held), earlier: earlier, now: s.clock.Now,
 		library: library, known: known, checks: s.checks, zone: now.Location(),
-		leave: func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted) {
+		leave: func(ctx context.Context, plan domain.Plan, v domain.Verdict, summary string, drafted []*recipes.Drafted) {
 			runID := runs.IDFrom(ctx)
 			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error {
-				return submit(ctx, tx, runID, plan, p.Targets, misses, summary, drafted)
+				return submit(ctx, tx, runID, plan, p.Targets, v, summary, drafted)
 			})
 		},
 	}
@@ -409,14 +409,14 @@ type planBrief struct {
 	known   []domain.Ingredient
 	zone    *time.Location
 	checks  int
-	leave   func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted)
+	leave   func(ctx context.Context, plan domain.Plan, v domain.Verdict, summary string, drafted []*recipes.Drafted)
 
 	drafted []*recipes.Drafted // the Recipe Drafts, the first id -1, the next -2
 	drafts  []domain.Plan
 	checked int
 	broken  []string // each submit breaking a hard rule, what it broke
 	chosen  *domain.Plan
-	misses  []domain.Miss // the soft rules chosen breaks
+	verdict domain.Verdict // the Verdict on chosen, stored with it
 }
 
 // brief is the planning Run's Brief, for a User speaking l, told prompt.
@@ -429,7 +429,7 @@ func (pb *planBrief) brief(l domain.Language, prompt string) agent.Brief {
 			if pb.chosen == nil {
 				return &agent.Failure{Reason: agent.NoResult, Detail: said}
 			}
-			pb.leave(ctx, *pb.chosen, pb.misses, said, pb.drafted)
+			pb.leave(ctx, *pb.chosen, pb.verdict, said, pb.drafted)
 			return nil
 		},
 		Tools: []agent.Tool{
@@ -546,7 +546,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 	v := pb.judge(plan)
 	vs := v.Broken
 	if len(vs) == 0 {
-		pb.chosen, pb.misses = &plan, v.Misses
+		pb.chosen, pb.verdict = &plan, v
 		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it.", in.DraftID), nil
 	}
 	pb.broken = append(pb.broken, fmt.Sprintf("Draft %d:\n%s", in.DraftID, listViolations(vs)))
@@ -764,7 +764,8 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 // Proposal is a Plan Proposal as its Cycle page shows it: its Plan, the Portions without
 // a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at, the soft
 // rules it breaks, and the Recipe Drafts it prepares, while pending. It has its day table
-// too: the days it plans and, for a pending one, the seven days before its first Slot.
+// too: the days it plans and, for a pending one, the seven days before its first Slot;
+// as judged while pending, worked out from today's Recipes once approved.
 type Proposal struct {
 	ID             int64
 	Plan           domain.Plan
@@ -812,10 +813,12 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		if approved, err = loadProposal(ctx, tx, id, Approved, zone); err != nil || (pending == nil && approved == nil) {
 			return err
 		}
-		if pending != nil {
-			if earlier, err = loadApproved(ctx, tx, pending.first.On.AddDate(0, 0, -7), zone); err != nil {
+		if approved != nil {
+			if earlier, err = loadApproved(ctx, tx, approved.first.On.AddDate(0, 0, -7), zone); err != nil {
 				return err
 			}
+		}
+		if pending != nil {
 			if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
 				return err
 			}
@@ -852,15 +855,14 @@ func (s *Service) PlanningOf(ctx context.Context, id int64, zone *time.Location)
 		if err != nil {
 			return p, err
 		}
-		proposal := pending.resolve(library, known, portions, drafted)
-		planned := proposal.Plan.Eaten(portions)
-		proposal.Trailing, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, pending.first, lastDay(planned, pending.first.On))
-		p.Proposal = proposal
+		p.Proposal = pending.resolve(library, known, portions, drafted)
 	}
 	if approved != nil {
+		// Worked out again from today's Recipes, as the Verdict's days were: editing a
+		// Recipe changes only what is yet to be recorded.
 		proposal := approved.resolve(library, known, portions, nil)
 		planned := proposal.Plan.Eaten(portions)
-		_, proposal.Days = domain.PlanDays(nil, planned, approved.first, lastDay(planned, approved.first.On))
+		_, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, approved.first, lastDay(planned, approved.first.On))
 		p.Plan = proposal
 	}
 	return p, nil
@@ -938,7 +940,7 @@ func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredi
 	}
 	p := &Proposal{
 		ID: sp.id, Summary: sp.summary, Plan: domain.Plan{Kept: sp.kept}, Kept: map[int64]domain.Portion{},
-		Targets: sp.targets, Misses: sp.misses, Drafted: drafted,
+		Targets: sp.targets, Misses: sp.misses, Trailing: sp.trailing, Days: sp.days, Drafted: drafted,
 	}
 	for _, ps := range sp.sessions {
 		ps.Recipe, ps.Ingredient = cmp.Or(recipes[ps.recipeID], drafts[ps.draftID]), ingredients[ps.ingredientID]

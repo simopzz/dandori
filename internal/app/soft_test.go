@@ -103,3 +103,78 @@ func TestADayALittleUnderATargetIsUnmarked(t *testing.T) {
 	s.DoesNotSee("more than 25% off Fri")
 	s.Sees("Friday, November 6 calories 1586 protein 65 fibre at least 4 + sugar at least 8 +")
 }
+
+// halvesTheRiceBowl edits the Rice bowl to make 4 Portions of its 200 g of rice, not 2:
+// 175 kcal and 3.5 g protein a Portion, 219 kcal at 1.25×.
+func halvesTheRiceBowl(s *apptest.Scenario) {
+	s.Open("/recipes")
+	s.Follows("Rice bowl")
+	s.Follows("Edit")
+	r := riceBowl()
+	r.Portions = "4"
+	s.PostsRecipeForm(r)
+	s.IsConfirmed("Saved Rice bowl.")
+}
+
+// A pending Plan Proposal keeps the days and soft misses it was judged with when a Recipe
+// it prepares is edited: they are what the User weighs approving it.
+func TestAPendingPlanProposalKeepsItsVerdictWhenARecipeIsEdited(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Friday.")
+	halvesTheRiceBowl(s)
+
+	s.Open("/plan")
+	s.Sees("Average " + heads + " calories 1586 under protein 65 under")
+	s.Sees("1 day more than 25% off Fri, Nov 6: calories under protein under")
+	s.Sees("Friday, November 6 calories 1586 under protein 65 under")
+}
+
+// An approved Plan's days follow an edit to a Recipe it has yet to prepare: editing a
+// Recipe changes only what is yet to be recorded.
+func TestAnApprovedPlansDaysFollowAnEditedRecipe(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Friday.")
+	s.Open("/plan")
+	s.Submits("approve")
+	halvesTheRiceBowl(s)
+
+	s.Open("/plan")
+	s.Sees("Friday, November 6 calories 1148 under protein 55 under")
+}
+
+// A Plan whose first day another approved Plan fills from breakfast, it from lunch on,
+// counts that breakfast in its first day, pending and approved alike: Friday is the
+// Friday Plan's yogurt and three Portions of yogurt, 360 kcal.
+func TestAPartlyPlannedFirstDayReadsTheSamePendingAndApproved(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFriday(t, s, "Friday.")
+	s.Open("/plan")
+	s.Submits("approve")
+	s.At("Thu 21:00")
+
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			var portions []map[string]any
+			for _, slot := range [][2]string{{"2026-11-06", "lunch"}, {"2026-11-06", "snack"}, {"2026-11-06", "dinner"},
+				{"2026-11-07", "breakfast"}, {"2026-11-07", "lunch"}, {"2026-11-07", "snack"}, {"2026-11-07", "dinner"}} {
+				portions = append(portions, map[string]any{"location": "fridge", "eat_on": slot[0], "eat_kind": slot[1]})
+			}
+			return fakellm.CallTool("check_plan", map[string]any{"prep_sessions": []map[string]any{{
+				"on": "2026-11-06", "kind": "lunch", "ingredient_id": idIn(t, req, `Ingredient (\d+): yogurt`), "quantity": 150,
+				"portions": portions,
+			}}})
+		}),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Yogurt."),
+	)
+	s.OpensCycle(apptest.Cycle{Delivery: "11/06/2026", From: "10am", To: "12pm", Ends: "11/07/2026"})
+	s.PlansCycle()
+	s.Sees("Planning a Cycle Succeeded")
+
+	friday := "Friday, November 6 · lunch→ calories 360 protein 60"
+	s.Open("/plan")
+	s.Sees(friday)
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
+	s.Sees(friday)
+}
