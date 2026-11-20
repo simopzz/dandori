@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "28daec61b0bb825d0e57ad687ced76b37f80b969",
-  "generatedAt": "2026-11-17T11:14:35.760Z",
+  "gitCommitHash": "996e3b91b749aa7fb65a0015375915472bfe319a",
+  "generatedAt": "2026-11-20T09:21:37.354Z",
   "files": {
     ".dockerignore": {
       "filePath": ".dockerignore",
@@ -65,7 +65,7 @@
     },
     "AGENTS.md": {
       "filePath": "AGENTS.md",
-      "contentHash": "8a43a89984153574486d4663020112f634310fb72fb5d2f0f5874026299aa7af",
+      "contentHash": "484bd52bc8889d1d7e5ff0999401598407c5ff87794e5acf65e8ae7a813b82c3",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -95,7 +95,7 @@
     },
     "GLOSSARY.md": {
       "filePath": "GLOSSARY.md",
-      "contentHash": "f9330e547599c79fbcd787ae36ea5994b97ccb465135477ebc620fd5e437a4c1",
+      "contentHash": "06821239b75eb5049a685ff6a6bbae37ab5149b45fb0b6c1718694d6598393ae",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -387,12 +387,12 @@
     },
     "docs/adr/0006-package-by-feature-with-a-service-per-feature.md": {
       "filePath": "docs/adr/0006-package-by-feature-with-a-service-per-feature.md",
-      "contentHash": "05e0dd74663a21b3ec5c02a4fcab850a5c6ebaa30ed3181c747a23698c8ca0f4",
+      "contentHash": "1e22559bd8987f7b2c7c15e5cbaa64f25552af7f28675de707c0636303791ca1",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 16,
+      "totalLines": 21,
       "hasStructuralAnalysis": false
     },
     "docs/adr/0007-one-content-language-per-installation.md": {
@@ -517,12 +517,12 @@
     },
     "docs/adr/0019-the-kitchen-ledger-sits-below-the-features-that-write-movements.md": {
       "filePath": "docs/adr/0019-the-kitchen-ledger-sits-below-the-features-that-write-movements.md",
-      "contentHash": "d5ea14ea2946ad261900cc386897efa47ecf85b7afa31c90b2db7fba99a4bf2a",
+      "contentHash": "79d4cbb206b23a737bf447a5906813c9702c0bbb42e90871906f8b78809a7a4d",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 15,
+      "totalLines": 16,
       "hasStructuralAnalysis": false
     },
     "docs/adr/0020-appliances-are-a-fixed-list-of-kinds.md": {
@@ -547,22 +547,22 @@
     },
     "docs/agents/browser-tools.md": {
       "filePath": "docs/agents/browser-tools.md",
-      "contentHash": "4eeddb6ea4cc949d5a0ab256901f190e5c9fb876ae0ea26f8d62a7a2151b7b1f",
+      "contentHash": "52b681c5e1855ad6127d339494e74645f2aafd57e2613c85b9941c04d8e9c2b3",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 23,
+      "totalLines": 25,
       "hasStructuralAnalysis": false
     },
     "docs/agents/coding-standards.md": {
       "filePath": "docs/agents/coding-standards.md",
-      "contentHash": "4416b0e4423fccec37bb0cd2d88d70e6fb3e3668232e7e2838a35195442de657",
+      "contentHash": "7625710e01b19845722592823088e464beb18ee426267d257079f8950d2eb398",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 114,
+      "totalLines": 116,
       "hasStructuralAnalysis": false
     },
     "docs/agents/domain.md": {
@@ -597,12 +597,12 @@
     },
     "docs/agents/testing.md": {
       "filePath": "docs/agents/testing.md",
-      "contentHash": "57c1c4202a41f8c84f6d8ec8f9fa8d25877e7aa34315e888f5a45aac0d7a90cc",
+      "contentHash": "81eba8754994f58b0d2e669a9930fae45042adbbceaffedd7cb310a41e73932a",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 38,
+      "totalLines": 40,
       "hasStructuralAnalysis": false
     },
     "docs/agents/triage-labels.md": {
@@ -617,12 +617,12 @@
     },
     "docs/design.md": {
       "filePath": "docs/design.md",
-      "contentHash": "cc40e9ffbb164f19487aee67b5f77b72173a217acb8b7c0ab9bf1c7020df0550",
+      "contentHash": "a0bbba0271b2e88198e1715e223061675a0e8f4f7f682f44e5eee3536c424c9e",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 357,
+      "totalLines": 406,
       "hasStructuralAnalysis": false
     },
     "go.mod": {
@@ -1699,7 +1699,7 @@
     },
     "internal/app/app.go": {
       "filePath": "internal/app/app.go",
-      "contentHash": "173ce956ebaf3f115002471627b036687be46ceb70894a1c22c4a25b03bec2bd",
+      "contentHash": "fac3d4c252854605386ec1b7d24fe9a5b37919138711cb79b134ec25ab8378f7",
       "functions": [
         {
           "name": "New",
@@ -1742,7 +1742,7 @@
           "params": [],
           "returnType": "http.Handler",
           "exported": true,
-          "lineCount": 108
+          "lineCount": 113
         },
         {
           "name": "traced",
@@ -2020,7 +2020,7 @@
         "Schedule",
         "Handler"
       ],
-      "totalLines": 318,
+      "totalLines": 323,
       "hasStructuralAnalysis": true
     },
     "internal/app/appliances_test.go": {
@@ -2898,7 +2898,7 @@
     },
     "internal/app/cycle_test.go": {
       "filePath": "internal/app/cycle_test.go",
-      "contentHash": "62c35ae3eebc2240593b566497835e59d57a355ea020d7c96785eaf85b6f8c87",
+      "contentHash": "729f28c447ed988033803589c8d269f61a8443f111ce9e9f7858f0babda7c82b",
       "functions": [
         {
           "name": "plannerOf",
@@ -2909,7 +2909,7 @@
           ],
           "returnType": "*apptest.Scenario",
           "exported": false,
-          "lineCount": 5
+          "lineCount": 7
         },
         {
           "name": "TestOpeningACycleShowsItUpcoming",
@@ -2918,7 +2918,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 16
+          "lineCount": 15
         },
         {
           "name": "TestACycleEndsOnTheDateTyped",
@@ -2963,7 +2963,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 17
+          "lineCount": 18
         },
         {
           "name": "TestDroppingTheUpcomingCycle",
@@ -3077,7 +3077,274 @@
         "TestACycleAcrossAChangeOfTheClocks",
         "TestBrowserOpensAndDropsACycle"
       ],
-      "totalLines": 301,
+      "totalLines": 303,
+      "hasStructuralAnalysis": true
+    },
+    "internal/app/decide_test.go": {
+      "filePath": "internal/app/decide_test.go",
+      "contentHash": "f988bbc811162d6747d61e499f400dc3635973179de0b4a2122c851df0bd6036",
+      "functions": [
+        {
+          "name": "TestApprovingAPlanProposalShowsThePlanByDay",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "lastPrompt",
+          "owner": "",
+          "params": [
+            "t",
+            "s"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "told",
+          "owner": "",
+          "params": [
+            "t",
+            "s",
+            "want"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "fridayPlanned",
+          "owner": "",
+          "params": [
+            "t",
+            "s",
+            "summary"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "TestApprovalIsRefusedOnceTheFirstSlotHasPassed",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "TestASlotMovedLaterLetsItsPlanProposalBeApproved",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "TestRejectingWithoutANoteStartsNothing",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "TestRejectingWithANotePlansAgainToldEveryNoteNewestFirst",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 36
+        },
+        {
+          "name": "TestRejectShowsTheEarlierPlanningNotesNewestFirst",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "TestAFailedPlanningRunOffersToPlanAgain",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "TestDecisionsPostedAsHTMX",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "TestARefusedRejectionKeepsItsPlanningNote",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "TestPlanningAgainAndApprovingPostedAsHTMX",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "TestPlanAgainWithAPlanningNoteSendsItToThePlanner",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "TestPlanningTracesNameTheirCycle",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "TestOpeningACycleIsAButton",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "TestBrowserMarksThePlanTabOnAPlanningRun",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "TestBrowserPlanAgainIsAFilledButton",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "filled",
+          "owner": "",
+          "params": [
+            "t",
+            "b",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "before",
+          "owner": "",
+          "params": [
+            "body",
+            "a",
+            "b"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/mxschmitt/playwright-go",
+          "specifiers": [
+            "playwright-go"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent/fakellm",
+          "specifiers": [
+            "fakellm"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/apptest",
+          "specifiers": [
+            "apptest"
+          ]
+        }
+      ],
+      "exports": [
+        "TestApprovingAPlanProposalShowsThePlanByDay",
+        "TestApprovalIsRefusedOnceTheFirstSlotHasPassed",
+        "TestASlotMovedLaterLetsItsPlanProposalBeApproved",
+        "TestRejectingWithoutANoteStartsNothing",
+        "TestRejectingWithANotePlansAgainToldEveryNoteNewestFirst",
+        "TestRejectShowsTheEarlierPlanningNotesNewestFirst",
+        "TestAFailedPlanningRunOffersToPlanAgain",
+        "TestDecisionsPostedAsHTMX",
+        "TestARefusedRejectionKeepsItsPlanningNote",
+        "TestPlanningAgainAndApprovingPostedAsHTMX",
+        "TestPlanAgainWithAPlanningNoteSendsItToThePlanner",
+        "TestPlanningTracesNameTheirCycle",
+        "TestOpeningACycleIsAButton",
+        "TestBrowserMarksThePlanTabOnAPlanningRun",
+        "TestBrowserPlanAgainIsAFilledButton"
+      ],
+      "totalLines": 438,
       "hasStructuralAnalysis": true
     },
     "internal/app/drafts_test.go": {
@@ -3481,9 +3748,90 @@
       "totalLines": 88,
       "hasStructuralAnalysis": true
     },
+    "internal/app/hard_rules_test.go": {
+      "filePath": "internal/app/hard_rules_test.go",
+      "contentHash": "831561b40f85ccddda94c8380f4e2c76897bbed4551dbc566730fcf1ee64c18c",
+      "functions": [
+        {
+          "name": "mondayDraft",
+          "owner": "",
+          "params": [
+            "t",
+            "req",
+            "lasagneOn",
+            "lasagneKind",
+            "bowlAtBreakfast"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "TestCheckPlanReportsKindsOfSlotAppliancesAndThawAndSubmitPlanRefusesThem",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "TestAFrozenPortionNeedsAnEveningLeftToThaw",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "TestFreezerSplitsShowUnderTheDeliverysDay",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent/fakellm",
+          "specifiers": [
+            "fakellm"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/apptest",
+          "specifiers": [
+            "apptest"
+          ]
+        }
+      ],
+      "exports": [
+        "TestCheckPlanReportsKindsOfSlotAppliancesAndThawAndSubmitPlanRefusesThem",
+        "TestAFrozenPortionNeedsAnEveningLeftToThaw",
+        "TestFreezerSplitsShowUnderTheDeliverysDay"
+      ],
+      "totalLines": 107,
+      "hasStructuralAnalysis": true
+    },
     "internal/app/ingredients_test.go": {
       "filePath": "internal/app/ingredients_test.go",
-      "contentHash": "a4bb1340ea146d9f36361fbc3b5cf6f3d35c72935153ac5bbc47fea646e524e5",
+      "contentHash": "635e1b2e64ef5ab274775838a7c3951e138a4ba672a07b264f6f00ebb964c973",
       "functions": [
         {
           "name": "TestAddingIngredients",
@@ -3651,6 +3999,24 @@
           "lineCount": 18
         },
         {
+          "name": "TestDeletingAnIngredientAPendingPlanProposalSetsOutIsRefused",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "TestDeletingAnIngredientAnApprovedPlansFreezerSplitUsesIsRefused",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
           "name": "TestTheIngredientsSheetEditsAndDeletesInPlace",
           "owner": "",
           "params": [
@@ -3772,13 +4138,15 @@
         "TestTheUnitIsFixedOnceStockIsCounted",
         "TestEditingAnIngredientLeavesTheKitchenAsItWas",
         "TestDeletingAnIngredient",
+        "TestDeletingAnIngredientAPendingPlanProposalSetsOutIsRefused",
+        "TestDeletingAnIngredientAnApprovedPlansFreezerSplitUsesIsRefused",
         "TestTheIngredientsSheetEditsAndDeletesInPlace",
         "TestDeletingAnIngredientAsksFirst",
         "TestAnotherUsersIngredientCantBeEditedOrDeleted",
         "TestBrowserEditsAndDeletesInTheSideSheet",
         "TestTheIngredientsSheetRefusesAndConfirmsEditsInPlace"
       ],
-      "totalLines": 794,
+      "totalLines": 826,
       "hasStructuralAnalysis": true
     },
     "internal/app/kitchen_test.go": {
@@ -4984,9 +5352,188 @@
       "totalLines": 622,
       "hasStructuralAnalysis": true
     },
+    "internal/app/planner_drafts_test.go": {
+      "filePath": "internal/app/planner_drafts_test.go",
+      "contentHash": "264b2ec04f7c5e3314a788cd8b0d1d221b4520d2c9c499a2d9064f75e3d7613f",
+      "functions": [
+        {
+          "name": "misoSalmon",
+          "owner": "",
+          "params": [],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "draftedDinner",
+          "owner": "",
+          "params": [
+            "t",
+            "req",
+            "id"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "plansMisoSalmon",
+          "owner": "",
+          "params": [
+            "t",
+            "s"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "TestAPlannersRecipeDraftShowsOnThePlanProposalOnly",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "TestApprovingAPlanProposalAcceptsItsRecipeDraft",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "TestRejectingAPlanProposalDiscardsItsRecipeDraft",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "TestDraftRecipeProblemsGoBackToTheModel",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "TestDeletingARecipeInAPlanIsRefused",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestApprovingIsRefusedWhenARecipeDraftClashes",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "TestDeletingARecipeOnlyARejectedPlanProposalPreparesIsRefused",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "TestApprovingIsRefusedWhenARecipeDraftsNewIngredientIsAddedSince",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "TestApprovingAcceptsRecipeDraftsSharingANewIngredient",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestARecipeDraftsPortionEatenLaterSaysWhereItIsKept",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 36
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent/fakellm",
+          "specifiers": [
+            "fakellm"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/apptest",
+          "specifiers": [
+            "apptest"
+          ]
+        }
+      ],
+      "exports": [
+        "TestAPlannersRecipeDraftShowsOnThePlanProposalOnly",
+        "TestApprovingAPlanProposalAcceptsItsRecipeDraft",
+        "TestRejectingAPlanProposalDiscardsItsRecipeDraft",
+        "TestDraftRecipeProblemsGoBackToTheModel",
+        "TestDeletingARecipeInAPlanIsRefused",
+        "TestApprovingIsRefusedWhenARecipeDraftClashes",
+        "TestDeletingARecipeOnlyARejectedPlanProposalPreparesIsRefused",
+        "TestApprovingIsRefusedWhenARecipeDraftsNewIngredientIsAddedSince",
+        "TestApprovingAcceptsRecipeDraftsSharingANewIngredient",
+        "TestARecipeDraftsPortionEatenLaterSaysWhereItIsKept"
+      ],
+      "totalLines": 324,
+      "hasStructuralAnalysis": true
+    },
     "internal/app/planning_test.go": {
       "filePath": "internal/app/planning_test.go",
-      "contentHash": "52504ac858f0b9811bf345a59548bbfee57b4f9816b9132e65bdd80efc02bb91",
+      "contentHash": "e7209d815870ed218f3a24382884af6f0e20b37a3689718b4795ddd4c00efd24",
       "functions": [
         {
           "name": "plannerWithKitchen",
@@ -5038,7 +5585,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 39
+          "lineCount": 36
         },
         {
           "name": "prompt",
@@ -5071,6 +5618,16 @@
           ],
           "exported": false,
           "lineCount": 11
+        },
+        {
+          "name": "plansFridayWithFreezerSplit",
+          "owner": "",
+          "params": [
+            "t",
+            "s"
+          ],
+          "exported": false,
+          "lineCount": 15
         },
         {
           "name": "TestACountOnTheKitchenCheckIsWhatThePlannerIsTold",
@@ -5153,7 +5710,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 40
+          "lineCount": 48
         },
         {
           "name": "TestUsersSeeOnlyTheirOwnPlanProposals",
@@ -5162,7 +5719,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 22
+          "lineCount": 26
         },
         {
           "name": "TestBrowserPlansACycleThroughTheKitchenCheck",
@@ -5171,7 +5728,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 72
+          "lineCount": 82
         },
         {
           "name": "TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal",
@@ -5183,13 +5740,13 @@
           "lineCount": 20
         },
         {
-          "name": "TestAPlanProposalThatCantBeStoredFailsItsRun",
+          "name": "TestDroppingACycleCancelsItsPlanningRun",
           "owner": "",
           "params": [
             "t"
           ],
           "exported": true,
-          "lineCount": 18
+          "lineCount": 19
         }
       ],
       "classes": [],
@@ -5268,9 +5825,9 @@
         "TestUsersSeeOnlyTheirOwnPlanProposals",
         "TestBrowserPlansACycleThroughTheKitchenCheck",
         "TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal",
-        "TestAPlanProposalThatCantBeStoredFailsItsRun"
+        "TestDroppingACycleCancelsItsPlanningRun"
       ],
-      "totalLines": 505,
+      "totalLines": 543,
       "hasStructuralAnalysis": true
     },
     "internal/app/portions_test.go": {
@@ -5645,7 +6202,7 @@
     },
     "internal/app/recipes_test.go": {
       "filePath": "internal/app/recipes_test.go",
-      "contentHash": "21c5cb3040b93a70801430888da2164e7f22c967a22c9d1c5b485ed442544652",
+      "contentHash": "e4f53369de935a2c9fd77a29a23acb06dfe3195d4b42fcda9b1b2a10565e1e5e",
       "functions": [
         {
           "name": "riceBowl",
@@ -5733,7 +6290,7 @@
             "t"
           ],
           "exported": true,
-          "lineCount": 9
+          "lineCount": 12
         },
         {
           "name": "TestARecipeFixesTheLanguage",
@@ -6131,7 +6688,7 @@
         "TestBrowserTheFirstRecipeShowsOnAPhoneWithoutScrolling",
         "TestBrowserTheAddButtonsReachTheirFormsWithoutJS"
       ],
-      "totalLines": 1013,
+      "totalLines": 1017,
       "hasStructuralAnalysis": true
     },
     "internal/app/runs_test.go": {
@@ -6662,6 +7219,89 @@
         "TestSigningOutEndsTheSession"
       ],
       "totalLines": 172,
+      "hasStructuralAnalysis": true
+    },
+    "internal/app/soft_test.go": {
+      "filePath": "internal/app/soft_test.go",
+      "contentHash": "8134ccc70a09d8e710b4d7d903e6b68942c6cc9db97fe30d827600acb0e8ec64",
+      "functions": [
+        {
+          "name": "TestAPlanProposalShowsItsSoftMissesAndItsDays",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "TestChangingTheTargetsLeavesAPlanProposalUnchanged",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "TestADayALittleUnderATargetIsUnmarked",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent/fakellm",
+          "specifiers": [
+            "fakellm"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/apptest",
+          "specifiers": [
+            "apptest"
+          ]
+        }
+      ],
+      "exports": [
+        "TestAPlanProposalShowsItsSoftMissesAndItsDays",
+        "TestChangingTheTargetsLeavesAPlanProposalUnchanged",
+        "TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan",
+        "TestADayALittleUnderATargetIsUnmarked"
+      ],
+      "totalLines": 118,
       "hasStructuralAnalysis": true
     },
     "internal/app/spans_test.go": {
@@ -7632,6 +8272,269 @@
       "totalLines": 233,
       "hasStructuralAnalysis": true
     },
+    "internal/app/tendays_test.go": {
+      "filePath": "internal/app/tendays_test.go",
+      "contentHash": "0684fdb888f545819252bdd8dfd758a786f7010dca49f7239cce5d5f33f674ea",
+      "functions": [
+        {
+          "name": "row",
+          "owner": "",
+          "params": [
+            "name",
+            "quantity"
+          ],
+          "returnType": "apptest.RecipeRow",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "tenDayKitchen",
+          "owner": "",
+          "params": [
+            "t",
+            "email",
+            "language"
+          ],
+          "returnType": "*apptest.Scenario",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "approvesTwoDays",
+          "owner": "",
+          "params": [
+            "t",
+            "s",
+            "c"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "plansTenDays",
+          "owner": "",
+          "params": [
+            "t",
+            "s",
+            "c"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "tenDayScript",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "returnType": "[]fakellm.Step",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "idsIn",
+          "owner": "",
+          "params": [
+            "t",
+            "req",
+            "pattern"
+          ],
+          "returnType": "[]int64",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "eatenOn",
+          "owner": "",
+          "params": [
+            "day",
+            "kind",
+            "location"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "prep",
+          "owner": "",
+          "params": [
+            "day",
+            "kind",
+            "id",
+            "size"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "anApple",
+          "owner": "",
+          "params": [
+            "day",
+            "id"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "twoDayDraft",
+          "owner": "",
+          "params": [
+            "t",
+            "req"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "tenDayDraft",
+          "owner": "",
+          "params": [
+            "t",
+            "req"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 35
+        },
+        {
+          "name": "TestBrowserShowsATenDayPlanProposalVerdictFirst",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestBrowserOpensADayOfATenDayPlanProposal",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 47
+        },
+        {
+          "name": "approvesTenDays",
+          "owner": "",
+          "params": [
+            "t",
+            "s",
+            "c"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "TestBrowserShowsAnApprovedTenDayPlanFromToday",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 44
+        },
+        {
+          "name": "TestChangingTheTargetsLeavesAnApprovedPlanUnchanged",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "TestBrowserAnApprovedTenDayPlanFitsAPhone",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 27
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strconv",
+          "specifiers": [
+            "strconv"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent",
+          "specifiers": [
+            "agent"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/agent/fakellm",
+          "specifiers": [
+            "fakellm"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/apptest",
+          "specifiers": [
+            "apptest"
+          ]
+        }
+      ],
+      "exports": [
+        "TestBrowserShowsATenDayPlanProposalVerdictFirst",
+        "TestBrowserOpensADayOfATenDayPlanProposal",
+        "TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView",
+        "TestBrowserShowsAnApprovedTenDayPlanFromToday",
+        "TestChangingTheTargetsLeavesAnApprovedPlanUnchanged",
+        "TestBrowserAnApprovedTenDayPlanFitsAPhone"
+      ],
+      "totalLines": 426,
+      "hasStructuralAnalysis": true
+    },
     "internal/app/times_test.go": {
       "filePath": "internal/app/times_test.go",
       "contentHash": "3b0a914cc9e0fe10d4b4357f4b5e8c6ab9a5f0f2f5138af6b8892a6dff9013ec",
@@ -8294,7 +9197,7 @@
     },
     "internal/apptest/browser.go": {
       "filePath": "internal/apptest/browser.go",
-      "contentHash": "dd0a9cd9bc83f51b62c2ce32093fac7224ad4eeea4955b251217fdc2fd795e4c",
+      "contentHash": "09f85f43e75ef2b0fb642ed4011b8b168de0cd3880c3d0694a5265d4d51066f4",
       "functions": [
         {
           "name": "Browser",
@@ -8409,7 +9312,7 @@
             "email"
           ],
           "exported": true,
-          "lineCount": 13
+          "lineCount": 17
         },
         {
           "name": "SignUp",
@@ -8503,6 +9406,35 @@
           "lineCount": 6
         },
         {
+          "name": "Shown",
+          "owner": "Browser",
+          "params": [
+            "t"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "SeesInTurn",
+          "owner": "Browser",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "Opens",
+          "owner": "Browser",
+          "params": [
+            "t",
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
           "name": "Notices",
           "owner": "Browser",
           "params": [],
@@ -8538,6 +9470,9 @@
             "shot",
             "FollowsRun",
             "Sees",
+            "Shown",
+            "SeesInTurn",
+            "Opens",
             "Notices",
             "IsConfirmed"
           ],
@@ -8583,6 +9518,18 @@
           "source": "path/filepath",
           "specifiers": [
             "filepath"
+          ]
+        },
+        {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
           ]
         },
         {
@@ -8636,10 +9583,13 @@
         "ShotPage",
         "FollowsRun",
         "Sees",
+        "Shown",
+        "SeesInTurn",
+        "Opens",
         "Notices",
         "IsConfirmed"
       ],
-      "totalLines": 288,
+      "totalLines": 332,
       "hasStructuralAnalysis": true
     },
     "internal/apptest/fakeauth.go": {
@@ -9263,7 +10213,7 @@
     },
     "internal/apptest/scenario.go": {
       "filePath": "internal/apptest/scenario.go",
-      "contentHash": "538cb7ab3d66732ef6679d394a0bff9248619bb12f240cc1c29e90828c060ae8",
+      "contentHash": "6a5689229714f77bb43dda7ef1c254ea68afbf924d898c143f3879c19b60d71c",
       "functions": [
         {
           "name": "NewScenario",
@@ -9739,6 +10689,15 @@
           "lineCount": 6
         },
         {
+          "name": "Rejects",
+          "owner": "Scenario",
+          "params": [
+            "note"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
           "name": "StartsPlanning",
           "owner": "Scenario",
           "params": [],
@@ -9796,6 +10755,7 @@
             "OpensCycle",
             "DropsCycle",
             "PlansCycle",
+            "Rejects",
             "StartsPlanning"
           ],
           "properties": [
@@ -10032,9 +10992,10 @@
         "OpensCycle",
         "DropsCycle",
         "PlansCycle",
+        "Rejects",
         "StartsPlanning"
       ],
-      "totalLines": 672,
+      "totalLines": 682,
       "hasStructuralAnalysis": true
     },
     "internal/apptest/signin.go": {
@@ -11653,6 +12614,46 @@
       "totalLines": 118,
       "hasStructuralAnalysis": false
     },
+    "internal/db/migrations/00023_planning_note.sql": {
+      "filePath": "internal/db/migrations/00023_planning_note.sql",
+      "contentHash": "f22ca728eee7a5eb18c313ff406e1d5363d1af81069f4297a4cc656f46498c4d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 31,
+      "hasStructuralAnalysis": false
+    },
+    "internal/db/migrations/00024_plan_proposal_targets.sql": {
+      "filePath": "internal/db/migrations/00024_plan_proposal_targets.sql",
+      "contentHash": "0b265fc82f360ab380b4d917076d676b90adfbcce4db846580f1f8e62a1714bd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 17,
+      "hasStructuralAnalysis": false
+    },
+    "internal/db/migrations/00025_freezer_split.sql": {
+      "filePath": "internal/db/migrations/00025_freezer_split.sql",
+      "contentHash": "65865e56acf6256f8c97d9c6821799181f81c437308d883efd53d78023d67255",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": false
+    },
+    "internal/db/migrations/00026_planner_recipe_draft.sql": {
+      "filePath": "internal/db/migrations/00026_planner_recipe_draft.sql",
+      "contentHash": "6dda89355aa0a9e605ffffc930db8c99f2dfec2a59f9d62ed73d342bfacc4dfa",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 45,
+      "hasStructuralAnalysis": false
+    },
     "internal/db/user.go": {
       "filePath": "internal/db/user.go",
       "contentHash": "1d521fd5532ced86fe1c5ab37a1e460f0407ee16843c1448dbcfbfc43a1d9c91",
@@ -12337,8 +13338,16 @@
     },
     "internal/domain/ingredient.go": {
       "filePath": "internal/domain/ingredient.go",
-      "contentHash": "2764ec363304b202f2c7499ad41fd0fd010e30f755bebfbdc6297b75ed233ffe",
+      "contentHash": "828d619451001a696da42298755b8e42a0b12c5ba98174a7b8269d2191eb2ff9",
       "functions": [
+        {
+          "name": "IsNew",
+          "owner": "Ingredient",
+          "params": [],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 1
+        },
         {
           "name": "Known",
           "owner": "",
@@ -12412,6 +13421,7 @@
         {
           "name": "Ingredient",
           "methods": [
+            "IsNew",
             "Problems"
           ],
           "properties": [
@@ -12480,6 +13490,7 @@
       ],
       "exports": [
         "Ingredient",
+        "IsNew",
         "Nutrition",
         "Amount",
         "Known",
@@ -12489,7 +13500,7 @@
         "Problems",
         "NormaliseIngredientName"
       ],
-      "totalLines": 202,
+      "totalLines": 206,
       "hasStructuralAnalysis": true
     },
     "internal/domain/ingredient_match.go": {
@@ -13663,7 +14674,7 @@
     },
     "internal/domain/plan.go": {
       "filePath": "internal/domain/plan.go",
-      "contentHash": "1f1623ffeb46bf85c3dcee9c5f9125a28d154d97b5a06c669685fa61c92fd018",
+      "contentHash": "fc83d8fbad2deb7c4e3dc266f6df460b5bd52636d9ea719885bb99f8b53a8973",
       "functions": [
         {
           "name": "Name",
@@ -13745,6 +14756,47 @@
           "lineCount": 19
         },
         {
+          "name": "RecipesUnfit",
+          "owner": "",
+          "params": [
+            "p",
+            "owned"
+          ],
+          "returnType": "[]Violation",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "Codes",
+          "owner": "",
+          "params": [
+            "kinds"
+          ],
+          "returnType": "[]string",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "BlocksApproval",
+          "owner": "Rule",
+          "params": [],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "StartsInThePast",
+          "owner": "",
+          "params": [
+            "first",
+            "times",
+            "now"
+          ],
+          "returnType": "[]Violation",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
           "name": "String",
           "owner": "Violation",
           "params": [],
@@ -13773,10 +14825,11 @@
           ],
           "properties": [
             "PrepSessions",
-            "Kept"
+            "Kept",
+            "FreezerSplits"
           ],
           "exported": true,
-          "lineCount": 4
+          "lineCount": 7
         },
         {
           "name": "PrepSession",
@@ -13849,6 +14902,12 @@
           ]
         },
         {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
           "source": "time",
           "specifiers": [
             "time"
@@ -13867,16 +14926,20 @@
         "String",
         "Equal",
         "Unreadable",
+        "RecipesUnfit",
+        "Codes",
+        "BlocksApproval",
+        "StartsInThePast",
         "Violation",
         "String",
         "HardRules"
       ],
-      "totalLines": 206,
+      "totalLines": 273,
       "hasStructuralAnalysis": true
     },
     "internal/domain/plan_test.go": {
       "filePath": "internal/domain/plan_test.go",
-      "contentHash": "6fc1c1592cdf6dee949c003da36e5570586d4f4def7c2d11b2cb6a15bbdbdf36",
+      "contentHash": "dc932b8a1dbc5b41d8bfe27c7d473e7eab0014bb0b54ed60a333b603d5219b43",
       "functions": [
         {
           "name": "eaten",
@@ -13942,6 +15005,24 @@
           ],
           "exported": true,
           "lineCount": 20
+        },
+        {
+          "name": "TestWhichRulesBlockApproval",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "TestAPlanStartsInThePastOnceItsFirstSlotsTimeIsReached",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 21
         }
       ],
       "classes": [],
@@ -13976,9 +15057,11 @@
         "TestAPortionsNutritionScalesWithItsSize",
         "TestADraftPlanThatCantBeRead",
         "TestTheStructuralHardRules",
-        "TestSlotsAreEqualByDayAndKind"
+        "TestSlotsAreEqualByDayAndKind",
+        "TestWhichRulesBlockApproval",
+        "TestAPlanStartsInThePastOnceItsFirstSlotsTimeIsReached"
       ],
-      "totalLines": 186,
+      "totalLines": 233,
       "hasStructuralAnalysis": true
     },
     "internal/domain/portion.go": {
@@ -14441,8 +15524,16 @@
     },
     "internal/domain/recipe.go": {
       "filePath": "internal/domain/recipe.go",
-      "contentHash": "3e4f9ab6e08c462a7740e020337d94d0474215bb650d188b7c69f8aba5c34d66",
+      "contentHash": "4888657df9dcd6f04658705abe342caa5b860c73e941feb0f37412f62a3a2931",
       "functions": [
+        {
+          "name": "IsDraft",
+          "owner": "Recipe",
+          "params": [],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 1
+        },
         {
           "name": "ParseMinutes",
           "owner": "",
@@ -14515,6 +15606,7 @@
         {
           "name": "Recipe",
           "methods": [
+            "IsDraft",
             "Problems",
             "NutritionPerPortion"
           ],
@@ -14560,13 +15652,14 @@
       "exports": [
         "RecipeIngredient",
         "Recipe",
+        "IsDraft",
         "PortionNutrition",
         "ParseMinutes",
         "NormaliseRecipeName",
         "Problems",
         "NutritionPerPortion"
       ],
-      "totalLines": 155,
+      "totalLines": 158,
       "hasStructuralAnalysis": true
     },
     "internal/domain/recipe_test.go": {
@@ -14884,9 +15977,409 @@
       "totalLines": 121,
       "hasStructuralAnalysis": true
     },
+    "internal/domain/soft.go": {
+      "filePath": "internal/domain/soft.go",
+      "contentHash": "e3319841298b3c505cc363ae9f753f4838d57f76872bfe9cd9ff1abcc7aa19f5",
+      "functions": [
+        {
+          "name": "Eaten",
+          "owner": "Plan",
+          "params": [
+            "kept"
+          ],
+          "returnType": "[]Eaten",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "Days",
+          "owner": "",
+          "params": [
+            "eaten",
+            "first",
+            "last"
+          ],
+          "returnType": "[]Day",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "sum",
+          "owner": "",
+          "params": [
+            "ns"
+          ],
+          "returnType": "PortionNutrition",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "Average",
+          "owner": "",
+          "params": [
+            "days"
+          ],
+          "returnType": "PortionNutrition",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "Of",
+          "owner": "PortionNutrition",
+          "params": [
+            "target"
+          ],
+          "returnType": "(Amount, bool)",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "Aim",
+          "owner": "Targets",
+          "params": [
+            "target"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "Bounds",
+          "owner": "Targets",
+          "params": [
+            "target"
+          ],
+          "returnType": "(lo, hi float64)",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "Missed",
+          "owner": "Targets",
+          "params": [
+            "target",
+            "n"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "Describe",
+          "owner": "Miss",
+          "params": [
+            "t"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "Judged",
+          "owner": "",
+          "params": [
+            "days"
+          ],
+          "returnType": "[]Day",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "Misses",
+          "owner": "Targets",
+          "params": [
+            "days"
+          ],
+          "returnType": "[]Miss",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "DayOff",
+          "owner": "Targets",
+          "params": [
+            "target",
+            "d"
+          ],
+          "returnType": "(Miss, bool)",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "SoftMisses",
+          "owner": "Plan",
+          "params": [
+            "held"
+          ],
+          "returnType": "[]Miss",
+          "exported": true,
+          "lineCount": 44
+        },
+        {
+          "name": "MadeForAfter",
+          "owner": "Plan",
+          "params": [],
+          "returnType": "(n int, names []string)",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "PlanDays",
+          "owner": "",
+          "params": [
+            "earlier",
+            "planned",
+            "first",
+            "last"
+          ],
+          "returnType": "(trailing, days []Day)",
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [
+        {
+          "name": "Eaten",
+          "methods": [],
+          "properties": [
+            "At",
+            "Nutrition"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "Day",
+          "methods": [],
+          "properties": [
+            "On",
+            "Nutrition",
+            "Filled",
+            "Partly"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "Miss",
+          "methods": [
+            "Describe"
+          ],
+          "properties": [
+            "Rule",
+            "Target",
+            "Value",
+            "Floor",
+            "Under",
+            "On",
+            "Name",
+            "Location",
+            "Count",
+            "Held",
+            "Days"
+          ],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "imports": [
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "math",
+          "specifiers": [
+            "math"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        }
+      ],
+      "exports": [
+        "Eaten",
+        "Eaten",
+        "Day",
+        "Days",
+        "Average",
+        "Of",
+        "Aim",
+        "Bounds",
+        "Missed",
+        "Miss",
+        "Describe",
+        "Judged",
+        "Misses",
+        "DayOff",
+        "SoftMisses",
+        "MadeForAfter",
+        "PlanDays"
+      ],
+      "totalLines": 364,
+      "hasStructuralAnalysis": true
+    },
+    "internal/domain/soft_test.go": {
+      "filePath": "internal/domain/soft_test.go",
+      "contentHash": "a2afe3afd5933d659f80fb255fa1ae0b8838f6d659b38a66b37511f2c2b3bf72",
+      "functions": [
+        {
+          "name": "values",
+          "owner": "",
+          "params": [
+            "kcal",
+            "protein",
+            "fibre",
+            "sugar",
+            "fibreFloor",
+            "sugarFloor"
+          ],
+          "returnType": "domain.PortionNutrition",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "g",
+          "owner": "",
+          "params": [
+            "v"
+          ],
+          "returnType": "*float64",
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "TestADaysNutritionIsTheSumOfItsPortions",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "TestAValueAgainstItsTarget",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestTheTargetsResults",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "sameMiss",
+          "owner": "",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "TestTheSoftRulesOfAPlansStructure",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "TestPortionsLeftWithoutASlot",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "chiliEaten",
+          "owner": "",
+          "params": [],
+          "returnType": "domain.PrepSession",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "TestAPlansDaysBesideTheSevenBefore",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 41
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/domain",
+          "specifiers": [
+            "domain"
+          ]
+        }
+      ],
+      "exports": [
+        "TestADaysNutritionIsTheSumOfItsPortions",
+        "TestAValueAgainstItsTarget",
+        "TestTheTargetsResults",
+        "TestTheSoftRulesOfAPlansStructure",
+        "TestPortionsLeftWithoutASlot",
+        "TestAPlansDaysBesideTheSevenBefore"
+      ],
+      "totalLines": 274,
+      "hasStructuralAnalysis": true
+    },
     "internal/domain/target.go": {
       "filePath": "internal/domain/target.go",
-      "contentHash": "9939af181a57b344e906b1c88c80b11d9786c138b821a4ad984d4a9d0783865e",
+      "contentHash": "c7eec872b9a9481713fd98ffb330bcdd1cbc8b687eee00ba6602af913cebf42d",
       "functions": [
         {
           "name": "ByField",
@@ -14979,7 +16472,7 @@
         "ByField",
         "ParseTargets"
       ],
-      "totalLines": 99,
+      "totalLines": 106,
       "hasStructuralAnalysis": true
     },
     "internal/domain/target_test.go": {
@@ -15021,6 +16514,185 @@
         "TestParseTargets"
       ],
       "totalLines": 60,
+      "hasStructuralAnalysis": true
+    },
+    "internal/domain/thaw.go": {
+      "filePath": "internal/domain/thaw.go",
+      "contentHash": "e4b96f2ad9720246739c9cbd2544f84d4871c3f71565c2de0bdd0db11de5daa2",
+      "functions": [
+        {
+          "name": "Thaws",
+          "owner": "Plan",
+          "params": [
+            "stock"
+          ],
+          "returnType": "[]Thaw",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "take",
+          "owner": "",
+          "params": [
+            "stock",
+            "key",
+            "need"
+          ],
+          "returnType": "Quantity",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "NoEveningToThaw",
+          "owner": "",
+          "params": [
+            "p",
+            "frozen",
+            "stock",
+            "now",
+            "arrives"
+          ],
+          "returnType": "[]Violation",
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "classes": [
+        {
+          "name": "Thaw",
+          "methods": [],
+          "properties": [
+            "At",
+            "Ingredient",
+            "Quantity"
+          ],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "maps",
+          "specifiers": [
+            "maps"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        }
+      ],
+      "exports": [
+        "Thaw",
+        "Thaws",
+        "NoEveningToThaw"
+      ],
+      "totalLines": 99,
+      "hasStructuralAnalysis": true
+    },
+    "internal/domain/thaw_test.go": {
+      "filePath": "internal/domain/thaw_test.go",
+      "contentHash": "e4b7514ef1ad3b289feb8ce6c25781fbc51d9a744bb02e55803ef14d0988ac92",
+      "functions": [
+        {
+          "name": "setsOut",
+          "owner": "",
+          "params": [
+            "day",
+            "ing",
+            "quantity"
+          ],
+          "returnType": "domain.PrepSession",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "stock",
+          "owner": "",
+          "params": [
+            "breastFridge",
+            "breastFreezer",
+            "peasFreezer"
+          ],
+          "returnType": "map[domain.StockKey]domain.Quantity",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "TestPrepSessionsUseUpStockAndThawTheRest",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "TestFrozenFoodNeedsAnEveningLeftToThaw",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 35
+        },
+        {
+          "name": "TestBeforeItArrivesTheDeliveryBringsFreshWhatThereIsNoEveningToThaw",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "reflect",
+          "specifiers": [
+            "reflect"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/domain",
+          "specifiers": [
+            "domain"
+          ]
+        }
+      ],
+      "exports": [
+        "TestPrepSessionsUseUpStockAndThawTheRest",
+        "TestFrozenFoodNeedsAnEveningLeftToThaw",
+        "TestBeforeItArrivesTheDeliveryBringsFreshWhatThereIsNoEveningToThaw"
+      ],
+      "totalLines": 122,
       "hasStructuralAnalysis": true
     },
     "internal/httpx/httpx.go": {
@@ -15177,7 +16849,7 @@
     },
     "internal/ingredients/service.go": {
       "filePath": "internal/ingredients/service.go",
-      "contentHash": "e2e09afcd64fa9e925a69b710339763c9310b0ab9223c7854859b20a2d5210d6",
+      "contentHash": "84596d2aa6848098c6438e485858de4ee9afa0a1a3e641b3513c010afbd7eac3",
       "functions": [
         {
           "name": "Error",
@@ -15216,7 +16888,8 @@
           "owner": "",
           "params": [
             "pool",
-            "recipesUsing"
+            "recipesUsing",
+            "usesIngredient"
           ],
           "returnType": "*Service",
           "exported": true,
@@ -15282,9 +16955,20 @@
             "ctx",
             "id"
           ],
-          "returnType": "(name string, err error)",
+          "returnType": "(string, error)",
           "exported": true,
-          "lineCount": 30
+          "lineCount": 7
+        },
+        {
+          "name": "delete",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id"
+          ],
+          "returnType": "(name string, err error)",
+          "exported": false,
+          "lineCount": 31
         },
         {
           "name": "Suggest",
@@ -15428,6 +17112,7 @@
             "Add",
             "Edit",
             "Delete",
+            "delete",
             "Suggest",
             "List",
             "Find",
@@ -15436,10 +17121,11 @@
           ],
           "properties": [
             "pool",
-            "recipesUsing"
+            "recipesUsing",
+            "usesIngredient"
           ],
           "exported": true,
-          "lineCount": 4
+          "lineCount": 5
         }
       ],
       "imports": [
@@ -15531,7 +17217,7 @@
         "Search",
         "Listing"
       ],
-      "totalLines": 311,
+      "totalLines": 329,
       "hasStructuralAnalysis": true
     },
     "internal/ingredients/store.go": {
@@ -15868,7 +17554,7 @@
     },
     "internal/ingredients/web_handlers.go": {
       "filePath": "internal/ingredients/web_handlers.go",
-      "contentHash": "9b90d6a37d6ab78789d8d5c914a5fa795e3046f6e3dac2d7aca1d558bf068eca",
+      "contentHash": "5d2db9edd80be50319319e628ecf41f6eb6f328e0900fe8e520ac12727477851",
       "functions": [
         {
           "name": "Show",
@@ -16002,7 +17688,7 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 30
+          "lineCount": 36
         },
         {
           "name": "recipesNamed",
@@ -16172,12 +17858,12 @@
         "ShowDeleteSheet",
         "Delete"
       ],
-      "totalLines": 355,
+      "totalLines": 363,
       "hasStructuralAnalysis": true
     },
     "internal/ingredients/web_messages.go": {
       "filePath": "internal/ingredients/web_messages.go",
-      "contentHash": "e0da2ca8738f9a64ef39e3f3256eb8c3a5ce604fc85cbc9f938a84528382d183",
+      "contentHash": "bbe86e23260f5d99e83819fbd9197f5c46bc663153a31479369fc64cf19f6f83",
       "functions": [],
       "classes": [],
       "imports": [
@@ -16195,7 +17881,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 125,
+      "totalLines": 123,
       "hasStructuralAnalysis": true
     },
     "internal/kitchen/service.go": {
@@ -17401,7 +19087,7 @@
     },
     "internal/ledger/service.go": {
       "filePath": "internal/ledger/service.go",
-      "contentHash": "f80728aa23646c07d746a0dc3f517537b9637a794b3cbb3f6a9edbef6a392113",
+      "contentHash": "6f52cf241e4d130b1fc36149bfb007d4cc9d86476b2fb432b042f926869be345",
       "functions": [
         {
           "name": "New",
@@ -17438,6 +19124,18 @@
           "returnType": "(counted []domain.Movement, err error)",
           "exported": true,
           "lineCount": 7
+        },
+        {
+          "name": "SavePortions",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "p"
+          ],
+          "returnType": "([]int64, error)",
+          "exported": true,
+          "lineCount": 6
         },
         {
           "name": "BringUpToNow",
@@ -17536,16 +19234,17 @@
         "New",
         "Write",
         "CountToNothing",
+        "SavePortions",
         "BringUpToNow",
         "Beat",
         "LastBeat"
       ],
-      "totalLines": 108,
+      "totalLines": 118,
       "hasStructuralAnalysis": true
     },
     "internal/ledger/store.go": {
       "filePath": "internal/ledger/store.go",
-      "contentHash": "554b28e626df39b778944b4229cf7e5a32f163278082094e744dcf917ac0f034",
+      "contentHash": "3501f83a0762e7eee6408982ef2ed0ab05a44cd89064e61e2d30443db32d6b3a",
       "functions": [
         {
           "name": "loadUserIDs",
@@ -17628,7 +19327,7 @@
           "lineCount": 19
         },
         {
-          "name": "SavePortions",
+          "name": "savePortions",
           "owner": "",
           "params": [
             "ctx",
@@ -17636,7 +19335,7 @@
             "p"
           ],
           "returnType": "([]int64, error)",
-          "exported": true,
+          "exported": false,
           "lineCount": 12
         },
         {
@@ -17746,24 +19445,24 @@
       ],
       "exports": [
         "LoadMovements",
-        "SavePortions",
         "LoadPortions",
         "CountPortions",
         "HasMovements",
         "WithMovements"
       ],
-      "totalLines": 204,
+      "totalLines": 203,
       "hasStructuralAnalysis": true
     },
     "internal/planning/service.go": {
       "filePath": "internal/planning/service.go",
-      "contentHash": "089bc858e6cf8671e45a2acff59fcb71f236c17e22e5a13039e16311dd0f1b7f",
+      "contentHash": "7e11cab0b4cce0a4b7e6a43c8cb1d57c64bf582607e8b4791850f50010ef7961",
       "functions": [
         {
           "name": "New",
           "owner": "",
           "params": [
             "pool",
+            "c",
             "engine",
             "prof",
             "recs",
@@ -17832,7 +19531,32 @@
           ],
           "returnType": "error",
           "exported": true,
-          "lineCount": 8
+          "lineCount": 21
+        },
+        {
+          "name": "Find",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id",
+            "now"
+          ],
+          "returnType": "(c Cycle, err error)",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "findOpen",
+          "owner": "",
+          "params": [
+            "ctx",
+            "tx",
+            "id",
+            "now"
+          ],
+          "returnType": "(Cycle, error)",
+          "exported": false,
+          "lineCount": 9
         },
         {
           "name": "Upcoming",
@@ -17877,6 +19601,7 @@
             "Refusal",
             "Open",
             "Drop",
+            "Find",
             "Upcoming"
           ],
           "properties": [
@@ -17886,10 +19611,11 @@
             "recipes",
             "ingredients",
             "kitchen",
+            "clock",
             "checks"
           ],
           "exported": true,
-          "lineCount": 10
+          "lineCount": 11
         }
       ],
       "imports": [
@@ -17927,6 +19653,12 @@
           "source": "github.com/jackc/pgx/v5/pgxpool",
           "specifiers": [
             "pgxpool"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/clock",
+          "specifiers": [
+            "clock"
           ]
         },
         {
@@ -17980,14 +19712,167 @@
         "Refusal",
         "Open",
         "Drop",
+        "Find",
         "Upcoming"
       ],
-      "totalLines": 143,
+      "totalLines": 179,
+      "hasStructuralAnalysis": true
+    },
+    "internal/planning/service_ledger.go": {
+      "filePath": "internal/planning/service_ledger.go",
+      "contentHash": "f7dca4dc5ae41e7abcc72039ce5c7d6e362e7e7a3654897b7f4186b9fa8b0fc3",
+      "functions": [
+        {
+          "name": "turn",
+          "owner": "",
+          "params": [
+            "ctx",
+            "tx",
+            "id",
+            "runID"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "end",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "tx",
+            "id"
+          ],
+          "returnType": "(stop func(context.Context), err error)",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "Approve",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id",
+            "now"
+          ],
+          "returnType": "error",
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "Reject",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id",
+            "note",
+            "now"
+          ],
+          "returnType": "(runID int64, err error)",
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "PlanAgain",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id",
+            "note",
+            "now"
+          ],
+          "returnType": "(int64, error)",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "CycleOfRun",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "runID",
+            "now"
+          ],
+          "returnType": "(c Cycle, latest bool, err error)",
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "errors",
+          "specifiers": [
+            "errors"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/jackc/pgx/v5",
+          "specifiers": [
+            "v5"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/domain",
+          "specifiers": [
+            "domain"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/ingredients",
+          "specifiers": [
+            "ingredients"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/recipes",
+          "specifiers": [
+            "recipes"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/runs",
+          "specifiers": [
+            "runs"
+          ]
+        }
+      ],
+      "exports": [
+        "Approve",
+        "Reject",
+        "PlanAgain",
+        "CycleOfRun"
+      ],
+      "totalLines": 191,
       "hasStructuralAnalysis": true
     },
     "internal/planning/service_plan.go": {
       "filePath": "internal/planning/service_plan.go",
-      "contentHash": "293bc109d85c4ca39b01971b2765fc750a00e7848b1d1faf374b512dc57ce48a",
+      "contentHash": "9a92691c7a53186be0c71bc42549b09a30d861d73b9c113d2addfc78d9beb2e6",
       "functions": [
         {
           "name": "StartPlanning",
@@ -17999,7 +19884,35 @@
           ],
           "returnType": "(int64, error)",
           "exported": true,
-          "lineCount": 47
+          "lineCount": 7
+        },
+        {
+          "name": "start",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "c",
+            "from",
+            "now",
+            "note",
+            "before"
+          ],
+          "returnType": "(int64, error)",
+          "exported": false,
+          "lineCount": 83
+        },
+        {
+          "name": "eatenBy",
+          "owner": "",
+          "params": [
+            "approved",
+            "library",
+            "known",
+            "portions"
+          ],
+          "returnType": "[]domain.Eaten",
+          "exported": false,
+          "lineCount": 12
         },
         {
           "name": "unslotted",
@@ -18012,20 +19925,87 @@
           "lineCount": 9
         },
         {
+          "name": "stockOf",
+          "owner": "",
+          "params": [
+            "held"
+          ],
+          "returnType": "map[domain.StockKey]domain.Quantity",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "frozenOf",
+          "owner": "",
+          "params": [
+            "lots"
+          ],
+          "returnType": "map[int64]bool",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
           "name": "planPrompt",
           "owner": "",
           "params": [
             "c",
             "p",
+            "from",
             "brief",
+            "notes",
             "now",
             "library",
             "known",
-            "k"
+            "k",
+            "trailing"
           ],
           "returnType": "string",
           "exported": false,
-          "lineCount": 67
+          "lineCount": 82
+        },
+        {
+          "name": "describeDay",
+          "owner": "",
+          "params": [
+            "n",
+            "missed"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "dayMissed",
+          "owner": "",
+          "params": [
+            "t",
+            "d"
+          ],
+          "returnType": "func(domain.Target) (missed, under bool)",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "averageMissed",
+          "owner": "",
+          "params": [
+            "t",
+            "avg"
+          ],
+          "returnType": "func(domain.Target) (missed, under bool)",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "missOf",
+          "owner": "",
+          "params": [
+            "missed",
+            "target"
+          ],
+          "returnType": "(off, under bool)",
+          "exported": false,
+          "lineCount": 6
         },
         {
           "name": "describeNutrition",
@@ -18070,16 +20050,6 @@
           "lineCount": 6
         },
         {
-          "name": "codes",
-          "owner": "",
-          "params": [
-            "kinds"
-          ],
-          "returnType": "[]string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
           "name": "brief",
           "owner": "planBrief",
           "params": [
@@ -18088,7 +20058,7 @@
           ],
           "returnType": "agent.Brief",
           "exported": false,
-          "lineCount": 28
+          "lineCount": 34
         },
         {
           "name": "check",
@@ -18099,7 +20069,17 @@
           ],
           "returnType": "(string, error)",
           "exported": false,
-          "lineCount": 18
+          "lineCount": 19
+        },
+        {
+          "name": "results",
+          "owner": "planBrief",
+          "params": [
+            "plan"
+          ],
+          "returnType": "(string, []domain.Miss)",
+          "exported": false,
+          "lineCount": 42
         },
         {
           "name": "submit",
@@ -18110,7 +20090,38 @@
           ],
           "returnType": "(string, error)",
           "exported": false,
-          "lineCount": 22
+          "lineCount": 23
+        },
+        {
+          "name": "draft",
+          "owner": "planBrief",
+          "params": [
+            "l",
+            "input"
+          ],
+          "returnType": "(string, error)",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "draftID",
+          "owner": "",
+          "params": [
+            "i"
+          ],
+          "returnType": "int64",
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "violations",
+          "owner": "planBrief",
+          "params": [
+            "plan"
+          ],
+          "returnType": "[]domain.Violation",
+          "exported": false,
+          "lineCount": 5
         },
         {
           "name": "listViolations",
@@ -18140,7 +20151,7 @@
           ],
           "returnType": "(domain.Plan, []string)",
           "exported": false,
-          "lineCount": 61
+          "lineCount": 75
         },
         {
           "name": "PlanningOf",
@@ -18152,7 +20163,41 @@
           ],
           "returnType": "(Planning, error)",
           "exported": true,
+          "lineCount": 77
+        },
+        {
+          "name": "Drafted",
+          "owner": "Service",
+          "params": [
+            "ctx",
+            "id"
+          ],
+          "returnType": "(domain.Recipe, error)",
+          "exported": true,
           "lineCount": 28
+        },
+        {
+          "name": "readDrafts",
+          "owner": "",
+          "params": [
+            "l",
+            "known",
+            "stored"
+          ],
+          "returnType": "([]recipes.Drafted, error)",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "lastDay",
+          "owner": "",
+          "params": [
+            "planned",
+            "first"
+          ],
+          "returnType": "time.Time",
+          "exported": false,
+          "lineCount": 9
         },
         {
           "name": "resolve",
@@ -18160,11 +20205,12 @@
           "params": [
             "library",
             "known",
-            "portions"
+            "portions",
+            "drafted"
           ],
           "returnType": "*Proposal",
           "exported": false,
-          "lineCount": 21
+          "lineCount": 33
         }
       ],
       "classes": [
@@ -18173,7 +20219,10 @@
           "methods": [
             "brief",
             "check",
+            "results",
             "submit",
+            "draft",
+            "violations",
             "read"
           ],
           "properties": [
@@ -18181,47 +20230,68 @@
             "library",
             "known",
             "unslotted",
+            "held",
             "checks",
             "zone",
+            "targets",
+            "earlier",
+            "owned",
+            "stock",
+            "frozen",
+            "now",
+            "arrives",
+            "passed",
             "leave",
+            "drafted",
             "drafts",
             "checked",
             "broken",
-            "chosen"
+            "chosen",
+            "misses"
           ],
           "exported": false,
-          "lineCount": 14
+          "lineCount": 26
         },
         {
           "name": "draft",
           "methods": [],
           "properties": [
             "PrepSessions",
-            "Kept"
+            "Kept",
+            "FreezerSplits"
           ],
           "exported": false,
-          "lineCount": 20
+          "lineCount": 24
         },
         {
           "name": "Proposal",
           "methods": [],
           "properties": [
+            "ID",
             "Plan",
             "Kept",
-            "Summary"
+            "Summary",
+            "Targets",
+            "Misses",
+            "Drafted",
+            "Trailing",
+            "Days"
           ],
           "exported": true,
-          "lineCount": 5
+          "lineCount": 10
         },
         {
           "name": "Planning",
           "methods": [],
           "properties": [
             "Proposal",
-            "Going"
+            "Plan",
+            "Going",
+            "Failed",
+            "Notes"
           ],
           "exported": true,
-          "lineCount": 4
+          "lineCount": 6
         }
       ],
       "imports": [
@@ -18253,6 +20323,12 @@
           "source": "fmt",
           "specifiers": [
             "fmt"
+          ]
+        },
+        {
+          "source": "math",
+          "specifiers": [
+            "math"
           ]
         },
         {
@@ -18310,6 +20386,12 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/recipes",
+          "specifiers": [
+            "recipes"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/runs",
           "specifiers": [
             "runs"
@@ -18320,17 +20402,18 @@
         "StartPlanning",
         "Proposal",
         "Planning",
-        "PlanningOf"
+        "PlanningOf",
+        "Drafted"
       ],
-      "totalLines": 586,
+      "totalLines": 990,
       "hasStructuralAnalysis": true
     },
     "internal/planning/store.go": {
       "filePath": "internal/planning/store.go",
-      "contentHash": "f7607127b619b9ea2bb2d5de68a42b88b07e31a997c14ace33a9f124015e5ec2",
+      "contentHash": "8142d48d9fdc210c3055bafd4f3cdbf48bd5583de722933ca977be21f08906d9",
       "functions": [
         {
-          "name": "lockOpening",
+          "name": "lockPlanning",
           "owner": "",
           "params": [
             "ctx",
@@ -18415,21 +20498,89 @@
           "lineCount": 6
         },
         {
-          "name": "saveProposal",
+          "name": "submit",
           "owner": "",
           "params": [
             "ctx",
             "q",
             "runID",
             "plan",
-            "summary"
+            "targets",
+            "misses",
+            "summary",
+            "drafted"
           ],
           "returnType": "error",
           "exported": false,
-          "lineCount": 49
+          "lineCount": 75
         },
         {
-          "name": "loadPending",
+          "name": "scanProposal",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "row",
+            "zone"
+          ],
+          "returnType": "(*storedProposal, error)",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "loadProposal",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id",
+            "status",
+            "zone"
+          ],
+          "returnType": "(*storedProposal, error)",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "loadApproved",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "from",
+            "zone"
+          ],
+          "returnType": "([]*storedProposal, error)",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "loadPlan",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "sp",
+            "zone"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 55
+        },
+        {
+          "name": "hasPlan",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id"
+          ],
+          "returnType": "(planned bool, err error)",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "pendingProposal",
           "owner": "",
           "params": [
             "ctx",
@@ -18437,9 +20588,181 @@
             "id",
             "zone"
           ],
-          "returnType": "(*storedProposal, error)",
+          "returnType": "(cycleID int64, first domain.Slot, err error)",
           "exported": false,
-          "lineCount": 56
+          "lineCount": 10
+        },
+        {
+          "name": "Prepares",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id"
+          ],
+          "returnType": "(prepared bool, err error)",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "UsesIngredient",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id"
+          ],
+          "returnType": "(used bool, err error)",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "prepareAccepted",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "draftID",
+            "recipeID"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "pendingID",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q"
+          ],
+          "returnType": "(id int64, err error)",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "saveDraft",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "proposalID",
+            "doc"
+          ],
+          "returnType": "(id int64, err error)",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "loadDrafts",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "proposalID"
+          ],
+          "returnType": "([]storedDraft, error)",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "deleteDrafts",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "proposalID"
+          ],
+          "returnType": "([]storedDraft, error)",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "scanDraft",
+          "owner": "",
+          "params": [
+            "row"
+          ],
+          "returnType": "(d storedDraft, err error)",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "inZone",
+          "owner": "",
+          "params": [
+            "d",
+            "zone"
+          ],
+          "returnType": "time.Time",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "saveNote",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id",
+            "note",
+            "at",
+            "proposalID"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "loadNotes",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id"
+          ],
+          "returnType": "([]string, error)",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "loadLastRun",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id",
+            "zone"
+          ],
+          "returnType": "(last lastRun, err error)",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "cycleOfRun",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "runID"
+          ],
+          "returnType": "(id int64, err error)",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "decide",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "id",
+            "status",
+            "at"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 7
         }
       ],
       "classes": [
@@ -18447,22 +20770,49 @@
           "name": "storedProposal",
           "methods": [],
           "properties": [
+            "id",
             "summary",
+            "first",
+            "targets",
+            "misses",
             "sessions",
-            "kept"
+            "kept",
+            "splits"
           ],
           "exported": false,
-          "lineCount": 5
+          "lineCount": 10
         },
         {
           "name": "storedSession",
           "methods": [],
           "properties": [
             "recipeID",
+            "draftID",
             "ingredientID"
           ],
           "exported": false,
           "lineCount": 4
+        },
+        {
+          "name": "storedDraft",
+          "methods": [],
+          "properties": [
+            "id",
+            "doc"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "lastRun",
+          "methods": [],
+          "properties": [
+            "id",
+            "status",
+            "first"
+          ],
+          "exported": false,
+          "lineCount": 5
         }
       ],
       "imports": [
@@ -18476,6 +20826,12 @@
           "source": "errors",
           "specifiers": [
             "errors"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
           ]
         },
         {
@@ -18503,19 +20859,28 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/recipes",
+          "specifiers": [
+            "recipes"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/runs",
           "specifiers": [
             "runs"
           ]
         }
       ],
-      "exports": [],
-      "totalLines": 220,
+      "exports": [
+        "Prepares",
+        "UsesIngredient"
+      ],
+      "totalLines": 463,
       "hasStructuralAnalysis": true
     },
     "internal/planning/web_handlers.go": {
       "filePath": "internal/planning/web_handlers.go",
-      "contentHash": "38a2e3c2dec92250c1f4dc5a24edf70c4f09b45687bec68e0c716015e5a6afc3",
+      "contentHash": "bd15857b05bed98715e948e9d9f47bd3a7e5f66c356ea64d3d60045b2022afdd",
       "functions": [
         {
           "name": "RunPage",
@@ -18523,7 +20888,18 @@
           "params": [],
           "returnType": "runs.KindPage",
           "exported": true,
-          "lineCount": 9
+          "lineCount": 11
+        },
+        {
+          "name": "about",
+          "owner": "Handlers",
+          "params": [
+            "ctx",
+            "run"
+          ],
+          "returnType": "(templ.Component, error)",
+          "exported": false,
+          "lineCount": 7
         },
         {
           "name": "Show",
@@ -18533,7 +20909,92 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 16
+          "lineCount": 3
+        },
+        {
+          "name": "cycle",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r",
+            "status",
+            "refusal"
+          ],
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "Approve",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "Reject",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "PlanAgain",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "refused",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r",
+            "what",
+            "err"
+          ],
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "ShowDraft",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "ShowDraftSheet",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "showDraft",
+          "owner": "Handlers",
+          "params": [
+            "w",
+            "r",
+            "sheet"
+          ],
+          "exported": false,
+          "lineCount": 20
         },
         {
           "name": "ShowCheck",
@@ -18565,7 +21026,7 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 18
+          "lineCount": 16
         },
         {
           "name": "ShowOpen",
@@ -18634,7 +21095,16 @@
           "name": "Handlers",
           "methods": [
             "RunPage",
+            "about",
             "Show",
+            "cycle",
+            "Approve",
+            "Reject",
+            "PlanAgain",
+            "refused",
+            "ShowDraft",
+            "ShowDraftSheet",
+            "showDraft",
             "ShowCheck",
             "check",
             "Plan",
@@ -18656,6 +21126,12 @@
         }
       ],
       "imports": [
+        {
+          "source": "cmp",
+          "specifiers": [
+            "cmp"
+          ]
+        },
         {
           "source": "context",
           "specifiers": [
@@ -18687,6 +21163,12 @@
           ]
         },
         {
+          "source": "github.com/a-h/templ",
+          "specifiers": [
+            "templ"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/clock",
           "specifiers": [
             "clock"
@@ -18711,6 +21193,12 @@
           ]
         },
         {
+          "source": "github.com/simopzz/dandori/internal/recipes",
+          "specifiers": [
+            "recipes"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/runs",
           "specifiers": [
             "runs"
@@ -18727,6 +21215,11 @@
         "Handlers",
         "RunPage",
         "Show",
+        "Approve",
+        "Reject",
+        "PlanAgain",
+        "ShowDraft",
+        "ShowDraftSheet",
         "ShowCheck",
         "Plan",
         "ShowOpen",
@@ -18735,12 +21228,12 @@
         "ShowDropSheet",
         "Drop"
       ],
-      "totalLines": 211,
+      "totalLines": 342,
       "hasStructuralAnalysis": true
     },
     "internal/planning/web_messages.go": {
       "filePath": "internal/planning/web_messages.go",
-      "contentHash": "83c67fb78b9a20b89497d07bab5e37677b9fcb769be5ed57a24c5d201c311d08",
+      "contentHash": "1c41939275441c321a18c8bfe0f39ba8e4ef1855b9ca52cefff6caf7f409ce54",
       "functions": [],
       "classes": [],
       "imports": [
@@ -18764,7 +21257,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 90,
+      "totalLines": 194,
       "hasStructuralAnalysis": true
     },
     "internal/profile/service.go": {
@@ -19668,7 +22161,7 @@
     },
     "internal/recipes/service.go": {
       "filePath": "internal/recipes/service.go",
-      "contentHash": "97b79fe8982a91fd3f6d1e12abc9d20572c2911e7c69a20dc6423bfb9b5a8c06",
+      "contentHash": "57064df668932643e48401b8456af3a28979bb76afb03d712e92179f79872013",
       "functions": [
         {
           "name": "Error",
@@ -19684,7 +22177,8 @@
           "params": [
             "pool",
             "ings",
-            "engine"
+            "engine",
+            "prepares"
           ],
           "returnType": "*Service",
           "exported": true,
@@ -19707,7 +22201,7 @@
           "owner": "",
           "params": [
             "ctx",
-            "tx",
+            "q",
             "l",
             "rec"
           ],
@@ -19737,14 +22231,14 @@
           ],
           "returnType": "(name string, err error)",
           "exported": true,
-          "lineCount": 7
+          "lineCount": 13
         },
         {
           "name": "saveIngredients",
           "owner": "",
           "params": [
             "ctx",
-            "tx",
+            "q",
             "l",
             "id",
             "rec"
@@ -19812,10 +22306,11 @@
           "properties": [
             "pool",
             "ingredients",
-            "runs"
+            "runs",
+            "prepares"
           ],
           "exported": true,
-          "lineCount": 5
+          "lineCount": 6
         }
       ],
       "imports": [
@@ -19886,7 +22381,7 @@
         "Find",
         "KnownIngredients"
       ],
-      "totalLines": 166,
+      "totalLines": 181,
       "hasStructuralAnalysis": true
     },
     "internal/recipes/service_demo_llm.go": {
@@ -20153,9 +22648,151 @@
       "totalLines": 122,
       "hasStructuralAnalysis": true
     },
+    "internal/recipes/service_drafted.go": {
+      "filePath": "internal/recipes/service_drafted.go",
+      "contentHash": "64450a071bb449639e0db1c0695e8379b68bcd1d4b9fededfa670e6968c90038",
+      "functions": [
+        {
+          "name": "Error",
+          "owner": "ClashError",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "ReadDraft",
+          "owner": "",
+          "params": [
+            "l",
+            "known",
+            "library",
+            "input"
+          ],
+          "returnType": "(Drafted, error)",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "Document",
+          "owner": "Drafted",
+          "params": [],
+          "returnType": "[]byte",
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "ReadStored",
+          "owner": "",
+          "params": [
+            "l",
+            "known",
+            "id",
+            "doc"
+          ],
+          "returnType": "(Drafted, error)",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "AcceptDrafted",
+          "owner": "",
+          "params": [
+            "ctx",
+            "q",
+            "l",
+            "drafted"
+          ],
+          "returnType": "(accepted map[int64]int64, err error)",
+          "exported": true,
+          "lineCount": 41
+        }
+      ],
+      "classes": [
+        {
+          "name": "Drafted",
+          "methods": [
+            "Document"
+          ],
+          "properties": [
+            "ID",
+            "Recipe",
+            "doc"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "ClashError",
+          "methods": [
+            "Error"
+          ],
+          "properties": [
+            "Name"
+          ],
+          "exported": true,
+          "lineCount": 1
+        }
+      ],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "errors",
+          "specifiers": [
+            "errors"
+          ]
+        },
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/domain",
+          "specifiers": [
+            "domain"
+          ]
+        },
+        {
+          "source": "github.com/simopzz/dandori/internal/ingredients",
+          "specifiers": [
+            "ingredients"
+          ]
+        }
+      ],
+      "exports": [
+        "Drafted",
+        "ClashError",
+        "Error",
+        "ReadDraft",
+        "Document",
+        "ReadStored",
+        "AcceptDrafted"
+      ],
+      "totalLines": 122,
+      "hasStructuralAnalysis": true
+    },
     "internal/recipes/service_parse.go": {
       "filePath": "internal/recipes/service_parse.go",
-      "contentHash": "ceb8d1d34304ed60c795dcd2c91b32389d554505ddd7abd3d4231adf821a7cdb",
+      "contentHash": "86c7dc9440e3b829cdd959ca976ddf87146eeb70570d5129b32415fac0a3ebd6",
       "functions": [
         {
           "name": "recipe",
@@ -20179,6 +22816,16 @@
           "returnType": "string",
           "exported": false,
           "lineCount": 9
+        },
+        {
+          "name": "fixThese",
+          "owner": "",
+          "params": [
+            "problems"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 10
         },
         {
           "name": "amount",
@@ -20212,7 +22859,7 @@
           ],
           "returnType": "agent.Brief",
           "exported": false,
-          "lineCount": 46
+          "lineCount": 42
         }
       ],
       "classes": [
@@ -20338,12 +22985,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 277,
+      "totalLines": 286,
       "hasStructuralAnalysis": true
     },
     "internal/recipes/store.go": {
       "filePath": "internal/recipes/store.go",
-      "contentHash": "4a0691875b1b181ffd79db69b28ef69728769352b02403582542e35298f8d842",
+      "contentHash": "518bfb8bde63509e7868b2a9d5a4c51c28b71e438b2bfc5fe7a04d859915267d",
       "functions": [
         {
           "name": "CountRecipes",
@@ -20367,16 +23014,6 @@
           "returnType": "(first string, others int, err error)",
           "exported": true,
           "lineCount": 11
-        },
-        {
-          "name": "codesOf",
-          "owner": "",
-          "params": [
-            "kinds"
-          ],
-          "returnType": "[]string",
-          "exported": false,
-          "lineCount": 7
         },
         {
           "name": "kindsIn",
@@ -20618,12 +23255,12 @@
         "CountDrafts",
         "CountParsing"
       ],
-      "totalLines": 260,
+      "totalLines": 251,
       "hasStructuralAnalysis": true
     },
     "internal/recipes/web_form.go": {
       "filePath": "internal/recipes/web_form.go",
-      "contentHash": "86b1cd0d401575da00cd5efd72f5c6042b1e1795c919e0ccd52f4c37761767ef",
+      "contentHash": "a59b4da8cb5ab544f7e4ab33e972e9905198b4c135edf14b30feb62877965b99",
       "functions": [
         {
           "name": "blankForm",
@@ -20935,7 +23572,7 @@
     },
     "internal/recipes/web_handlers.go": {
       "filePath": "internal/recipes/web_handlers.go",
-      "contentHash": "57abad08fe11052695813be6d27dac2300ce5f0f0e3eb5879eed1ff3440fb1d0",
+      "contentHash": "4ab74d7b1c94147c6094d4331fa77bc4bb1813feed498bfc56752bddde9ad4d9",
       "functions": [
         {
           "name": "Library",
@@ -21198,7 +23835,7 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 17
+          "lineCount": 28
         },
         {
           "name": "save",
@@ -21421,12 +24058,12 @@
         "Edit",
         "Delete"
       ],
-      "totalLines": 497,
+      "totalLines": 509,
       "hasStructuralAnalysis": true
     },
     "internal/recipes/web_messages.go": {
       "filePath": "internal/recipes/web_messages.go",
-      "contentHash": "58578529e54ea622c6d277c634d162f0af7f794ebf97cfb3d3fb5b8005008db8",
+      "contentHash": "c8a5259e49f4d99e453644529801986aa6866c6862b56576e450550cca745616",
       "functions": [
         {
           "name": "fieldMessage",
@@ -21462,12 +24099,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 155,
+      "totalLines": 154,
       "hasStructuralAnalysis": true
     },
     "internal/runs/service_engine.go": {
       "filePath": "internal/runs/service_engine.go",
-      "contentHash": "4822f19f1de88284117296868522bdcbd87762dee0a473868109800d7f1618fa",
+      "contentHash": "c8d24054ca596c2f31f3081415b12333841c292b106f18f9ec417e3e0872879c",
       "functions": [
         {
           "name": "New",
@@ -21541,7 +24178,19 @@
           ],
           "returnType": "(found bool, err error)",
           "exported": true,
-          "lineCount": 23
+          "lineCount": 15
+        },
+        {
+          "name": "CancelIn",
+          "owner": "Engine",
+          "params": [
+            "ctx",
+            "tx",
+            "id"
+          ],
+          "returnType": "(stop func(context.Context), err error)",
+          "exported": true,
+          "lineCount": 17
         },
         {
           "name": "Status",
@@ -21695,6 +24344,7 @@
             "Start",
             "execute",
             "Cancel",
+            "CancelIn",
             "Status",
             "List",
             "TraceAfter",
@@ -21862,6 +24512,7 @@
         "Wait",
         "Start",
         "Cancel",
+        "CancelIn",
         "Status",
         "List",
         "TraceAfter",
@@ -21871,7 +24522,7 @@
         "Find",
         "Emit"
       ],
-      "totalLines": 405,
+      "totalLines": 418,
       "hasStructuralAnalysis": true
     },
     "internal/runs/service_spans.go": {
@@ -22107,7 +24758,7 @@
     },
     "internal/runs/web_handlers.go": {
       "filePath": "internal/runs/web_handlers.go",
-      "contentHash": "0e8b76060aa980559b85a1871b3077229d44645f82b0900d905ef484f2c1820a",
+      "contentHash": "1e25a88b78cfbe7243715e510272a69f39b023e2b6a4d8ba4d9fa5ff6e312560",
       "functions": [
         {
           "name": "page",
@@ -22127,7 +24778,7 @@
             "r"
           ],
           "exported": true,
-          "lineCount": 35
+          "lineCount": 42
         },
         {
           "name": "List",
@@ -22170,12 +24821,25 @@
           ],
           "exported": false,
           "lineCount": 13
+        },
+        {
+          "name": "Failure",
+          "owner": "KindPage",
+          "params": [
+            "ctx",
+            "run"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 8
         }
       ],
       "classes": [
         {
           "name": "KindPage",
-          "methods": [],
+          "methods": [
+            "Failure"
+          ],
           "properties": [
             "Kind",
             "Name",
@@ -22183,10 +24847,12 @@
             "ResultLabel",
             "ResultURL",
             "TryAgainURL",
+            "Tab",
+            "About",
             "Reasons"
           ],
           "exported": true,
-          "lineCount": 24
+          "lineCount": 30
         },
         {
           "name": "Handlers",
@@ -22257,6 +24923,12 @@
           ]
         },
         {
+          "source": "github.com/a-h/templ",
+          "specifiers": [
+            "templ"
+          ]
+        },
+        {
           "source": "github.com/simopzz/dandori/internal/agent",
           "specifiers": [
             "agent"
@@ -22287,9 +24959,10 @@
         "Show",
         "List",
         "Cancel",
-        "Stream"
+        "Stream",
+        "Failure"
       ],
-      "totalLines": 240,
+      "totalLines": 266,
       "hasStructuralAnalysis": true
     },
     "internal/runs/web_messages.go": {
@@ -23223,121 +25896,6 @@
       "totalLines": 103,
       "hasStructuralAnalysis": true
     },
-    "internal/web/comments_test.go": {
-      "filePath": "internal/web/comments_test.go",
-      "contentHash": "891f11201003e06fa6fc8fef10b751c8dae0851791a6c34b13d8f03db7886df2",
-      "functions": [
-        {
-          "name": "TestCommentsWrap",
-          "owner": "",
-          "params": [
-            "t"
-          ],
-          "exported": true,
-          "lineCount": 28
-        },
-        {
-          "name": "TestCommentProblems",
-          "owner": "",
-          "params": [
-            "t"
-          ],
-          "exported": true,
-          "lineCount": 24
-        },
-        {
-          "name": "commentProblems",
-          "owner": "",
-          "params": [
-            "src"
-          ],
-          "returnType": "[]string",
-          "exported": false,
-          "lineCount": 21
-        },
-        {
-          "name": "isComment",
-          "owner": "",
-          "params": [
-            "line"
-          ],
-          "returnType": "bool",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "commentText",
-          "owner": "",
-          "params": [
-            "line"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "commentColumns",
-          "owner": "",
-          "params": [
-            "line"
-          ],
-          "returnType": "int",
-          "exported": false,
-          "lineCount": 3
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "fmt",
-          "specifiers": [
-            "fmt"
-          ]
-        },
-        {
-          "source": "io/fs",
-          "specifiers": [
-            "fs"
-          ]
-        },
-        {
-          "source": "os",
-          "specifiers": [
-            "os"
-          ]
-        },
-        {
-          "source": "path/filepath",
-          "specifiers": [
-            "filepath"
-          ]
-        },
-        {
-          "source": "slices",
-          "specifiers": [
-            "slices"
-          ]
-        },
-        {
-          "source": "strings",
-          "specifiers": [
-            "strings"
-          ]
-        },
-        {
-          "source": "testing",
-          "specifiers": [
-            "testing"
-          ]
-        }
-      ],
-      "exports": [
-        "TestCommentsWrap",
-        "TestCommentProblems"
-      ],
-      "totalLines": 115,
-      "hasStructuralAnalysis": true
-    },
     "internal/web/dates_test.go": {
       "filePath": "internal/web/dates_test.go",
       "contentHash": "ac2ec2ef111027bcb7af40cf85b4361b48a9595ed2f5c70a688e4346d51502aa",
@@ -24135,7 +26693,7 @@
     },
     "internal/web/icons.go": {
       "filePath": "internal/web/icons.go",
-      "contentHash": "27f46ef90608dbb3086c302ad267378df038174637ced092e933e3126e63f141",
+      "contentHash": "b377ee87c6bbf3aee7b4b30e91b3c77cf65c7cfa56ffdad7bb759e3f5ea8fcfe",
       "functions": [
         {
           "name": "Icon",
@@ -24178,7 +26736,7 @@
       "exports": [
         "Icon"
       ],
-      "totalLines": 432,
+      "totalLines": 510,
       "hasStructuralAnalysis": true
     },
     "internal/web/markdown.go": {
@@ -24237,7 +26795,7 @@
     },
     "internal/web/messages.go": {
       "filePath": "internal/web/messages.go",
-      "contentHash": "b938dc8ec225bc381789d0974f02b534ed6b2b2773b47920ad79f719168b779e",
+      "contentHash": "157b94e1fd0c76f1db1212748107043f93094cd1a37f4b35cb37bcff26720656",
       "functions": [
         {
           "name": "ProblemMessage",
@@ -24316,7 +26874,7 @@
         "ApplianceKindChoices",
         "Quantity"
       ],
-      "totalLines": 116,
+      "totalLines": 119,
       "hasStructuralAnalysis": true
     },
     "internal/web/notice.go": {
@@ -24477,6 +27035,194 @@
         "FragmentWithNotice"
       ],
       "totalLines": 102,
+      "hasStructuralAnalysis": true
+    },
+    "internal/web/owners_test.go": {
+      "filePath": "internal/web/owners_test.go",
+      "contentHash": "340c11c4e7308278dbb4c09eb1e7d9e7916c1ee87ae6bdccc497da7d22d352e4",
+      "functions": [
+        {
+          "name": "tableName",
+          "owner": "",
+          "params": [
+            "name"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "upStatements",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "returnType": "[]statement",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "TestEveryTableHasAnOwningFeature",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "TestNoCascadeCrossesFeatures",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "TestStoresWriteAndLockOnlyTheirOwnTables",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "storeSQL",
+          "owner": "",
+          "params": [
+            "t",
+            "feature",
+            "path"
+          ],
+          "returnType": "[]statement",
+          "exported": false,
+          "lineCount": 37
+        },
+        {
+          "name": "touched",
+          "owner": "",
+          "params": [
+            "sql"
+          ],
+          "returnType": "(tables []string)",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "checkAllowedUsed",
+          "owner": "",
+          "params": [
+            "t",
+            "allowed",
+            "used"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [
+        {
+          "name": "storeCrossing",
+          "methods": [],
+          "properties": [
+            "function",
+            "table"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "cascade",
+          "methods": [],
+          "properties": [
+            "from",
+            "to"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "statement",
+          "methods": [],
+          "properties": [
+            "where",
+            "function",
+            "sql"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "imports": [
+        {
+          "source": "go/ast",
+          "specifiers": [
+            "ast"
+          ]
+        },
+        {
+          "source": "go/parser",
+          "specifiers": [
+            "parser"
+          ]
+        },
+        {
+          "source": "go/token",
+          "specifiers": [
+            "token"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strconv",
+          "specifiers": [
+            "strconv"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        }
+      ],
+      "exports": [
+        "TestEveryTableHasAnOwningFeature",
+        "TestNoCascadeCrossesFeatures",
+        "TestStoresWriteAndLockOnlyTheirOwnTables"
+      ],
+      "totalLines": 270,
       "hasStructuralAnalysis": true
     },
     "internal/web/pixels.go": {
@@ -24659,12 +27405,12 @@
     },
     "internal/web/static/app.css": {
       "filePath": "internal/web/static/app.css",
-      "contentHash": "a8852fd382e0d0da8f0b860050f92edacd06d67b42479e21c9e110c8faf8a163",
+      "contentHash": "f6836981862d80bc8b3574ee45820b51da14de43acda68389bb700579d8ccea6",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 1102,
+      "totalLines": 1161,
       "hasStructuralAnalysis": false
     },
     "internal/web/static/faro.js": {
@@ -24689,7 +27435,7 @@
     },
     "internal/web/tiers_test.go": {
       "filePath": "internal/web/tiers_test.go",
-      "contentHash": "173acd1670dc339fe032947c83fab11dc01475614f6497f87c609d0895bb5f0a",
+      "contentHash": "0432e249df79d9c5d19ee47e5de22e61276b0c2b5a338765c0202a723f1e6377",
       "functions": [
         {
           "name": "fileTier",
@@ -24718,7 +27464,18 @@
             "path"
           ],
           "exported": false,
-          "lineCount": 31
+          "lineCount": 33
+        },
+        {
+          "name": "checkExportsRead",
+          "owner": "",
+          "params": [
+            "t",
+            "fset",
+            "f"
+          ],
+          "exported": false,
+          "lineCount": 17
         }
       ],
       "classes": [],
@@ -24754,6 +27511,12 @@
           ]
         },
         {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
           "source": "slices",
           "specifiers": [
             "slices"
@@ -24781,7 +27544,7 @@
       "exports": [
         "TestFeatureFilesKeepToTheirTier"
       ],
-      "totalLines": 102,
+      "totalLines": 133,
       "hasStructuralAnalysis": true
     },
     "internal/web/type_test.go": {
@@ -24959,12 +27722,22 @@
     },
     "mise.toml": {
       "filePath": "mise.toml",
-      "contentHash": "b208afe6ae546df31467247ac9f984a22c240b5a4fa34661f88a05173211180f",
+      "contentHash": "810a4582724ec61f7e313856af2e54c20e48beb8f87bc1bb28d09c0853fbc5f9",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 115,
+      "totalLines": 124,
+      "hasStructuralAnalysis": false
+    },
+    "scripts/pr-image.sh": {
+      "filePath": "scripts/pr-image.sh",
+      "contentHash": "44f9cd37b4a3b98b83aa7ec765d2073ebcc92df18b59688f46459f3ed51a3102",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 28,
       "hasStructuralAnalysis": false
     },
     "scripts/provision.sh": {
@@ -24976,6 +27749,209 @@
       "exports": [],
       "totalLines": 419,
       "hasStructuralAnalysis": false
+    },
+    "scripts/wrap/main.go": {
+      "filePath": "scripts/wrap/main.go",
+      "contentHash": "20fd40501ae8e9bbb724d5ea123c773c3651e07b31d1d9cc5d568643d2b880fa",
+      "functions": [
+        {
+          "name": "main",
+          "owner": "",
+          "params": [],
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "walk",
+          "owner": "",
+          "params": [
+            "root",
+            "fn"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "problems",
+          "owner": "",
+          "params": [
+            "src"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "wrap",
+          "owner": "",
+          "params": [
+            "src"
+          ],
+          "returnType": "(string, []int)",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "notProse",
+          "owner": "",
+          "params": [
+            "line"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "fill",
+          "owner": "",
+          "params": [
+            "block"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "isComment",
+          "owner": "",
+          "params": [
+            "line"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "text",
+          "owner": "",
+          "params": [
+            "line"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "columns",
+          "owner": "",
+          "params": [
+            "line"
+          ],
+          "returnType": "int",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "io/fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 171,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/wrap/main_test.go": {
+      "filePath": "scripts/wrap/main_test.go",
+      "contentHash": "7a1b78fa359d1e4e3318cbe87ab673452d4e22f4e3bc72985ce43b15bb41d198",
+      "functions": [
+        {
+          "name": "TestCommentsWrap",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "TestCommentProblems",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "TestWrap",
+          "owner": "",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        }
+      ],
+      "exports": [
+        "TestCommentsWrap",
+        "TestCommentProblems",
+        "TestWrap"
+      ],
+      "totalLines": 79,
+      "hasStructuralAnalysis": true
     },
     "vision.md": {
       "filePath": "vision.md",
