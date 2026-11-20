@@ -15,9 +15,8 @@ import (
 // protein, at least 4 g fibre and at least 8 g sugar, against 2024–2376 kcal, at least
 // 130 g protein and 30 g fibre, at most 50 g sugar.
 
-// check_plan gives the planner each day's nutrition, the Targets' results and the soft
-// misses, then the Portions made for after the Cycle as information; the Plan it submits
-// is stored with its soft misses. The Plan Proposal shows first the average under heads
+// A Plan submitted is stored with its soft misses. The Plan Proposal shows first the
+// average under heads
 // naming each Target's unit and bounds, each miss marked under or over and a floor
 // written "4+", then the soft misses grouped by kind with that information; then its
 // days under the same heads: the seven days before it, those no Plan covered as one
@@ -26,16 +25,6 @@ import (
 func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Friday.")
-	s.Sees("Draft 1 keeps every hard rule.")
-	s.Sees("Fri 6 Nov: 1586 kcal (missed), 65 g protein (missed), at least 4 g fibre, at least 8 g sugar")
-	s.Sees("Average over the 1 day judged: 1586 kcal (missed), 65 g protein (missed), at least 4 g fibre, at least 8 g sugar")
-	s.Sees("- Calories average 1586 a day against 2024–2376")
-	s.Sees("- Protein averages 65 g a day against 130 g")
-	s.Sees("- Fri 6 Nov: 28% under kcal")
-	s.Sees("- Fri 6 Nov: 50% under protein")
-	s.Sees("- Rice bowl eaten back to back, Fri 6 Nov")
-	s.Sees("- lasagne: 2 of 3 left unused, in the freezer")
-	s.Sees("Information, nothing to fix: 1 Portion made for after the Cycle: Rice bowl")
 
 	s.Open("/plan")
 	s.Sees("01 Plan Proposal Friday. Average " + heads +

@@ -26,6 +26,10 @@ _Avoid_: Meal, time block
 A set of changes to a Cycle's Plan, produced by the agent, that takes effect only when the user approves it. Opening a Cycle, Exceptions, Delivery reports, Cart Fill substitutions and the user asking for changes all lead to one.
 _Avoid_: Recalculation, auto-update
 
+**Verdict**:
+What a Plan breaks and misses against the rules of the model: the hard rules that stop it becoming a Plan Proposal, and the soft rules and Targets it misses, which the user weighs. The planner gets one for every draft Plan it checks, and a Plan Proposal shows its own first.
+_Avoid_: Plan check, evaluation
+
 **Replaced**:
 A pending Plan Proposal rejected by something that happened rather than by the user: an Exception, a Delivery report, a Cart Fill substitution or a moved Delivery. It names what replaced it ("replaced by the Exception on Fri, Nov 6, dinner"), which is never a Planning Note.
 _Avoid_: Superseded, auto-rejected

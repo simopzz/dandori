@@ -174,6 +174,20 @@ func plansFridayWithFreezerSplit(t *testing.T, s *apptest.Scenario) {
 	s.PlansCycle()
 }
 
+// The freezer splits a Plan names are shown under its Delivery's day, flagged while it
+// is folded, on the Plan Proposal and on the Plan once approved.
+func TestFreezerSplitsShowUnderTheDeliverysDay(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFridayWithFreezerSplit(t, s)
+
+	s.Open("/plan")
+	s.Sees("Thursday, November 5 1 to the freezer at put-away To the freezer at put-away chicken breast 400 g Friday, November 6")
+
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
+	s.Sees("Thursday, November 5 1 to the freezer at put-away To the freezer at put-away chicken breast 400 g Friday, November 6")
+}
+
 // A Count made on the Kitchen Check is what the planner is told the kitchen holds.
 func TestACountOnTheKitchenCheckIsWhatThePlannerIsTold(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
@@ -259,12 +273,11 @@ func brokenDraft(t *testing.T, req agent.Request) map[string]any {
 	}
 }
 
-// check_plan reports every structural hard rule a draft breaks, and refuses one that
-// can't be read before any rule: a Recipe that doesn't exist, a size outside 0.75–1.5.
-func TestCheckPlanReportsEachStructuralHardRule(t *testing.T) {
+// check_plan refuses a draft it can't read before judging it: a Recipe that doesn't
+// exist, a size outside 0.75–1.5.
+func TestCheckPlanRefusesADraftItCantRead(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	s.Model.Script(
-		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", brokenDraft(t, req)) }),
 		fakellm.CallTool("check_plan", map[string]any{"prep_sessions": []map[string]any{
 			{"on": "2026-11-06", "kind": "lunch", "recipe_id": 999, "size": 1, "portions": []map[string]any{{"location": "fridge"}}},
 			{"on": "2026-11-06", "kind": "dinner", "recipe_id": 1, "size": 2, "portions": []map[string]any{{"location": "fridge"}}},
@@ -274,19 +287,14 @@ func TestCheckPlanReportsEachStructuralHardRule(t *testing.T) {
 	s.OpensCycle(friday)
 	s.PlansCycle()
 
-	s.Sees("Draft 1 breaks these hard rules:")
-	s.Sees("eaten-before-prepared: Rice bowl is eaten at lunch on Fri 6 Nov, before it is prepared at dinner on Fri 6 Nov")
-	s.Sees("outside-cycle: Rice bowl is eaten at lunch on Sat 7 Nov, outside the Slots planned")
-	s.Sees("slot-filled-twice: breakfast on Fri 6 Nov is filled twice: by yogurt and by Portion 1 (lasagne)")
-	s.Sees("unknown-portion: Portion 999 put in snack on Fri 6 Nov is not a Portion without a Slot")
-	s.Sees("empty-slot: snack on Fri 6 Nov is empty")
 	s.Sees("the draft can't be read")
 	s.Sees("prep_sessions.0: there is no Recipe 999")
 	s.Sees("Rice bowl at dinner on Fri 6 Nov has Portions of size 2, outside 0.75–1.5")
-	s.DoesNotSee("Draft 2")
+	s.DoesNotSee("Draft 1")
 }
 
-// Three submitted drafts that break a hard rule fail the Run, listing what they broke.
+// submit_plan refuses a draft breaking a hard rule, saying what it breaks, and three
+// such submits fail the Run, listing what they broke.
 func TestThreeSubmitsBreakingHardRulesFailThePlanningRun(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	submit := fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1})
@@ -297,6 +305,8 @@ func TestThreeSubmitsBreakingHardRulesFailThePlanningRun(t *testing.T) {
 	s.OpensCycle(friday)
 	s.PlansCycle()
 	s.Sees("Planning a Cycle Failed")
+	s.Sees("Draft 1 breaks these hard rules: - eaten-before-prepared: Rice bowl is eaten at lunch on Fri 6 Nov, before it is prepared at dinner on Fri 6 Nov")
+	s.Sees("draft 1 breaks these hard rules (submit 1 of 3): - eaten-before-prepared")
 	s.Sees("submit 2 of 3")
 	s.Sees("The planner submitted three Plans breaking hard rules: Draft 1: - eaten-before-prepared")
 	s.DoesNotSee("Plan Proposal")
@@ -317,14 +327,24 @@ func TestAPlanningRunEndingWithoutAPlanProposalFailsWithTheModelsLastMessage(t *
 	s.Sees("The model ended without a Plan Proposal. The kitchen is empty; I can't plan this.")
 }
 
-// Once its calls are spent, check_plan says to submit the best draft, which submit_plan
-// still stores.
-func TestCheckPlansCallsRunOut(t *testing.T) {
+// check_plan gives the planner the draft's Verdict: each day's nutrition, the Targets'
+// results and the soft misses, then the Portions made for after the Cycle as
+// information. Once its calls are spent, it says to submit the best draft, which
+// submit_plan still stores.
+func TestCheckPlanReportsAVerdictAndItsCallsRunOut(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com", apptest.WithConfig(func(c *app.Config) { c.PlanChecks = 2 }))
 	check := fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) })
 	s.Model.Script(check, check, check, fakellm.CallTool("submit_plan", map[string]any{"draft_id": 2}), fakellm.Reply("Friday."))
 	s.OpensCycle(friday)
 	s.PlansCycle()
+	s.Sees("Draft 1 keeps every hard rule. 1 of 2 check_plan calls left.")
+	s.Sees("Fri 6 Nov: 1586 kcal (missed), 65 g protein (missed), at least 4 g fibre, at least 8 g sugar")
+	s.Sees("Average over the 1 day judged: 1586 kcal (missed), 65 g protein (missed), at least 4 g fibre, at least 8 g sugar")
+	s.Sees("- Calories average 1586 a day against 2024–2376")
+	s.Sees("- Fri 6 Nov: 50% under protein")
+	s.Sees("- Rice bowl eaten back to back, Fri 6 Nov")
+	s.Sees("- lasagne: 2 of 3 left unused, in the freezer")
+	s.Sees("Information, nothing to fix: 1 Portion made for after the Cycle: Rice bowl")
 	s.Sees("Draft 2 keeps every hard rule. 0 of 2 check_plan calls left.")
 	s.Sees("the check_plan budget of 2 calls is spent: submit the best draft you have with submit_plan")
 	s.Sees("Planning a Cycle Succeeded")

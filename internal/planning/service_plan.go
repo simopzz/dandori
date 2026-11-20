@@ -130,12 +130,8 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		notes = append([]string{note}, notes...)
 	}
 	b := planBrief{
-		slots: slots, library: library, known: known, checks: s.checks,
-		unslotted: unslotted(held.Portions), held: held.Portions, zone: now.Location(),
-		targets: p.Targets, earlier: earlier,
-		owned: p.Appliances, stock: stockOf(held.Held), frozen: frozenOf(held.Portions), now: s.clock.Now,
-		arrives: c.Delivery.Arrives(),
-		passed:  func() []domain.Violation { return domain.StartsInThePast(slots[0], p.SlotTimes, s.clock.Now()) },
+		cycle: c.Cycle, from: slots[0], profile: p, lots: held.Portions, stock: stockOf(held.Held), earlier: earlier, now: s.clock.Now,
+		library: library, known: known, checks: s.checks, zone: now.Location(),
 		leave: func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted) {
 			runID := runs.IDFrom(ctx)
 			s.runs.Leaves(ctx, func(ctx context.Context, tx pgx.Tx) error {
@@ -178,18 +174,6 @@ func eatenBy(approved []*storedProposal, library []domain.Recipe, known []domain
 	return eaten
 }
 
-// unslotted are the Portions lots hold, each on its own: none has a Slot until a Plan
-// is approved.
-func unslotted(lots []domain.PortionLot) []domain.Portion {
-	var portions []domain.Portion
-	for _, lot := range lots {
-		for _, id := range lot.IDs {
-			portions = append(portions, domain.Portion{ID: id, Name: lot.Name, Nutrition: lot.Nutrition})
-		}
-	}
-	return portions
-}
-
 // stockOf is what held holds of each Stock Item.
 func stockOf(held []kitchen.Held) map[domain.StockKey]domain.Quantity {
 	stock := map[domain.StockKey]domain.Quantity{}
@@ -197,17 +181,6 @@ func stockOf(held []kitchen.Held) map[domain.StockKey]domain.Quantity {
 		stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}] = h.Item.Held
 	}
 	return stock
-}
-
-// frozenOf are the Portions lots holds in the freezer, by id.
-func frozenOf(lots []domain.PortionLot) map[int64]bool {
-	frozen := map[int64]bool{}
-	for _, lot := range lots {
-		for _, id := range lot.IDs {
-			frozen[id] = lot.Location == domain.Freezer
-		}
-	}
-	return frozen
 }
 
 // plannerSystem is the planning Run's system prompt, the same for every User and Cycle,
@@ -418,29 +391,25 @@ func parenthesised(note string) string {
 	return "(" + note + ")"
 }
 
-// planBrief is what one planning Run checks drafts against: the Slots it plans, the
-// Recipe Library and Ingredients their ids name, the Portions without a Slot, each and
-// in their Lots, how many check_plan calls it has, the zone its days are in, the Targets
-// it aims at, what approved Plans put in Slots before, and how it leaves its Plan
-// Proposal, stored only as the Run is stored succeeded.
+// planBrief is what one planning Run judges drafts by, domain.Judge's inputs: the Cycle,
+// the first Slot it plans, the Profile, the Portion Lots without a Slot, what the kitchen
+// holds of each Stock Item, what approved Plans put in Slots before, and the clock. It
+// has the Recipe Library and Ingredients the drafts' ids name, the zone their days are
+// in, how many check_plan calls it has, and how it leaves its Plan Proposal, stored only
+// as the Run is stored succeeded; then the Run's state.
 type planBrief struct {
-	slots     []domain.Slot
-	library   []domain.Recipe
-	known     []domain.Ingredient
-	unslotted []domain.Portion
-	held      []domain.PortionLot
-	checks    int
-	zone      *time.Location
-	targets   domain.Targets
-	earlier   []domain.Eaten
-	owned     domain.Appliances
-	stock     map[domain.StockKey]domain.Quantity // what the kitchen holds of each Stock Item
-	frozen    map[int64]bool                      // the Portions without a Slot in the freezer
-	now       func() time.Time
-	arrives   time.Time // when the Cycle's Delivery arrives
-	// passed is the violation of a Plan starting at a Slot already passed, or none.
-	passed func() []domain.Violation
-	leave  func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted)
+	cycle   domain.Cycle
+	from    domain.Slot
+	profile domain.Profile
+	lots    []domain.PortionLot
+	stock   map[domain.StockKey]domain.Quantity
+	earlier []domain.Eaten
+	now     func() time.Time
+	library []domain.Recipe
+	known   []domain.Ingredient
+	zone    *time.Location
+	checks  int
+	leave   func(ctx context.Context, plan domain.Plan, misses []domain.Miss, summary string, drafted []*recipes.Drafted)
 
 	drafted []*recipes.Drafted // the Recipe Drafts, the first id -1, the next -2
 	drafts  []domain.Plan
@@ -499,24 +468,26 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 	}
 	pb.drafts = append(pb.drafts, plan)
 	id := len(pb.drafts)
-	vs := pb.violations(plan)
+	v := pb.judge(plan)
 	left := fmt.Sprintf("%d of %d check_plan calls left.", pb.checks-pb.checked, pb.checks)
-	results, _ := pb.results(plan)
-	if len(vs) == 0 {
-		return fmt.Sprintf("Draft %d keeps every hard rule. %s\n%s", id, left, results), nil
+	if len(v.Broken) == 0 {
+		return fmt.Sprintf("Draft %d keeps every hard rule. %s\n%s", id, left, pb.results(v)), nil
 	}
-	return fmt.Sprintf("Draft %d breaks these hard rules:\n%s\n%s\n%s", id, listViolations(vs), left, results), nil
+	return fmt.Sprintf("Draft %d breaks these hard rules:\n%s\n%s\n%s", id, listViolations(v.Broken), left, pb.results(v)), nil
 }
 
-// results are each day plan plans, the Targets' results over the days it fills whole,
-// the soft rules it breaks and the Portions it makes for after the Cycle, as the planner
-// reads them, and those soft rules.
-func (pb *planBrief) results(plan domain.Plan) (string, []domain.Miss) {
-	first, last := pb.slots[0], pb.slots[len(pb.slots)-1].On
-	_, days := domain.PlanDays(pb.earlier, plan.Eaten(pb.unslotted), first, last)
+// judge is the Verdict on plan now.
+func (pb *planBrief) judge(plan domain.Plan) domain.Verdict {
+	return domain.Judge(plan, pb.cycle, pb.from, pb.profile, pb.lots, pb.stock, pb.earlier, pb.now())
+}
+
+// results are the Verdict v as the planner reads it: each day it plans, the Targets'
+// results over the days it fills whole, the soft rules it breaks and the Portions it
+// makes for after the Cycle.
+func (pb *planBrief) results(v domain.Verdict) string {
+	days, misses := v.Days, v.Misses
 	judged := domain.Judged(days)
-	misses := append(pb.targets.Misses(days), plan.SoftMisses(pb.held)...)
-	t := pb.targets
+	t := pb.profile.Targets
 	lo, hi := t.Bounds(domain.TargetKcal)
 	var b strings.Builder
 	fmt.Fprintf(&b, "Each day it plans, against the Targets (%.0f–%.0f kcal, at least %d g protein, at least %d g fibre, at most %d g sugar):\n",
@@ -544,14 +515,14 @@ func (pb *planBrief) results(plan domain.Plan) (string, []domain.Miss) {
 			fmt.Fprintf(&b, "- %s\n", m.Describe(t))
 		}
 	}
-	if n, names := plan.MadeForAfter(); n > 0 {
+	if n := v.MadeForAfter; n > 0 {
 		portions := "Portions"
 		if n == 1 {
 			portions = "Portion"
 		}
-		fmt.Fprintf(&b, "\nInformation, nothing to fix: %d %s made for after the Cycle: %s", n, portions, strings.Join(names, ", "))
+		fmt.Fprintf(&b, "\nInformation, nothing to fix: %d %s made for after the Cycle: %s", n, portions, strings.Join(v.AfterNames, ", "))
 	}
-	return strings.TrimSpace(b.String()), misses
+	return strings.TrimSpace(b.String())
 }
 
 // submit chooses the draft named as the Plan Proposal if it keeps every hard rule, and
@@ -567,10 +538,10 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 		return "", fmt.Errorf("there is no draft %d: check a draft with check_plan first", in.DraftID)
 	}
 	plan := pb.drafts[in.DraftID-1]
-	vs := pb.violations(plan)
+	v := pb.judge(plan)
+	vs := v.Broken
 	if len(vs) == 0 {
-		pb.chosen = &plan
-		_, pb.misses = pb.results(plan)
+		pb.chosen, pb.misses = &plan, v.Misses
 		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it.", in.DraftID), nil
 	}
 	pb.broken = append(pb.broken, fmt.Sprintf("Draft %d:\n%s", in.DraftID, listViolations(vs)))
@@ -600,13 +571,6 @@ func (pb *planBrief) draft(l domain.Language, input json.RawMessage) (string, er
 // draftID is the id the planner prepares the Recipe Draft drafted at i by: negative, so
 // it is never a Recipe's.
 func draftID(i int) int64 { return -int64(i + 1) }
-
-// violations are the hard rules plan breaks, a first Slot already passed among them.
-func (pb *planBrief) violations(plan domain.Plan) []domain.Violation {
-	vs := append(domain.HardRules(plan, pb.slots, pb.unslotted), domain.RecipesUnfit(plan, pb.owned)...)
-	vs = append(vs, domain.NoEveningToThaw(plan, pb.frozen, pb.stock, pb.now(), pb.arrives)...)
-	return append(vs, pb.passed()...)
-}
 
 // listViolations is vs one a line, as the planner reads them.
 func listViolations(vs []domain.Violation) string {
