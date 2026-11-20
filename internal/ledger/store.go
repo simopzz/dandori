@@ -113,9 +113,8 @@ func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 	return err
 }
 
-// SavePortions saves how many Portions p says for the signed-in User, in q's transaction,
-// and is their ids.
-func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]int64, error) {
+// savePortions saves how many Portions p says for the signed-in User, and is their ids.
+func savePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]int64, error) {
 	n := p.Nutrition
 	rows, err := q.Query(ctx, `
 		INSERT INTO portion (name, kcal, protein, carbs, fat, fibre, sugar)
