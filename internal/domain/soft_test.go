@@ -190,28 +190,30 @@ func TestPortionsLeftWithoutASlot(t *testing.T) {
 	rice := domain.PrepSession{At: slot(2, domain.Dinner), Recipe: &domain.Recipe{Name: "Rice bowl"}, Size: 1,
 		Portions: []domain.PlannedPortion{{Location: domain.Freezer}}}
 	tests := []struct {
-		name      string
-		plan      domain.Plan
-		misses    []domain.Miss
-		madeFor   int
-		madeNames []string
+		name    string
+		plan    domain.Plan
+		misses  []domain.Miss
+		madeFor []domain.MadeForAfter
 	}{
 		{"carried in and left unused", domain.Plan{Kept: []domain.Kept{{Portion: 2, At: slot(2, domain.Lunch)}, {Portion: 4, At: slot(3, domain.Lunch)}}}, []domain.Miss{
 			{Rule: domain.RuleUnusedPortion, Name: "lasagne", Location: domain.Freezer, Count: 2, Held: 3},
-		}, 0, nil},
-		{"carried in and used", domain.Plan{Kept: []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}, {Portion: 4}}}, nil, 0, nil},
+		}, nil},
+		{"carried in and used", domain.Plan{Kept: []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}, {Portion: 4}}}, nil, nil},
 		{"made by the Plan with no Slot", domain.Plan{
 			Kept:         []domain.Kept{{Portion: 1}, {Portion: 2}, {Portion: 3}, {Portion: 4}},
 			PrepSessions: []domain.PrepSession{chiliEaten(in(slot(2, domain.Dinner)), nil, nil), rice},
-		}, nil, 3, []string{"Chili", "Rice bowl"}},
+		}, nil, []domain.MadeForAfter{
+			{Name: "Chili", Location: domain.Fridge, Portions: 2},
+			{Name: "Rice bowl", Location: domain.Freezer, Portions: 1},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.plan.SoftMisses(lasagne); !slices.EqualFunc(got, tt.misses, sameMiss) {
 				t.Errorf("SoftMisses() = %+v,\nwant %+v", got, tt.misses)
 			}
-			if n, names := tt.plan.MadeForAfter(); n != tt.madeFor || !slices.Equal(names, tt.madeNames) {
-				t.Errorf("MadeForAfter() = %d %v, want %d %v", n, names, tt.madeFor, tt.madeNames)
+			if got := tt.plan.MadeForAfter(); !slices.Equal(got, tt.madeFor) {
+				t.Errorf("MadeForAfter() = %+v, want %+v", got, tt.madeFor)
 			}
 		})
 	}

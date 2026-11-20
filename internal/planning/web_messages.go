@@ -110,8 +110,7 @@ var (
 	msgBackToBack   = web.Message{En: "%s eaten back to back, %s", It: "%s mangiato di seguito, %s"}
 	msgAnd          = web.Message{En: "%s and %s", It: "%s e %s"}
 	msgUnused       = web.Message{En: "%s: %d of %d left unused, %s", It: "%s: %d di %d non usate, %s"}
-	msgMadeForAfter = web.Message{En: "%d Portions made for after the Cycle: %s", It: "%d Porzioni preparate per dopo il Ciclo: %s"}
-	msgOneForAfter  = web.Message{En: "1 Portion made for after the Cycle: %s", It: "1 Porzione preparata per dopo il Ciclo: %s"}
+	msgMadeForAfter = web.Message{En: "%s: %d made for after the Cycle, %s", It: "%s: %d preparate per dopo il Ciclo, %s"}
 	msgCaloriesWord = web.Message{En: "calories", It: "calorie"}
 	msgProteinWord  = web.Message{En: "protein", It: "proteine"}
 	msgFibreWord    = web.Message{En: "fibre", It: "fibre"}

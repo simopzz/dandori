@@ -328,20 +328,34 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 	return append(ms, slices.DeleteFunc(unused, func(m Miss) bool { return m.Count == 0 })...)
 }
 
-// MadeForAfter is how many Portions p's Prep Sessions make with no Slot, to eat after the
-// Cycle, and their names, each once.
-func (p Plan) MadeForAfter() (n int, names []string) {
+// MadeForAfter is Portions a Plan makes with no Slot, to eat after the Cycle, grouped as
+// the kitchen will hold them, as the unused Portions' miss groups them: how many of Name,
+// ignoring case and surrounding space, it keeps in Location.
+type MadeForAfter struct {
+	Name     string
+	Location StorageLocation
+	Portions int
+}
+
+// MadeForAfter are the Portions p's Prep Sessions make with no Slot, in the order p first
+// makes each.
+func (p Plan) MadeForAfter() []MadeForAfter {
+	var made []MadeForAfter
 	for _, ps := range p.PrepSessions {
 		for _, pp := range ps.Portions {
-			if pp.EatAt == nil {
-				n++
-				if !slices.Contains(names, ps.Name()) {
-					names = append(names, ps.Name())
-				}
+			if pp.EatAt != nil {
+				continue
 			}
+			i := slices.IndexFunc(made, func(m MadeForAfter) bool {
+				return m.Location == pp.Location && portionName(m.Name) == portionName(ps.Name())
+			})
+			if i < 0 {
+				made, i = append(made, MadeForAfter{Name: ps.Name(), Location: pp.Location}), len(made)
+			}
+			made[i].Portions++
 		}
 	}
-	return n, names
+	return made
 }
 
 // PlanDays are a Plan's days from its first Slot to last, beside the seven days before

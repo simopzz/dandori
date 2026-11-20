@@ -156,8 +156,8 @@ templ figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, bo
 // information, the Portions made for after the Cycle.
 templ missRows(p Proposal) {
 	{{ off := daysOff(p.Misses) }}
-	{{ after, names := p.Plan.MadeForAfter() }}
-	if len(off) > 0 || slices.ContainsFunc(p.Misses, notTargets) || after > 0 {
+	{{ after := p.Plan.MadeForAfter() }}
+	if len(off) > 0 || slices.ContainsFunc(p.Misses, notTargets) || len(after) > 0 {
 		@web.Rows() {
 			if len(off) > 0 {
 				@web.Row() {
@@ -196,10 +196,10 @@ templ missRows(p Proposal) {
 					}
 				}
 			}
-			if after > 0 {
+			for _, m := range after {
 				@web.Row() {
 					@web.Icon("snowflake")
-					<span class="row-title hint">{ madeForAfter(ctx, after, names) }</span>
+					<span class="row-title hint">{ web.Tf(ctx, msgMadeForAfter, m.Name, m.Portions, web.T(ctx, web.InLocations[m.Location])) }</span>
 				}
 			}
 		}

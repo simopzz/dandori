@@ -228,7 +228,7 @@ func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 		"3 days more than 25% off Fri, Nov 6: calories under protein under Tue, Nov 10: protein under Thu, Nov 12: protein under",
 		"Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9",
 		"lasagne: 1 of 3 left unused, in the freezer",
-		"2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice",
+		"Pasta with chickpeas: 1 made for after the Cycle, in the freezer Chicken with rice: 1 made for after the Cycle, in the freezer",
 		"Approve Reject",
 		"02 Days",
 		"7 days before 2 on the current Plan, 5 with no Plan",
@@ -349,7 +349,7 @@ func TestBrowserShowsAnApprovedTenDayPlanFromToday(t *testing.T) {
 		"3 days more than 25% off Fri, Nov 6: calories under protein under Tue, Nov 10: protein under Thu, Nov 12: protein under",
 		"Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9",
 		"lasagne: 1 of 3 left unused, in the freezer",
-		"2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice",
+		"Pasta with chickpeas: 1 made for after the Cycle, in the freezer Chicken with rice: 1 made for after the Cycle, in the freezer",
 		"02 Days",
 		"2 days past",
 		"Saturday, November 7 Today",
@@ -391,7 +391,7 @@ func TestChangingTheTargetsLeavesAnApprovedPlanUnchanged(t *testing.T) {
 	s.Sees("3 days more than 25% off Fri, Nov 6: calories under protein under Tue, Nov 10: protein under Thu, Nov 12: protein under")
 	s.Sees("calories 1826 under protein 99 under fibre at least 36 + sugar at least 52 + over")
 	s.Sees("Chicken with rice eaten back to back, Sun, Nov 8 and Mon, Nov 9 lasagne: 1 of 3 left unused, in the freezer")
-	s.Sees("2 Portions made for after the Cycle: Pasta with chickpeas, Chicken with rice")
+	s.Sees("Pasta with chickpeas: 1 made for after the Cycle, in the freezer Chicken with rice: 1 made for after the Cycle, in the freezer")
 }
 
 // Through a browser: at 390px, in either Language and with every fold open, an approved
