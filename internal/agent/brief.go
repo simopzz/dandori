@@ -10,9 +10,9 @@ import (
 type Brief struct {
 	// System is the system prompt: byte-stable for a kind of Run, so it is cached.
 	System string
-	// Cached, if set, opens the first user turn before Prompt: what varies per User but
+	// Stable, if set, opens the first user turn before Prompt: what varies per User but
 	// rarely per Run, cached apart from what follows it.
-	Cached string
+	Stable string
 	// Prompt is the first user turn, holding everything else that varies per User
 	// or request.
 	Prompt string

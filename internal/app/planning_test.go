@@ -43,7 +43,7 @@ func stockKitchen(s *apptest.Scenario) {
 }
 
 // firstTurn is everything the first turn of the Run req belongs to tells the model: a
-// planning Run's cached block, then its prompt.
+// planning Run's stable block, then its prompt.
 func firstTurn(req agent.Request) string {
 	var texts []string
 	for _, b := range req.Messages[0].Content {
@@ -131,7 +131,7 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 	s.DoesNotSee("yogurt 150 g")
 }
 
-// prompt is what the planning Run s started first was told, its cached block included.
+// prompt is what the planning Run s started first was told, its stable block included.
 func prompt(t *testing.T, s *apptest.Scenario) string {
 	t.Helper()
 	reqs := s.Model.Requests()
@@ -227,6 +227,7 @@ func TestThePlannerIsToldTheProfileTheLibraryTheBriefTheKitchenAndTheLanguage(t 
 	s.Model.Script(fakellm.Reply("Nothing to plan."))
 	s.OpensCycle(friday)
 	s.PlansCycle()
+	s.Sees("Owns: hob, air_fryer (Ninja 5 L).") // the Trace shows the stable block too
 
 	promptHolds(t, s,
 		"The user's Language is English.",
@@ -244,20 +245,21 @@ func TestThePlannerIsToldTheProfileTheLibraryTheBriefTheKitchenAndTheLanguage(t 
 		t.Errorf("the system prompt varies with the User:\n%s", sys)
 	}
 
-	// What varies per User but rarely per Run is in the cached block; the rest after it.
+	// What varies per User but rarely per Run is in the stable block, cached; the rest
+	// after it.
 	turn := s.Model.Requests()[0].Messages[0].Content
 	if len(turn) != 2 || !turn[0].Cached || turn[1].Cached {
-		t.Fatalf("the first turn = %+v, want the cached block, then the prompt", turn)
+		t.Fatalf("the first turn = %+v, want the stable block, cached, then the prompt", turn)
 	}
-	cached, perRun := turn[0].Text, turn[1].Text
+	stable, perRun := turn[0].Text, turn[1].Text
 	for _, w := range []string{"Targets a day:", "Excludes: cream.", "Owns: hob", "- Recipe 1: Rice bowl", "- Ingredient 2: yogurt"} {
-		if !strings.Contains(cached, w) || strings.Contains(perRun, w) {
-			t.Errorf("%q is not in the cached block alone:\n%s\n---\n%s", w, cached, perRun)
+		if !strings.Contains(stable, w) || strings.Contains(perRun, w) {
+			t.Errorf("%q is not in the stable block alone:\n%s\n---\n%s", w, stable, perRun)
 		}
 	}
 	for _, w := range []string{"Plan the Cycle", "Today is", "The user's Language is English.", "<brief>", "- Portion 1: lasagne", "- 800 g rice", "seven days before"} {
-		if !strings.Contains(perRun, w) || strings.Contains(cached, w) {
-			t.Errorf("%q is not in the prompt alone:\n%s\n---\n%s", w, cached, perRun)
+		if !strings.Contains(perRun, w) || strings.Contains(stable, w) {
+			t.Errorf("%q is not in the prompt alone:\n%s\n---\n%s", w, stable, perRun)
 		}
 	}
 }

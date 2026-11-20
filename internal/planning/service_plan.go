@@ -141,7 +141,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	}
 	prompt := planPrompt(c, p, slots[0], brief, notes, now, held, trailing)
 	asked, _, _ := strings.Cut(prompt, "\n")
-	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, planCached(p, library, known), prompt), func(tx pgx.Tx, runID int64) error {
+	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, planStable(p, library, known), prompt), func(tx pgx.Tx, runID int64) error {
 		// The planning lock first, as in Drop, so a reject and a drop never deadlock.
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
@@ -206,9 +206,9 @@ Write every food term in the user's Language, named in the prompt.
 
 Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a summary of the Plan for the user, in their Language: two or three sentences on what it cooks and why. Give no nutrition figures and no day-by-day list: Dandori shows both.`, attempts, domain.MinSize, domain.MaxSize)
 
-// planCached is the planning Run's cached block, what varies per User but rarely per Run:
-// the Profile p, the Recipe Library and the known Ingredients.
-func planCached(p domain.Profile, library []domain.Recipe, known []domain.Ingredient) string {
+// planStable is the planning Run's stable block, what varies per User but rarely per Run,
+// so it is cached: the Profile p, the Recipe Library and the known Ingredients.
+func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingredient) string {
 	var b strings.Builder
 	t := p.Targets
 	b.WriteString("Profile:\n")
@@ -250,7 +250,7 @@ func planCached(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 	return strings.TrimSpace(b.String())
 }
 
-// planPrompt is what a planning Run of c from the Slot from is told after its cached
+// planPrompt is what a planning Run of c from the Slot from is told after its stable
 // block: the Cycle and its Slots, today, the User's Language, the Planning Brief or its
 // low-care default, the Planning Notes newest first, what the kitchen holds, k, at now,
 // and what the trailing seven days before from eat as approved Plans fill them.
@@ -424,11 +424,11 @@ type planBrief struct {
 	verdict domain.Verdict // the Verdict on chosen, stored with it
 }
 
-// brief is the planning Run's Brief, for a User speaking l, told cached then prompt.
-func (pb *planBrief) brief(l domain.Language, cached, prompt string) agent.Brief {
+// brief is the planning Run's Brief, for a User speaking l, told stable then prompt.
+func (pb *planBrief) brief(l domain.Language, stable, prompt string) agent.Brief {
 	return agent.Brief{
 		System: plannerSystem,
-		Cached: cached,
+		Stable: stable,
 		Prompt: prompt,
 		Effort: planEffort,
 		Ended: func(ctx context.Context, said string) error {

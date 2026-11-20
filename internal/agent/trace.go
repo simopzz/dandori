@@ -10,7 +10,7 @@ const (
 	// Started: the Run began, with Model.
 	Started TraceEventKind = "started"
 	// Asked: the model is asked for its Turn, and on the first Text is what the Run
-	// was asked, such as the pasted recipe.
+	// was asked, such as the pasted recipe, after the Brief's stable block if it has one.
 	Asked TraceEventKind = "asked"
 	// Said: the model said Text.
 	Said TraceEventKind = "said"

@@ -64,7 +64,8 @@ var parse = agent.Request{
 	Effort:   agent.EffortMedium,
 }
 
-// plan is a request whose first turn opens with a cached block, as a planning Run's does.
+// plan is a request whose first turn opens with a stable block, cached, as a planning
+// Run's does.
 var plan = func() agent.Request {
 	req := parse
 	req.Messages = []agent.Message{{Role: agent.RoleUser, Content: []agent.Block{
@@ -78,18 +79,22 @@ func TestCacheBreakpointsAndAByteStableSystemPrompt(t *testing.T) {
 	sends(t, parse)
 }
 
-// A cached block gets the second explicit breakpoint, at its end, on every turn; what
+// A stable block gets the second explicit breakpoint, at its end, on every turn; what
 // follows it in the first turn gets none.
-func TestASecondBreakpointEndsTheCachedBlock(t *testing.T) {
+func TestASecondBreakpointEndsTheStableBlock(t *testing.T) {
 	for i, s := range sends(t, plan) {
 		messages, _ := s.body["messages"].([]any)
+		if len(messages) == 0 {
+			t.Fatalf("turn %d: no messages were sent", i+1)
+		}
 		first, _ := messages[0].(map[string]any)["content"].([]any)
 		if len(first) != 2 {
 			t.Fatalf("turn %d: the first message's content = %v, want two blocks", i+1, first)
 		}
-		cached, prompt := first[0].(map[string]any), first[1].(map[string]any)
-		if cc, _ := cached["cache_control"].(map[string]any); cached["text"] != "Profile and Recipe Library" || cc["type"] != "ephemeral" {
-			t.Errorf("turn %d: the cached block = %v, want its text with an ephemeral cache_control", i+1, cached)
+		stable, _ := first[0].(map[string]any)
+		prompt, _ := first[1].(map[string]any)
+		if cc, _ := stable["cache_control"].(map[string]any); stable["text"] != "Profile and Recipe Library" || cc["type"] != "ephemeral" {
+			t.Errorf("turn %d: the stable block = %v, want its text with an ephemeral cache_control", i+1, stable)
 		}
 		if _, ok := prompt["cache_control"]; ok || prompt["text"] != "Plan the Cycle" {
 			t.Errorf("turn %d: the prompt = %v, want its text with no cache_control", i+1, prompt)

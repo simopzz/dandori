@@ -53,7 +53,7 @@ func (l *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 		Betas:     []sdk.AnthropicBeta{sdk.AnthropicBetaServerSideFallback2026_07_01},
 		Fallbacks: sdk.BetaFallbacksParamOfDefault(),
 		// The automatic breakpoint follows the conversation; the system prompt's own
-		// keeps it cached for every Run of its kind, and a cached block's (Block.Cached)
+		// keeps it cached for every Run of its kind, and a stable block's (Block.Cached)
 		// for every Run of one User.
 		CacheControl: sdk.NewBetaCacheControlEphemeralParam(),
 		OutputConfig: sdk.BetaOutputConfigParam{Effort: sdk.BetaOutputConfigEffort(req.Effort)},

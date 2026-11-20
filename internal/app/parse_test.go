@@ -318,7 +318,7 @@ func TestTheParseSystemPromptVariesOnlyByLanguage(t *testing.T) {
 	}
 	for i, want := range [][]string{{"- rice (g)", pastedLasagne}, {"(none yet)", "Two eggs, boiled."}} {
 		if turn := reqs[i].Messages[0].Content; len(turn) != 1 || turn[0].Cached {
-			t.Errorf("parse Run %d's first turn = %+v, want the prompt alone, with no cached block", i+1, turn)
+			t.Fatalf("parse Run %d's first turn = %+v, want the prompt alone, with no stable block", i+1, turn)
 		}
 		prompt := reqs[i].Messages[0].Content[0].Text
 		for _, w := range want {

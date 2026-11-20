@@ -31,8 +31,10 @@ func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 		specs = append(specs, ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
 	first := []Block{{Type: BlockText, Text: b.Prompt}}
-	if b.Cached != "" {
-		first = append([]Block{{Type: BlockText, Text: b.Cached, Cached: true}}, first...)
+	asked := b.Prompt // what the Run was asked, such as the pasted recipe
+	if b.Stable != "" {
+		first = append([]Block{{Type: BlockText, Text: b.Stable, Cached: true}}, first...)
+		asked = b.Stable + "\n\n" + b.Prompt
 	}
 	req := Request{
 		Model:    l.Model,
@@ -47,11 +49,11 @@ func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 		if turn > l.MaxTurns {
 			return &Failure{Reason: TurnLimit, Detail: strconv.Itoa(l.MaxTurns)}
 		}
-		asked := TraceEvent{Kind: Asked, Turn: turn}
+		ev := TraceEvent{Kind: Asked, Turn: turn}
 		if turn == 1 {
-			asked.Text = b.Prompt // what the Run was asked, such as the pasted recipe
+			ev.Text = asked
 		}
-		tr.Emit(asked)
+		tr.Emit(ev)
 		resp, err := l.send(ctx, req, tr)
 		if err != nil {
 			return err
