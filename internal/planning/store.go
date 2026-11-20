@@ -99,17 +99,19 @@ func goingRun(ctx context.Context, q db.Querier, id int64) (runID int64, err err
 }
 
 // submit stores plan, summed up by summary, as the pending Plan Proposal of the planning
-// Run runID, with the Targets it aimed at, the soft rules it breaks and those of the
-// Recipe Drafts drafted that it prepares, as the Run is stored succeeded: a Run cancelled
-// meanwhile, its Cycle dropped or closed, never stores it, and the unique index keeps a
-// second one from pending.
-func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, targets domain.Targets, misses []domain.Miss, summary string, drafted []*recipes.Drafted) error {
+// Run runID, with the Targets it aimed at, its Verdict v's days and misses, and those of
+// the Recipe Drafts drafted that it prepares, as the Run is stored succeeded: a Run
+// cancelled meanwhile, its Cycle dropped or closed, never stores it, and the unique index
+// keeps a second one from pending.
+func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, targets domain.Targets, v domain.Verdict, summary string, drafted []*recipes.Drafted) error {
 	var id int64
+	misses := v.Misses
 	if misses == nil {
 		misses = []domain.Miss{} // stored as [], not null
 	}
-	err := q.QueryRow(ctx, `INSERT INTO plan_proposal (run_id, status, summary, targets, misses) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		runID, Pending, summary, targets, misses).Scan(&id)
+	err := q.QueryRow(ctx, `
+		INSERT INTO plan_proposal (run_id, status, summary, targets, misses, days_before, days) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		runID, Pending, summary, targets, misses, v.Trailing, v.Days).Scan(&id)
 	if err != nil {
 		return err
 	}
@@ -180,14 +182,16 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 }
 
 // storedProposal is a Plan Proposal as stored: its first Slot, the Targets it aimed at,
-// the soft rules it breaks, and its Prep Sessions and freezer splits with their Recipes
-// and Ingredients by id only.
+// the days and soft rules it was judged with, and its Prep Sessions and freezer splits
+// with their Recipes and Ingredients by id only.
 type storedProposal struct {
 	id       int64
 	summary  string
 	first    domain.Slot
 	targets  domain.Targets
 	misses   []domain.Miss
+	trailing []domain.Day
+	days     []domain.Day
 	sessions []storedSession
 	kept     []domain.Kept
 	splits   []domain.RecipeIngredient
@@ -199,16 +203,21 @@ type storedSession struct {
 }
 
 // proposalColumns are what scanProposal reads of a plan_proposal pp and its cycle_run cr.
-const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses`
+const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses, pp.days_before, pp.days`
 
 // scanProposal reads proposalColumns of row, and the Plan they store, its days in zone.
 func scanProposal(ctx context.Context, q db.Querier, row pgx.Row, zone *time.Location) (*storedProposal, error) {
 	var sp storedProposal
-	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses)
+	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses, &sp.trailing, &sp.days)
 	if err != nil {
 		return nil, err
 	}
 	sp.first.On = inZone(sp.first.On, zone)
+	for _, d := range [][]domain.Day{sp.trailing, sp.days} {
+		for i := range d {
+			d[i].On = inZone(d[i].On, zone)
+		}
+	}
 	return &sp, loadPlan(ctx, q, &sp, zone)
 }
 
