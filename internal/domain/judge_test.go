@@ -73,14 +73,15 @@ func (j judging) judge() domain.Verdict {
 	return domain.Judge(j.plan, fridayCycle, j.from, j.profile, kitchenLots, j.stock, j.earlier, j.now)
 }
 
-// Judge gives every hard rule a draft breaks: of its structure, of its Recipes, of frozen
-// food with no evening left to thaw it, and a first Slot already passed. It knows which
-// Portions without a Slot the kitchen holds, and which are frozen, from its Portion Lots.
+// Judge gives every hard rule a draft breaks, as the planner reads it: of its structure,
+// of its Recipes, of frozen food with no evening left to thaw it, and a first Slot
+// already passed. It knows which Portions without a Slot the kitchen holds, and which are
+// frozen, from its Portion Lots.
 func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 	tests := []struct {
 		name   string
 		change func(*judging)
-		want   []domain.Rule
+		want   []string
 	}{
 		{"every hard rule kept", func(*judging) {}, nil},
 		{"breaking every structural hard rule", func(j *judging) {
@@ -91,16 +92,24 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 			bowl.At = slot(6, domain.Dinner)
 			bowl.Portions[2].EatAt = in(slot(7, domain.Lunch))
 			j.plan.Kept = []domain.Kept{{Portion: 1, At: slot(6, domain.Breakfast)}, {Portion: 999, At: slot(6, domain.Snack)}}
-		}, []domain.Rule{domain.RuleEatenBeforePrepared, domain.RuleOutsideCycle, domain.RuleSlotFilledTwice, domain.RuleUnknownPortion, domain.RuleEmptySlot}},
+		}, []string{
+			"eaten-before-prepared: Rice bowl is eaten at lunch on Fri 6 Nov, before it is prepared at dinner on Fri 6 Nov",
+			"outside-cycle: Rice bowl is eaten at lunch on Sat 7 Nov, outside the Slots planned",
+			"slot-filled-twice: breakfast on Fri 6 Nov is filled twice: by yogurt and by Portion 1 (lasagne)",
+			"unknown-portion: Portion 999 put in snack on Fri 6 Nov is not a Portion without a Slot",
+			"empty-slot: snack on Fri 6 Nov is empty: no Portion fills it",
+		}},
 		{"a Recipe at a kind of Slot it isn't for", func(j *judging) {
 			j.plan.PrepSessions[0].Portions[0].EatAt = in(slot(6, domain.Lunch))
 			j.plan.PrepSessions[1].At = slot(6, domain.Breakfast)
 			j.plan.PrepSessions[1].Portions[0].EatAt = in(slot(6, domain.Breakfast))
-		}, []domain.Rule{domain.RuleWrongKindOfSlot}},
+		}, []string{"wrong-kind-of-slot: Rice bowl is eaten at breakfast on Fri 6 Nov, a kind of Slot it isn't for: lunch, dinner"}},
 		{"a Recipe needing an appliance not owned", func(j *judging) {
 			j.profile.Appliances = domain.Appliances{domain.Hob: "", domain.Oven: ""}
-		}, []domain.Rule{domain.RuleApplianceNotOwned}},
-		{"a frozen Portion put in a Slot today", func(j *judging) { j.now = at(6, "07:00") }, []domain.Rule{domain.RuleNoEveningToThaw}},
+		}, []string{"appliance-not-owned: Rice bowl at lunch on Fri 6 Nov needs the appliance microwave, which the user doesn't own"}},
+		{"a frozen Portion put in a Slot today", func(j *judging) { j.now = at(6, "07:00") }, []string{
+			"no-evening-to-thaw: Portion 1 is frozen, and the evening before snack on Fri 6 Nov to thaw it has passed",
+		}},
 		{"a Portion in the fridge put in a Slot today", func(j *judging) {
 			j.now = at(6, "07:00")
 			j.plan.Kept[0].Portion = 4
@@ -109,25 +118,25 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 			j.now = at(6, "07:00")
 			j.plan.Kept[0].Portion = 4
 			j.stock = map[domain.StockKey]domain.Quantity{{Ingredient: plainRice.ID, Location: domain.Freezer}: grams(1000)}
-		}, []domain.Rule{domain.RuleNoEveningToThaw}},
+		}, []string{"no-evening-to-thaw: lunch on Fri 6 Nov needs 375 g rice thawed from the freezer, and the evening before to thaw it has passed"}},
 		{"a Portion frozen and eaten the day it is prepared", func(j *judging) {
 			j.plan.PrepSessions[1].Portions[1].Location = domain.Freezer
-		}, []domain.Rule{domain.RuleNoEveningToThaw}},
+		}, []string{"no-evening-to-thaw: Rice bowl is frozen at lunch on Fri 6 Nov and eaten at dinner on Fri 6 Nov, with no evening between to thaw it"}},
 		{"a first Slot already passed", func(j *judging) {
 			j.now = at(6, "08:00")
 			j.plan.Kept[0].Portion = 4
-		}, []domain.Rule{domain.RuleStartsInThePast}},
+		}, []string{"starts-in-the-past: its first Slot, breakfast on Fri 6 Nov, has passed"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			j := friday()
 			tt.change(&j)
-			var got []domain.Rule
+			var got []string
 			for _, v := range j.judge().Broken {
-				got = append(got, v.Rule)
+				got = append(got, v.String())
 			}
 			if !slices.Equal(got, tt.want) {
-				t.Errorf("Judge() broke %v, want %v", got, tt.want)
+				t.Errorf("Judge() broke\n%q,\nwant\n%q", got, tt.want)
 			}
 		})
 	}

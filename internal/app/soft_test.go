@@ -16,12 +16,11 @@ import (
 // 130 g protein and 30 g fibre, at most 50 g sugar.
 
 // A Plan submitted is stored with its soft misses. The Plan Proposal shows first the
-// average under heads
-// naming each Target's unit and bounds, each miss marked under or over and a floor
-// written "4+", then the soft misses grouped by kind with that information; then its
-// days under the same heads: the seven days before it, those no Plan covered as one
-// range, and each planned day with its misses marked, what it cooks, its Slots and the
-// Prep Sessions it holds.
+// average under heads naming each Target's unit and bounds, each miss marked under or
+// over and a floor written "4+", then the soft misses grouped by kind with that
+// information; then its days under the same heads: the seven days before it, those no
+// Plan covered as one range, and each planned day with its misses marked, what it cooks,
+// its Slots and the Prep Sessions it holds.
 func TestAPlanProposalShowsItsSoftMissesAndItsDays(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Friday.")
