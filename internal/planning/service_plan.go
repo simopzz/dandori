@@ -124,13 +124,15 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	if err != nil {
 		return 0, err
 	}
-	earlier := eatenBy(approved, library, known, portions)
+	plan := approvedPlan(approved, library, known, portions)
+	earlier := plan.Eaten(portions)
 	trailing, _ := domain.PlanDays(earlier, nil, slots[0], slots[0].On)
+	forecast := plan.Forecast(stockOf(held.Held), held.Portions, p.SlotTimes, now, slots[0])
 	if note != "" {
 		notes = append([]string{note}, notes...)
 	}
 	b := planBrief{
-		cycle: c.Cycle, from: slots[0], profile: p, lots: held.Portions, stock: stockOf(held.Held), earlier: earlier, now: s.clock.Now,
+		cycle: c.Cycle, from: slots[0], profile: p, lots: forecast.Lots, stock: forecast.Stock, earlier: earlier, now: s.clock.Now,
 		library: library, known: known, checks: s.checks, zone: now.Location(),
 		leave: func(ctx context.Context, plan domain.Plan, v domain.Verdict, summary string, drafted []*recipes.Drafted) {
 			runID := runs.IDFrom(ctx)
@@ -139,7 +141,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 			})
 		},
 	}
-	prompt := planPrompt(c, p, slots[0], brief, notes, now, held, trailing)
+	prompt := planPrompt(c, p, slots[0], brief, notes, now, held.Held, forecast, trailing)
 	asked, _, _ := strings.Cut(prompt, "\n")
 	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, planStable(p, library, known), prompt), func(tx pgx.Tx, runID int64) error {
 		// The planning lock first, as in Drop, so a reject and a drop never deadlock.
@@ -158,20 +160,36 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	})
 }
 
-// eatenBy is what approved, oldest first, put in Slots, their Recipes, Ingredients and
-// Portions found among those given: where a later one fills a Slot from its first on, it
-// replaces what an earlier one put there.
-func eatenBy(approved []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion) []domain.Eaten {
-	var eaten []domain.Eaten
+// approvedPlan is what approved, oldest first, plan together, their Recipes, Ingredients
+// and Portions found among those given: from a later one's first Slot on, it replaces
+// what an earlier one planned, an earlier Prep Session's Portions eaten there left
+// without a Slot.
+func approvedPlan(approved []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion) domain.Plan {
+	var plan domain.Plan
 	for i, sp := range approved {
-		for _, e := range sp.resolve(library, known, portions, nil).Plan.Eaten(portions) {
-			replaced := slices.ContainsFunc(approved[i+1:], func(later *storedProposal) bool { return !e.At.Before(later.first) })
-			if !replaced {
-				eaten = append(eaten, e)
+		replaced := func(s domain.Slot) bool {
+			return slices.ContainsFunc(approved[i+1:], func(later *storedProposal) bool { return !s.Before(later.first) })
+		}
+		own := sp.resolve(library, known, portions, nil).Plan
+		for _, ps := range own.PrepSessions {
+			if replaced(ps.At) {
+				continue
+			}
+			ps.Portions = slices.Clone(ps.Portions)
+			for j, pp := range ps.Portions {
+				if pp.EatAt != nil && replaced(*pp.EatAt) {
+					ps.Portions[j].EatAt = nil
+				}
+			}
+			plan.PrepSessions = append(plan.PrepSessions, ps)
+		}
+		for _, k := range own.Kept {
+			if !replaced(k.At) {
+				plan.Kept = append(plan.Kept, k)
 			}
 		}
 	}
-	return eaten
+	return plan
 }
 
 // stockOf is what held holds of each Stock Item.
@@ -252,9 +270,10 @@ func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 
 // planPrompt is what a planning Run of c from the Slot from is told after its stable
 // block: the Cycle and its Slots, today, the User's Language, the Planning Brief or its
-// low-care default, the Planning Notes newest first, what the kitchen holds, k, at now,
-// and what the trailing seven days before from eat as approved Plans fill them.
-func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes []string, now time.Time, k kitchen.Contents, trailing []domain.Day) string {
+// low-care default, the Planning Notes newest first, the kitchen forecast f at from of
+// the Stock Items held at now, and what the trailing seven days before from eat as
+// approved Plans fill them.
+func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes []string, now time.Time, held []kitchen.Held, f domain.Forecast, trailing []domain.Day) string {
 	slots := c.Slots(p.SlotTimes)
 	var b strings.Builder
 	fmt.Fprintf(&b, "Plan the Cycle whose Delivery comes on %s, %s to %s, ending on %s.\n",
@@ -271,21 +290,31 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 		}
 	}
 
-	b.WriteString("\nWhat the kitchen holds now.\nPortions without a Slot:\n")
-	if len(k.Portions) == 0 {
+	fmt.Fprintf(&b, "\nWhat the kitchen will hold at %s, the first Slot to plan: what it holds now, as approved Plans leave it by then.\nPortions without a Slot:\n", from)
+	if len(f.Lots) == 0 {
 		b.WriteString("(none)\n")
 	}
-	for _, lot := range k.Portions {
+	for _, lot := range f.Lots {
 		for _, id := range lot.IDs {
 			fmt.Fprintf(&b, "- Portion %d: %s, %s, each %s\n", id, lot.Name, lot.Location, describeNutrition(lot.Nutrition, false, false))
 		}
 	}
+	if len(f.Made) > 0 {
+		b.WriteString("Portions approved Plans prepare by then and leave without a Slot. They have no id until they are prepared, so don't put them in Slots:\n")
+		for _, m := range f.Made {
+			fmt.Fprintf(&b, "- %d %s, %s\n", m.Portions, m.Name, m.Location)
+		}
+	}
 	b.WriteString("Stock Items:\n")
-	if len(k.Held) == 0 {
+	stock := slices.DeleteFunc(slices.Clone(held), func(h kitchen.Held) bool {
+		return f.Stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}] <= 0
+	})
+	if len(stock) == 0 {
 		b.WriteString("(none)\n")
 	}
-	for _, h := range k.Held {
-		fmt.Fprintf(&b, "- %g %s %s (Ingredient %d), %s\n", h.Item.Held.Number(), h.Ingredient.Unit, h.Ingredient.Name, h.Ingredient.ID, h.Location)
+	for _, h := range stock {
+		left := f.Stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}]
+		fmt.Fprintf(&b, "- %g %s %s (Ingredient %d), %s\n", left.Number(), h.Ingredient.Unit, h.Ingredient.Name, h.Ingredient.ID, h.Location)
 	}
 
 	b.WriteString("\nWhat the seven days before the first Slot to plan eat, as approved Plans fill them. They are past: shown, never made up for.\n")
@@ -877,7 +906,7 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 			proposal.Plan = proposal.Plan.Until(c.Until, times)
 		}
 		planned := proposal.Plan.Eaten(portions)
-		_, proposal.Days = domain.PlanDays(eatenBy(earlier, library, known, portions), planned, approved.first, lastDay(planned, approved.first.On))
+		_, proposal.Days = domain.PlanDays(approvedPlan(earlier, library, known, portions).Eaten(portions), planned, approved.first, lastDay(planned, approved.first.On))
 		p.Plan = proposal
 	}
 	return p, nil
