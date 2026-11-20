@@ -70,7 +70,8 @@ func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) 
 }
 
 // SavePortions saves how many Portions p says for the signed-in User, in q's transaction,
-// and is their ids: for the Kitchen page, which writes their Movements with them.
+// and is their ids: for the Kitchen page, which saves them inside Write, so under the
+// kitchen lock, with the Movement that adds them.
 func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]int64, error) {
 	return savePortions(ctx, q, p)
 }

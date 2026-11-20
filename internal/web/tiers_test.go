@@ -22,7 +22,7 @@ var shared = []string{"agent", "app", "apptest", "clock", "db", "domain", "httpx
 var sqlCalls = []string{"Exec", "Query", "QueryRow", "SendBatch", "CopyFrom"}
 
 // sqlWrite is a word of SQL that writes or locks rows: FOR UPDATE ends in UPDATE.
-var sqlWrite = regexp.MustCompile(`\b(INSERT|UPDATE|DELETE)\b`)
+var sqlWrite = regexp.MustCompile(`(?i)\b(INSERT|UPDATE|DELETE)\b`)
 
 // tier is one of ADR-0006's tiers, as the prefix naming a feature's file.
 type tier string
@@ -109,6 +109,10 @@ func checkTier(t *testing.T, path string) {
 // checkExportsRead reports an exported function of a store file whose SQL writes or
 // locks: another feature, or app's wiring, calls it, and a write it may call belongs in a
 // service file, holding every rule its owner holds for it.
+//
+// shortcut: it reads only the string literals in the function's own body, not a helper
+// it calls (HasMovements locks through lock) nor a package-level const; follow those if
+// an exported write slips past.
 func checkExportsRead(t *testing.T, fset *token.FileSet, f *ast.File) {
 	for _, d := range f.Decls {
 		fn, ok := d.(*ast.FuncDecl)
