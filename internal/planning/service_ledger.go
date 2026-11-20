@@ -2,7 +2,10 @@ package planning
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,8 +18,8 @@ import (
 	"github.com/simopzz/dandori/internal/runs"
 )
 
-// The Plan Proposal ledger: turn, submit and decide (in the store) and end are the only
-// ways a Plan Proposal's status changes or a planning Run is cancelled.
+// The Plan Proposal ledger: turn, submit, decide and endPending (in the store) and end
+// are the only ways a Plan Proposal's status changes or a planning Run is cancelled.
 
 var (
 	// ErrPlanned is planning a Cycle that already has a Plan.
@@ -55,14 +58,90 @@ func turn(ctx context.Context, tx pgx.Tx, id, runID int64) error {
 	return nil
 }
 
-// end cancels the planning Run going for the Cycle id in tx, as something that happened
-// ends it, and is what stops it: call stop only once tx has committed.
-func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64) (stop func(context.Context), err error) {
+// cause is what ends a Plan Proposal or cancels a planning Run when the User doesn't, as
+// stored with it: the Delivery that closed its Cycle, or its Cycle dropped.
+type cause struct {
+	ClosedBy *domain.Delivery `json:"closed_by,omitempty"`
+	Dropped  bool             `json:"dropped,omitempty"`
+}
+
+// end cancels, in tx, the planning Run going for the Cycle id, as something that
+// happened, why, ends it, and is what stops it: call stop only once tx has committed.
+// Cancelled once, it stays so.
+func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop func(context.Context), err error) {
+	doc, err := json.Marshal(why)
+	if err != nil {
+		return nil, err
+	}
 	runID, err := goingRun(ctx, tx, id)
 	if err != nil || runID == 0 {
 		return func(context.Context) {}, err
 	}
-	return s.runs.CancelIn(ctx, tx, runID)
+	return s.runs.CancelIn(ctx, tx, runID, doc)
+}
+
+// Arrive takes every Delivery of the signed-in User's whose window has ended by now as
+// arrived: a Cycle it closes has its pending Plan Proposal rejected and its planning Run
+// cancelled, naming the Delivery. Run again for a moment it has reached, it changes
+// nothing. Every request runs it, after bringing the kitchen up to now, as the beat does.
+func (s *Service) Arrive(ctx context.Context, now time.Time) error {
+	var stops []func(context.Context)
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		busy, err := busyCycles(ctx, tx)
+		if err != nil || len(busy) == 0 {
+			return err
+		}
+		// turn's lock, then busy read again: a planning Run that started meanwhile
+		// is seen.
+		if err := lockPlanning(ctx, tx); err != nil {
+			return err
+		}
+		if busy, err = busyCycles(ctx, tx); err != nil {
+			return err
+		}
+		cycles, err := loadCycles(ctx, tx, now.Location())
+		if err != nil {
+			return err
+		}
+		for i, status := range domain.CycleStatuses(plain(cycles), now) {
+			if status != domain.Closed || !slices.Contains(busy, cycles[i].ID) {
+				continue
+			}
+			next := cycles[i+1].Delivery // closed: the next Cycle's Delivery has arrived
+			why := cause{ClosedBy: &next}
+			if err := endPending(ctx, tx, cycles[i].ID, why, now); err != nil {
+				return err
+			}
+			stop, err := s.end(ctx, tx, cycles[i].ID, why)
+			if err != nil {
+				return err
+			}
+			stops = append(stops, stop)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for _, stop := range stops {
+		stop(ctx)
+	}
+	return nil
+}
+
+// Beat takes the Deliveries arrived by at as arrived for every User, the scheduler's
+// beat. One User's failure is logged and doesn't stop the others.
+func (s *Service) Beat(ctx context.Context, at time.Time, log *slog.Logger) {
+	users, err := db.UserIDs(ctx, s.pool)
+	if err != nil {
+		log.ErrorContext(ctx, "arrival beat: list the Users", "err", err)
+		return
+	}
+	for _, id := range users {
+		if err := s.Arrive(db.WithUser(ctx, id), at); err != nil {
+			log.ErrorContext(ctx, "arrival beat", "user", id, "err", err)
+		}
+	}
 }
 
 // Approve makes the signed-in User's pending Plan Proposal id their Cycle's Plan at now,
@@ -187,4 +266,14 @@ func (s *Service) CycleOfRun(ctx context.Context, runID int64, now time.Time) (c
 		return err
 	})
 	return c, latest, err
+}
+
+// CycleOfProposal is the id of the Cycle the signed-in User's Plan Proposal id, whatever
+// its status, plans, and ErrNoProposal when they have no such Plan Proposal.
+func (s *Service) CycleOfProposal(ctx context.Context, id int64) (cycleID int64, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		cycleID, err = cycleOfProposal(ctx, tx, id)
+		return err
+	})
+	return cycleID, err
 }

@@ -24,6 +24,33 @@ type Plan struct {
 	FreezerSplits []RecipeIngredient
 }
 
+// Until is p as far as until by times, when the next Cycle's Delivery arrives before p
+// ends: its Prep Sessions after until go, its Portions eaten after until carry over
+// without a Slot, and those without a Slot it put in Slots after until stay without
+// one. p is left as it was.
+func (p Plan) Until(until time.Time, times SlotTimes) Plan {
+	after := func(s Slot) bool { return s.At(times).After(until) }
+	cut := Plan{FreezerSplits: p.FreezerSplits}
+	for _, ps := range p.PrepSessions {
+		if after(ps.At) {
+			continue
+		}
+		ps.Portions = slices.Clone(ps.Portions)
+		for i, pp := range ps.Portions {
+			if pp.EatAt != nil && after(*pp.EatAt) {
+				ps.Portions[i].EatAt = nil
+			}
+		}
+		cut.PrepSessions = append(cut.PrepSessions, ps)
+	}
+	for _, k := range p.Kept {
+		if !after(k.At) {
+			cut.Kept = append(cut.Kept, k)
+		}
+	}
+	return cut
+}
+
 // PrepSession is one preparation of food at a Slot: of Recipe, its Portions all of Size,
 // or, with no Recipe, of Ingredient set out as it is, Quantity of it for each Portion.
 type PrepSession struct {

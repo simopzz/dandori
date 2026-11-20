@@ -88,7 +88,7 @@ func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
 // Beat brings every User's kitchen up to at, the scheduler's beat, and records the beat
 // for each. One User's failure is logged and doesn't stop the others.
 func (s *Service) Beat(ctx context.Context, at time.Time) {
-	users, err := loadUserIDs(ctx, s.pool)
+	users, err := db.UserIDs(ctx, s.pool)
 	if err != nil {
 		s.log.ErrorContext(ctx, "kitchen beat: list the Users", "err", err)
 		return

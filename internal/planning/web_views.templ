@@ -18,6 +18,8 @@ import (
 type OpenForm struct {
 	Values, Errs map[string]string
 	Refusal      error
+	// Upcoming is the upcoming Cycle while it refuses opening another.
+	Upcoming *Cycle
 }
 
 // dropSheetID is the id of the sheet asking before dropping the upcoming Cycle.
@@ -33,7 +35,8 @@ func window(ctx context.Context, d domain.Delivery) string {
 
 // cycleView is what the Cycle page shows: the Cycle, nil when there's none, upcoming or
 // current, how planning it stands, why its latest planning Run failed, if it did, why
-// a decision or planning was refused, if one was, and the Planning Note typed with it.
+// a decision or planning was refused, if one was, the Planning Note typed with it, and
+// the Cycles it links, if any.
 type cycleView struct {
 	Cycle    *Cycle
 	Upcoming bool
@@ -41,12 +44,27 @@ type cycleView struct {
 	Failure  string
 	Refusal  error
 	Note     string
+	Links    *cycleLinks
 }
 
-// cyclePage is the Cycle page: with a Plan Proposal pending, the Plan Proposal verdict
-// first; with a Plan approved, the Plan from today; otherwise the Cycle as it stands.
+// cycleLinks are the User's current and upcoming Cycles, which the Cycle page links
+// while they have both, with how planning the upcoming one stands.
+type cycleLinks struct {
+	Current, Upcoming Cycle
+	Planning          Planning
+}
+
+// cycleURL is the Cycle page of the Cycle id.
+func cycleURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d", id)) }
+
+// cyclePage is the Cycle page: the Cycles it links above the title, if any; then, with a
+// Plan Proposal pending, the Plan Proposal verdict first; with a Plan approved, the Plan
+// from today; otherwise the Cycle as it stands.
 templ cyclePage(now time.Time, v cycleView) {
 	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
+		if v.Links != nil {
+			@switchCycles(v.Cycle.ID, *v.Links)
+		}
 		if v.Cycle != nil && v.Planning.Proposal != nil {
 			@proposalPage(now, v)
 		} else if v.Cycle != nil && v.Planning.Plan != nil {
@@ -55,6 +73,47 @@ templ cyclePage(now time.Time, v cycleView) {
 			@cycleBody(now, v)
 		}
 	}
+}
+
+// switchCycles links the current and the upcoming Cycle of l by their dates, the one
+// shown, the Cycle shown, marked; the upcoming one says how planning it stands, so a Plan
+// Proposal waiting is never hidden behind the current Cycle.
+templ switchCycles(shown int64, l cycleLinks) {
+	@web.SegmentedLinks(web.T(ctx, msgCycles)) {
+		@web.SegmentLink(shown == l.Current.ID, templ.Attributes{"href": string(cycleURL(l.Current.ID))}) {
+			{ web.Tf(ctx, msgCurrentDates, dates(ctx, l.Current)) }
+		}
+		@web.SegmentLink(shown == l.Upcoming.ID, templ.Attributes{"href": string(cycleURL(l.Upcoming.ID))}) {
+			{ web.Tf(ctx, msgUpcomingDates, dates(ctx, l.Upcoming)) }
+			@planningTag(l.Planning)
+		}
+	}
+}
+
+// planningTag is how planning stands as a Tag after a Cycle's dates: a Plan Proposal
+// waiting, being planned, or its last planning Run failed; nothing otherwise.
+templ planningTag(p Planning) {
+	if p.Proposal != nil {
+		{ " " }
+		@web.Tag(false, "") {
+			{ web.T(ctx, msgProposalWaitingTag) }
+		}
+	} else if p.Going != 0 {
+		{ " " }
+		@web.ToneTag(web.Going) {
+			{ web.T(ctx, msgBeingPlannedTag) }
+		}
+	} else if p.Failed != nil && p.Plan == nil {
+		{ " " }
+		@web.Tag(true, "") {
+			{ web.T(ctx, msgFailedTag) }
+		}
+	}
+}
+
+// dates are c's Delivery's date and its end date, as the Cycle's title shows them.
+func dates(ctx context.Context, c Cycle) string {
+	return web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends))
 }
 
 // cycleBody is the Cycle page without a Plan Proposal or a Plan: with a Cycle, its dates
@@ -124,14 +183,24 @@ templ cycleBody(now time.Time, v cycleView) {
 // to the Cycle page, and, after a failed Run, Plan again.
 templ runAbout(c Cycle, again bool) {
 	<p class="lede">
-		@web.TextLink(templ.Attributes{"href": "/plan"}) {
-			{ web.Tf(ctx, msgPlanningCycle, web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends))) }
+		@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
+			{ web.Tf(ctx, msgPlanningCycle, dates(ctx, c)) }
 		}
 	</p>
 	if again {
 		@web.Actions() {
 			@planAgain(c.ID, "", false)
 		}
+	}
+}
+
+// cancelledBy says what cancelled a planning Run when the User didn't, why: the Delivery
+// that closed its Cycle, or its Cycle dropped; nothing otherwise.
+templ cancelledBy(why cause) {
+	if d := why.ClosedBy; d != nil {
+		<p class="lede">{ web.Tf(ctx, msgClosedBy, web.Tf(ctx, msgWindow, web.ShortDate(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))) }</p>
+	} else if why.Dropped {
+		<p class="lede">{ web.T(ctx, msgCycleDropped) }</p>
 	}
 }
 
@@ -357,7 +426,7 @@ templ openPage(now time.Time, f OpenForm) {
 	@web.Layout(web.T(ctx, msgOpenCycleTitle), web.PlanTab) {
 		@web.PageHeader("献立", web.T(ctx, msgOpenCycle), now)
 		<form novalidate id="open-cycle" class="stack section" method="post" action="/plan">
-			@refusalAlert(f.Refusal)
+			@refusalAlert(f.Refusal, f.Upcoming)
 			@web.Hint() {
 				{ web.T(ctx, msgOpenHint) }
 			}
@@ -378,11 +447,11 @@ templ openPage(now time.Time, f OpenForm) {
 
 // refusalAlert says why opening a Cycle is refused as a whole, linking to what to do
 // about it, or is nothing.
-templ refusalAlert(err error) {
-	if errors.Is(err, ErrUpcoming) {
+templ refusalAlert(err error, upcoming *Cycle) {
+	if errors.Is(err, ErrUpcoming) && upcoming != nil {
 		@web.Alert() {
 			<p>{ web.T(ctx, msgUpcoming) }</p>
-			<a href="/plan">{ web.T(ctx, msgSeeUpcoming) }</a>
+			<a href={ cycleURL(upcoming.ID) }>{ web.T(ctx, msgSeeUpcoming) }</a>
 		}
 	} else if errors.Is(err, ErrNoTargets) {
 		@web.Alert() {

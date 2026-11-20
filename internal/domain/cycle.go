@@ -48,6 +48,9 @@ func (d Delivery) Arrives() time.Time {
 type Cycle struct {
 	Delivery Delivery
 	Ends     time.Time
+	// Until is when the next Cycle's Delivery arrives, zero while none is opened: the
+	// Slots after it are the next Cycle's.
+	Until time.Time
 }
 
 // CycleStatus is where a Cycle is in its life.
@@ -131,12 +134,13 @@ func CycleStatuses(cycles []Cycle, now time.Time) []CycleStatus {
 }
 
 // Slots are c's Slots by times, from the first after its Delivery arrives to the last of
-// its end date, every kind every day.
+// its end date, or the last before Until, every kind every day.
 func (c Cycle) Slots(times SlotTimes) []Slot {
 	var slots []Slot
 	for on := c.Delivery.On; !on.After(c.Ends); on = on.AddDate(0, 0, 1) {
 		for _, k := range SlotKinds {
-			if s := (Slot{On: on, Kind: k}); s.At(times).After(c.Delivery.Arrives()) {
+			s := Slot{On: on, Kind: k}
+			if at := s.At(times); at.After(c.Delivery.Arrives()) && (c.Until.IsZero() || !at.After(c.Until)) {
 				slots = append(slots, s)
 			}
 		}

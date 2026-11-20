@@ -47,3 +47,13 @@ func AsUser(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) e
 		return fn(tx)
 	})
 }
+
+// UserIDs is every User's id, oldest first, for a job that acts for each of them. It runs
+// as the app's own role, outside AsUser, so it sees them all.
+func UserIDs(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
+	rows, err := pool.Query(ctx, `SELECT id::text FROM "user" ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[string])
+}

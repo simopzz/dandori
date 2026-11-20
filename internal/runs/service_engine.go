@@ -216,7 +216,7 @@ func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 		if _, _, found, err = loadStatus(ctx, tx, id); err != nil || !found {
 			return err
 		}
-		stop, err = e.CancelIn(ctx, tx, id)
+		stop, err = e.CancelIn(ctx, tx, id, nil)
 		return err
 	})
 	if err != nil || !found {
@@ -226,13 +226,20 @@ func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	return true, nil
 }
 
-// CancelIn stores the signed-in User's Run id cancelled in tx if it is going, and is
-// stop, which stops it and waits a moment for it to, as Cancel does: call it only once tx
-// has committed, so a Run is never stopped by a cancel that didn't happen.
-func (e *Engine) CancelIn(ctx context.Context, tx pgx.Tx, id int64) (stop func(context.Context), err error) {
+// CancelIn stores the signed-in User's Run id cancelled in tx if it is going, by cause, a
+// document its kind's page tells, or nil when the User cancels it, and is stop, which
+// stops it and waits a moment for it to, as Cancel does: call it only once tx has
+// committed, so a Run is never stopped by a cancel that didn't happen.
+func (e *Engine) CancelIn(ctx context.Context, tx pgx.Tx, id int64, cause json.RawMessage) (stop func(context.Context), err error) {
+	none := func(context.Context) {}
 	cancelled, err := setStatus(ctx, tx, id, Cancelled, e.clock.Now())
 	if err != nil || !cancelled {
-		return func(context.Context) {}, err
+		return none, err
+	}
+	if cause != nil {
+		if err := setCause(ctx, tx, id, cause); err != nil {
+			return none, err
+		}
 	}
 	return func(ctx context.Context) {
 		if tr := e.liveRun(id); tr != nil {

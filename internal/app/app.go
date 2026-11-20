@@ -121,21 +121,24 @@ func (a *App) Close() {
 // Settle waits for every Run going to end, for a test reading what they left.
 func (a *App) Settle() { a.runs.Wait() }
 
-// Schedule starts the scheduler, which beats on the app's clock every ledger.BeatEvery
-// and brings every User's kitchen up to now, until ctx ends. Each beat is a span.
+// Schedule starts the scheduler, which beats on the app's clock every ledger.BeatEvery,
+// bringing every User's kitchen up to now and taking their Deliveries arrived as arrived,
+// until ctx ends. Each beat is a span.
 func (a *App) Schedule(ctx context.Context) {
 	tracer := a.spans.Tracer("github.com/simopzz/dandori/internal/app")
 	a.clock.Every(ctx, ledger.BeatEvery, func(at time.Time) {
 		ctx, span := tracer.Start(ctx, "kitchen beat")
 		defer span.End()
 		a.ledger.Beat(ctx, at)
+		a.planning.Beat(ctx, at, a.log)
 	})
 }
 
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
 // were switched to. A page shows the floating Notice the plain post before its redirect
-// left. Every signed-in page first brings the User's kitchen up to now. Every request but
+// left. Every signed-in page first brings the User's kitchen up to now and takes their
+// Deliveries arrived as arrived. Every request but
 // the health check and the assets is a span with no parent: one a traceparent header
 // names, sent from the internet, is ignored. The span says who asked, in what Language,
 // and why a request was refused, never with their email (docs/agents/grafana.md).
@@ -153,9 +156,9 @@ func (a *App) Handler() http.Handler {
 		Log:    a.log,
 	}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
-	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(h)) }
+	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(plan.Arrived(h))) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
-		return signIn.SignedIn(kit.UpToNow(prof.LanguageChosen(h)))
+		return signIn.SignedIn(kit.UpToNow(plan.Arrived(prof.LanguageChosen(h))))
 	}
 	mux := http.NewServeMux()
 	web.Assets(mux)
@@ -172,6 +175,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /plan", signedIn(plan.Show))
 	mux.Handle("POST /plan", signedIn(plan.Open))
 	mux.Handle("GET /plan/open", signedIn(plan.ShowOpen))
+	mux.Handle("GET /plan/cycles/{id}", signedIn(plan.ShowCycle))
 	mux.Handle("GET /plan/cycles/{id}/drop", signedIn(plan.ShowDrop))
 	mux.Handle("GET /plan/cycles/{id}/drop/sheet", signedIn(plan.ShowDropSheet))
 	mux.Handle("POST /plan/cycles/{id}/drop", signedIn(plan.Drop))

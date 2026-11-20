@@ -85,7 +85,7 @@ func TestTheSevenDaysBeforeAPlanProposalShowTheApprovedPlan(t *testing.T) {
 		t.Errorf("the planner isn't told the seven days before:\n%s", p)
 	}
 
-	s.Open("/plan")
+	s.OpensUpcomingCycle()
 	s.Sees("7 days before 1 on the current Plan, 6 with no Plan Sat, Oct 31 – Thu, Nov 5: no Plan " +
 		"Fri, Nov 6 calories 1586 protein 65 fibre at least 4 + sugar at least 8 + Saturday, November 7 calories 360")
 }
@@ -172,7 +172,7 @@ func TestAPartlyPlannedFirstDayReadsTheSamePendingAndApproved(t *testing.T) {
 	s.Sees("Planning a Cycle Succeeded")
 
 	friday := "Friday, November 6 · lunch→ calories 360 protein 60"
-	s.Open("/plan")
+	s.OpensUpcomingCycle()
 	s.Sees(friday)
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")

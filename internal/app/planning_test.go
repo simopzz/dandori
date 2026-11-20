@@ -117,7 +117,7 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 	s.Sees("Rice bowls for Friday, with yogurt and the lasagne.")
 
 	s.Follows("Plan Proposal")
-	s.IsAt("/plan")
+	s.IsAt("/plan/cycles/1")
 	s.Sees("01 Plan Proposal")
 	s.Sees("Rice bowls for Friday, with yogurt and the lasagne.")
 	s.Sees("02 Days")
@@ -528,7 +528,7 @@ func TestBrowserPlansACycleThroughTheKitchenCheck(t *testing.T) {
 	b.Sees(t, "check_plan")
 	b.Shot(t, "planning-run")
 	close(release)
-	b.IsAt(t, "/plan")
+	b.IsAt(t, "/plan/cycles/1")
 	b.Sees(t, "Plan Proposal")
 	b.Sees(t, "Yogurt all Friday.")
 	b.Sees(t, "Fri, Nov 6")
@@ -568,8 +568,8 @@ func TestCancellingAPlanningRunAfterItsSubmitLeavesNoPlanProposal(t *testing.T) 
 	s.Sees("Plan the Cycle")
 }
 
-// Dropping a Cycle while its planning Run is going cancels the Run, which then stores no
-// Plan Proposal.
+// Dropping a Cycle while its planning Run is going cancels the Run, which names why and
+// then stores no Plan Proposal.
 func TestDroppingACycleCancelsItsPlanningRun(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	release := make(chan struct{})
@@ -586,6 +586,7 @@ func TestDroppingACycleCancelsItsPlanningRun(t *testing.T) {
 	s.Settle()
 	s.Open(run)
 	s.Sees("Planning a Cycle Cancelled")
+	s.Sees("Its Cycle was dropped.")
 	s.Open("/plan")
 	s.Sees("No Cycle is upcoming.")
 }

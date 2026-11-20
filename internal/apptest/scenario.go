@@ -639,11 +639,21 @@ func (s *Scenario) OpensCycle(c Cycle) {
 	s.record(fmt.Sprintf("opens a Cycle %+v: %d %s", c, s.page.StatusCode, s.page.Path))
 }
 
-// DropsCycle drops the upcoming Cycle from the Cycle page, following its Drop to the step
-// that asks first and confirming there, as a browser without htmx.
-func (s *Scenario) DropsCycle() {
+// OpensUpcomingCycle opens the upcoming Cycle's page: the Cycle page, or, with a current
+// Cycle too, its link there.
+func (s *Scenario) OpensUpcomingCycle() {
 	s.t.Helper()
 	s.Open("/plan")
+	if strings.Contains(Text(s.page.Body), "Upcoming · ") {
+		s.Follows("Upcoming · ")
+	}
+}
+
+// DropsCycle drops the upcoming Cycle from its page, following its Drop to the step that
+// asks first and confirming there, as a browser without htmx.
+func (s *Scenario) DropsCycle() {
+	s.t.Helper()
+	s.OpensUpcomingCycle()
 	s.page = s.Get(s.t, Link(s.t, s.page.Body, "Drop the Cycle"))
 	form := Form(s.t, s.page.Body, "remove-step")
 	s.page = s.PostForm(s.t, form.Action, form.Values)
