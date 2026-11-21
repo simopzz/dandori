@@ -32,6 +32,7 @@ type judging struct {
 	plan    domain.Plan
 	from    domain.Slot
 	profile domain.Profile
+	current domain.Plan
 	stock   map[domain.StockKey]domain.Quantity
 	earlier []domain.Eaten
 	now     time.Time
@@ -40,7 +41,8 @@ type judging struct {
 // friday is a draft Plan of Friday keeping every hard rule, judged from its breakfast at
 // 9 pm on Thursday: yogurt at breakfast, a Rice bowl prepared at lunch for three Portions
 // at 1.25×, eaten at lunch and dinner with the third frozen with no Slot, and a Portion
-// of lasagne at the snack. The User owns a hob and a microwave, and aims at 2200 kcal
+// of lasagne at the snack. The kitchen holds 800 g of rice in the pantry and 500 g of
+// yogurt in the fridge. The User owns a hob and a microwave, and aims at 2200 kcal
 // within 8%, at least 130 g protein and 30 g fibre, at most 50 g sugar. Friday eats 1586
 // kcal and 65 g protein: 90 and 15 of yogurt, 438 and 9 of each Rice bowl, 620 and 32
 // of lasagne.
@@ -65,12 +67,21 @@ func friday() judging {
 			Targets:    domain.Targets{Kcal: 2200, Protein: 130, Fibre: 30, Sugar: 50, Tolerance: 8},
 			Appliances: domain.Appliances{domain.Hob: "", domain.Microwave: ""},
 		},
-		now: at(5, "21:00"),
+		stock: held(800, 500),
+		now:   at(5, "21:00"),
 	}
 }
 
 func (j judging) judge() domain.Verdict {
-	return domain.Judge(j.plan, fridayCycle, j.from, j.profile, kitchenLots, j.stock, j.earlier, j.now)
+	return domain.Judge(j.plan, fridayCycle, j.from, j.profile, j.current, kitchenLots, j.stock, j.earlier, j.now)
+}
+
+// held is what the kitchen holds of rice in the pantry and of yogurt in the fridge.
+func held(rice, yogurt float64) map[domain.StockKey]domain.Quantity {
+	return map[domain.StockKey]domain.Quantity{
+		{Ingredient: plainRice.ID, Location: domain.Pantry}:   grams(rice),
+		{Ingredient: plainYogurt.ID, Location: domain.Fridge}: grams(yogurt),
+	}
 }
 
 // Judge gives every hard rule a draft breaks, as the planner reads it: of its structure,
@@ -117,11 +128,34 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 		{"freezer stock needed today", func(j *judging) {
 			j.now = at(6, "07:00")
 			j.plan.Kept[0].Portion = 4
-			j.stock = map[domain.StockKey]domain.Quantity{{Ingredient: plainRice.ID, Location: domain.Freezer}: grams(1000)}
+			j.stock = held(0, 500)
+			j.stock[domain.StockKey{Ingredient: plainRice.ID, Location: domain.Freezer}] = grams(1000)
 		}, []string{"no-evening-to-thaw: lunch on Fri 6 Nov needs 375 g rice thawed from the freezer, and the evening before to thaw it has passed"}},
 		{"a Portion frozen and eaten the day it is prepared", func(j *judging) {
 			j.plan.PrepSessions[1].Portions[1].Location = domain.Freezer
 		}, []string{"no-evening-to-thaw: Rice bowl is frozen at lunch on Fri 6 Nov and eaten at dinner on Fri 6 Nov, with no evening between to thaw it"}},
+		{"on the current Cycle, more of an Ingredient than the kitchen will hold", func(j *judging) {
+			j.stock = held(200, 100)
+		}, []string{
+			"more-than-held: yogurt at breakfast on Fri 6 Nov needs 150 g yogurt, and the kitchen will hold only 100 g",
+			"more-than-held: Rice bowl at lunch on Fri 6 Nov needs 375 g rice, and the kitchen will hold only 200 g",
+		}},
+		{"each Prep Session after those before it have used theirs up", func(j *judging) {
+			j.stock = held(500, 500)
+			j.plan.PrepSessions = append(j.plan.PrepSessions, domain.PrepSession{At: slot(6, domain.Dinner), Recipe: &riceBowl, Size: 1, Portions: []domain.PlannedPortion{{Location: domain.Freezer}, {Location: domain.Freezer}}})
+		}, []string{"more-than-held: Rice bowl at dinner on Fri 6 Nov needs 200 g rice, and the kitchen will hold only 125 g"}},
+		{"a Staple, which the kitchen always holds", func(j *judging) {
+			j.stock = held(0, 500)
+			staple := plainRice
+			staple.Staple = true
+			bowl := riceBowl
+			bowl.Ingredients = []domain.RecipeIngredient{{Ingredient: staple, Quantity: grams(200)}}
+			j.plan.PrepSessions[1].Recipe = &bowl
+		}, nil},
+		{"on the upcoming Cycle, whose Delivery brings the rest", func(j *judging) {
+			j.now = at(5, "19:00")
+			j.stock = nil
+		}, nil},
 		{"a first Slot already passed", func(j *judging) {
 			j.now = at(6, "08:00")
 			j.plan.Kept[0].Portion = 4
@@ -243,5 +277,42 @@ func TestJudgeGivesThePortionsMadeForAfterTheCycle(t *testing.T) {
 	}
 	if got := j.judge().MadeForAfter; !slices.Equal(got, want) {
 		t.Errorf("Judge() made for after the Cycle %+v, want %+v", got, want)
+	}
+}
+
+// A Prep Session the Plan keeps before the draft's first Slot counts towards back to back
+// with the Portions of it the draft puts in Slots again, when the draft puts one close to
+// another; and one it leaves without a Slot is left unused. Here the Plan set out yogurt
+// at Friday's breakfast for three Portions, eaten at breakfast and lunch, the third
+// without a Slot, and the draft plans Friday from its snack.
+func TestJudgeCountsTheKeptPrepSessionsOfAReplan(t *testing.T) {
+	current := domain.Plan{PrepSessions: []domain.PrepSession{{At: slot(6, domain.Breakfast), Ingredient: &plainYogurt, Quantity: grams(150), Portions: []domain.PlannedPortion{
+		{ID: 31, Location: domain.Fridge, EatAt: in(slot(6, domain.Breakfast))},
+		{ID: 32, Location: domain.Fridge, EatAt: in(slot(6, domain.Lunch))},
+		{ID: 33, Location: domain.Fridge},
+	}}}}
+	tests := []struct {
+		name string
+		kept []domain.Kept
+		want []string
+	}{
+		{"the draft eats the third the same day", []domain.Kept{{Portion: 4, At: slot(6, domain.Snack)}, {Portion: domain.PlannedID(33), At: slot(6, domain.Dinner)}},
+			[]string{"yogurt eaten back to back, Fri 6 Nov", "lasagne: 3 of 3 left unused, in the freezer"}},
+		{"the draft leaves it", []domain.Kept{{Portion: 4, At: slot(6, domain.Snack)}, {Portion: 1, At: slot(6, domain.Dinner)}},
+			[]string{"lasagne: 2 of 3 left unused, in the freezer", "yogurt: 1 of 1 left unused, in the fridge"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			j := friday()
+			j.from, j.now, j.current = slot(6, domain.Snack), at(6, "16:00"), current
+			j.plan = domain.Plan{Kept: tt.kept}
+			var got []string
+			for _, m := range j.judge().Misses {
+				got = append(got, m.Describe(j.profile.Targets))
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Judge() missed\n%q,\nwant\n%q", got, tt.want)
+			}
+		})
 	}
 }

@@ -254,12 +254,18 @@ templ FoldRow(summary templ.Component) {
 	</li>
 }
 
-// SlotRow is a Slot of kind and the Portion filling it, portion: its size unless "",
-// figures, its nutrition, unless nil, and source, unless "", a word for where the
-// Portion comes from ("cooked", "already in the kitchen").
-templ SlotRow(kind domain.SlotKind, portion, size string, figures templ.Component, source string) {
+// SlotRow is a Slot of kind and the Portion filling it, portion, marked Changed when
+// changed: its size unless "", figures, its nutrition, unless nil, and source, unless
+// "", a word for where the Portion comes from ("cooked", "already in the kitchen").
+templ SlotRow(kind domain.SlotKind, portion string, changed bool, size string, figures templ.Component, source string) {
 	@Row() {
-		<span class="row-title">{ portion }</span>
+		<span class="row-title">
+			{ portion }
+			if changed {
+				{ " " }
+				@Changed()
+			}
+		</span>
 		if size != "" || figures != nil {
 			<span class="row-figure">
 				{ size }
@@ -293,6 +299,15 @@ templ Figures() {
 // New Tag on one not yet saved, as a Recipe Draft's new Ingredient is.
 templ IngredientRows(ingredients []domain.RecipeIngredient) {
 	@IngredientRowsWith(ingredients, nil)
+}
+
+// Changed marks what a Plan Proposal changes of the Plan, worth weighing: a cream Tag
+// with the changed icon (•), said in words to a screen reader.
+templ Changed() {
+	@Tag(false, "") {
+		@Icon("changed")
+		<span class="sr-only">{ T(ctx, msgChanged) }</span>
+	}
 }
 
 // RowTitle is a Row's title: name, and when tagged, tag after it as a plain Tag (a New

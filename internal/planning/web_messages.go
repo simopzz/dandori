@@ -11,6 +11,7 @@ var (
 	msgCycle         = web.Message{En: "Cycle", It: "Ciclo"}
 	msgCycleTitle    = web.Message{En: "Cycle · Dandori", It: "Ciclo · Dandori"}
 	msgUpcomingCycle = web.Message{En: "Upcoming Cycle", It: "Prossimo Ciclo"}
+	msgCurrentCycle  = web.Message{En: "Current Cycle", It: "Ciclo in corso"}
 	msgDelivery      = web.Message{En: "Delivery", It: "Consegna"}
 	msgWindow        = web.Message{En: "%s, %s to %s", It: "%s, dalle %s alle %s"}
 	msgTentative     = web.Message{En: "Tentative", It: "Provvisoria"}
@@ -94,6 +95,13 @@ var (
 	msgSeeTrace    = web.Message{En: "See its Trace", It: "Vedi la Traccia"}
 	msgPlanAgain   = web.Message{En: "Plan again", It: "Pianifica di nuovo"}
 
+	msgAskForChanges = web.Message{En: "Ask for changes", It: "Chiedi modifiche"}
+	msgAskHint       = web.Message{
+		En: "Dandori plans the Cycle again from the next Slot, told your note. The Plan stays as it is until you approve the new Plan Proposal.",
+		It: "Dandori pianifica di nuovo il Ciclo dal prossimo Pasto, seguendo la tua nota. Il Piano resta com'è finché non approvi la nuova Proposta di Piano.",
+	}
+	msgNoNote        = web.Message{En: "Say what to change.", It: "Scrivi cosa cambiare."}
+	msgChangesFrom   = web.Message{En: "Changes from the Plan: %s", It: "Modifiche al Piano: %s"}
 	msgPlanAgainHint = web.Message{
 		En: "Dandori plans again, with or without a note. A note tells it what to change.",
 		It: "Dandori pianifica di nuovo, con o senza una nota. Una nota gli dice cosa cambiare.",

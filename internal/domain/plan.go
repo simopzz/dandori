@@ -62,14 +62,21 @@ type PrepSession struct {
 	Portions   []PlannedPortion
 }
 
-// PlannedPortion is a Portion a Prep Session yields: where it is kept, and the Slot it
-// is eaten at, nil when it has none and carries over.
+// PlannedPortion is a Portion a Prep Session yields: its id once its Plan Proposal is
+// stored, 0 in a draft, where it is kept, and the Slot it is eaten at, nil when it has
+// none and carries over.
 type PlannedPortion struct {
+	ID       int64
 	Location StorageLocation
 	EatAt    *Slot
 }
 
-// Kept puts the Portion without a Slot whose id is Portion in the Slot At.
+// PlannedID is how the Portions without a Slot name the Planned Portion id, prepared
+// but not yet in the Kitchen Ledger: its id negated, so it is never a Ledger Portion's.
+func PlannedID(id int64) int64 { return -id }
+
+// Kept puts the Portion without a Slot whose id is Portion in the Slot At: one the
+// Kitchen Ledger holds, or a Planned Portion by its PlannedID.
 type Kept struct {
 	Portion int64
 	At      Slot

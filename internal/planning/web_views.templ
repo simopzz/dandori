@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -368,7 +369,8 @@ func eatenAt(ctx context.Context, s *domain.Slot) string {
 
 // filledSlot is a Slot of a Plan Proposal with the Portion filling it: its name, its
 // size when a Prep Session of a Recipe yields it, its nutrition, and the Prep Session it
-// comes from, nil for a Portion already in the kitchen, with where it is kept.
+// comes from, nil for a Portion already in the kitchen, with where it is kept; and
+// whether the Plan Proposal changes it.
 type filledSlot struct {
 	kind      domain.SlotKind
 	name      string
@@ -376,13 +378,17 @@ type filledSlot struct {
 	nutrition domain.PortionNutrition
 	from      *domain.PrepSession
 	location  domain.StorageLocation
+	changed   bool
 }
 
-// planDay is one day of a Plan Proposal: its Slots filled, and its Prep Sessions.
+// planDay is one day of a Plan Proposal: its Slots filled, and its Prep Sessions, each
+// changed or not by the Plan Proposal, and whether it changes anything of the day.
 type planDay struct {
-	on       time.Time
-	filled   []filledSlot
-	sessions []domain.PrepSession
+	on              time.Time
+	filled          []filledSlot
+	sessions        []domain.PrepSession
+	changedSessions []bool
+	changed         bool
 	// splits are the Plan's freezer splits, on its Delivery's day only.
 	splits []domain.RecipeIngredient
 }
@@ -395,23 +401,26 @@ func days(c Cycle, p Proposal) []planDay {
 		d := planDay{on: on}
 		for _, k := range domain.SlotKinds {
 			at := domain.Slot{On: on, Kind: k}
+			changed := slices.ContainsFunc(p.Changed, at.Equal)
 			for i, ps := range p.Plan.PrepSessions {
 				for _, pp := range ps.Portions {
 					if pp.EatAt != nil && pp.EatAt.Equal(at) {
 						d.filled = append(d.filled, filledSlot{kind: k, name: ps.Name(), size: ps.Size, nutrition: ps.NutritionPerPortion(),
-							from: &p.Plan.PrepSessions[i], location: pp.Location})
+							from: &p.Plan.PrepSessions[i], location: pp.Location, changed: changed})
 					}
 				}
 				if ps.At.Equal(at) {
 					d.sessions = append(d.sessions, ps)
+					d.changedSessions = append(d.changedSessions, slices.Contains(p.ChangedSessions, i))
 				}
 			}
 			for _, kept := range p.Plan.Kept {
 				if kept.At.Equal(at) {
 					portion := p.Kept[kept.Portion]
-					d.filled = append(d.filled, filledSlot{kind: k, name: portion.Name, nutrition: domain.PortionNutrition{Nutrition: portion.Nutrition}})
+					d.filled = append(d.filled, filledSlot{kind: k, name: portion.Name, nutrition: domain.PortionNutrition{Nutrition: portion.Nutrition}, changed: changed})
 				}
 			}
+			d.changed = d.changed || changed || slices.Contains(d.changedSessions, true)
 		}
 		if len(d.filled) > 0 || len(d.sessions) > 0 {
 			out = append(out, d)

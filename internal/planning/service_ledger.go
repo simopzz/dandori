@@ -24,6 +24,10 @@ import (
 var (
 	// ErrPlanned is planning a Cycle that already has a Plan.
 	ErrPlanned = errors.New("the Cycle already has a Plan")
+	// ErrNoPlan is asking for changes to a Cycle that has no Plan.
+	ErrNoPlan = errors.New("the Cycle has no Plan")
+	// ErrNoNote is asking for changes without a Planning Note.
+	ErrNoNote = errors.New("asking for changes needs a Planning Note")
 	// ErrNothingLeft is planning a Cycle whose every Slot has passed.
 	ErrNothingLeft = errors.New("no Slot of the Cycle is left to plan")
 	// ErrNoProposal is deciding on a Plan Proposal the User has none pending of.
@@ -34,10 +38,24 @@ var (
 	ErrNoFailure = errors.New("the Cycle's last planning Run didn't fail")
 )
 
-// turn is whether the Run runID may plan the Cycle id now, read in tx, locked so two
-// Runs can't both find it their turn: ErrPlanned when the Cycle has a Plan, ErrBusy while
-// another planning Run is going or a Plan Proposal pending, for any Cycle.
-func turn(ctx context.Context, tx pgx.Tx, id, runID int64) error {
+// plans is what a planning Run asks of its Cycle's Plan.
+type plans int
+
+const (
+	// eitherWay plans whether or not the Cycle has a Plan: again after a rejection with a
+	// Planning Note or a failure.
+	eitherWay plans = iota
+	// firstPlan plans a Cycle with no Plan yet.
+	firstPlan
+	// changes plans changes to the Cycle's Plan.
+	changes
+)
+
+// turn is whether the Run runID may plan the Cycle id now, asking wants of its Plan, read
+// in tx, locked so two Runs can't both find it their turn: ErrPlanned for a first Plan
+// of a Cycle with one, ErrNoPlan for changes to one with none, ErrBusy while another
+// planning Run is going or a Plan Proposal pending, for any Cycle.
+func turn(ctx context.Context, tx pgx.Tx, id, runID int64, wants plans) error {
 	if err := lockPlanning(ctx, tx); err != nil {
 		return err
 	}
@@ -45,8 +63,11 @@ func turn(ctx context.Context, tx pgx.Tx, id, runID int64) error {
 	if err != nil {
 		return err
 	}
-	if planned {
+	switch {
+	case wants == firstPlan && planned:
 		return ErrPlanned
+	case wants == changes && !planned:
+		return ErrNoPlan
 	}
 	busy, err := planningBusy(ctx, tx, runID)
 	if err != nil {
@@ -211,7 +232,7 @@ func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Ti
 	if err != nil {
 		return 0, err
 	}
-	return s.start(ctx, c, first, now, note, func(tx pgx.Tx) error {
+	return s.start(ctx, c, first, now, note, eitherWay, func(tx pgx.Tx) error {
 		if err := decide(ctx, tx, id, Rejected, now); err != nil {
 			return err
 		}
@@ -242,9 +263,30 @@ func (s *Service) PlanAgain(ctx context.Context, id int64, note string, now time
 		return 0, ErrNoFailure
 	}
 	if note == "" {
-		return s.start(ctx, c, last.first, now, "", nil)
+		return s.start(ctx, c, last.first, now, "", eitherWay, nil)
 	}
-	return s.start(ctx, c, last.first, now, note, func(tx pgx.Tx) error {
+	return s.start(ctx, c, last.first, now, note, eitherWay, func(tx pgx.Tx) error {
+		return saveNote(ctx, tx, id, note, now, nil)
+	})
+}
+
+// AskForChanges starts a planning Run of the signed-in User's Cycle id at now, with no
+// Kitchen Check, from its first Slot still to come, told the Planning Note note, which
+// it keeps on the Cycle, and is the Run's id. The Plan stays as it is until the Run's
+// Plan Proposal is approved. It is ErrNoNote for a blank note, ErrNoCycle for a Cycle
+// neither upcoming nor current, ErrNoPlan for one with no Plan, ErrNothingLeft when all
+// its Slots have passed, and ErrBusy while another planning Run is going or a Plan
+// Proposal is pending.
+func (s *Service) AskForChanges(ctx context.Context, id int64, note string, now time.Time) (int64, error) {
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return 0, ErrNoNote
+	}
+	c, err := s.Find(ctx, id, now)
+	if err != nil {
+		return 0, err
+	}
+	return s.start(ctx, c, firstSlot(c), now, note, changes, func(tx pgx.Tx) error {
 		return saveNote(ctx, tx, id, note, now, nil)
 	})
 }

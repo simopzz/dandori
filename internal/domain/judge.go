@@ -13,22 +13,26 @@ type Verdict struct {
 }
 
 // Judge is the Verdict on plan, a draft of cycle's Slots by profile's Slot times from the
-// Slot from on, at now: lots are the Portion Lots the kitchen holds without a Slot, stock
-// what it holds of each Stock Item, and earlier what approved Plans put in Slots before.
-func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, lots []PortionLot, stock map[StockKey]Quantity, earlier []Eaten, now time.Time) Verdict {
+// Slot from on, replacing current, the Cycle's Plan if it has one, at now: lots are the
+// Portion Lots the kitchen holds without a Slot, stock what it holds of each Stock Item,
+// and earlier what approved Plans put in Slots before. The Portions it may put in Slots
+// are those current.Replace frees, and the Prep Sessions it keeps count towards back to
+// back. On a current Cycle, no Delivery brings what the kitchen doesn't hold.
+func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lots []PortionLot, stock map[StockKey]Quantity, earlier []Eaten, now time.Time) Verdict {
 	var slots []Slot
 	for _, s := range cycle.Slots(profile.SlotTimes) {
 		if !s.Before(from) {
 			slots = append(slots, s)
 		}
 	}
-	last := from.On
+	last := from
 	if len(slots) > 0 {
-		last = slots[len(slots)-1].On
+		last = slots[len(slots)-1]
 	}
+	kept, free := current.Replace(from, last, lots)
 	var unslotted []Portion
 	frozen := map[int64]bool{}
-	for _, lot := range lots {
+	for _, lot := range free {
 		for _, id := range lot.IDs {
 			unslotted = append(unslotted, Portion{ID: id, Name: lot.Name, Nutrition: lot.Nutrition})
 			frozen[id] = lot.Location == Freezer
@@ -37,9 +41,12 @@ func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, lots []PortionLot
 	var v Verdict
 	v.Broken = append(HardRules(plan, slots, unslotted), RecipesUnfit(plan, profile.Appliances)...)
 	v.Broken = append(v.Broken, NoEveningToThaw(plan, frozen, stock, now, cycle.Delivery.Arrives())...)
+	if !cycle.Delivery.Arrives().After(now) {
+		v.Broken = append(v.Broken, NeedsMoreThanHeld(plan, stock)...)
+	}
 	v.Broken = append(v.Broken, StartsInThePast(from, profile.SlotTimes, now)...)
-	v.Trailing, v.Days = PlanDays(earlier, plan.Eaten(unslotted), from, last)
-	v.Misses = append(profile.Targets.Misses(v.Days), plan.SoftMisses(lots)...)
+	v.Trailing, v.Days = PlanDays(earlier, plan.Eaten(unslotted), from, last.On)
+	v.Misses = append(profile.Targets.Misses(v.Days), plan.SoftMisses(free, kept)...)
 	v.MadeForAfter = plan.MadeForAfter()
 	return v
 }

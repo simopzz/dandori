@@ -71,14 +71,19 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	if err != nil {
 		return 0, err
 	}
-	return s.start(ctx, c, domain.Slot{On: c.Delivery.On, Kind: domain.Breakfast}, now, "", nil)
+	return s.start(ctx, c, firstSlot(c), now, "", firstPlan, nil)
 }
 
+// firstSlot is where planning c starts, the first Slot still to come from it on: its
+// Delivery's day's breakfast, no later than its first Slot.
+func firstSlot(c Cycle) domain.Slot { return domain.Slot{On: c.Delivery.On, Kind: domain.Breakfast} }
+
 // start starts a planning Run of c at now from the Slot from, or the first still to come
-// once that has passed, told every Planning Note of c, newest first, note first if not
-// "", and is the Run's id. before, if set, runs in the transaction recording the Run,
-// before it is told whether it is c's turn: an error from it starts nothing.
-func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time.Time, note string, before func(tx pgx.Tx) error) (int64, error) {
+// once that has passed, asking wants of c's Plan, told every Planning Note of c, newest
+// first, note first if not "", and is the Run's id. It replaces c's Plan, if c has one,
+// from that Slot on. before, if set, runs in the transaction recording the Run, before
+// it is told whether it is c's turn: an error from it starts nothing.
+func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time.Time, note string, wants plans, before func(tx pgx.Tx) error) (int64, error) {
 	p, err := s.profile.Profile(ctx)
 	if err != nil {
 		return 0, err
@@ -109,13 +114,16 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		return 0, err
 	}
 	var notes []string
-	var approved []*storedProposal
+	var approved, own []*storedProposal
 	var portions []domain.Portion
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		if notes, err = loadNotes(ctx, tx, c.ID); err != nil {
 			return err
 		}
 		if approved, err = loadApproved(ctx, tx, slots[0].On.AddDate(0, 0, -7), now.Location()); err != nil {
+			return err
+		}
+		if own, err = loadPlanOf(ctx, tx, c.ID, now.Location()); err != nil {
 			return err
 		}
 		portions, err = ledger.LoadPortions(ctx, tx)
@@ -125,6 +133,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		return 0, err
 	}
 	standing := approvedPlan(approved, library, known, portions)
+	current := cyclePlan(c, own, library, known, portions, p.SlotTimes)
 	earlier := standing.Eaten(portions)
 	trailing, _ := domain.PlanDays(earlier, nil, slots[0], slots[0].On)
 	forecast := standing.Forecast(stockOf(held.Held), held.Portions, p.SlotTimes, now, slots[0])
@@ -132,7 +141,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		notes = append([]string{note}, notes...)
 	}
 	b := planBrief{
-		cycle: c.Cycle, from: slots[0], profile: p, lots: forecast.Lots, stock: forecast.Stock, earlier: earlier, now: s.clock.Now,
+		cycle: c.Cycle, from: slots[0], profile: p, current: current, lots: forecast.Lots, stock: forecast.Stock, earlier: earlier, now: s.clock.Now,
 		library: library, known: known, checks: s.checks, zone: now.Location(),
 		leave: func(ctx context.Context, plan domain.Plan, v domain.Verdict, summary string, drafted []*recipes.Drafted) {
 			runID := runs.IDFrom(ctx)
@@ -141,7 +150,10 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 			})
 		},
 	}
-	prompt := planPrompt(c, p, slots[0], brief, notes, now, held.Held, forecast, trailing)
+	_, free := current.Replace(slots[0], slots[len(slots)-1], forecast.Lots)
+	told := forecast
+	told.Lots = free
+	prompt := planPrompt(c, p, slots, brief, notes, now, held.Held, told, current, portions, trailing)
 	asked, _, _ := strings.Cut(prompt, "\n")
 	return s.runs.Start(ctx, planningKind, asked, b.brief(p.Language, planStable(p, library, known), prompt), func(tx pgx.Tx, runID int64) error {
 		// The planning lock first, as in Drop, so a reject and a drop never deadlock.
@@ -153,7 +165,7 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 				return err
 			}
 		}
-		if err := turn(ctx, tx, c.ID, runID); err != nil {
+		if err := turn(ctx, tx, c.ID, runID, wants); err != nil {
 			return err
 		}
 		return saveCycleRun(ctx, tx, runID, c.ID, slots[0])
@@ -161,33 +173,22 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 }
 
 // approvedPlan is what approved, oldest first, plan together, their Recipes, Ingredients
-// and Portions found among those given: from a later one's first Slot on, it replaces
-// what an earlier one planned, an earlier Prep Session's Portions eaten there left
-// without a Slot.
+// and Portions found among those given: each approved replacing, from its first Slot to
+// its last, what those before it planned (domain.Plan.With).
 func approvedPlan(approved []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion) domain.Plan {
 	var plan domain.Plan
-	for i, sp := range approved {
-		replaced := func(s domain.Slot) bool {
-			return slices.ContainsFunc(approved[i+1:], func(later *storedProposal) bool { return !s.Before(later.first) })
-		}
-		own := sp.resolve(library, known, portions, nil).Plan
-		for _, ps := range own.PrepSessions {
-			if replaced(ps.At) {
-				continue
-			}
-			ps.Portions = slices.Clone(ps.Portions)
-			for j, pp := range ps.Portions {
-				if pp.EatAt != nil && replaced(*pp.EatAt) {
-					ps.Portions[j].EatAt = nil
-				}
-			}
-			plan.PrepSessions = append(plan.PrepSessions, ps)
-		}
-		for _, k := range own.Kept {
-			if !replaced(k.At) {
-				plan.Kept = append(plan.Kept, k)
-			}
-		}
+	for _, sp := range approved {
+		plan = plan.With(sp.first, sp.resolve(library, known, portions, nil).Plan)
+	}
+	return plan
+}
+
+// cyclePlan is c's Plan by times, what own, its approved Plan Proposals oldest first,
+// leave in place, as far as c lasts: Until the next Cycle's Delivery arrives.
+func cyclePlan(c Cycle, own []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, times domain.SlotTimes) domain.Plan {
+	plan := approvedPlan(own, library, known, portions)
+	if !c.Until.IsZero() {
+		plan = plan.Until(c.Until, times)
 	}
 	return plan
 }
@@ -263,18 +264,25 @@ func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 		b.WriteString("(none yet)\n")
 	}
 	for _, ing := range known {
-		fmt.Fprintf(&b, "- Ingredient %d: %s, in %s, usually in the %s, per %s %s\n", ing.ID, ing.Name, ing.Unit, ing.Usual, per(ing.Unit), describeNutrition(ing.Nutrition, false, false))
+		staple := ""
+		if ing.Staple {
+			staple = ", a Staple, which the kitchen always holds"
+		}
+		fmt.Fprintf(&b, "- Ingredient %d: %s, in %s, usually in the %s%s, per %s %s\n", ing.ID, ing.Name, ing.Unit, ing.Usual, staple, per(ing.Unit), describeNutrition(ing.Nutrition, false, false))
 	}
 	return strings.TrimSpace(b.String())
 }
 
-// planPrompt is what a planning Run of c from the Slot from is told after its stable
-// block: the Cycle and its Slots, today, the User's Language, the Planning Brief or its
-// low-care default, the Planning Notes newest first, the kitchen forecast f at from of
-// the Stock Items held at now, and what the trailing seven days before from eat as
+// planPrompt is what a planning Run of c's Slots planned, from the first on, is told
+// after its stable block: the Cycle and its Slots, today, the User's Language, the
+// Planning Brief or its low-care default, the Planning Notes newest first, the kitchen
+// forecast f at the first of the Stock Items held at now, the Portions without a Slot
+// being those it may put in Slots, that a current Cycle gets no more, what current, the
+// Cycle's Plan, eats from then on, which it replaces, portions naming the Portions
+// without a Slot it puts in Slots, and what the trailing seven days before from eat as
 // approved Plans fill them.
-func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes []string, now time.Time, held []kitchen.Held, f domain.Forecast, trailing []domain.Day) string {
-	slots := c.Slots(p.SlotTimes)
+func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, notes []string, now time.Time, held []kitchen.Held, f domain.Forecast, current domain.Plan, portions []domain.Portion, trailing []domain.Day) string {
+	slots, from := c.Slots(p.SlotTimes), planned[0]
 	var b strings.Builder
 	fmt.Fprintf(&b, "Plan the Cycle whose Delivery comes on %s, %s to %s, ending on %s.\n",
 		c.Delivery.On.Format(longDate), c.Delivery.From, c.Delivery.To, c.Ends.Format(longDate))
@@ -318,6 +326,15 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 	if told == 0 {
 		b.WriteString("(none)\n")
 	}
+	if !c.Delivery.Arrives().After(now) {
+		b.WriteString("This Cycle is current: its Delivery has arrived and none comes before it ends, so no Prep Session may need more of an Ingredient than the kitchen will hold then, Staples aside, which it always holds.\n")
+	}
+	if eats := eatenFrom(current, planned, portions); len(eats) > 0 {
+		fmt.Fprintf(&b, "\nThe Cycle has a Plan, which this Plan Proposal replaces from %s on, to change what the user's Planning Notes ask. Before then the Plan stays, and so do its Prep Sessions: the Portions they prepared and don't eat by then are among the Portions without a Slot above, with negative ids, to put in Slots again. What the Plan eats from %s on:\n", from, from)
+		for _, e := range eats {
+			fmt.Fprintf(&b, "- %s\n", e)
+		}
+	}
 
 	b.WriteString("\nWhat the seven days before the first Slot to plan eat, as approved Plans fill them. They are past: shown, never made up for.\n")
 	for _, d := range trailing {
@@ -328,6 +345,33 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 		fmt.Fprintf(&b, "- %s: %s\n", d.On.Format(domain.PlannerDay), eats)
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// eatenFrom is what plan puts in each of slots, in order, as the planner reads it,
+// portions naming the Portions without a Slot it puts in them: none for a Slot it
+// leaves empty.
+func eatenFrom(plan domain.Plan, slots []domain.Slot, portions []domain.Portion) []string {
+	var eats []string
+	for _, sl := range slots {
+		for _, ps := range plan.PrepSessions {
+			for _, pp := range ps.Portions {
+				if pp.EatAt == nil || !pp.EatAt.Equal(sl) {
+					continue
+				}
+				if ps.Recipe != nil {
+					eats = append(eats, fmt.Sprintf("%s: %s at %g×, prepared at %s", sl, ps.Name(), ps.Size, ps.At))
+				} else {
+					eats = append(eats, fmt.Sprintf("%s: %g %s %s, set out at %s", sl, ps.Quantity.Number(), ps.Ingredient.Unit, ps.Name(), ps.At))
+				}
+			}
+		}
+		for _, k := range plan.Kept {
+			if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == k.Portion }); i >= 0 && k.At.Equal(sl) {
+				eats = append(eats, fmt.Sprintf("%s: Portion %d, %s", sl, k.Portion, portions[i].Name))
+			}
+		}
+	}
+	return eats
 }
 
 // longDate is how the planner is told a day in full.
@@ -428,7 +472,8 @@ func parenthesised(note string) string {
 }
 
 // planBrief is what one planning Run judges drafts by, domain.Judge's inputs: the Cycle,
-// the first Slot it plans, the Profile, the Portion Lots without a Slot, what the kitchen
+// the first Slot it plans, the Profile, the Cycle's Plan it replaces, if any, the
+// Portion Lots without a Slot, what the kitchen
 // holds of each Stock Item, what approved Plans put in Slots before, and the clock. It
 // has the Recipe Library and Ingredients the drafts' ids name, the zone their days are
 // in, how many check_plan calls it has, and how it leaves its Plan Proposal, stored only
@@ -437,6 +482,7 @@ type planBrief struct {
 	cycle   domain.Cycle
 	from    domain.Slot
 	profile domain.Profile
+	current domain.Plan
 	lots    []domain.PortionLot
 	stock   map[domain.StockKey]domain.Quantity
 	earlier []domain.Eaten
@@ -515,7 +561,7 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 
 // judge is the Verdict on plan now.
 func (pb *planBrief) judge(plan domain.Plan) domain.Verdict {
-	return domain.Judge(plan, pb.cycle, pb.from, pb.profile, pb.lots, pb.stock, pb.earlier, pb.now())
+	return domain.Judge(plan, pb.cycle, pb.from, pb.profile, pb.current, pb.lots, pb.stock, pb.earlier, pb.now())
 }
 
 // results are the Verdict v as the planner reads it: each day it plans, the Targets'
@@ -802,25 +848,32 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 // a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at, the soft
 // rules it breaks, and the Recipe Drafts it prepares, while pending. It has its day table
 // too: the days it plans and, for a pending one, the seven days before its first Slot;
-// as judged while pending, worked out from today's Recipes once approved.
+// as judged while pending, worked out from today's Recipes once approved. Pending with
+// the Cycle's Plan to replace, it has what it changes of that Plan: the Slots it fills
+// with other food, and the indexes of its Prep Sessions the Plan has none alike of.
 type Proposal struct {
-	ID             int64
-	Plan           domain.Plan
-	Kept           map[int64]domain.Portion
-	Summary        string
-	Targets        domain.Targets
-	Misses         []domain.Miss
-	Drafted        []recipes.Drafted
-	Trailing, Days []domain.Day
+	ID              int64
+	Plan            domain.Plan
+	Kept            map[int64]domain.Portion
+	Summary         string
+	Targets         domain.Targets
+	Misses          []domain.Miss
+	Drafted         []recipes.Drafted
+	Trailing, Days  []domain.Day
+	Changed         []domain.Slot
+	ChangedSessions []int
 }
 
-// Planning is how planning a Cycle stands: its pending Plan Proposal, its Plan (the Plan
-// Proposal approved), each nil when it has none, the id of its planning Run going, 0
-// when none is, its latest planning Run when that failed, with its Trace, and with a
-// Plan Proposal pending, the Cycle's Planning Notes, newest first.
+// Planning is how planning a Cycle stands: its pending Plan Proposal, its Plan (what its
+// approved Plan Proposals leave in place, with the last one's summary, Targets and soft
+// misses), each nil when it has none, the id of its planning Run going, 0 when none is,
+// whether one is going or a Plan Proposal is pending for any Cycle, its latest planning
+// Run when that failed, with its Trace, and with a Plan Proposal pending or a Plan, the
+// Cycle's Planning Notes, newest first.
 type Planning struct {
 	Proposal, Plan *Proposal
 	Going          int64
+	Busy           bool
 	Failed         *runs.Run
 	Notes          []string
 }
@@ -830,8 +883,8 @@ type Planning struct {
 func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) (Planning, error) {
 	id := c.ID
 	var p Planning
-	var pending, approved *storedProposal
-	var earlier []*storedProposal
+	var pending *storedProposal
+	var own, earlier []*storedProposal
 	var last lastRun
 	var portions []domain.Portion
 	var stored []storedDraft
@@ -843,24 +896,27 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 		if p.Going, err = goingRun(ctx, tx, id); err != nil {
 			return err
 		}
+		if p.Busy, err = planningBusy(ctx, tx, 0); err != nil {
+			return err
+		}
 		if last, err = loadLastRun(ctx, tx, id, zone); err != nil {
 			return err
 		}
-		if pending, err = loadProposal(ctx, tx, id, Pending, zone); err != nil {
+		if pending, err = loadPending(ctx, tx, id, zone); err != nil {
 			return err
 		}
-		if approved, err = loadProposal(ctx, tx, id, Approved, zone); err != nil || (pending == nil && approved == nil) {
+		if own, err = loadPlanOf(ctx, tx, id, zone); err != nil || (pending == nil && len(own) == 0) {
 			return err
 		}
-		if approved != nil {
-			if earlier, err = loadApproved(ctx, tx, approved.first.On.AddDate(0, 0, -7), zone); err != nil {
+		if len(own) > 0 {
+			if earlier, err = loadApproved(ctx, tx, own[0].first.On.AddDate(0, 0, -7), zone); err != nil {
 				return err
 			}
+		}
+		if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
+			return err
 		}
 		if pending != nil {
-			if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
-				return err
-			}
 			if stored, err = loadDrafts(ctx, tx, pending.id); err != nil {
 				return err
 			}
@@ -878,7 +934,7 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 		}
 		p.Failed = &run
 	}
-	if pending == nil && approved == nil {
+	if pending == nil && len(own) == 0 {
 		return p, nil
 	}
 	library, err := s.recipes.Search(ctx, "")
@@ -889,26 +945,30 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 	if err != nil {
 		return p, err
 	}
+	times, err := s.profile.SlotTimes(ctx)
+	if err != nil {
+		return p, err
+	}
+	// Worked out again from today's Recipes, as the Verdict's days were: editing a Recipe
+	// changes only what is yet to be recorded.
+	plan := cyclePlan(c, own, library, known, portions, times)
+	named := slices.Concat(portions, plan.Planned())
 	if pending != nil {
 		drafted, err := readDrafts(l, known, stored)
 		if err != nil {
 			return p, err
 		}
-		p.Proposal = pending.resolve(library, known, portions, drafted)
-	}
-	if approved != nil {
-		// Worked out again from today's Recipes, as the Verdict's days were: editing a
-		// Recipe changes only what is yet to be recorded.
-		proposal := approved.resolve(library, known, portions, nil)
-		if !c.Until.IsZero() {
-			times, err := s.profile.SlotTimes(ctx)
-			if err != nil {
-				return p, err
-			}
-			proposal.Plan = proposal.Plan.Until(c.Until, times)
+		p.Proposal = pending.resolve(library, known, named, drafted)
+		if len(own) > 0 {
+			p.Proposal.Changed, p.Proposal.ChangedSessions = p.Proposal.Plan.Changes(plan, pending.first, named)
 		}
-		planned := proposal.Plan.Eaten(portions)
-		_, proposal.Days = domain.PlanDays(approvedPlan(earlier, library, known, portions).Eaten(portions), planned, approved.first, lastDay(planned, approved.first.On))
+	}
+	if len(own) > 0 {
+		first := own[0].first
+		proposal := own[len(own)-1].resolve(library, known, portions, nil)
+		proposal.Plan, proposal.Kept = plan, keptOf(plan.Kept, portions)
+		planned := plan.Eaten(portions)
+		_, proposal.Days = domain.PlanDays(approvedPlan(earlier, library, known, portions).Eaten(portions), planned, first, lastDay(planned, first.On))
 		p.Plan = proposal
 	}
 	return p, nil
@@ -973,6 +1033,17 @@ func lastDay(planned []domain.Eaten, first time.Time) time.Time {
 	return last
 }
 
+// keptOf are the Portions of portions that kept puts in Slots, by id.
+func keptOf(kept []domain.Kept, portions []domain.Portion) map[int64]domain.Portion {
+	out := map[int64]domain.Portion{}
+	for _, portion := range portions {
+		if slices.ContainsFunc(kept, func(k domain.Kept) bool { return k.Portion == portion.ID }) {
+			out[portion.ID] = portion
+		}
+	}
+	return out
+}
+
 // resolve is sp with its Recipes, Ingredients, Portions and Recipe Drafts found by id
 // among those given.
 func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, drafted []recipes.Drafted) *Proposal {
@@ -989,7 +1060,7 @@ func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredi
 		ingredients[known[i].ID] = &known[i]
 	}
 	p := &Proposal{
-		ID: sp.id, Summary: sp.summary, Plan: domain.Plan{Kept: sp.kept}, Kept: map[int64]domain.Portion{},
+		ID: sp.id, Summary: sp.summary, Plan: domain.Plan{Kept: sp.kept}, Kept: keptOf(sp.kept, portions),
 		Targets: sp.targets, Misses: sp.misses, Trailing: sp.trailing, Days: sp.days, Drafted: drafted,
 	}
 	for _, ps := range sp.sessions {
@@ -999,11 +1070,6 @@ func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredi
 	for _, fs := range sp.splits {
 		if ing := ingredients[fs.Ingredient.ID]; ing != nil {
 			p.Plan.FreezerSplits = append(p.Plan.FreezerSplits, domain.RecipeIngredient{Ingredient: *ing, Quantity: fs.Quantity})
-		}
-	}
-	for _, portion := range portions {
-		if slices.ContainsFunc(sp.kept, func(k domain.Kept) bool { return k.Portion == portion.ID }) {
-			p.Kept[portion.ID] = portion
 		}
 	}
 	return p

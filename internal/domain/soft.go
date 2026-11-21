@@ -281,31 +281,34 @@ func (t Targets) DayOff(target Target, d Day) (Miss, bool) {
 
 // SoftMisses are the soft rules p breaks beside the Targets: Portions of one Prep Session
 // eaten within two days of each other, and Portions carried into the Cycle left without a
-// Slot, held being the Portion Lots the kitchen holds without one. Those p makes with no
-// Slot are no miss: they are MadeForAfter.
-func (p Plan) SoftMisses(held []PortionLot) []Miss {
+// Slot, held being the Portion Lots the kitchen holds without one. A Prep Session kept,
+// of the Plan p replaces, counts its Portions eaten with those p puts in Slots again,
+// and is back to back only where p puts one close to another. Those p makes with no Slot
+// are no miss: they are MadeForAfter.
+func (p Plan) SoftMisses(held []PortionLot, kept Plan) []Miss {
 	var ms []Miss
 	for _, ps := range p.PrepSessions {
-		var days []time.Time
+		var eats []eating
 		for _, pp := range ps.Portions {
 			if pp.EatAt != nil {
-				days = append(days, pp.EatAt.On)
+				eats = append(eats, eating{On: pp.EatAt.On, Placed: true})
 			}
 		}
-		slices.SortFunc(days, time.Time.Compare)
-		var close []time.Time
-		for i := 1; i < len(days); i++ {
-			if math.Round(days[i].Sub(days[i-1]).Hours()/24) < 2 {
-				for _, d := range days[i-1 : i+1] {
-					if len(close) == 0 || !close[len(close)-1].Equal(d) {
-						close = append(close, d)
-					}
+		ms = append(ms, backToBack(ps.Name(), eats)...)
+	}
+	for _, ps := range kept.PrepSessions {
+		var eats []eating
+		for _, pp := range ps.Portions {
+			if pp.EatAt != nil {
+				eats = append(eats, eating{On: pp.EatAt.On})
+			}
+			for _, k := range p.Kept {
+				if pp.ID != 0 && k.Portion == PlannedID(pp.ID) {
+					eats = append(eats, eating{On: k.At.On, Placed: true})
 				}
 			}
 		}
-		if len(close) > 0 {
-			ms = append(ms, Miss{Rule: RuleBackToBack, Name: ps.Name(), Days: close})
-		}
+		ms = append(ms, backToBack(ps.Name(), eats)...)
 	}
 	var unused []Miss
 	for _, lot := range held {
@@ -326,6 +329,34 @@ func (p Plan) SoftMisses(held []PortionLot) []Miss {
 		unused[i].Held += len(lot.IDs)
 	}
 	return append(ms, slices.DeleteFunc(unused, func(m Miss) bool { return m.Count == 0 })...)
+}
+
+// eating is a Portion of a Prep Session eaten On a day, Placed by the Plan judged.
+type eating struct {
+	On     time.Time
+	Placed bool
+}
+
+// backToBack is the miss of name eaten as eats says, if two of them are eaten within two
+// days of each other, one at least Placed: each day of those, in order.
+func backToBack(name string, eats []eating) []Miss {
+	slices.SortFunc(eats, func(a, b eating) int { return a.On.Compare(b.On) })
+	var close []time.Time
+	for i := 1; i < len(eats); i++ {
+		a, b := eats[i-1], eats[i]
+		if !a.Placed && !b.Placed || math.Round(b.On.Sub(a.On).Hours()/24) >= 2 {
+			continue
+		}
+		for _, d := range []time.Time{a.On, b.On} {
+			if len(close) == 0 || !close[len(close)-1].Equal(d) {
+				close = append(close, d)
+			}
+		}
+	}
+	if len(close) == 0 {
+		return nil
+	}
+	return []Miss{{Rule: RuleBackToBack, Name: name, Days: close}}
 }
 
 // MadeForAfter is Portions a Plan makes with no Slot, to eat after the Cycle, grouped as

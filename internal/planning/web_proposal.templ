@@ -93,6 +93,7 @@ templ proposalSection(p Proposal, notes []string, note string, reject bool) {
 	@web.Section(1, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
 		@averages(p)
+		@changedRow(p)
 		@missRows(p)
 		@draftedRows(p.Drafted)
 		@decision(p, notes, note, reject)
@@ -148,6 +149,44 @@ templ figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, bo
 			</span>
 		}
 	}
+}
+
+// changedRow is the line saying which days p changes of the Plan it replaces, led by the
+// changed icon: nothing when it replaces none, or changes nothing.
+templ changedRow(p Proposal) {
+	if first, last, ok := changedDays(p); ok {
+		@web.Rows() {
+			@web.Row() {
+				@web.Icon("changed")
+				<span class="row-title">{ web.Tf(ctx, msgChangesFrom, dayRange(ctx, changedRange(first, last))) }</span>
+			}
+		}
+	}
+}
+
+// changedRange is the days from first to last as dayRange reads them: one when they
+// are the same.
+func changedRange(first, last time.Time) []domain.Day {
+	if first.Equal(last) {
+		return []domain.Day{{On: first}}
+	}
+	return []domain.Day{{On: first}, {On: last}}
+}
+
+// changedDays are the first and last day of a Slot or Prep Session p changes, ok false
+// when it changes none.
+func changedDays(p Proposal) (first, last time.Time, ok bool) {
+	days := make([]time.Time, 0, len(p.Changed)+len(p.ChangedSessions))
+	for _, s := range p.Changed {
+		days = append(days, s.On)
+	}
+	for _, i := range p.ChangedSessions {
+		days = append(days, p.Plan.PrepSessions[i].At.On)
+	}
+	if len(days) == 0 {
+		return first, last, false
+	}
+	return slices.MinFunc(days, time.Time.Compare), slices.MaxFunc(days, time.Time.Compare), true
 }
 
 // missRows are p's soft misses beside the averages, a line per kind, each led by its
@@ -314,16 +353,7 @@ templ decision(p Proposal, notes []string, note string, open bool) {
 			}
 		</form>
 		@web.TextButtonFold(web.T(ctx, msgReject), open) {
-			if len(notes) > 0 {
-				@web.RowsHead(web.T(ctx, msgEarlierNotes))
-				@web.Rows() {
-					for _, n := range notes {
-						@web.Row() {
-							<span class="row-title">{ n }</span>
-						}
-					}
-				}
-			}
+			@earlierNotes(notes)
 			<form novalidate id="reject" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/reject", p.ID)) }>
 				@web.Hint() {
 					{ web.T(ctx, msgRejectHint) }
@@ -337,6 +367,21 @@ templ decision(p Proposal, notes []string, note string, open bool) {
 					}
 				}
 			</form>
+		}
+	}
+}
+
+// earlierNotes are the Cycle's earlier Planning Notes, notes, newest first, under their
+// head: nothing before the first.
+templ earlierNotes(notes []string) {
+	if len(notes) > 0 {
+		@web.RowsHead(web.T(ctx, msgEarlierNotes))
+		@web.Rows() {
+			for _, n := range notes {
+				@web.Row() {
+					<span class="row-title">{ n }</span>
+				}
+			}
 		}
 	}
 }
@@ -465,10 +510,17 @@ func dayTitle(ctx context.Context, d proposalDay) string {
 	return web.Date(ctx, d.On)
 }
 
-// dayLine is d's row under its date: its figures, each more than 25% off a Target of t
-// marked, then what is cooked on it and its active minutes, when a Slot of it is filled;
-// and how many freezer splits it has, if any.
+// dayLine is d's row under its date: marked Changed when its Plan Proposal changes it,
+// its figures, each more than 25% off a Target of t marked, then what is cooked on it
+// and its active minutes, when a Slot of it is filled; and how many freezer splits it
+// has, if any.
 templ dayLine(t domain.Targets, d proposalDay) {
+	if d.changed {
+		// A span, as Today's Tag is: the line's own children stretch across it.
+		<span>
+			@web.Changed()
+		</span>
+	}
 	if len(d.filled) > 0 {
 		@figureLine(d.Nutrition, dayMissed(t, d.Day))
 		<span>{ cooked(ctx, d.sessions) }</span>
@@ -510,16 +562,16 @@ templ dayBody(d proposalDay) {
 		@web.RowsHead(web.T(ctx, msgSlots))
 		@web.Rows() {
 			for _, f := range d.filled {
-				@web.SlotRow(f.kind, f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+				@web.SlotRow(f.kind, f.name, f.changed, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
 			}
 		}
 	}
 	if slices.ContainsFunc(d.sessions, ofRecipe) {
 		@web.RowsHead(web.T(ctx, msgPrepSessions))
 		@web.Rows() {
-			for _, ps := range d.sessions {
+			for i, ps := range d.sessions {
 				if ofRecipe(ps) {
-					@cookedRow(ps)
+					@cookedRow(ps, d.changedSessions[i])
 				}
 			}
 		}
@@ -546,11 +598,11 @@ func source(ctx context.Context, f filledSlot, on time.Time) string {
 	return web.Tf(ctx, msgCookedOn, web.ShortDate(ctx, f.from.At.On), web.T(ctx, web.InLocations[f.location]))
 }
 
-// cookedRow is ps, a Prep Session of a Recipe, as a row that opens: its Portions and
-// their size, its minutes; opened, its Ingredients scaled, and its Portions eaten on a
-// later day or after the Cycle.
-templ cookedRow(ps domain.PrepSession) {
-	@web.FoldRow(cookedLine(ps)) {
+// cookedRow is ps, a Prep Session of a Recipe, as a row that opens, marked Changed when
+// changed: its Portions and their size, its minutes; opened, its Ingredients scaled, and
+// its Portions eaten on a later day or after the Cycle.
+templ cookedRow(ps domain.PrepSession, changed bool) {
+	@web.FoldRow(cookedLine(ps, changed)) {
 		@web.RowsHead(web.T(ctx, msgIngredients))
 		@web.IngredientRows(ps.Ingredients())
 		if later := eatenLater(ps); len(later) > 0 {
@@ -568,9 +620,22 @@ templ cookedRow(ps domain.PrepSession) {
 }
 
 // cookedLine is the line a Prep Session of a Recipe folds to: its name, a Recipe Draft's
-// marked new, its Portions and their size, its minutes in all and active.
-templ cookedLine(ps domain.PrepSession) {
-	@web.RowTitle(ps.Name(), ps.Recipe.IsDraft(), web.T(ctx, msgNewRecipeSource))
+// marked new, and marked Changed when changed, its Portions and their size, its minutes
+// in all and active.
+templ cookedLine(ps domain.PrepSession, changed bool) {
+	<span class="row-title">
+		{ ps.Name() }
+		if ps.Recipe.IsDraft() {
+			{ " " }
+			@web.Tag(false, "") {
+				{ web.T(ctx, msgNewRecipeSource) }
+			}
+		}
+		if changed {
+			{ " " }
+			@web.Changed()
+		}
+	</span>
 	<span class="row-figure">{ web.Tf(ctx, msgPortionsSized, len(ps.Portions), size(ctx, ps.Size)) }</span>
 	<span class="row-meta">{ web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes) }</span>
 }

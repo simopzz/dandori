@@ -14,7 +14,7 @@ import (
 
 // Approving the pending Plan Proposal makes it the Cycle's Plan: the Cycle page shows it
 // by day, each Slot by its kind and no time of day, which only Today shows, and no Plan
-// Proposal waiting or way to plan again.
+// Proposal waiting or way to plan again, only to ask for changes.
 func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
@@ -29,8 +29,9 @@ func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 	s.Sees("Slots yogurt 90 kcal · 15 g protein Breakfast in the fridge")
 	s.Sees("Rice bowl 1.25× · 438 kcal · 9 g protein Lunch cooked")
 	s.Sees("Rice bowl 3 at 1.25× 25 min · 10 active")
-	s.Sees("03 Upcoming Cycle Drop the Cycle")
-	s.DoesNotSee("Plan Proposal")
+	s.Sees("03 Upcoming Cycle Ask for changes")
+	s.Sees("Ask for changes Drop the Cycle")
+	s.DoesNotSee("01 Plan Proposal")
 	s.DoesNotSee("Rice bowls for Friday.")
 	s.DoesNotSee("Plan the Cycle")
 }
