@@ -39,21 +39,28 @@ func (p Plan) Thaws(stock map[StockKey]Quantity) []Thaw {
 	var thaws []Thaw
 	for _, ps := range sessions {
 		for _, ri := range ps.Ingredients() {
-			need := ri.Quantity
-			// shortcut: a Stock Item is one per Storage Location, so "oldest first" is
-			// the order of StorageLocations; it changes nothing thawed.
-			for _, loc := range StorageLocations {
-				if loc == Freezer && ri.Ingredient.Usual != Freezer {
-					continue
-				}
-				need -= take(left, StockKey{Ingredient: ri.Ingredient.ID, Location: loc}, need)
-			}
-			if thawed := take(left, StockKey{Ingredient: ri.Ingredient.ID, Location: Freezer}, need); thawed > 0 {
+			if thawed := useUp(left, ri); thawed > 0 {
 				thaws = append(thaws, Thaw{At: ps.At, Ingredient: ri.Ingredient, Quantity: thawed})
 			}
 		}
 	}
 	return thaws
+}
+
+// useUp takes ri from stock as a Prep Session uses it up: the stock outside the freezer,
+// and the frozen stock of an Ingredient usually kept there, then what it still needs
+// from the freezer, and is how much of that it thaws.
+func useUp(stock map[StockKey]Quantity, ri RecipeIngredient) (thawed Quantity) {
+	need := ri.Quantity
+	// shortcut: a Stock Item is one per Storage Location, so "oldest first" is the order
+	// of StorageLocations; it changes nothing thawed.
+	for _, loc := range StorageLocations {
+		if loc == Freezer && ri.Ingredient.Usual != Freezer {
+			continue
+		}
+		need -= take(stock, StockKey{Ingredient: ri.Ingredient.ID, Location: loc}, need)
+	}
+	return take(stock, StockKey{Ingredient: ri.Ingredient.ID, Location: Freezer}, need)
 }
 
 // take takes up to need from what stock holds at key, and is how much it took.
