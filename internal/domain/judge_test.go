@@ -282,7 +282,8 @@ func TestJudgeGivesThePortionsMadeForAfterTheCycle(t *testing.T) {
 
 // A Prep Session the Plan keeps before the draft's first Slot counts towards back to back
 // with the Portions of it the draft puts in Slots again, when the draft puts one close to
-// another; and one it leaves without a Slot is left unused. Here the Plan set out yogurt
+// another; and one it leaves without a Slot is made for after the Cycle, no miss, as are
+// those of the draft's own Prep Sessions. Here the Plan set out yogurt
 // at Friday's breakfast for three Portions, eaten at breakfast and lunch, the third
 // without a Slot, and the draft plans Friday from its snack.
 func TestJudgeCountsTheKeptPrepSessionsOfAReplan(t *testing.T) {
@@ -299,7 +300,7 @@ func TestJudgeCountsTheKeptPrepSessionsOfAReplan(t *testing.T) {
 		{"the draft eats the third the same day", []domain.Kept{{Portion: 4, At: slot(6, domain.Snack)}, {Portion: domain.PlannedID(33), At: slot(6, domain.Dinner)}},
 			[]string{"yogurt eaten back to back, Fri 6 Nov", "lasagne: 3 of 3 left unused, in the freezer"}},
 		{"the draft leaves it", []domain.Kept{{Portion: 4, At: slot(6, domain.Snack)}, {Portion: 1, At: slot(6, domain.Dinner)}},
-			[]string{"lasagne: 2 of 3 left unused, in the freezer", "yogurt: 1 of 1 left unused, in the fridge"}},
+			[]string{"lasagne: 2 of 3 left unused, in the freezer"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

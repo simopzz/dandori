@@ -140,20 +140,12 @@ templ cycleBody(now time.Time, v cycleView) {
 		@decisionAlert(v.Refusal)
 		<div class="section">
 			if p.Failed != nil && p.Going == 0 && p.Proposal == nil && p.Plan == nil {
-				@web.Alert() {
-					<p>{ web.Tf(ctx, msgFailed, v.Failure) }</p>
-					<a href={ templ.SafeURL(fmt.Sprintf("/runs/%d", p.Failed.ID)) }>{ web.T(ctx, msgSeeTrace) }</a>
-				}
+				@failedAlert(p.Failed.ID, v.Failure)
 			}
 			@web.ActionsApart() {
 				<div class="actions">
 					if p.Going != 0 {
-						@web.ToneTag(web.Going) {
-							{ web.T(ctx, msgBeingPlannedTag) }
-						}
-						@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/runs/%d", p.Going)}) {
-							{ web.T(ctx, msgSeeProgress) }
-						}
+						@beingPlanned(p.Going)
 					} else if p.Proposal == nil && p.Plan == nil {
 						if p.Failed != nil {
 							@planAgain(c.ID, v.Note, v.Note != "" || v.Refusal != nil)
@@ -177,6 +169,25 @@ templ cycleBody(now time.Time, v cycleView) {
 		if v.Upcoming {
 			@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 		}
+	}
+}
+
+// failedAlert says the planning Run runID failed, as failure says why, linking to
+// its Trace.
+templ failedAlert(runID int64, failure string) {
+	@web.Alert() {
+		<p>{ web.Tf(ctx, msgFailed, failure) }</p>
+		<a href={ templ.SafeURL(fmt.Sprintf("/runs/%d", runID)) }>{ web.T(ctx, msgSeeTrace) }</a>
+	}
+}
+
+// beingPlanned says a Cycle is being planned by the Run runID, linking to its progress.
+templ beingPlanned(runID int64) {
+	@web.ToneTag(web.Going) {
+		{ web.T(ctx, msgBeingPlannedTag) }
+	}
+	@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/runs/%d", runID)}) {
+		{ web.T(ctx, msgSeeProgress) }
 	}
 }
 
@@ -210,19 +221,7 @@ templ cancelledBy(why cause) {
 // note as typed and its own button, as Reject does; open when the User is at it.
 templ planAgain(id int64, note string, open bool) {
 	@web.ButtonFold(web.T(ctx, msgPlanAgain), open) {
-		<form novalidate id="plan-again" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/again", id)) }>
-			@web.Hint() {
-				{ web.T(ctx, msgPlanAgainHint) }
-			}
-			@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgOptional), "") {
-				<textarea name="note" rows="3">{ note }</textarea>
-			}
-			@web.Actions() {
-				@web.Button(templ.Attributes{"type": "submit"}) {
-					{ web.T(ctx, msgPlanAgain) }
-				}
-			}
-		</form>
+		@noteForm("plan-again", fmt.Sprintf("/plan/cycles/%d/again", id), msgPlanAgainHint, msgPlanAgain, note, false, "")
 	}
 }
 

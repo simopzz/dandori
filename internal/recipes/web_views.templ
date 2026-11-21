@@ -317,7 +317,7 @@ templ recipeForm(f RecipeForm) {
 // draftRowSummary is the line a Recipe Draft's new Ingredient folds to: its name and
 // New, and its quantity in its unit.
 templ draftRowSummary(row IngredientRow) {
-	@web.RowTitle(row.Name, true, web.T(ctx, msgNew))
+	@web.RowTitle(row.Name, true, web.T(ctx, msgNew), false)
 	<span class="row-figure">{ strings.TrimSpace(row.Quantity + " " + quantityUnit(ctx, row)) }</span>
 }
 

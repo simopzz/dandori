@@ -259,13 +259,7 @@ templ FoldRow(summary templ.Component) {
 // "", a word for where the Portion comes from ("cooked", "already in the kitchen").
 templ SlotRow(kind domain.SlotKind, portion string, changed bool, size string, figures templ.Component, source string) {
 	@Row() {
-		<span class="row-title">
-			{ portion }
-			if changed {
-				{ " " }
-				@Changed()
-			}
-		</span>
+		@RowTitle(portion, false, "", changed)
 		if size != "" || figures != nil {
 			<span class="row-figure">
 				{ size }
@@ -311,8 +305,8 @@ templ Changed() {
 }
 
 // RowTitle is a Row's title: name, and when tagged, tag after it as a plain Tag (a New
-// Ingredient, a new Recipe).
-templ RowTitle(name string, tagged bool, tag string) {
+// Ingredient, a new Recipe), then Changed when changed.
+templ RowTitle(name string, tagged bool, tag string, changed bool) {
 	<span class="row-title">
 		{ name }
 		if tagged {
@@ -320,6 +314,10 @@ templ RowTitle(name string, tagged bool, tag string) {
 			@Tag(false, "") {
 				{ tag }
 			}
+		}
+		if changed {
+			{ " " }
+			@Changed()
 		}
 	</span>
 }
@@ -330,7 +328,7 @@ templ IngredientRowsWith(ingredients []domain.RecipeIngredient, meta func(domain
 	@Rows() {
 		for _, ri := range ingredients {
 			@Row() {
-				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew))
+				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew), false)
 				<span class="row-figure">{ Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
 				if meta != nil {
 					if c := meta(ri.Ingredient); c != nil {

@@ -193,6 +193,42 @@ func TestAskForChangesIsAbsentWhileAnythingIsPendingOrGoing(t *testing.T) {
 	s.DoesNotSee("Ask for changes")
 }
 
+// While asking for changes plans the Cycle again, the Plan page says it is being planned,
+// linking to the Run; once that Run fails, it says why, links to its Trace and offers
+// Plan again in place of Ask for changes, which plans again from the same Slot.
+func TestThePlanPageShowsAReplanGoingOrFailed(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	planned(t, s)
+	s.Model.Script(fakellm.Hang())
+	s.AsksForChanges("Smaller bowls.")
+	s.Open("/plan")
+	s.Sees("03 Upcoming Cycle Being planned See progress Drop the Cycle")
+	if got := apptest.Link(t, s.Page().Body, "See progress"); got != "/runs/2" {
+		t.Errorf("See progress leads to %q, want /runs/2", got)
+	}
+	s.Open("/runs/2")
+	s.CancelsRun(apptest.Form(t, s.Page().Body, "cancel-run"))
+
+	s.Open("/plan")
+	s.Sees("03 Upcoming Cycle Ask for changes")
+	s.Model.Script(fakellm.Reply("No smaller bowls."))
+	s.AsksForChanges("Smaller bowls.")
+	s.Settle()
+	s.Open("/plan")
+	s.Sees("02 Days")
+	s.Sees("03 Upcoming Cycle Planning failed: The model ended without a Plan Proposal. No smaller bowls.")
+	if got := apptest.Link(t, s.Page().Body, "See its Trace"); got != "/runs/3" {
+		t.Errorf("the failed Run's Trace link leads to %q, want /runs/3", got)
+	}
+	s.DoesNotSee("Ask for changes")
+
+	s.Model.Script(fakellm.Reply("Still no smaller bowls."))
+	s.Submits("plan-again")
+	s.IsAt("/runs/4")
+	s.Settle()
+	told(t, s, []string{"Plan every Slot from breakfast on Fri 6 Nov on.", "<note>\nSmaller bowls.\n</note>"})
+}
+
 // On the current Cycle check_plan reports a Prep Session needing more of an Ingredient
 // than the kitchen will hold: no Delivery brings the rest.
 func TestCheckPlanReportsMoreThanTheKitchenHoldsOnTheCurrentCycle(t *testing.T) {

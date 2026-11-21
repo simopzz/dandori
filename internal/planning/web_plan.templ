@@ -37,16 +37,28 @@ templ planPage(now time.Time, v cycleView) {
 	}
 }
 
-// planActions is Section 03, the Plan's actions apart at the end: asking for changes,
-// while no planning Run is going nor Plan Proposal pending for any Cycle, and dropping
-// the Cycle beside it, while upcoming; nothing when it has neither.
+// planActions is Section 03, the Plan's actions apart at the end: while the Cycle is
+// planned again, saying so with a link to the Run; once that Run failed, why, with its
+// Trace, and Plan again; otherwise asking for changes, while no planning Run is going nor
+// Plan Proposal pending for any Cycle. Dropping the Cycle sits beside them, while
+// upcoming; nothing when it has none of them.
 templ planActions(v cycleView) {
-	{{ c, ask := *v.Cycle, !v.Planning.Busy }}
-	if ask || v.Upcoming {
+	{{ c, p := *v.Cycle, v.Planning }}
+	{{ ask := !p.Busy && p.Failed == nil }}
+	if p.Going != 0 || p.Failed != nil || ask || v.Upcoming {
 		@web.Section(3, sectionTitle(ctx, v.Upcoming)) {
+			if p.Failed != nil {
+				@failedAlert(p.Failed.ID, v.Failure)
+			}
 			@web.ActionsApart() {
-				if ask {
-					@askForChanges(c.ID, v.Planning.Notes, v.Note, noteError(ctx, v.Refusal), v.Note != "" || v.Refusal != nil)
+				if p.Going != 0 {
+					<div class="actions">
+						@beingPlanned(p.Going)
+					</div>
+				} else if p.Failed != nil {
+					@planAgain(c.ID, v.Note, v.Note != "" || v.Refusal != nil)
+				} else if ask {
+					@askForChanges(c.ID, p.Notes, v.Note, noteError(ctx, v.Refusal), v.Note != "" || v.Refusal != nil)
 				}
 				if v.Upcoming {
 					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
@@ -81,26 +93,7 @@ func noteError(ctx context.Context, err error) string {
 templ askForChanges(id int64, notes []string, note, err string, open bool) {
 	@web.TextButtonFold(web.T(ctx, msgAskForChanges), open) {
 		@earlierNotes(notes)
-		<form novalidate id="ask-for-changes" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/changes", id)) }>
-			@web.Hint() {
-				{ web.T(ctx, msgAskHint) }
-			}
-			@web.Field(web.T(ctx, msgPlanningNote), "", err) {
-				<textarea
-					name="note"
-					rows="3"
-					required
-					if err != "" {
-						aria-invalid="true"
-					}
-				>{ note }</textarea>
-			}
-			@web.Actions() {
-				@web.Button(templ.Attributes{"type": "submit"}) {
-					{ web.T(ctx, msgAskForChanges) }
-				}
-			}
-		</form>
+		@noteForm("ask-for-changes", fmt.Sprintf("/plan/cycles/%d/changes", id), msgAskHint, msgAskForChanges, note, true, err)
 	}
 }
 

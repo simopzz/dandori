@@ -1632,7 +1632,7 @@ func draftRowSummary(row IngredientRow) templ.Component {
 			templ_7745c5c3_Var72 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = web.RowTitle(row.Name, true, web.T(ctx, msgNew)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = web.RowTitle(row.Name, true, web.T(ctx, msgNew), false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

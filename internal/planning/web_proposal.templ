@@ -354,21 +354,43 @@ templ decision(p Proposal, notes []string, note string, open bool) {
 		</form>
 		@web.TextButtonFold(web.T(ctx, msgReject), open) {
 			@earlierNotes(notes)
-			<form novalidate id="reject" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/reject", p.ID)) }>
-				@web.Hint() {
-					{ web.T(ctx, msgRejectHint) }
-				}
-				@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgOptional), "") {
-					<textarea name="note" rows="3">{ note }</textarea>
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgReject) }
-					}
-				}
-			</form>
+			@noteForm("reject", fmt.Sprintf("/plan/proposals/%d/reject", p.ID), msgRejectHint, msgReject, note, false, "")
 		}
 	}
+}
+
+// noteForm is the form id posting a Planning Note to action: the line hint saying what
+// the note does, the note as typed, optional unless required, refused with err if not
+// "", and its button, send.
+templ noteForm(id, action string, hint, send web.Message, note string, required bool, err string) {
+	<form novalidate id={ id } class="stack" method="post" action={ templ.SafeURL(action) }>
+		@web.Hint() {
+			{ web.T(ctx, hint) }
+		}
+		@web.Field(web.T(ctx, msgPlanningNote), optionalUnless(ctx, required), err) {
+			<textarea
+				name="note"
+				rows="3"
+				required?={ required }
+				if err != "" {
+					aria-invalid="true"
+				}
+			>{ note }</textarea>
+		}
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				{ web.T(ctx, send) }
+			}
+		}
+	</form>
+}
+
+// optionalUnless is how a Field marks a Planning Note optional, unless required.
+func optionalUnless(ctx context.Context, required bool) string {
+	if required {
+		return ""
+	}
+	return web.T(ctx, msgOptional)
 }
 
 // earlierNotes are the Cycle's earlier Planning Notes, notes, newest first, under their
@@ -623,19 +645,7 @@ templ cookedRow(ps domain.PrepSession, changed bool) {
 // marked new, and marked Changed when changed, its Portions and their size, its minutes
 // in all and active.
 templ cookedLine(ps domain.PrepSession, changed bool) {
-	<span class="row-title">
-		{ ps.Name() }
-		if ps.Recipe.IsDraft() {
-			{ " " }
-			@web.Tag(false, "") {
-				{ web.T(ctx, msgNewRecipeSource) }
-			}
-		}
-		if changed {
-			{ " " }
-			@web.Changed()
-		}
-	</span>
+	@web.RowTitle(ps.Name(), ps.Recipe.IsDraft(), web.T(ctx, msgNewRecipeSource), changed)
 	<span class="row-figure">{ web.Tf(ctx, msgPortionsSized, len(ps.Portions), size(ctx, ps.Size)) }</span>
 	<span class="row-meta">{ web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes) }</span>
 }
