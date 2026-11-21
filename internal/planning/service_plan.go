@@ -124,10 +124,10 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	if err != nil {
 		return 0, err
 	}
-	plan := approvedPlan(approved, library, known, portions)
-	earlier := plan.Eaten(portions)
+	standing := approvedPlan(approved, library, known, portions)
+	earlier := standing.Eaten(portions)
 	trailing, _ := domain.PlanDays(earlier, nil, slots[0], slots[0].On)
-	forecast := plan.Forecast(stockOf(held.Held), held.Portions, p.SlotTimes, now, slots[0])
+	forecast := standing.Forecast(stockOf(held.Held), held.Portions, p.SlotTimes, now, slots[0])
 	if note != "" {
 		notes = append([]string{note}, notes...)
 	}
@@ -306,15 +306,17 @@ func planPrompt(c Cycle, p domain.Profile, from domain.Slot, brief string, notes
 		}
 	}
 	b.WriteString("Stock Items:\n")
-	stock := slices.DeleteFunc(slices.Clone(held), func(h kitchen.Held) bool {
-		return f.Stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}] <= 0
-	})
-	if len(stock) == 0 {
-		b.WriteString("(none)\n")
-	}
-	for _, h := range stock {
+	told := 0
+	for _, h := range held {
 		left := f.Stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}]
+		if left <= 0 {
+			continue
+		}
+		told++
 		fmt.Fprintf(&b, "- %g %s %s (Ingredient %d), %s\n", left.Number(), h.Ingredient.Unit, h.Ingredient.Name, h.Ingredient.ID, h.Location)
+	}
+	if told == 0 {
+		b.WriteString("(none)\n")
 	}
 
 	b.WriteString("\nWhat the seven days before the first Slot to plan eat, as approved Plans fill them. They are past: shown, never made up for.\n")
