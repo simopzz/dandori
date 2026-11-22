@@ -135,7 +135,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) e
 	}
 }
 
-// healthcheck fails unless the app on addr answers its health check with
+// healthcheck fails unless the app on `addr` answers its health check with
 // 200: serving, with its database reachable.
 func healthcheck(ctx context.Context, addr string) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
