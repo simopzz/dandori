@@ -12,11 +12,11 @@ const (
 	MealOutSugar   = "sugar"
 )
 
-// MealOutRequired is whether the Meal Out estimate's field must be given: all but fibre
+// MealOutRequired is whether the Meal Out estimate's `field` must be given: all but fibre
 // and sugar, which may be left Unknown.
 func MealOutRequired(field string) bool { return field != MealOutFibre && field != MealOutSugar }
 
-// ParseMealOut reads the Meal Out estimate as typed, by field, with a problem per field
+// ParseMealOut reads the Meal Out estimate as `typed`, by field, with a problem per field
 // refused: each value a whole number from 0, below 10000, and fibre and sugar Unknown
 // when left blank.
 func ParseMealOut(typed map[string]string) (Nutrition, map[string]Problem) {

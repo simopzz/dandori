@@ -19,12 +19,12 @@ var chili = domain.Recipe{ID: 7, Name: "Chili", Portions: 4, Ingredients: []doma
 // yogurt is an Ingredient set out as it is.
 var yogurt = domain.Ingredient{ID: 3, Name: "yogurt", Unit: domain.Grams, Nutrition: nutrition(60, 10, 4, 0, domain.Known(0), domain.Known(4))}
 
-// eaten is a Portion kept in the fridge, eaten at s, or without a Slot when s is nil.
+// eaten is a Portion kept in the fridge, eaten at `s`, or without a Slot when `s` is nil.
 func eaten(s *domain.Slot) domain.PlannedPortion {
 	return domain.PlannedPortion{Location: domain.Fridge, EatAt: s}
 }
 
-// in is s, as a Portion's Slot.
+// in is `s`, as a Portion's Slot.
 func in(s domain.Slot) *domain.Slot { return &s }
 
 // A Prep Session of a Recipe scales each Ingredient by the Portions it yields over the

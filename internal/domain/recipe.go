@@ -34,7 +34,7 @@ type Recipe struct {
 	Ingredients                 []RecipeIngredient
 }
 
-// IsDraft reports whether r is a Recipe Draft's, not in the Recipe Library yet.
+// IsDraft reports whether `r` is a Recipe Draft's, not in the Recipe Library yet.
 func (r Recipe) IsDraft() bool { return r.ID == 0 }
 
 // PortionNutrition is one Portion's nutritional values as a Recipe is written. FibreFloor
@@ -45,7 +45,7 @@ type PortionNutrition struct {
 	FibreFloor, SugarFloor bool
 }
 
-// ParseMinutes reads minutes as the User typed them: a whole number of at least 0, and
+// ParseMinutes reads minutes as the User `typed` them: a whole number of at least 0, and
 // no more than maxMinutes.
 func ParseMinutes(typed string) (int, Problem) {
 	n, problem := parseWhole(typed)
@@ -60,12 +60,12 @@ func ParseMinutes(typed string) (int, Problem) {
 	return n, ""
 }
 
-// NormaliseRecipeName is the key no two of a User's Recipes share: their name, ignoring
+// NormaliseRecipeName is the key no two of a User's Recipes share: their `name`, ignoring
 // case and surrounding space.
 func NormaliseRecipeName(name string) string { return strings.ToLower(strings.TrimSpace(name)) }
 
-// Problems is what is wrong with r for a User speaking l, by field, and with each of its
-// Ingredients, by field, in their order. A valid Recipe has none.
+// Problems is what is wrong with `r` for a User speaking `l`, by field, and with each of
+// its Ingredients, by field, in their order. A valid Recipe has none.
 func (r Recipe) Problems(l Language) (map[string]Problem, []map[string]Problem) {
 	problems := map[string]Problem{}
 	if strings.TrimSpace(r.Name) == "" {
@@ -105,7 +105,7 @@ func (r Recipe) Problems(l Language) (map[string]Problem, []map[string]Problem) 
 	return problems, rows
 }
 
-// NutritionPerPortion is r's Ingredients' nutritional values divided over its Portions,
+// NutritionPerPortion is `r`'s Ingredients' nutritional values divided over its Portions,
 // each rounded to a whole number, a floor rounded down.
 func (r Recipe) NutritionPerPortion() PortionNutrition {
 	if r.Portions < 1 {
@@ -114,8 +114,8 @@ func (r Recipe) NutritionPerPortion() PortionNutrition {
 	return perPortion(r.Ingredients, float64(r.Portions))
 }
 
-// perPortion is ingredients' nutritional values divided over portions, which needn't be
-// whole, each rounded to a whole number, a floor rounded down.
+// perPortion is `ingredients`' nutritional values divided over `portions`, which needn't
+// be whole, each rounded to a whole number, a floor rounded down.
 func perPortion(ingredients []RecipeIngredient, portions float64) PortionNutrition {
 	amount := func(value func(Nutrition) Amount) (Amount, bool) {
 		var total float64

@@ -27,7 +27,7 @@ var ApplianceKinds = []ApplianceKind{
 	Blender, FoodProcessor, StandMixer, Grill, Toaster, Steamer,
 }
 
-// ParseApplianceKind reads an ApplianceKind from its code, reporting whether it is one
+// ParseApplianceKind reads an ApplianceKind from its `code`, reporting whether it is one
 // on the list.
 func ParseApplianceKind(code string) (ApplianceKind, bool) {
 	for _, k := range ApplianceKinds {
@@ -42,9 +42,9 @@ func ParseApplianceKind(code string) (ApplianceKind, bool) {
 // its model ("Instant Pot Duo 6 L"), which the planner reads and nothing compares.
 type Appliances map[ApplianceKind]string
 
-// ParseAppliances are the kinds whose codes are ticked, each with its note in notes on
-// one line, its blank space collapsed. A note on a kind left unticked is dropped, and a
-// code that isn't a kind is ignored.
+// ParseAppliances are the kinds whose codes are `ticked`, each with its note in `notes`
+// on one line, its blank space collapsed. A note on a kind left unticked is dropped, and
+// a code that isn't a kind is ignored.
 func ParseAppliances(ticked []string, notes map[ApplianceKind]string) Appliances {
 	owned := Appliances{}
 	for _, code := range ticked {

@@ -19,7 +19,7 @@ func mustZone(name string) *time.Location {
 	return loc
 }
 
-// at is a moment of Monday 2 November 2026, or the day given, in Rome.
+// at is a moment of Monday 2 November 2026, or the `day` given, in Rome.
 func at(day int, hm string) time.Time {
 	t, err := time.Parse("15:04", hm)
 	if err != nil {

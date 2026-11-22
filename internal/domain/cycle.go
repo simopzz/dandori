@@ -37,7 +37,7 @@ type Delivery struct {
 	From, To TimeOfDay
 }
 
-// Arrives is when d is taken to have arrived: the end of its window.
+// Arrives is when `d` is taken to have arrived: the end of its window.
 func (d Delivery) Arrives() time.Time {
 	y, m, day := d.On.Date()
 	return time.Date(y, m, day, int(d.To/60), int(d.To%60), 0, 0, d.On.Location())
@@ -62,9 +62,9 @@ const (
 	Closed   CycleStatus = "closed"
 )
 
-// ParseCycle reads a Cycle opened at now as typed, by field, in l's order of day and
-// month, with a problem per field refused. A blank end date is DefaultCycleDays after the
-// Delivery's date.
+// ParseCycle reads a Cycle opened at `now` as `typed`, by field, in `l`'s order of day
+// and month, with a problem per field refused. A blank end date is DefaultCycleDays after
+// the Delivery's date.
 func ParseCycle(l Language, typed map[string]string, now time.Time) (Cycle, map[string]Problem) {
 	problems := map[string]Problem{}
 	y, m, d := now.Date()
@@ -115,7 +115,7 @@ func ParseCycle(l Language, typed map[string]string, now time.Time) (Cycle, map[
 	return c, nil
 }
 
-// CycleStatuses are the status at now of each of cycles, in the order of their
+// CycleStatuses are the status at `now` of each of `cycles`, in the order of their
 // Deliveries: upcoming until its Delivery arrives, current until the next one's does,
 // then closed.
 func CycleStatuses(cycles []Cycle, now time.Time) []CycleStatus {
@@ -133,8 +133,8 @@ func CycleStatuses(cycles []Cycle, now time.Time) []CycleStatus {
 	return statuses
 }
 
-// Slots are c's Slots by times, from the first after its Delivery arrives to the last of
-// its end date, or the last before Until, every kind every day.
+// Slots are `c`'s Slots by `times`, from the first after its Delivery arrives to the last
+// of its end date, or the last before Until, every kind every day.
 func (c Cycle) Slots(times SlotTimes) []Slot {
 	var slots []Slot
 	for on := c.Delivery.On; !on.After(c.Ends); on = on.AddDate(0, 0, 1) {
@@ -148,9 +148,9 @@ func (c Cycle) Slots(times SlotTimes) []Slot {
 	return slots
 }
 
-// CycleOf is the index of the one of cycles, in the order of their Deliveries, that s
-// belongs to by times: the one whose Delivery arrived before s, unless the next one's
-// did too, and whose end date s isn't past. ok is false when s belongs to none.
+// CycleOf is the index of the one of `cycles`, in the order of their Deliveries, that `s`
+// belongs to by `times`: the one whose Delivery arrived before `s`, unless the next one's
+// did too, and whose end date `s` isn't past. `ok` is false when `s` belongs to none.
 func CycleOf(cycles []Cycle, s Slot, times SlotTimes) (i int, ok bool) {
 	at := s.At(times)
 	for i, c := range cycles {

@@ -47,7 +47,7 @@ type Ingredient struct {
 	Staple bool
 }
 
-// IsNew reports whether ing is not saved yet: a Recipe Draft proposes it, with
+// IsNew reports whether `ing` is not saved yet: a Recipe Draft proposes it, with
 // its values.
 func (ing Ingredient) IsNew() bool { return ing.ID == 0 }
 
@@ -66,7 +66,7 @@ type Amount struct {
 // Unknown is a nutritional value the User didn't give.
 var Unknown = Amount{}
 
-// Known is the nutritional value v.
+// Known is the nutritional value `v`.
 func Known(v float64) Amount { return Amount{Value: v, Known: true} }
 
 // Problem is why a value is refused.
@@ -84,7 +84,7 @@ const (
 // maxAmount bounds a nutritional value: no food holds 10000 kcal in 100 g or a piece.
 const maxAmount = 10000
 
-// ParseAmount reads a nutritional value as the User typed it: blank is Unknown, and a
+// ParseAmount reads a nutritional value as the User `typed` it: blank is Unknown, and a
 // value is a number not negative, to one decimal place at most, with a point or a comma.
 func ParseAmount(typed string) (Amount, Problem) {
 	typed = strings.ReplaceAll(strings.TrimSpace(typed), ",", ".")
@@ -105,7 +105,7 @@ func ParseAmount(typed string) (Amount, Problem) {
 	return Known(v), ""
 }
 
-// Problems is what is missing from n, by field: the four values always known.
+// Problems is what is missing from `n`, by field: the four values always known.
 func (n Nutrition) Problems() map[string]Problem {
 	problems := map[string]Problem{}
 	for field, a := range map[string]Amount{"kcal": n.Kcal, "protein": n.Protein, "carbs": n.Carbs, "fat": n.Fat} {
@@ -116,7 +116,7 @@ func (n Nutrition) Problems() map[string]Problem {
 	return problems
 }
 
-// ParseNutrition reads nutritional values as the User typed them, by field, with why
+// ParseNutrition reads nutritional values as the User `typed` them, by field, with why
 // each field is refused, by field, if any is: one that isn't a valid amount, or is one
 // of the four always known and is left blank.
 func ParseNutrition(typed map[string]string) (Nutrition, map[string]Problem) {
@@ -140,7 +140,7 @@ func ParseNutrition(typed map[string]string) (Nutrition, map[string]Problem) {
 	return n, problems
 }
 
-// Problems is what is missing from i, by field: its name, unit, usual Storage Location,
+// Problems is what is missing from `i`, by field: its name, unit, usual Storage Location,
 // and the four nutritional values every Ingredient has. A whole Ingredient has none.
 func (i Ingredient) Problems() map[string]Problem {
 	problems := i.Nutrition.Problems()
@@ -156,8 +156,8 @@ func (i Ingredient) Problems() map[string]Problem {
 	return problems
 }
 
-// NormaliseIngredientName is the key that identifies an Ingredient named name by a User
-// speaking l: two names with one key are one food, and a User's Ingredients each have
+// NormaliseIngredientName is the key that identifies an Ingredient named `name` by a User
+// speaking `l`: two names with one key are one food, and a User's Ingredients each have
 // their own. Case, spaces and typographic apostrophes don't count, as in v1, nor do size
 // and grade words ("large egg", "extra virgin olive oil"). Plurals do: telling them by
 // rule also merges different foods ("pesce" and "pesca").
@@ -188,7 +188,7 @@ var sizeWords = map[Language][][]string{
 	},
 }
 
-// withoutSizeWords is words with l's size and grade words left out.
+// withoutSizeWords is `words` with `l`'s size and grade words left out.
 func withoutSizeWords(l Language, words []string) []string {
 	var kept []string
 next:

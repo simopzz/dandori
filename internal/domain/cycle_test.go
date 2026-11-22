@@ -12,8 +12,8 @@ import (
 // day is a day of November 2026 at midnight in Rome.
 func day(d int) time.Time { return time.Date(2026, time.November, d, 0, 0, 0, 0, rome) }
 
-// cycle is a Cycle whose Delivery comes on the day of November given, from and to the
-// times of day given, lasting to the day ends.
+// cycle is a Cycle whose Delivery comes on the day of November given, `from` and `to` the
+// times of day given, lasting to the day `ends`.
 func cycle(delivery int, from, to string, ends int) domain.Cycle {
 	f, _ := domain.ParseTimeOfDay(from)
 	t, _ := domain.ParseTimeOfDay(to)

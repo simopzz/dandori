@@ -14,8 +14,9 @@ type Eaten struct {
 	Nutrition PortionNutrition
 }
 
-// Eaten is what p puts in each Slot, kept being the Portions without a Slot it may put
-// in them. One it puts in a Slot that isn't among kept is left out: HardRules says why.
+// Eaten is what `p` puts in each Slot, `kept` being the Portions without a Slot it may
+// put in them. One it puts in a Slot that isn't among `kept` is left out: HardRules
+// says why.
 func (p Plan) Eaten(kept []Portion) []Eaten {
 	var out []Eaten
 	for _, ps := range p.PrepSessions {
@@ -44,7 +45,8 @@ type Day struct {
 	Partly    bool
 }
 
-// Days is each day from first to last, at midnight, with what eaten puts in its Slots.
+// Days is each day from `first` to `last`, at midnight, with what `eaten` puts in
+// its Slots.
 func Days(eaten []Eaten, first, last time.Time) []Day {
 	var days []Day
 	for on := first; !on.After(last); on = on.AddDate(0, 0, 1) {
@@ -59,9 +61,10 @@ func Days(eaten []Eaten, first, last time.Time) []Day {
 	return days
 }
 
-// sum is ns added up: a value is known when any of ns knows it, and only at least that
-// much when another doesn't know it or knows only at least so much. Unknown when none
-// knows it, never 0. Calories and protein every food knows, so they are never floors.
+// sum is `ns` added up: a value is known when any of `ns` knows it, and only at least
+// that much when another doesn't know it or knows only at least so much. Unknown when
+// none knows it, never 0. Calories and protein every food knows, so they are
+// never floors.
 func sum(ns []PortionNutrition) PortionNutrition {
 	add := func(value func(PortionNutrition) (Amount, bool)) (Amount, bool) {
 		var total float64
@@ -89,7 +92,7 @@ func sum(ns []PortionNutrition) PortionNutrition {
 	return s
 }
 
-// Average is days' nutrition averaged over them, a floor staying a floor: what a day
+// Average is `days`' nutrition averaged over them, a floor staying a floor: what a day
 // doesn't know counts as at least none.
 func Average(days []Day) PortionNutrition {
 	ns := make([]PortionNutrition, len(days))
@@ -103,7 +106,7 @@ func Average(days []Day) PortionNutrition {
 	return avg
 }
 
-// Of is n's value of target, and whether it is only at least that.
+// Of is `n`'s value of `target`, and whether it is only at least that.
 func (n PortionNutrition) Of(target Target) (Amount, bool) {
 	switch target {
 	case TargetKcal:
@@ -118,7 +121,7 @@ func (n PortionNutrition) Of(target Target) (Amount, bool) {
 	panic("unknown Target " + target)
 }
 
-// Aim is t's daily goal for target.
+// Aim is `t`'s daily goal for `target`.
 func (t Targets) Aim(target Target) int {
 	switch target {
 	case TargetKcal:
@@ -133,7 +136,7 @@ func (t Targets) Aim(target Target) int {
 	panic("unknown Target " + target)
 }
 
-// Bounds are the least and the most target allows a day: calories within the tolerance
+// Bounds are the least and the most `target` allows a day: calories within the tolerance
 // either side, protein and fibre floors with no most, sugar a ceiling with no least.
 func (t Targets) Bounds(target Target) (lo, hi float64) {
 	aim := float64(t.Aim(target))
@@ -146,9 +149,9 @@ func (t Targets) Bounds(target Target) (lo, hi float64) {
 	return aim, math.Inf(1)
 }
 
-// Missed reports whether n's value of target misses t, rounded to whole as it is shown.
-// One unknown never does, and one known only to be at least an amount does only when that
-// is already too much.
+// Missed reports whether `n`'s value of `target` misses `t`, rounded to whole as it is
+// shown. One unknown never does, and one known only to be at least an amount does only
+// when that is already too much.
 func (t Targets) Missed(target Target, n PortionNutrition) bool {
 	a, floor := n.Of(target)
 	if !a.Known {
@@ -188,8 +191,8 @@ type Miss struct {
 	Days         []time.Time
 }
 
-// Describe is m as the planner reads it, against t: the page says it in Messages, which
-// the domain can't reach.
+// Describe is `m` as the planner reads it, against `t`: the page says it in Messages,
+// which the domain can't reach.
 func (m Miss) Describe(t Targets) string {
 	least := ""
 	if m.Floor {
@@ -222,7 +225,7 @@ func (m Miss) Describe(t Targets) string {
 // PlannerDay is how the planner is told a day, as Slot.String tells it.
 const PlannerDay = "Mon 2 Jan"
 
-// Judged are the days of days the Targets are judged over: those not planned partly.
+// Judged are the days of `days` the Targets are judged over: those not planned partly.
 func Judged(days []Day) []Day {
 	var judged []Day
 	for _, d := range days {
@@ -233,8 +236,8 @@ func Judged(days []Day) []Day {
 	return judged
 }
 
-// Misses are the Targets t misses over the days judged of days: the average against each
-// Target, then each day more than maxOff off one. None when no day is judged.
+// Misses are the Targets `t` misses over the days judged of `days`: the average against
+// each Target, then each day more than maxOff off one. None when no day is judged.
 func (t Targets) Misses(days []Day) []Miss {
 	judged := Judged(days)
 	if len(judged) == 0 {
@@ -258,8 +261,8 @@ func (t Targets) Misses(days []Day) []Miss {
 	return ms
 }
 
-// DayOff is how far d is off target past maxOff, and whether it is, or can be known to
-// be: calories either way, protein and fibre under, sugar over. A day planned only
+// DayOff is how far `d` is off `target` past maxOff, and whether it is, or can be known
+// to be: calories either way, protein and fibre under, sugar over. A day planned only
 // partly never is.
 func (t Targets) DayOff(target Target, d Day) (Miss, bool) {
 	a, floor := d.Nutrition.Of(target)
@@ -279,13 +282,13 @@ func (t Targets) DayOff(target Target, d Day) (Miss, bool) {
 	return Miss{}, false
 }
 
-// SoftMisses are the soft rules p breaks beside the Targets: Portions of one Prep Session
-// eaten within two days of each other, and Portions carried into the Cycle left without a
-// Slot, held being the Portion Lots the kitchen holds without one. A Prep Session kept,
-// of the Plan p replaces, counts its Portions eaten with those p puts in Slots again,
-// and is back to back only where p puts one close to another. Those p makes with no Slot
-// are no miss: they are MadeForAfter, as are those of a kept Prep Session it leaves
-// without one, held by PlannedID.
+// SoftMisses are the soft rules `p` breaks beside the Targets: Portions of one Prep
+// Session eaten within two days of each other, and Portions carried into the Cycle left
+// without a Slot, `held` being the Portion Lots the kitchen holds without one. A Prep
+// Session kept, of the Plan `p` replaces, counts its Portions eaten with those `p` puts
+// in Slots again, and is back to back only where `p` puts one close to another. Those `p`
+// makes with no Slot are no miss: they are MadeForAfter, as are those of a kept Prep
+// Session it leaves without one, held by PlannedID.
 func (p Plan) SoftMisses(held []PortionLot, kept Plan) []Miss {
 	var ms []Miss
 	for _, ps := range p.PrepSessions {
@@ -341,8 +344,8 @@ type eating struct {
 	Placed bool
 }
 
-// backToBack is the miss of name eaten as eats says, if two of them are eaten within two
-// days of each other, one at least Placed: each day of those, in order.
+// backToBack is the miss of `name` eaten as `eats` says, if two of them are eaten within
+// two days of each other, one at least Placed: each day of those, in order.
 func backToBack(name string, eats []eating) []Miss {
 	slices.SortFunc(eats, func(a, b eating) int { return a.On.Compare(b.On) })
 	var close []time.Time
@@ -372,8 +375,8 @@ type MadeForAfter struct {
 	Portions int
 }
 
-// MadeForAfter are the Portions p's Prep Sessions make with no Slot, in the order p first
-// makes each.
+// MadeForAfter are the Portions `p`'s Prep Sessions make with no Slot, in the order `p`
+// first makes each.
 func (p Plan) MadeForAfter() []MadeForAfter {
 	var made []MadeForAfter
 	for _, ps := range p.PrepSessions {
@@ -393,9 +396,9 @@ func (p Plan) MadeForAfter() []MadeForAfter {
 	return made
 }
 
-// PlanDays are a Plan's days from its first Slot to last, beside the seven days before
-// them: what earlier Plans put in Slots before first, earlier, and what the Plan puts in
-// its own, planned. A first day it fills only from lunch on is Partly.
+// PlanDays are a Plan's `days` from its `first` Slot to `last`, beside the seven days
+// before them: what earlier Plans put in Slots before `first`, `earlier`, and what the
+// Plan puts in its own, `planned`. A first day it fills only from lunch on is Partly.
 func PlanDays(earlier, planned []Eaten, first Slot, last time.Time) (trailing, days []Day) {
 	all := slices.Clone(planned)
 	for _, e := range earlier {

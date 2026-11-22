@@ -18,8 +18,8 @@ type TimeOfDay int
 
 func (t TimeOfDay) String() string { return fmt.Sprintf("%02d:%02d", t/60, t%60) }
 
-// FormatTime is t's time of day as a Language writes it: "13:00" in Italian, "1:00 pm"
-// in English. seconds adds them: "13:00:05", "1:00:05 pm".
+// FormatTime is `t`'s time of day as a Language writes it: "13:00" in Italian, "1:00 pm"
+// in English. `seconds` adds them: "13:00:05", "1:00:05 pm".
 func FormatTime(l Language, t time.Time, seconds bool) string {
 	h, m, s := t.Clock()
 	sec := ""
@@ -36,14 +36,14 @@ func FormatTime(l Language, t time.Time, seconds bool) string {
 	return fmt.Sprintf("%d:%02d%s %s", (h+11)%12+1, m, sec, suffix)
 }
 
-// In is t as l writes a time of day.
+// In is `t` as `l` writes a time of day.
 func (t TimeOfDay) In(l Language) string {
 	return FormatTime(l, time.Date(2000, 1, 1, int(t)/60, int(t)%60, 0, 0, time.UTC), false)
 }
 
 var typedTime = regexp.MustCompile(`^(\d{1,2})(?:[:.]?(\d{2}))?(?:([ap])\.?m\.?)?$`)
 
-// ParseTimeOfDay reads a time of day as the User typed it, in either form: "13:00",
+// ParseTimeOfDay reads a time of day as the User `typed` it, in either form: "13:00",
 // "1:00 pm", "1pm", "1300".
 func ParseTimeOfDay(typed string) (TimeOfDay, Problem) {
 	typed = strings.ToLower(strings.Join(strings.Fields(typed), ""))
@@ -74,7 +74,7 @@ func ParseTimeOfDay(typed string) (TimeOfDay, Problem) {
 	return TimeOfDay(h*60 + min), ""
 }
 
-// FormatDate is day as a Language writes it in a field: "02/11/2026" in Italian,
+// FormatDate is `day` as a Language writes it in a field: "02/11/2026" in Italian,
 // "11/02/2026" in English.
 func FormatDate(l Language, day time.Time) string {
 	if l == Italian {
@@ -85,8 +85,8 @@ func FormatDate(l Language, day time.Time) string {
 
 var typedDate = regexp.MustCompile(`^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$`)
 
-// ParseDate reads a date as the User typed it in l's order of day and month, with any of
-// / . - between them, as a day at midnight UTC.
+// ParseDate reads a date as the User `typed` it in `l`'s order of day and month, with any
+// of / . - between them, as a day at midnight UTC.
 func ParseDate(l Language, typed string) (time.Time, Problem) {
 	typed = strings.TrimSpace(typed)
 	if typed == "" {

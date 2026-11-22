@@ -2,14 +2,14 @@ package domain
 
 import "slices"
 
-// Replace is what a Plan Proposal of the Slots from first to last replaces and keeps of
-// p, lots being the Portion Lots the kitchen holds without a Slot. It keeps p's Prep
-// Sessions outside those Slots, their Portions eaten in them left without a Slot, and
-// the Portions without a Slot p puts in Slots outside them. Free are the Portions the
-// Plan Proposal may put in Slots: lots, less those kept in a Slot, then the Portions the
-// Prep Sessions kept before first leave without a Slot, prepared but not yet in the
-// Kitchen Ledger, a Portion Lot for each such Prep Session's Storage Location, by
-// PlannedID. p is left as it was.
+// Replace is what a Plan Proposal of the Slots from `first` to `last` replaces and keeps
+// of `p`, `lots` being the Portion Lots the kitchen holds without a Slot. It keeps `p`'s
+// Prep Sessions outside those Slots, their Portions eaten in them left without a Slot,
+// and the Portions without a Slot `p` puts in Slots outside them. Free are the Portions
+// the Plan Proposal may put in Slots: `lots`, less those kept in a Slot, then the
+// Portions the Prep Sessions kept before `first` leave without a Slot, prepared but not
+// yet in the Kitchen Ledger, a Portion Lot for each such Prep Session's Storage Location,
+// by PlannedID. `p` is left as it was.
 func (p Plan) Replace(first, last Slot, lots []PortionLot) (kept Plan, free []PortionLot) {
 	in := func(s Slot) bool { return !s.Before(first) && !last.Before(s) }
 	for _, ps := range p.PrepSessions {
@@ -58,10 +58,10 @@ func (p Plan) Replace(first, last Slot, lots []PortionLot) (kept Plan, free []Po
 	return kept, free
 }
 
-// With is p once a Plan Proposal's Plan q from the Slot first is approved: what Replace
-// keeps of p over the Slots q fills, a kept Prep Session's Portion q puts in a Slot
-// eaten there, then q's Prep Sessions, the Portions without a Slot it puts in Slots, and
-// its freezer splits. p is left as it was.
+// With is `p` once a Plan Proposal's Plan `q` from the Slot `first` is approved: what
+// Replace keeps of `p` over the Slots `q` fills, a kept Prep Session's Portion `q` puts
+// in a Slot eaten there, then `q`'s Prep Sessions, the Portions without a Slot it puts in
+// Slots, and its freezer splits. `p` is left as it was.
 func (p Plan) With(first Slot, q Plan) Plan {
 	out, _ := p.Replace(first, q.last(first), nil)
 	for _, k := range q.Kept {
@@ -74,7 +74,7 @@ func (p Plan) With(first Slot, q Plan) Plan {
 	return out
 }
 
-// place eats the Planned Portion k names at k's Slot, and reports whether p has it.
+// place eats the Planned Portion `k` names at `k`'s Slot, and reports whether `p` has it.
 func (p Plan) place(k Kept) bool {
 	for _, ps := range p.PrepSessions {
 		for i, pp := range ps.Portions {
@@ -88,7 +88,7 @@ func (p Plan) place(k Kept) bool {
 	return false
 }
 
-// last is the last Slot p fills, from when it fills none later.
+// last is the last Slot `p` fills, `from` when it fills none later.
 func (p Plan) last(from Slot) Slot {
 	last := from
 	later := func(s Slot) {

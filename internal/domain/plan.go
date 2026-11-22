@@ -24,10 +24,10 @@ type Plan struct {
 	FreezerSplits []RecipeIngredient
 }
 
-// Until is p as far as until by times, when the next Cycle's Delivery arrives before p
-// ends: its Prep Sessions after until go, its Portions eaten after until carry over
-// without a Slot, and those without a Slot it put in Slots after until stay without
-// one. p is left as it was.
+// Until is `p` as far as `until` by `times`, when the next Cycle's Delivery arrives
+// before `p` ends: its Prep Sessions after `until` go, its Portions eaten after `until`
+// carry over without a Slot, and those without a Slot it put in Slots after `until` stay
+// without one. `p` is left as it was.
 func (p Plan) Until(until time.Time, times SlotTimes) Plan {
 	after := func(s Slot) bool { return s.At(times).After(until) }
 	cut := Plan{FreezerSplits: p.FreezerSplits}
@@ -71,8 +71,8 @@ type PlannedPortion struct {
 	EatAt    *Slot
 }
 
-// PlannedID is how the Portions without a Slot name the Planned Portion id, prepared
-// but not yet in the Kitchen Ledger: its id negated, so it is never a Ledger Portion's.
+// PlannedID is how the Portions without a Slot name the Planned Portion `id`, prepared
+// but not yet in the Kitchen Ledger: its `id` negated, so it is never a Ledger Portion's.
 func PlannedID(id int64) int64 { return -id }
 
 // Kept puts the Portion without a Slot whose id is Portion in the Slot At: one the
@@ -82,7 +82,7 @@ type Kept struct {
 	At      Slot
 }
 
-// Name is what ps prepares: its Recipe, or its Ingredient.
+// Name is what `ps` prepares: its Recipe, or its Ingredient.
 func (ps PrepSession) Name() string {
 	if ps.Recipe != nil {
 		return ps.Recipe.Name
@@ -90,7 +90,7 @@ func (ps PrepSession) Name() string {
 	return ps.Ingredient.Name
 }
 
-// Ingredients are what ps uses for all its Portions: its Recipe's Ingredients scaled by
+// Ingredients are what `ps` uses for all its Portions: its Recipe's Ingredients scaled by
 // the Portions it yields over the Portions as written, times its size, or its
 // Ingredient's quantity for each Portion. What is counted in pieces is rounded to whole
 // ones, never to none.
@@ -106,7 +106,7 @@ func (ps PrepSession) Ingredients() []RecipeIngredient {
 	return out
 }
 
-// scaled is v of ing, whole and at least one if ing is counted in pieces.
+// scaled is `v` of `ing`, whole and at least one if `ing` is counted in pieces.
 func scaled(ing Ingredient, v float64) RecipeIngredient {
 	if ing.Unit == Pieces {
 		v = max(1, math.Round(v))
@@ -114,7 +114,7 @@ func scaled(ing Ingredient, v float64) RecipeIngredient {
 	return RecipeIngredient{Ingredient: ing, Quantity: QuantityOf(v)}
 }
 
-// NutritionPerPortion is one of ps's Portions' nutritional values: its Recipe's Portion
+// NutritionPerPortion is one of `ps`'s Portions' nutritional values: its Recipe's Portion
 // as written scaled by its size, or its Ingredient at its quantity.
 func (ps PrepSession) NutritionPerPortion() PortionNutrition {
 	if ps.Recipe == nil {
@@ -123,7 +123,7 @@ func (ps PrepSession) NutritionPerPortion() PortionNutrition {
 	return perPortion(ps.Recipe.Ingredients, float64(ps.Recipe.Portions)/ps.Size)
 }
 
-// Before reports whether s comes earlier than o.
+// Before reports whether `s` comes earlier than `o`.
 func (s Slot) Before(o Slot) bool {
 	if !s.On.Equal(o.On) {
 		return s.On.Before(o.On)
@@ -131,17 +131,17 @@ func (s Slot) Before(o Slot) bool {
 	return slices.Index(SlotKinds, s.Kind) < slices.Index(SlotKinds, o.Kind)
 }
 
-// String is s as the planner reads it: "dinner on Thu 5 Nov".
+// String is `s` as the planner reads it: "dinner on Thu 5 Nov".
 func (s Slot) String() string { return string(s.Kind) + " on " + s.On.Format(PlannerDay) }
 
-// key is s as a map key: Slots on the same day in different zones are the same Slot.
+// key is `s` as a map key: Slots on the same day in different zones are the same Slot.
 func (s Slot) key() string { return s.On.Format(time.DateOnly) + " " + string(s.Kind) }
 
-// Equal reports whether s and o are the same Slot: the same kind on the same day, in
+// Equal reports whether `s` and `o` are the same Slot: the same kind on the same day, in
 // whatever zone each is.
 func (s Slot) Equal(o Slot) bool { return s.key() == o.key() }
 
-// Unreadable is why p can't be read as a Plan, one line each: a Portion size outside
+// Unreadable is why `p` can't be read as a Plan, one line each: a Portion size outside
 // MinSize–MaxSize, a Prep Session yielding no Portion, a Portion without a Slot put in
 // two. None when it can.
 func (p Plan) Unreadable() []string {
@@ -183,8 +183,8 @@ const (
 	RuleApplianceNotOwned Rule = "appliance-not-owned"
 )
 
-// RecipesUnfit are the violations of p's Prep Sessions of a Recipe: each Portion eaten at
-// a kind of Slot the Recipe isn't for, and each appliance it needs that owned lacks.
+// RecipesUnfit are the violations of `p`'s Prep Sessions of a Recipe: each Portion eaten
+// at a kind of Slot the Recipe isn't for, and each appliance it needs that `owned` lacks.
 func RecipesUnfit(p Plan, owned Appliances) []Violation {
 	var vs []Violation
 	for _, ps := range p.PrepSessions {
@@ -207,7 +207,8 @@ func RecipesUnfit(p Plan, owned Appliances) []Violation {
 	return vs
 }
 
-// Codes are kinds by their codes, as the database stores them and the planner reads them.
+// Codes are `kinds` by their codes, as the database stores them and the planner
+// reads them.
 func Codes[K ~string](kinds []K) []string {
 	out := make([]string, len(kinds))
 	for i, k := range kinds {
@@ -223,15 +224,15 @@ const (
 	RuleSlotWithException Rule = "slot-with-exception"
 )
 
-// BlocksApproval reports whether breaking r stops the User approving a Plan: only the
+// BlocksApproval reports whether breaking `r` stops the User approving a Plan: only the
 // rules about time passing or an Exception do. Every hard rule stops the planner
 // submitting one.
 func (r Rule) BlocksApproval() bool {
 	return r == RuleStartsInThePast || r == RuleSlotWithException
 }
 
-// StartsInThePast is the violation of a Plan whose first Slot has passed at now, its
-// time of day by times reached, or none.
+// StartsInThePast is the violation of a Plan whose `first` Slot has passed at `now`, its
+// time of day by `times` reached, or none.
 func StartsInThePast(first Slot, times SlotTimes, now time.Time) []Violation {
 	if first.At(times).After(now) {
 		return nil
@@ -247,8 +248,8 @@ type Violation struct {
 
 func (v Violation) String() string { return string(v.Rule) + ": " + v.Message }
 
-// HardRules are the hard rules p breaks, planning slots, in order, with unslotted the
-// Portions without a Slot it may put in them: none when it keeps them all.
+// HardRules are the hard rules `p` breaks, planning `slots`, in order, with `unslotted`
+// the Portions without a Slot it may put in them: none when it keeps them all.
 func HardRules(p Plan, slots []Slot, unslotted []Portion) []Violation {
 	var vs []Violation
 	add := func(r Rule, format string, args ...any) {

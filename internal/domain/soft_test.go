@@ -12,8 +12,8 @@ import (
 // 100 g protein and 30 g fibre, at most 50 g sugar.
 var aim = domain.Targets{Kcal: 2000, Protein: 100, Fibre: 30, Sugar: 50, Tolerance: 10}
 
-// values are a Portion's or a day's kcal, protein, fibre and sugar, fibre and sugar each
-// unknown when nil, and only at least that much when floor says so.
+// values are a Portion's or a day's `kcal`, `protein`, `fibre` and `sugar`, `fibre` and
+// `sugar` each unknown when nil, and only at least that much when floor says so.
 func values(kcal, protein float64, fibre, sugar *float64, fibreFloor, sugarFloor bool) domain.PortionNutrition {
 	amount := func(v *float64) domain.Amount {
 		if v == nil {
@@ -27,7 +27,7 @@ func values(kcal, protein float64, fibre, sugar *float64, fibreFloor, sugarFloor
 	}
 }
 
-// g is v grams, for values.
+// g is `v` grams, for values.
 func g(v float64) *float64 { return &v }
 
 // A day eats the sum of the Portions in its Slots: a value is known when any of them
@@ -147,7 +147,7 @@ func TestTheTargetsResults(t *testing.T) {
 	}
 }
 
-// sameMiss reports whether a and b are the same miss, their days compared as days.
+// sameMiss reports whether `a` and `b` are the same miss, their days compared as days.
 func sameMiss(a, b domain.Miss) bool {
 	return a.Rule == b.Rule && a.Target == b.Target && a.Value == b.Value && a.Floor == b.Floor && a.Under == b.Under &&
 		a.On.Equal(b.On) && a.Name == b.Name && a.Location == b.Location && a.Count == b.Count && a.Held == b.Held &&
@@ -220,7 +220,7 @@ func TestPortionsLeftWithoutASlot(t *testing.T) {
 }
 
 // chiliEaten is a Prep Session of chili at Tuesday's dinner, a Portion eaten at each of
-// at, nil kept for later.
+// `at`, nil kept for later.
 func chiliEaten(at ...*domain.Slot) domain.PrepSession {
 	ps := domain.PrepSession{At: slot(2, domain.Dinner), Recipe: &chili, Size: 1}
 	for _, s := range at {

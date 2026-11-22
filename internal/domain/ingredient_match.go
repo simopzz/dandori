@@ -17,10 +17,10 @@ const suggestionSimilarity = 0.5
 // word finds the name it is in.
 const searchSimilarity = 0.3
 
-// ClosestIngredient is the known Ingredient name most like name, the one a mistyped name
-// most likely meant, if any is alike enough to suggest. Both are compared as
-// NormaliseIngredientName reduces them in l, so a size word counts for nothing. A known
-// name the same as name comes first, then one a slip away, since a slip breaks too many
+// ClosestIngredient is the `known` Ingredient name most like `name`, the one a mistyped
+// name most likely meant, if any is alike enough to suggest. Both are compared as
+// NormaliseIngredientName reduces them in `l`, so a size word counts for nothing. A known
+// name the same as `name` comes first, then one a slip away, since a slip breaks too many
 // of a short word's trigrams; then likeness, which is trigram similarity as Postgres's
 // pg_trgm computes it. Ties go to the name first alphabetically.
 func ClosestIngredient(l Language, name string, known []string) (string, bool) {
@@ -54,8 +54,8 @@ func ClosestIngredient(l Language, name string, known []string) (string, bool) {
 // food: shorter ones are a slip from too much.
 const slipLetters = 3
 
-// oneSlipApart reports whether typed is known with one slip: a letter dropped, added or
-// changed, or two neighbours swapped.
+// oneSlipApart reports whether `typed` is `known` with one slip: a letter dropped, added
+// or changed, or two neighbours swapped.
 func oneSlipApart(typed, known string) bool {
 	a, b := []rune(typed), []rune(known)
 	if len(a) < slipLetters {
@@ -75,11 +75,11 @@ func oneSlipApart(typed, known string) bool {
 	return len(a) >= 2 && len(a) == len(b) && a[0] == b[1] && a[1] == b[0] && slices.Equal(a[2:], b[2:])
 }
 
-// SearchNames is which of names a search for query finds, as indices into names,
-// most alike first and alike ones in the order given: those that contain query, and those
-// whose spelling is alike, whole or in a run of their words, so a typo still finds the
-// name. Of names alike in a run of their words, the one nearest query as a whole
-// comes first, so milk leads coconut milk. A blank query finds every name.
+// SearchNames is which of `names` a search for `query` finds, as indices into `names`,
+// most alike first and alike ones in the order given: those that contain `query`, and
+// those whose spelling is alike, whole or in a run of their words, so a typo still finds
+// the name. Of `names` alike in a run of their words, the one nearest `query` as a whole
+// comes first, so milk leads coconut milk. A blank `query` finds every name.
 func SearchNames(query string, names []string) []int {
 	query = fold(query)
 	var found []int
@@ -101,13 +101,13 @@ func SearchNames(query string, names []string) []int {
 	return found
 }
 
-// fold is s as a search compares it: trimmed, in lower case, its apostrophes straight.
+// fold is `s` as a search compares it: trimmed, in lower case, its apostrophes straight.
 func fold(s string) string {
 	return strings.ToLower(strings.TrimSpace(typographicApostrophes.Replace(s)))
 }
 
-// runSimilarity is how alike query is to name, or to the run of name's words most like
-// it, whichever is more.
+// runSimilarity is how alike `query` is to `name`, or to the run of `name`'s words most
+// like it, whichever is more.
 func runSimilarity(query, name string) float64 {
 	typed := trigrams(query)
 	best := 0.0
@@ -120,15 +120,15 @@ func runSimilarity(query, name string) float64 {
 	return best
 }
 
-// words are s's words in lower case, apart at anything but a letter or a digit.
+// words are `s`'s words in lower case, apart at anything but a letter or a digit.
 func words(s string) []string {
 	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 	})
 }
 
-// trigrams is the set of three-letter runs of s's words, each word padded with two spaces
-// before and one after, as pg_trgm takes them.
+// trigrams is the set of three-letter runs of `s`'s words, each word padded with two
+// spaces before and one after, as pg_trgm takes them.
 func trigrams(s string) map[string]bool {
 	set := map[string]bool{}
 	for _, w := range words(s) {
@@ -140,7 +140,7 @@ func trigrams(s string) map[string]bool {
 	return set
 }
 
-// similarity is the share of a's and b's trigrams that both have.
+// similarity is the share of `a`'s and `b`'s trigrams that both have.
 func similarity(a, b map[string]bool) float64 {
 	shared := 0
 	for t := range a {

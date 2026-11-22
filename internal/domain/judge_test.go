@@ -76,7 +76,7 @@ func (j judging) judge() domain.Verdict {
 	return domain.Judge(j.plan, fridayCycle, j.from, j.profile, j.current, kitchenLots, j.stock, j.earlier, j.now)
 }
 
-// held is what the kitchen holds of rice in the pantry and of yogurt in the fridge.
+// held is what the kitchen holds of `rice` in the pantry and of `yogurt` in the fridge.
 func held(rice, yogurt float64) map[domain.StockKey]domain.Quantity {
 	return map[domain.StockKey]domain.Quantity{
 		{Ingredient: plainRice.ID, Location: domain.Pantry}:   grams(rice),
