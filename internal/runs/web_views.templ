@@ -40,7 +40,7 @@ type StoredTraceEvent struct {
 // result is the link to what a Run left the User.
 type result struct{ Text, Href string }
 
-// runURL is the page of the Run id.
+// runURL is the page of the Run `id`.
 func runURL(id int64) string { return fmt.Sprintf("/runs/%d", id) }
 
 // lastSeq is the place of the last Trace Event `r`'s page shows, 0 for none.

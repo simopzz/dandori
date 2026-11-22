@@ -157,7 +157,7 @@ func splitPast(ds []proposalDay, now time.Time) (past, ahead []proposalDay) {
 	return past, nil
 }
 
-// isToday is whether d is the day of now.
+// isToday is whether `d` is the day of `now`.
 func isToday(d proposalDay, now time.Time) bool { return d.On.Equal(startOfDay(now)) }
 
 // startOfDay is midnight of the day of `t`, in its zone.

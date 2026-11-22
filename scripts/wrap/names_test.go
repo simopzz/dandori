@@ -121,7 +121,7 @@ var inBackticks = regexp.MustCompile("`[^`]*`")
 // isBare reports whether `comment`, unless a directive, writes `name` as a word outside
 // backticks: not part of a selector, a path or a string, nor the end of "don't".
 func isBare(comment, name string) bool {
-	if !strings.HasPrefix(comment, "// ") {
+	if !isComment(comment) {
 		return false
 	}
 	text := inBackticks.ReplaceAllString(comment, "``")

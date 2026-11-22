@@ -433,7 +433,7 @@ func number(n int) templ.Component {
 	})
 }
 
-// Data marks s, in a title, as data: a time, a quantity or User text, which the title
+// Data marks `s`, in a title, as data: a time, a quantity or User text, which the title
 // sets in the body face, as the pixel face makes l, I and 1 hard to tell apart. Only
 // PageHeader's, Section's and FieldGroup's titles read the mark.
 func Data(s string) string { return dataStart + s + dataEnd }
@@ -4797,7 +4797,7 @@ func SectionBody(id string) templ.Component {
 	})
 }
 
-// SideSheetBody is the id of the SheetBody of the sheet id, which a form in it targets.
+// SideSheetBody is the id of the SheetBody of the sheet `id`, which a form in it targets.
 func SideSheetBody(id string) string { return id + "-body" }
 
 // SideSheetLink opens the sheet `id` with its SheetBody loaded from `src`, a fragment,

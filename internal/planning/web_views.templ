@@ -26,7 +26,7 @@ type OpenForm struct {
 // dropSheetID is the id of the sheet asking before dropping the upcoming Cycle.
 const dropSheetID = "drop-cycle"
 
-// dropURL is the step asking before dropping the Cycle id.
+// dropURL is the step asking before dropping the Cycle `id`.
 func dropURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/drop", id)) }
 
 // window is `d`'s date and window as the Language writes them.
@@ -59,7 +59,7 @@ type cycleLinks struct {
 // which Today links straight to.
 const ProposalSectionID = "plan-proposal"
 
-// cycleURL is the Cycle page of the Cycle id.
+// cycleURL is the Cycle page of the Cycle `id`.
 func cycleURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d", id)) }
 
 // cyclePage is the Cycle page: the Cycles it links above the title, if any; then, with a
@@ -262,7 +262,7 @@ func refusalOf(err error) (msg web.Message, ok bool) {
 // draftSheetID is the id of the sheet a Plan Proposal's Recipe Draft opens in.
 const draftSheetID = "recipe-draft"
 
-// draftURL is the page of the planner's Recipe Draft id.
+// draftURL is the page of the planner's Recipe Draft `id`.
 func draftURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/drafts/%d", id)) }
 
 // clashed is whether `err` refused approving because a Recipe Draft clashes.
@@ -271,7 +271,7 @@ func clashed(err error) bool {
 	return ok
 }
 
-// checkURL is the Kitchen Check before planning the Cycle id.
+// checkURL is the Kitchen Check before planning the Cycle `id`.
 func checkURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/check", id)) }
 
 // checkPage is the Kitchen Check before planning `c`: why planning is refused, if it is,
@@ -534,6 +534,6 @@ var targetMessages = map[domain.Target]struct{ head, word web.Message }{
 	domain.TargetSugar:   {msgSugar, msgSugarWord},
 }
 
-// whole is v rounded to whole, as the Language writes it.
+// whole is `v` rounded to whole, as the Language writes it.
 func whole(ctx context.Context, v float64) string { return web.Number(ctx, math.Round(v)) }
 

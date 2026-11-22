@@ -1459,7 +1459,7 @@ func foodsForm(f FoodsForm) templ.Component {
 	})
 }
 
-// noteField names the field of the note on k's model.
+// noteField names the field of the note on `k`'s model.
 func noteField(k domain.ApplianceKind) string { return "note-" + string(k) }
 
 // appliancesForm is the appliances' section: a Check per kind, in the list's order, those

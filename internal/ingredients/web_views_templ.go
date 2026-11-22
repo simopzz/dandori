@@ -1316,7 +1316,7 @@ func ingredientURL(id int64, rest string) string {
 	return "/ingredients/" + strconv.FormatInt(id, 10) + rest
 }
 
-// editFormID is the id of the form editing the Ingredient id.
+// editFormID is the id of the form editing the Ingredient `id`.
 func editFormID(id int64) string { return "ingredient-edit-" + strconv.FormatInt(id, 10) }
 
 // addForm adds an Ingredient, swapping the side sheet's body when htmx posts it. Added to

@@ -2332,7 +2332,7 @@ func dayBody(d proposalDay) templ.Component {
 	})
 }
 
-// ofRecipe is whether ps prepares a Recipe, not one Ingredient as it is.
+// ofRecipe is whether `ps` prepares a Recipe, not one Ingredient as it is.
 func ofRecipe(ps domain.PrepSession) bool { return ps.Recipe != nil }
 
 // source says where `f`'s Portion comes from, eaten on the day `on`: cooked that day, or
