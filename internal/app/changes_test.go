@@ -229,6 +229,39 @@ func TestThePlanPageShowsAReplanGoingOrFailed(t *testing.T) {
 	told(t, s, []string{"Plan every Slot from breakfast on Fri 6 Nov on.", "<note>\nSmaller bowls.\n</note>"})
 }
 
+// Asking for changes once the Delivery has arrived keeps the Plan's freezer splits: the
+// Delivery is put away by them. The planner is told so, and check_plan refuses a split.
+func TestAReplanAfterTheDeliveryKeepsThePlansFreezerSplits(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFridayWithFreezerSplit(t, s)
+	s.Open("/plan")
+	s.Submits("approve")
+	s.At("Thu 21:00")
+	s.Counts("yogurt", "", "500", "")
+
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			d := fridayDraft(t, req)
+			d["freezer_splits"] = []map[string]any{{"ingredient_id": idIn(t, req, `Ingredient (\d+): chicken breast`), "quantity": 300}}
+			return fakellm.CallTool("check_plan", d)
+		}),
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 2}),
+		fakellm.Reply("No more chicken to freeze."),
+	)
+	s.Open("/plan")
+	s.AsksForChanges("Less chicken in the freezer.")
+	s.Settle()
+	told(t, s, []string{"This Cycle is current", "Its Delivery is put away too, so name no freezer split."})
+	s.Open(s.Page().Path)
+	s.Sees("Draft 1 breaks these hard rules: - split-after-put-away: 300 g chicken breast is split to the freezer, and the Delivery is already put away")
+
+	s.Open("/plan")
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
+	s.Sees("To the freezer at put-away chicken breast 400 g")
+}
+
 // On the current Cycle check_plan reports a Prep Session needing more of an Ingredient
 // than the kitchen will hold: no Delivery brings the rest.
 func TestCheckPlanReportsMoreThanTheKitchenHoldsOnTheCurrentCycle(t *testing.T) {

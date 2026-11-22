@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Verdict is what a draft Plan breaks and misses against the rules of the model: the
 // hard rules it Broke, the seven days before its first Slot and the days it plans, the
@@ -17,7 +20,8 @@ type Verdict struct {
 // Portion Lots the kitchen holds without a Slot, stock what it holds of each Stock Item,
 // and earlier what approved Plans put in Slots before. The Portions it may put in Slots
 // are those current.Replace frees, and the Prep Sessions it keeps count towards back to
-// back. On a current Cycle, no Delivery brings what the kitchen doesn't hold.
+// back. On a current Cycle, no Delivery brings what the kitchen doesn't hold, and its
+// Delivery is put away, splitting nothing more.
 func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lots []PortionLot, stock map[StockKey]Quantity, earlier []Eaten, now time.Time) Verdict {
 	var slots []Slot
 	for _, s := range cycle.Slots(profile.SlotTimes) {
@@ -43,10 +47,26 @@ func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lot
 	v.Broken = append(v.Broken, NoEveningToThaw(plan, frozen, stock, now, cycle.Delivery.Arrives())...)
 	if !cycle.Delivery.Arrives().After(now) {
 		v.Broken = append(v.Broken, NeedsMoreThanHeld(plan, stock)...)
+		v.Broken = append(v.Broken, SplitsAfterPutAway(plan)...)
 	}
 	v.Broken = append(v.Broken, StartsInThePast(from, profile.SlotTimes, now)...)
 	v.Trailing, v.Days = PlanDays(earlier, plan.Eaten(unslotted), from, last.On)
 	v.Misses = append(profile.Targets.Misses(v.Days), plan.SoftMisses(free, kept)...)
 	v.MadeForAfter = plan.MadeForAfter()
 	return v
+}
+
+// RuleSplitAfterPutAway is a freezer split in a Plan of the current Cycle: its Delivery
+// is already put away.
+const RuleSplitAfterPutAway Rule = "split-after-put-away"
+
+// SplitsAfterPutAway are the violations of p's freezer splits, p being a Plan of the
+// current Cycle.
+func SplitsAfterPutAway(p Plan) []Violation {
+	var vs []Violation
+	for _, fs := range p.FreezerSplits {
+		vs = append(vs, Violation{Rule: RuleSplitAfterPutAway, Message: fmt.Sprintf("%g %s %s is split to the freezer, and the Delivery is already put away",
+			fs.Quantity.Number(), fs.Ingredient.Unit, fs.Ingredient.Name)})
+	}
+	return vs
 }

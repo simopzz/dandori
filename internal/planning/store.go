@@ -234,6 +234,7 @@ type storedProposal struct {
 	sessions []storedSession
 	kept     []domain.Kept
 	splits   []domain.RecipeIngredient
+	decided  *time.Time // nil while pending
 }
 
 type storedSession struct {
@@ -242,12 +243,12 @@ type storedSession struct {
 }
 
 // proposalColumns are what scanProposal reads of a plan_proposal pp and its cycle_run cr.
-const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses, pp.days_before, pp.days`
+const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses, pp.days_before, pp.days, pp.decided_at`
 
 // scanProposal reads proposalColumns of row, and the Plan they store, its days in zone.
 func scanProposal(ctx context.Context, q db.Querier, row pgx.Row, zone *time.Location) (*storedProposal, error) {
 	var sp storedProposal
-	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses, &sp.trailing, &sp.days)
+	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses, &sp.trailing, &sp.days, &sp.decided)
 	if err != nil {
 		return nil, err
 	}

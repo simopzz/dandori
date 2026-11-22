@@ -184,9 +184,18 @@ func approvedPlan(approved []*storedProposal, library []domain.Recipe, known []d
 }
 
 // cyclePlan is c's Plan by times, what own, its approved Plan Proposals oldest first,
-// leave in place, as far as c lasts: Until the next Cycle's Delivery arrives.
+// leave in place, as far as c lasts: Until the next Cycle's Delivery arrives. One
+// approved after c's Delivery arrives keeps the freezer splits before it: the Delivery
+// was put away by those.
 func cyclePlan(c Cycle, own []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, times domain.SlotTimes) domain.Plan {
-	plan := approvedPlan(own, library, known, portions)
+	var plan domain.Plan
+	for _, sp := range own {
+		splits := plan.FreezerSplits
+		plan = plan.With(sp.first, sp.resolve(library, known, portions, nil).Plan)
+		if sp.decided != nil && sp.decided.After(c.Delivery.Arrives()) {
+			plan.FreezerSplits = splits
+		}
+	}
 	if !c.Until.IsZero() {
 		plan = plan.Until(c.Until, times)
 	}
@@ -327,7 +336,7 @@ func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, 
 		b.WriteString("(none)\n")
 	}
 	if !c.Delivery.Arrives().After(now) {
-		b.WriteString("This Cycle is current: its Delivery has arrived and none comes before it ends, so no Prep Session may need more of an Ingredient than the kitchen will hold then, Staples aside, which it always holds.\n")
+		b.WriteString("This Cycle is current: its Delivery has arrived and none comes before it ends, so no Prep Session may need more of an Ingredient than the kitchen will hold then, Staples aside, which it always holds. Its Delivery is put away too, so name no freezer split.\n")
 	}
 	if eats := eatenFrom(current, planned, portions); len(eats) > 0 {
 		fmt.Fprintf(&b, "\nThe Cycle has a Plan, which this Plan Proposal replaces from %s on, to change what the user's Planning Notes ask. Before then the Plan stays, and so do its Prep Sessions: the Portions they prepared and don't eat by then are among the Portions without a Slot above, with negative ids, to put in Slots again. What the Plan eats from %s on:\n", from, from)

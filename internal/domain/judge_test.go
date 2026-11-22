@@ -152,9 +152,13 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 			bowl.Ingredients = []domain.RecipeIngredient{{Ingredient: staple, Quantity: grams(200)}}
 			j.plan.PrepSessions[1].Recipe = &bowl
 		}, nil},
-		{"on the upcoming Cycle, whose Delivery brings the rest", func(j *judging) {
+		{"on the current Cycle, a freezer split", func(j *judging) {
+			j.plan.FreezerSplits = []domain.RecipeIngredient{{Ingredient: plainYogurt, Quantity: grams(200)}}
+		}, []string{"split-after-put-away: 200 g yogurt is split to the freezer, and the Delivery is already put away"}},
+		{"on the upcoming Cycle, whose Delivery brings the rest and is yet to be put away", func(j *judging) {
 			j.now = at(5, "19:00")
 			j.stock = nil
+			j.plan.FreezerSplits = []domain.RecipeIngredient{{Ingredient: plainYogurt, Quantity: grams(200)}}
 		}, nil},
 		{"a first Slot already passed", func(j *judging) {
 			j.now = at(6, "08:00")
