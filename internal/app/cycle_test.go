@@ -14,8 +14,8 @@ import (
 // ending when left to.
 var thursday = apptest.Cycle{Delivery: "11/05/2026", From: "6pm", To: "8pm"}
 
-// plannerOf signs up email, in English, with their Targets set, in an app started
-// with opts.
+// plannerOf signs up `email`, in English, with their Targets set, in an app started
+// with `opts`.
 func plannerOf(t *testing.T, email string, opts ...apptest.Option) *apptest.Scenario {
 	s := profileOf(t, email, opts...)
 	s.SavesTargets(targets)

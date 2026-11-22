@@ -19,7 +19,7 @@ func planned(t *testing.T, s *apptest.Scenario) {
 	s.IsConfirmed("Plan approved.")
 }
 
-// snackChanged is a draft of friday from its snack, read from the prompt of req: yogurt
+// snackChanged is a draft of friday from its snack, read from the prompt of `req`: yogurt
 // set out at the snack, and the Rice bowl prepared at lunch eaten at dinner again.
 func snackChanged(t *testing.T, req agent.Request) map[string]any {
 	t.Helper()
@@ -36,7 +36,7 @@ func snackChanged(t *testing.T, req agent.Request) map[string]any {
 }
 
 // snackChangedPlanned scripts a planning Run into a pending Plan Proposal of
-// snackChanged summed up as summary.
+// snackChanged summed up as `summary`.
 func snackChangedPlanned(t *testing.T, s *apptest.Scenario, summary string) {
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", snackChanged(t, req)) }),

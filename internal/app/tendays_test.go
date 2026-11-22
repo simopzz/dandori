@@ -29,7 +29,7 @@ var (
 	chickpeas = apptest.Ingredient{Name: "chickpeas", Unit: "g", Usual: "pantry", Kcal: "120", Protein: "7", Carbs: "16", Fat: "2.5", Fibre: "6", Sugar: "0.5"}
 )
 
-// row is quantity of the Ingredient named name, as a Recipe's row.
+// row is `quantity` of the Ingredient named `name`, as a Recipe's row.
 func row(name, quantity string) apptest.RecipeRow {
 	return apptest.RecipeRow{Ingredient: apptest.Ingredient{Name: name}, Quantity: quantity}
 }
@@ -56,7 +56,7 @@ var twoDays = apptest.Cycle{Delivery: "11/02/2026", From: "6pm", To: "8pm", Ends
 // and that ends on Saturday 14: ten days, the first planned from lunch on.
 var tenDays = apptest.Cycle{Delivery: "11/05/2026", From: "10am", To: "12pm", Ends: "11/14/2026"}
 
-// tenDayKitchen signs up email, speaking language, with their Targets set, the
+// tenDayKitchen signs up `email`, speaking `language`, with their Targets set, the
 // Ingredients and Recipes ten days are planned from, and lasagne in the freezer.
 func tenDayKitchen(t *testing.T, email, language string) *apptest.Scenario {
 	t.Helper()
@@ -77,8 +77,8 @@ func tenDayKitchen(t *testing.T, email, language string) *apptest.Scenario {
 	return s
 }
 
-// approvesTwoDays opens c, twoDays as typed, plans it with twoDayDraft and approves the
-// Plan Proposal, then moves the clock past its Delivery, Monday at 9 pm: c is current.
+// approvesTwoDays opens `c`, twoDays as typed, plans it with twoDayDraft and approves the
+// Plan Proposal, then moves the clock past its Delivery, Monday at 9 pm: `c` is current.
 func approvesTwoDays(t *testing.T, s *apptest.Scenario, c apptest.Cycle) {
 	t.Helper()
 	s.Model.Script(
@@ -98,7 +98,7 @@ const tenDaySummary = "Ten days around three batch dinners (chicken with rice, l
 	"chickpeas), each eaten again at lunch two days later. Porridge every morning, and the lasagne in the freezer " +
 	"covers the first two lunches."
 
-// plansTenDays opens c, tenDays as typed, and plans it with tenDayDraft into a pending
+// plansTenDays opens `c`, tenDays as typed, and plans it with tenDayDraft into a pending
 // Plan Proposal.
 func plansTenDays(t *testing.T, s *apptest.Scenario, c apptest.Cycle) {
 	t.Helper()
@@ -116,8 +116,8 @@ func tenDayScript(t *testing.T) []fakellm.Step {
 	}
 }
 
-// idsIn are the ids the pattern's group finds in the prompt of the first request of the
-// Run req belongs to.
+// idsIn are the ids the `pattern`'s group finds in the prompt of the first request of the
+// Run `req` belongs to.
 func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
 	t.Helper()
 	var ids []int64
@@ -128,24 +128,25 @@ func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
 	return ids
 }
 
-// eatenOn is a Portion kept in location and eaten at the kind of Slot on the day.
+// eatenOn is a Portion kept in `location` and eaten at the `kind` of Slot on the `day`.
 func eatenOn(day, kind, location string) map[string]any {
 	return map[string]any{"location": location, "eat_on": day, "eat_kind": kind}
 }
 
-// prep is a Prep Session of the Recipe id at the kind of Slot on the day, of size,
-// yielding portions.
+// prep is a Prep Session of the Recipe `id` at the `kind` of Slot on the `day`, of
+// `size`, yielding `portions`.
 func prep(day, kind string, id int64, size float64, portions ...map[string]any) map[string]any {
 	return map[string]any{"on": day, "kind": kind, "recipe_id": id, "size": size, "portions": portions}
 }
 
-// anApple is a Prep Session of an apple, set out as it is, eaten at the snack on the day.
+// anApple is a Prep Session of an apple, set out as it is, eaten at the snack on
+// the `day`.
 func anApple(day string, id int64) map[string]any {
 	return map[string]any{"on": day, "kind": "snack", "ingredient_id": id, "quantity": 1,
 		"portions": []map[string]any{eatenOn(day, "snack", "pantry")}}
 }
 
-// twoDayDraft is a draft Plan of twoDays, read from the prompt of req: porridge every
+// twoDayDraft is a draft Plan of twoDays, read from the prompt of `req`: porridge every
 // breakfast, an apple every snack, pasta at Tuesday's lunch, chicken with rice at
 // Tuesday's dinner and again at Wednesday's lunch, and lentil soup at Wednesday's dinner.
 func twoDayDraft(t *testing.T, req agent.Request) map[string]any {
@@ -162,7 +163,7 @@ func twoDayDraft(t *testing.T, req agent.Request) map[string]any {
 	}}
 }
 
-// tenDayDraft is a draft Plan of tenDays, read from the prompt of req. Thursday 5 is
+// tenDayDraft is a draft Plan of tenDays, read from the prompt of `req`. Thursday 5 is
 // planned from lunch on. Porridge every breakfast; roasted chickpeas and an apple take
 // turns at the snack; a dinner each day, of the three batch Recipes in turn, eaten again
 // at lunch two days later. Two exceptions: Sunday's chicken is eaten again at Monday's
@@ -319,7 +320,7 @@ func TestBrowserATenDayPlanProposalFitsAPhoneAndKeepsApproveInView(t *testing.T)
 	}
 }
 
-// approvesTenDays plans c, tenDays as typed, approves its Plan Proposal, then moves the
+// approvesTenDays plans `c`, tenDays as typed, approves its Plan Proposal, then moves the
 // clock to its third day, Saturday 7 November at 10 am.
 func approvesTenDays(t *testing.T, s *apptest.Scenario, c apptest.Cycle) {
 	t.Helper()

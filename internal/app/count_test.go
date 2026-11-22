@@ -25,7 +25,8 @@ func kitchenWith(t *testing.T, ings ...apptest.Ingredient) *apptest.Scenario {
 	return kitchenIn(t, "English", ings...)
 }
 
-// kitchenIn signs a new User in, in the Language named language, with these Ingredients.
+// kitchenIn signs a new User in, in the Language named `language`, with
+// these Ingredients.
 func kitchenIn(t *testing.T, language string, ings ...apptest.Ingredient) *apptest.Scenario {
 	t.Helper()
 	s := apptest.NewScenario(t)
@@ -272,7 +273,7 @@ func TestAConfirmationWaitsPastARedirect(t *testing.T) {
 	s.IsNotConfirmed()
 }
 
-// ingredientID is the id of the Ingredient name, for a post no page offers.
+// ingredientID is the id of the Ingredient `name`, for a post no page offers.
 func ingredientID(t *testing.T, s *apptest.Scenario, name string) string {
 	t.Helper()
 	var id string
@@ -490,7 +491,7 @@ func addsRiceInTheBrowser(t *testing.T, b *apptest.Browser) {
 	}
 }
 
-// opensAddForm opens the add form in sheet, under "Add an Ingredient", if it is closed.
+// opensAddForm opens the add form in `sheet`, under "Add an Ingredient", if it is closed.
 func opensAddForm(t *testing.T, sheet playwright.Locator) {
 	t.Helper()
 	if err := sheet.Locator("#ingredient-add").WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateAttached}); err != nil {
@@ -505,8 +506,8 @@ func opensAddForm(t *testing.T, sheet playwright.Locator) {
 	}
 }
 
-// fillsIngredient fills the add form in sheet for a food in grams kept in the pantry,
-// named name, and adds it.
+// fillsIngredient fills the add form in `sheet` for a food in grams kept in the pantry,
+// named `name`, and adds it.
 func fillsIngredient(t *testing.T, sheet playwright.Locator, name string) {
 	t.Helper()
 	opensAddForm(t, sheet)
@@ -829,7 +830,7 @@ func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 		"Counted 0 g → 100 g Mon, Nov 2 · 10:00 am")
 }
 
-// recordedAtTheLatest checks the last want Movements share the ledger's latest time,
+// recordedAtTheLatest checks the last `want` Movements share the ledger's latest time,
 // which no page shows to the second.
 func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {
 	t.Helper()

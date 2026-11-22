@@ -10,7 +10,7 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// appliancesOnForm are the kinds of appliance the form of their section on page has
+// appliancesOnForm are the kinds of appliance the form of their section on `page` has
 // ticked, by code, each with its note.
 func appliancesOnForm(t *testing.T, page string) map[string]string {
 	t.Helper()

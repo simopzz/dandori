@@ -463,7 +463,7 @@ func TestARenameToAnotherIngredientIsRefused(t *testing.T) {
 // foreignKeyViolation is Postgres's code for a row deleted while another refers to it.
 const foreignKeyViolation = "23503"
 
-// editFormID is the id of the edit form on page holding the name name.
+// editFormID is the id of the edit form on `page` holding the name `name`.
 func editFormID(t *testing.T, page, name string) string {
 	t.Helper()
 	action := apptest.EditForm(t, page, name).Action
@@ -632,8 +632,8 @@ func TestTheIngredientsSheetEditsAndDeletesInPlace(t *testing.T) {
 	}
 }
 
-// deleteStep is the form of the step asking before deleting the Ingredient name, as the
-// sheet its Delete on page opens has it.
+// deleteStep is the form of the step asking before deleting the Ingredient `name`, as the
+// sheet its Delete on `page` opens has it.
 func deleteStep(t *testing.T, s *apptest.Scenario, page, name string) apptest.FormData {
 	t.Helper()
 	_, src := apptest.DeleteLink(t, page, name)

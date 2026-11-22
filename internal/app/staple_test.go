@@ -40,7 +40,7 @@ func TestMarkingAStapleCountsItsStockToNothing(t *testing.T) {
 	s.Sees("Marked a Staple 200 g → 0 g Mon, Nov 2 · 11:00 am Moved from the pantry")
 }
 
-// asStaple is ing marked a Staple.
+// asStaple is `ing` marked a Staple.
 func asStaple(ing apptest.Ingredient) apptest.Ingredient {
 	ing.Staple = true
 	return ing

@@ -504,8 +504,8 @@ func TestARecipeDraftShowsOnlyOnceItsRunHasEnded(t *testing.T) {
 	draftHolds(t, s, map[string]string{"ing_name_0": "beef mince", "ing_quantity_0": "500"})
 }
 
-// pastesInTheSheet pastes text in the sheet the Recipe Library's + opens, focused on its
-// field, and reads it.
+// pastesInTheSheet pastes `text` in the sheet the Recipe Library's + opens, focused on
+// its field, and reads it.
 func pastesInTheSheet(t *testing.T, b *apptest.Browser, text string) {
 	t.Helper()
 	b.Open(t, "/recipes")
@@ -584,7 +584,7 @@ func TestBrowserARunsInputAndTraceDataAreFoldedUntilOpened(t *testing.T) {
 	b.ShotPage(t, "run-open")
 }
 
-// demoKitchen signs a new User in, speaking the Language named language, on an app
+// demoKitchen signs a new User in, speaking the Language named `language`, on an app
 // whose Runs ask the demo model mise run dev uses.
 func demoKitchen(t *testing.T, language string) *apptest.Scenario {
 	t.Helper()

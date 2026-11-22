@@ -29,7 +29,7 @@ func TestBrowserTypeFloorFitsAPhone(t *testing.T) {
 	}
 }
 
-// fits fails for each element matching selector, or inside one, whose content is
+// fits fails for each element matching `selector`, or inside one, whose content is
 // wider than it or that runs past the screen's edge.
 func fits(t *testing.T, b *apptest.Browser, selector string) {
 	t.Helper()

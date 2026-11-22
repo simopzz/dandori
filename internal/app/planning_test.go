@@ -22,9 +22,9 @@ var friday = apptest.Cycle{Delivery: "11/05/2026", From: "6pm", To: "8pm", Ends:
 // yogurt is a food set out as it is.
 var yogurt = apptest.Ingredient{Name: "yogurt", Unit: "g", Usual: "fridge", Kcal: "60", Protein: "10", Carbs: "4", Fat: "0"}
 
-// plannerWithKitchen signs up email with their Targets set, the Recipe Library holding
+// plannerWithKitchen signs up `email` with their Targets set, the Recipe Library holding
 // the Rice bowl (two Portions of 200 g rice as written), 800 g of rice in the pantry,
-// yogurt, and three Portions of lasagne in the freezer, in an app started with opts.
+// yogurt, and three Portions of lasagne in the freezer, in an app started with `opts`.
 func plannerWithKitchen(t *testing.T, email string, opts ...apptest.Option) *apptest.Scenario {
 	t.Helper()
 	s := plannerOf(t, email, opts...)
@@ -32,7 +32,7 @@ func plannerWithKitchen(t *testing.T, email string, opts ...apptest.Option) *app
 	return s
 }
 
-// stockKitchen gives the signed-in User of s the kitchen plannerWithKitchen gives.
+// stockKitchen gives the signed-in User of `s` the kitchen plannerWithKitchen gives.
 func stockKitchen(s *apptest.Scenario) {
 	s.Open("/ingredients")
 	s.AddsIngredient(rice)
@@ -42,7 +42,7 @@ func stockKitchen(s *apptest.Scenario) {
 	s.AddsPortions(lasagne)
 }
 
-// firstTurn is everything the first turn of the Run req belongs to tells the model: a
+// firstTurn is everything the first turn of the Run `req` belongs to tells the model: a
 // planning Run's stable block, then its prompt.
 func firstTurn(req agent.Request) string {
 	var texts []string
@@ -52,7 +52,7 @@ func firstTurn(req agent.Request) string {
 	return strings.Join(texts, "\n\n")
 }
 
-// idIn is the id the pattern's group finds in what the first request of the Run req
+// idIn is the id the `pattern`'s group finds in what the first request of the Run `req`
 // belongs to was told.
 func idIn(t *testing.T, req agent.Request, pattern string) int64 {
 	t.Helper()
@@ -66,7 +66,7 @@ func idIn(t *testing.T, req agent.Request, pattern string) int64 {
 	return id
 }
 
-// fridayDraft is a draft Plan of friday, read from the prompt of req: yogurt at
+// fridayDraft is a draft Plan of friday, read from the prompt of `req`: yogurt at
 // breakfast, a Rice bowl prepared at lunch for three Portions at 1.25×, eaten at lunch
 // and dinner with the third frozen, and a Portion of lasagne at the snack.
 func fridayDraft(t *testing.T, req agent.Request) map[string]any {
@@ -131,7 +131,7 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 	s.DoesNotSee("yogurt 150 g")
 }
 
-// prompt is what the planning Run s started first was told, its stable block included.
+// prompt is what the planning Run `s` started first was told, its stable block included.
 func prompt(t *testing.T, s *apptest.Scenario) string {
 	t.Helper()
 	reqs := s.Model.Asked()
@@ -141,7 +141,8 @@ func prompt(t *testing.T, s *apptest.Scenario) string {
 	return firstTurn(reqs[0])
 }
 
-// promptHolds checks the prompt of the planning Run s started first holds each of want.
+// promptHolds checks the prompt of the planning Run `s` started first holds each
+// of `want`.
 func promptHolds(t *testing.T, s *apptest.Scenario, want ...string) {
 	t.Helper()
 	got := prompt(t, s)
@@ -153,7 +154,7 @@ func promptHolds(t *testing.T, s *apptest.Scenario, want ...string) {
 }
 
 // plansFriday opens friday and plans it, through the Kitchen Check, into a pending Plan
-// Proposal of fridayDraft summed up as summary.
+// Proposal of fridayDraft summed up as `summary`.
 func plansFriday(t *testing.T, s *apptest.Scenario, summary string) {
 	t.Helper()
 	s.Model.Script(
@@ -302,7 +303,7 @@ func TestAnItalianUsersPlannerIsAskedForItsSummaryInItalian(t *testing.T) {
 	s.Sees("Yogurt tutto venerdì.")
 }
 
-// brokenDraft is a draft Plan of friday, read from the prompt of req, breaking every
+// brokenDraft is a draft Plan of friday, read from the prompt of `req`, breaking every
 // structural hard rule: the Rice bowl prepared at dinner is eaten at lunch, before it,
 // and on Saturday, after the Cycle; lasagne fills breakfast a second time; and Portion
 // 999 doesn't exist, leaving the snack empty.

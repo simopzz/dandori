@@ -392,7 +392,7 @@ func TestBrowserOpensAStockItemsMovementsInPlace(t *testing.T) {
 	b.Shot(t, "movements-sheet")
 }
 
-// box is where the locator l of what stands on the screen.
+// box is where the locator `l` of `what` stands on the screen.
 func box(t *testing.T, what string, l playwright.Locator) *playwright.Rect {
 	t.Helper()
 	rect, err := l.BoundingBox()

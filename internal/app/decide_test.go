@@ -36,7 +36,7 @@ func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 	s.DoesNotSee("Plan the Cycle")
 }
 
-// lastPrompt is what the planning Run s started last was told.
+// lastPrompt is what the planning Run `s` started last was told.
 func lastPrompt(t *testing.T, s *apptest.Scenario) string {
 	t.Helper()
 	reqs := s.Model.Asked()
@@ -49,8 +49,8 @@ func lastPrompt(t *testing.T, s *apptest.Scenario) string {
 	return ""
 }
 
-// told checks the prompt of the planning Run s started last holds each of want, and
-// none of absent.
+// told checks the prompt of the planning Run `s` started last holds each of `want`, and
+// none of `absent`.
 func told(t *testing.T, s *apptest.Scenario, want []string, absent ...string) {
 	t.Helper()
 	got := lastPrompt(t, s)
@@ -67,7 +67,7 @@ func told(t *testing.T, s *apptest.Scenario, want []string, absent ...string) {
 }
 
 // fridayPlanned scripts a planning Run of friday into a pending Plan Proposal summed up
-// as summary.
+// as `summary`.
 func fridayPlanned(t *testing.T, s *apptest.Scenario, summary string) {
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
@@ -414,7 +414,7 @@ func TestBrowserPlanAgainIsAFilledButton(t *testing.T) {
 // planAgainHint is what opening Plan again says a Planning Note does.
 const planAgainHint = "Dandori plans again, with or without a note. A note tells it what to change."
 
-// filled checks the fold that opens on label is a filled button, as Plan the Cycle's
+// filled checks the fold that opens on `label` is a filled button, as Plan the Cycle's
 // button is, not underlined text.
 func filled(t *testing.T, b *apptest.Browser, label string) {
 	t.Helper()
@@ -432,7 +432,7 @@ func filled(t *testing.T, b *apptest.Browser, label string) {
 	}
 }
 
-// before is whether both a and b are in body, a first.
+// before is whether both `a` and `b` are in `body`, `a` first.
 func before(body, a, b string) bool {
 	i, j := strings.Index(body, a), strings.Index(body, b)
 	return i >= 0 && j >= 0 && i < j
