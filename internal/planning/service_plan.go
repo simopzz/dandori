@@ -626,7 +626,7 @@ func (pb *planBrief) results(v domain.Verdict) string {
 // fails the Run after attempts that break one.
 func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, error) {
 	if pb.chosen != nil {
-		return "", errors.New("a Plan Proposal is already stored: end your turn with a short summary of it")
+		return "", fmt.Errorf("a Plan Proposal is already stored: end your turn with a short summary of it, in %s", languageNames[pb.profile.Language])
 	}
 	var in struct {
 		DraftID int `json:"draft_id"`
@@ -639,7 +639,9 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 	vs := v.Broken
 	if len(vs) == 0 {
 		pb.chosen, pb.verdict = &plan, v
-		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it.", in.DraftID), nil
+		// The Language again where the summary is asked for: told only up front, it can
+		// come back in English.
+		return fmt.Sprintf("Draft %d is stored as the Plan Proposal for the user. End your turn with a short summary of it, in %s.", in.DraftID, languageNames[pb.profile.Language]), nil
 	}
 	pb.broken = append(pb.broken, fmt.Sprintf("Draft %d:\n%s", in.DraftID, listViolations(vs)))
 	if len(pb.broken) >= attempts {
