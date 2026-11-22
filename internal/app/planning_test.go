@@ -134,7 +134,7 @@ func TestPlanningACycleEndsInAPendingPlanProposal(t *testing.T) {
 // prompt is what the planning Run s started first was told, its stable block included.
 func prompt(t *testing.T, s *apptest.Scenario) string {
 	t.Helper()
-	reqs := s.Model.Requests()
+	reqs := s.Model.Asked()
 	if len(reqs) == 0 {
 		t.Fatal("the model was asked nothing")
 	}
