@@ -1,6 +1,7 @@
 package today
 
 import (
+	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/web"
 )
 
@@ -20,7 +21,45 @@ var (
 	msgAddRecipes   = web.Message{En: "Add Recipes", It: "Aggiungi Ricette"}
 	msgSetTargets   = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
 	msgOpenCycle    = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
+	msgOpenNext     = web.Message{En: "Open the next Cycle", It: "Apri il prossimo Ciclo"}
+	msgNeedsTargets = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
+	msgFailed       = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
 )
+
+// How planning a Cycle stands, of the current Cycle and of the next.
+var (
+	msgCurrentUnplanned = web.Message{En: "The current Cycle is waiting to be planned", It: "Il Ciclo in corso aspetta di essere pianificato"}
+	msgNextUnplanned    = web.Message{En: "The next Cycle is waiting to be planned", It: "Il prossimo Ciclo aspetta di essere pianificato"}
+	msgCurrentGoing     = web.Message{En: "The current Cycle is being planned", It: "Il Ciclo in corso è in pianificazione"}
+	msgNextGoing        = web.Message{En: "The next Cycle is being planned", It: "Il prossimo Ciclo è in pianificazione"}
+	msgCurrentProposal  = web.Message{En: "A Plan Proposal for the current Cycle is waiting", It: "Una Proposta di Piano per il Ciclo in corso ti aspetta"}
+	msgNextProposal     = web.Message{En: "A Plan Proposal for the next Cycle is waiting", It: "Una Proposta di Piano per il prossimo Ciclo ti aspetta"}
+	msgCurrentFailed    = web.Message{En: "Planning the current Cycle", It: "Pianificazione del Ciclo in corso"}
+	msgNextFailed       = web.Message{En: "Planning the next Cycle", It: "Pianificazione del prossimo Ciclo"}
+)
+
+// offers are what Today says of each Offer about opening a Cycle, where it links and
+// the icon leading it.
+var offers = map[Offer]struct {
+	text       web.Message
+	href, icon string
+}{
+	OpenFirst:    {msgOpenCycle, "/plan/open", "calendar"},
+	OpenNext:     {msgOpenNext, "/plan/open", "calendar"},
+	TargetsFirst: {msgNeedsTargets, "/profile#targets", "user"},
+}
+
+// standings are what Today says of each Standing of a Cycle still to plan, of the
+// current Cycle and of the next, and the icon leading it; the seal leads a failed one.
+var standings = map[planning.Standing]struct {
+	icon          string
+	current, next web.Message
+}{
+	planning.Unplanned:       {"calendar", msgCurrentUnplanned, msgNextUnplanned},
+	planning.BeingPlanned:    {"activity", msgCurrentGoing, msgNextGoing},
+	planning.ProposalWaiting: {"clipboard", msgCurrentProposal, msgNextProposal},
+	planning.PlanningFailed:  {"", msgCurrentFailed, msgNextFailed},
+}
 
 // setUp is what planning needs, each named for what the User does at its link.
 var setUp = []struct {

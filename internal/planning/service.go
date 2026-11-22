@@ -67,6 +67,32 @@ func (s *Service) Now(ctx context.Context, now time.Time) (current, upcoming *Cy
 	return current, upcoming, err
 }
 
+// Standing is how planning a Cycle stands, as Today names it.
+type Standing string
+
+const (
+	// Unplanned is a Cycle without a Plan, nothing pending or going for it, and its
+	// latest planning Run, if any, not failed: waiting to be planned.
+	Unplanned Standing = "unplanned"
+	// BeingPlanned is a Cycle with a planning Run going.
+	BeingPlanned Standing = "being planned"
+	// ProposalWaiting is a Cycle with a Plan Proposal pending.
+	ProposalWaiting Standing = "proposal waiting"
+	// PlanningFailed is a Cycle without a Plan whose latest planning Run failed.
+	PlanningFailed Standing = "failed"
+	// Planned is a Cycle with a Plan, and nothing pending or going for it.
+	Planned Standing = "planned"
+)
+
+// StandingOf is how planning the signed-in User's Cycle id stands.
+func (s *Service) StandingOf(ctx context.Context, id int64) (st Standing, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		st, err = loadStanding(ctx, tx, id)
+		return err
+	})
+	return st, err
+}
+
 // Refusal is why the signed-in User can't open a Cycle at now, ErrNoTargets or
 // ErrUpcoming, or nil when they can.
 func (s *Service) Refusal(ctx context.Context, now time.Time) error {
