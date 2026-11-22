@@ -22,7 +22,7 @@ type Clock interface {
 	Every(ctx context.Context, d time.Duration, beat func(at time.Time))
 }
 
-// Real is the machine's time, told in loc.
+// Real is the machine's time, told in `loc`.
 func Real(loc *time.Location) Clock { return real{loc} }
 
 type real struct{ loc *time.Location }
@@ -59,7 +59,7 @@ type manualBeat struct {
 	beat func(at time.Time)
 }
 
-// NewManual returns a clock standing at now.
+// NewManual returns a clock standing at `now`.
 func NewManual(now time.Time) *Manual { return &Manual{now: now} }
 
 // Now is the time the clock was last set to.
@@ -69,8 +69,8 @@ func (m *Manual) Now() time.Time {
 	return m.now
 }
 
-// Set moves the clock to now, and beats each beat whose interval has a multiple since the
-// time it stood at, up to now, with the latest.
+// Set moves the clock to `now`, and beats each beat whose interval has a multiple since
+// the time it stood at, up to `now`, with the latest.
 func (m *Manual) Set(now time.Time) {
 	m.mu.Lock()
 	was := m.now
@@ -87,7 +87,7 @@ func (m *Manual) Set(now time.Time) {
 	}
 }
 
-// Every beats beat whenever Set passes a multiple of d, until ctx ends.
+// Every beats `beat` whenever Set passes a multiple of `d`, until `ctx` ends.
 func (m *Manual) Every(ctx context.Context, d time.Duration, beat func(at time.Time)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
