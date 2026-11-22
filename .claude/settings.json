@@ -1,0 +1,19 @@
+{
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": false
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wrap-comments.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

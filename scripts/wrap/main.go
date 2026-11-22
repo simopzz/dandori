@@ -1,6 +1,7 @@
 // Command wrap rewraps the Go comments that break the wrapping rule TestCommentsWrap
-// enforces, in every .go and .templ file under the directory it runs in: mise run wrap.
-// A comment that isn't plain prose, such as a list, it names for rewrapping by hand.
+// enforces, in every .go and .templ file under the paths it is given, or under the
+// directory it runs in without any: mise run wrap. A comment that isn't plain prose,
+// such as a list, it names for rewrapping by hand.
 package main
 
 import (
@@ -20,24 +21,30 @@ const (
 )
 
 func main() {
-	err := walk(".", func(path, src string) error {
-		out, left := wrap(src)
-		for _, line := range left {
-			fmt.Printf("%s:%d: not plain prose: rewrap by hand\n", path, line)
-		}
-		if out == src {
-			return nil
-		}
-		info, err := os.Stat(path)
+	roots := os.Args[1:]
+	if len(roots) == 0 {
+		roots = []string{"."}
+	}
+	for _, root := range roots {
+		err := walk(root, func(path, src string) error {
+			out, left := wrap(src)
+			for _, line := range left {
+				fmt.Printf("%s:%d: not plain prose: rewrap by hand\n", path, line)
+			}
+			if out == src {
+				return nil
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+			fmt.Println("rewrapped", path)
+			return os.WriteFile(path, []byte(out), info.Mode().Perm())
+		})
 		if err != nil {
-			return err
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
-		fmt.Println("rewrapped", path)
-		return os.WriteFile(path, []byte(out), info.Mode().Perm())
-	})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
 	}
 }
 
