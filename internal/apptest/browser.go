@@ -63,7 +63,7 @@ func (h *Harness) browser(t testing.TB, options playwright.BrowserNewPageOptions
 	return &Browser{Page: page, url: h.URL, auth: h.Auth, settle: h.Settle}
 }
 
-// failOnPageErrors fails the test, as it ends, for each error page's scripts threw and
+// failOnPageErrors fails the test, as it ends, for each error `page`'s scripts threw and
 // nothing caught, which the User would only see in the console.
 func failOnPageErrors(t testing.TB, page playwright.Page) {
 	var (
@@ -84,7 +84,7 @@ func failOnPageErrors(t testing.TB, page playwright.Page) {
 	})
 }
 
-// notInstalled skips the test when what failed is likely a browser not
+// notInstalled skips the test when `what` failed is likely a browser not
 // installed here, and fails it in CI, which installs one.
 func notInstalled(t testing.TB, what string, err error) {
 	t.Helper()
@@ -94,7 +94,7 @@ func notInstalled(t testing.TB, what string, err error) {
 	t.Fatalf("%s: %v", what, err)
 }
 
-// SetClock sets the app's clock to now through the test-only switch.
+// SetClock sets the app's clock to `now` through the test-only switch.
 func (b *Browser) SetClock(t testing.TB, now time.Time) {
 	t.Helper()
 	res, err := b.Request().Post(b.url+"/_test/clock", playwright.APIRequestContextPostOptions{
@@ -118,7 +118,7 @@ type Held struct {
 	count   atomic.Int32
 }
 
-// Hold holds every request the browser makes to path, from now until the returned Held
+// Hold holds every request the browser makes to `path`, from now until the returned Held
 // is released, and releases them when the test ends.
 func (b *Browser) Hold(t testing.TB, path string) *Held {
 	t.Helper()
@@ -155,7 +155,7 @@ func (h *Held) Fail() {
 // Count is how many requests were held.
 func (h *Held) Count() int { return int(h.count.Load()) }
 
-// Open goes to path, as typed into the address bar.
+// Open goes to `path`, as typed into the address bar.
 func (b *Browser) Open(t testing.TB, path string) {
 	t.Helper()
 	res, err := b.Goto(b.url + path)
@@ -167,7 +167,7 @@ func (b *Browser) Open(t testing.TB, path string) {
 	}
 }
 
-// SignIn signs the invited email in as a User does: asks for a magic link, opens it
+// SignIn signs the invited `email` in as a User does: asks for a magic link, opens it
 // from their mailbox and confirms, landing on Today, or at a first sign-in on the
 // Language choice.
 func (b *Browser) SignIn(t testing.TB, email string) {
@@ -188,7 +188,7 @@ func (b *Browser) SignIn(t testing.TB, email string) {
 	}
 }
 
-// SignUp signs the invited email in for the first time and chooses English, landing
+// SignUp signs the invited `email` in for the first time and chooses English, landing
 // on Today.
 func (b *Browser) SignUp(t testing.TB, email string) {
 	t.Helper()
@@ -198,8 +198,8 @@ func (b *Browser) SignUp(t testing.TB, email string) {
 	b.IsAt(t, "/")
 }
 
-// ChooseLanguage picks the Language named name on the page and submits it with its form's
-// button named submit.
+// ChooseLanguage picks the Language named `name` on the page and submits it with its
+// form's button named `submit`.
 func (b *Browser) ChooseLanguage(t testing.TB, name, submit string) {
 	t.Helper()
 	radio := b.GetByRole("radio", playwright.PageGetByRoleOptions{Name: name})
@@ -212,7 +212,7 @@ func (b *Browser) ChooseLanguage(t testing.TB, name, submit string) {
 	}
 }
 
-// Click clicks the button named name, exactly.
+// Click clicks the button named `name`, exactly.
 func (b *Browser) Click(t testing.TB, name string) {
 	t.Helper()
 	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: name, Exact: playwright.Bool(true)}).Click(); err != nil {
@@ -220,7 +220,7 @@ func (b *Browser) Click(t testing.TB, name string) {
 	}
 }
 
-// IsAt waits for the page to be at path.
+// IsAt waits for the page to be at `path`.
 func (b *Browser) IsAt(t testing.TB, path string) {
 	t.Helper()
 	if err := playwright.NewPlaywrightAssertions().Page(b.Page).ToHaveURL(b.url + path); err != nil {
@@ -228,7 +228,7 @@ func (b *Browser) IsAt(t testing.TB, path string) {
 	}
 }
 
-// Shot saves what the window shows as name.png in the folder DANDORI_SHOTS names, doing
+// Shot saves what the window shows as `name`.png in the folder DANDORI_SHOTS names, doing
 // nothing when it names none. Take it after an assertion, which waits for the swap.
 func (b *Browser) Shot(t testing.TB, name string) {
 	t.Helper()
@@ -268,7 +268,7 @@ func (b *Browser) FollowsRun(t testing.TB) {
 	}
 }
 
-// Sees checks the page's main content shows want.
+// Sees checks the page's main content shows `want`.
 func (b *Browser) Sees(t testing.TB, want string) {
 	t.Helper()
 	if err := playwright.NewPlaywrightAssertions().Locator(b.Locator("main")).ToContainText(want); err != nil {
@@ -287,7 +287,7 @@ func (b *Browser) Shown(t testing.TB) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-// SeesInTurn checks the page's main content shows each of want, as rendered, each after
+// SeesInTurn checks the page's main content shows each of `want`, as rendered, each after
 // the one before it.
 func (b *Browser) SeesInTurn(t testing.TB, want ...string) {
 	t.Helper()
@@ -302,8 +302,8 @@ func (b *Browser) SeesInTurn(t testing.TB, want ...string) {
 	}
 }
 
-// Opens opens the first fold whose summary holds a line that is text, as a day's date or
-// a Prep Session's name, by clicking that summary.
+// Opens opens the first fold whose summary holds a line that is `text`, as a day's date
+// or a Prep Session's name, by clicking that summary.
 func (b *Browser) Opens(t testing.TB, text string) {
 	t.Helper()
 	summary := b.Locator("summary").Filter(playwright.LocatorFilterOptions{
@@ -317,7 +317,7 @@ func (b *Browser) Opens(t testing.TB, text string) {
 // Notices are the floating Notices, newest first, wherever on the page they are.
 func (b *Browser) Notices() playwright.Locator { return b.Locator("#notices .notice") }
 
-// IsConfirmed checks a floating Notice says want, once it has dropped in.
+// IsConfirmed checks a floating Notice says `want`, once it has dropped in.
 func (b *Browser) IsConfirmed(t testing.TB, want string) {
 	t.Helper()
 	notice := playwright.NewPlaywrightAssertions().Locator(b.Notices().Filter(playwright.LocatorFilterOptions{HasText: want}))

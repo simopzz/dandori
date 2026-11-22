@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Text is the page's main content without markup, its whitespace
+// Text is the `page`'s main content without markup, its whitespace
 // collapsed: what a test checks a page shows.
 func Text(page string) string {
 	if _, main, ok := strings.Cut(page, "<main"); ok {
