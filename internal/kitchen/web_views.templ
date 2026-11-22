@@ -26,7 +26,7 @@ const portionsSheetID = "portions"
 // contentsID is the id of the list every write to the Kitchen Ledger refreshes.
 const contentsID = "stock"
 
-// page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
+// page is the Kitchen page at `now`: what the kitchen holds, the Count sheet its primary
 // action opens, cleared each time it closes, the Add Portions sheet it can open instead,
 // and, in side sheets, each Stock Item's Movements and move, and the Ingredients.
 templ page(now time.Time, contents Contents, f CountForm) {
@@ -163,7 +163,7 @@ type locationGroup struct {
 	held     []Held
 }
 
-// byLocation splits contents into a group for each Storage Location holding anything,
+// byLocation splits `contents` into a group for each Storage Location holding anything,
 // in Storage Location order.
 func byLocation(contents Contents) []locationGroup {
 	var groups []locationGroup
@@ -186,7 +186,7 @@ func byLocation(contents Contents) []locationGroup {
 	return groups
 }
 
-// stockItemURL is path, asking for the Stock Item of the Ingredient id in location.
+// stockItemURL is `path`, asking for the Stock Item of the Ingredient `id` in `location`.
 func stockItemURL(path string, id int64, location domain.StorageLocation) templ.SafeURL {
 	query := url.Values{"ingredient": {strconv.FormatInt(id, 10)}, "location": {string(location)}}
 	return templ.SafeURL(path + "?" + query.Encode())
@@ -203,7 +203,7 @@ templ movementsPage(now time.Time, item StockItemMovements) {
 
 // movementsBody is a Stock Item's Movements, newest first, to read: a mistake in one is
 // corrected by another Count, never here. Above them each Storage Location is a link,
-// so a move can be followed from one side to the other, swapping the body when inSheet.
+// so a move can be followed from one side to the other, swapping the body when `inSheet`.
 templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
 	@web.SegmentedLinks(web.T(ctx, msgLocations)) {
 		for _, l := range domain.StorageLocations {
@@ -217,8 +217,9 @@ templ movementsBody(now time.Time, item StockItemMovements, inSheet bool) {
 	}
 }
 
-// movementRows are Movements in location, newest first, or that there are none, each
-// with its cause, what it held before and after, in unit, when it happened and its note.
+// movementRows are Movements in `location`, newest first, or that there are none, each
+// with its cause, what it held before and after, in `unit`, when it happened and
+// its note.
 templ movementRows(now time.Time, movements []domain.StockMovement, location domain.StorageLocation, unit domain.Unit) {
 	if len(movements) == 0 {
 		@web.Empty() {
@@ -242,8 +243,8 @@ templ movementRows(now time.Time, movements []domain.StockMovement, location dom
 	}
 }
 
-// movementsLink opens the Movements in l of item's Ingredient: the page of them, or
-// inSheet the sheet's body, where the link to item takes the focus back from the link
+// movementsLink opens the Movements in `l` of `item`'s Ingredient: the page of them, or
+// `inSheet` the sheet's body, where the link to `item` takes the focus back from the link
 // the swap removed.
 func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bool) templ.Attributes {
 	link := templ.Attributes{"href": string(stockItemURL("/kitchen/movements", item.Ingredient.ID, l))}
@@ -256,8 +257,8 @@ func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bo
 	return link
 }
 
-// countedText says when a Stock Item was last counted, told in now's zone, with its date
-// unless it was today.
+// countedText says when a Stock Item was last counted, told in `now`'s zone, with its
+// date unless it was today.
 func countedText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
 		return web.Tf(ctx, msgCountedAt, web.Time(ctx, at))
@@ -291,7 +292,7 @@ templ countSearch(q string) {
 	}
 }
 
-// foundList is the Ingredients a search for q found to count, each opening its form;
+// foundList is the Ingredients a search for `q` found to count, each opening its form;
 // or why the Staple it named isn't one of them; or the offer to add what nothing matched.
 templ foundList(found []domain.Ingredient, staple, q string) {
 	if staple != "" {
@@ -325,12 +326,12 @@ templ foundList(found []domain.Ingredient, staple, q string) {
 	}
 }
 
-// ingredientURL is path, asking for ing.
+// ingredientURL is `path`, asking for `ing`.
 func ingredientURL(path string, ing domain.Ingredient) templ.SafeURL {
 	return templ.SafeURL(path + "?ingredient=" + strconv.FormatInt(ing.ID, 10))
 }
 
-// countForm counts f's Ingredient, swapping the sheet's body when htmx posts it. Each
+// countForm counts `f`'s Ingredient, swapping the sheet's body when htmx posts it. Each
 // Storage Location shows what Dandori believes it holds, with no request to choose it.
 // Choose another changes what the legend names, so it stands beside it. Movements opens
 // the Storage Location chosen when it is followed, which htmx includes; without htmx, the
@@ -398,7 +399,7 @@ func anotherLink() templ.Attributes {
 }
 
 // locationChoices are the Storage Locations, each with what Dandori believes it holds of
-// f's Ingredient.
+// `f`'s Ingredient.
 func locationChoices(ctx context.Context, f CountForm) []web.Choice {
 	choices := make([]web.Choice, len(domain.StorageLocations))
 	for i, l := range domain.StorageLocations {
@@ -410,7 +411,7 @@ func locationChoices(ctx context.Context, f CountForm) []web.Choice {
 	return choices
 }
 
-// quantityStep is how finely a quantity of unit is stated.
+// quantityStep is how finely a quantity of `unit` is stated.
 func quantityStep(unit domain.Unit) string {
 	if unit == domain.Pieces {
 		return "0.1"
@@ -433,7 +434,7 @@ templ portionsPage(now time.Time, f PortionsForm) {
 // portionsForm adds Portions no Prep Session produced, in the sheet swapping its body;
 // on a page, boosted, a refusal comes back as the page, its error summary first. Its
 // Storage Location starts unchosen, so nothing lands in the wrong place by default.
-// inSheet focuses its name as the sheet opens; a page focuses nothing, so a phone's
+// `inSheet` focuses its name as the sheet opens; a page focuses nothing, so a phone's
 // keyboard doesn't cover it.
 templ portionsForm(f PortionsForm, inSheet bool) {
 	<form
@@ -482,7 +483,7 @@ templ portionsForm(f PortionsForm, inSheet bool) {
 	</form>
 }
 
-// portionLocations are the Storage Locations Portions can go to, all but except.
+// portionLocations are the Storage Locations Portions can go to, all but `except`.
 func portionLocations(ctx context.Context, except domain.StorageLocation) []web.Choice {
 	var choices []web.Choice
 	for _, l := range domain.StorageLocations {
@@ -493,7 +494,7 @@ func portionLocations(ctx context.Context, except domain.StorageLocation) []web.
 	return choices
 }
 
-// lotURL is path, asking for the Lot p by its oldest Portion.
+// lotURL is `path`, asking for the Lot `p` by its oldest Portion.
 func lotURL(path string, p domain.PortionLot) templ.SafeURL {
 	query := url.Values{"portion": {strconv.FormatInt(p.IDs[0], 10)}, "location": {string(p.Location)}}
 	return templ.SafeURL(path + "?" + query.Encode())
@@ -527,7 +528,7 @@ templ portionCountPage(now time.Time, f PortionLotForm) {
 	}
 }
 
-// portionCountForm counts f's Lot, swapping the sheet's body when htmx posts it.
+// portionCountForm counts `f`'s Lot, swapping the sheet's body when htmx posts it.
 templ portionCountForm(f PortionLotForm) {
 	<form
 		novalidate
@@ -588,7 +589,7 @@ templ portionMovePage(now time.Time, f PortionLotForm) {
 	}
 }
 
-// portionMoveForm moves some or all of f's Lot, swapping the sheet's body when htmx
+// portionMoveForm moves some or all of `f`'s Lot, swapping the sheet's body when htmx
 // posts it. Its target starts unchosen, so nothing goes to the wrong place by default.
 templ portionMoveForm(f PortionLotForm) {
 	<form
@@ -630,8 +631,8 @@ templ movePage(now time.Time, f MoveForm) {
 	}
 }
 
-// moveForm moves f's Stock Item, swapping the sheet's body when htmx posts it. Its target
-// starts unchosen, so stock can't go to the wrong place by default.
+// moveForm moves `f`'s Stock Item, swapping the sheet's body when htmx posts it. Its
+// target starts unchosen, so stock can't go to the wrong place by default.
 templ moveForm(f MoveForm) {
 	<form
 		novalidate
@@ -674,7 +675,7 @@ templ moveForm(f MoveForm) {
 	</form>
 }
 
-// targetChoices are the Storage Locations f's Stock Item can move to, each with what
+// targetChoices are the Storage Locations `f`'s Stock Item can move to, each with what
 // Dandori believes it holds of the Ingredient.
 func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
 	var choices []web.Choice
@@ -689,9 +690,9 @@ func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
 	return choices
 }
 
-// Status says when the scheduler last brought the User's kitchen up to now, at, told in
-// now's zone, with its date unless it was today. Before its first beat, ok is false and
-// it says nothing.
+// Status says when the scheduler last brought the User's kitchen up to now, `at`, told in
+// `now`'s zone, with its date unless it was today. Before its first beat, `ok` is false
+// and it says nothing.
 templ Status(now, at time.Time, ok bool) {
 	if ok {
 		@web.Hint() {

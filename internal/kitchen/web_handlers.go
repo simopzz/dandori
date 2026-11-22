@@ -39,7 +39,7 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
-// UpToNow brings the signed-in User's kitchen up to now, then serves next.
+// UpToNow brings the signed-in User's kitchen up to now, then serves `next`.
 func (h Handlers) UpToNow(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Ledger.BringUpToNow(r.Context(), h.Clock.Now()); err != nil {
@@ -93,8 +93,8 @@ func (h Handlers) ShowMovementsSheet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// stockItem is the Stock Item r's query asks for with its Movements. With no such
-// Ingredient or Storage Location, or on a failure, it answers r itself and is nil.
+// stockItem is the Stock Item `r`'s query asks for with its Movements. With no such
+// Ingredient or Storage Location, or on a failure, it answers `r` itself and is nil.
 func (h Handlers) stockItem(w http.ResponseWriter, r *http.Request) *StockItemMovements {
 	id, err := strconv.ParseInt(r.URL.Query().Get("ingredient"), 10, 64)
 	if err != nil {
@@ -228,7 +228,7 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 }
 
 // askedLot reads which Portion Lot a request asks for: one Portion of it and its Storage
-// Location. With neither, it answers r itself and ok is false.
+// Location. With neither, it answers `r` itself and `ok` is false.
 func askedLot(w http.ResponseWriter, r *http.Request, portion, location string) (_ domain.LotKey, ok bool) {
 	id, err := strconv.ParseInt(portion, 10, 64)
 	key := domain.LotKey{Portion: id, Location: domain.StorageLocation(location)}
@@ -239,8 +239,8 @@ func askedLot(w http.ResponseWriter, r *http.Request, portion, location string) 
 	return key, true
 }
 
-// lotMovements is the Portion Lot r's query asks for with its Movements. With no such
-// Portion, or on a failure, it answers r itself and is nil.
+// lotMovements is the Portion Lot `r`'s query asks for with its Movements. With no such
+// Portion, or on a failure, it answers `r` itself and is nil.
 func (h Handlers) lotMovements(w http.ResponseWriter, r *http.Request) *LotMovements {
 	key, ok := askedLot(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
 	if !ok {
@@ -272,8 +272,8 @@ func (h Handlers) ShowLotMovementsSheet(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// startLotForm is the form for the Portion Lot r's query asks for. Holding none, it can't
-// be counted or moved; then, or on a failure, it answers r itself and is nil.
+// startLotForm is the form for the Portion Lot `r`'s query asks for. Holding none, it
+// can't be counted or moved; then, or on a failure, it answers `r` itself and is nil.
 func (h Handlers) startLotForm(w http.ResponseWriter, r *http.Request) *PortionLotForm {
 	key, ok := askedLot(w, r, r.URL.Query().Get("portion"), r.URL.Query().Get("location"))
 	if !ok {
@@ -340,7 +340,7 @@ func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
 	web.Answer{Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
 }
 
-// startLotMove is the form that moves the Portion Lot r's query asks for, all of it to
+// startLotMove is the form that moves the Portion Lot `r`'s query asks for, all of it to
 // start with, or nil as startLotForm is.
 func (h Handlers) startLotMove(w http.ResponseWriter, r *http.Request) *PortionLotForm {
 	f := h.startLotForm(w, r)
@@ -413,9 +413,9 @@ func (h Handlers) ShowMoveSheet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// startMove is the form that moves the Stock Item r's query asks for, the quantity all of
-// it. Holding nothing it can't be moved; then, or on a failure, it answers r itself and
-// is nil.
+// startMove is the form that moves the Stock Item `r`'s query asks for, the quantity all
+// of it. Holding nothing it can't be moved; then, or on a failure, it answers `r` itself
+// and is nil.
 func (h Handlers) startMove(w http.ResponseWriter, r *http.Request) *MoveForm {
 	id, err := strconv.ParseInt(r.URL.Query().Get("ingredient"), 10, 64)
 	if err != nil {
@@ -476,7 +476,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 	}.Write(w, r, h.Log)
 }
 
-// CountNew answers an add the User made to count the Ingredient id: its Count form, in
+// CountNew answers an add the User made to count the Ingredient `id`: its Count form, in
 // the sheet under the Ingredients sheet when htmx sent the add, else on the Count page.
 func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	chosen := url.Values{"ingredient": {strconv.FormatInt(id, 10)}}
@@ -495,9 +495,9 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	web.Answer{Fragment: countBody(f)}.Write(w, r, h.Log)
 }
 
-// startCount is the Count form as query asks for it: its Ingredient ingredient chosen, if
-// the signed-in User has it and it is no Staple, in its Storage Location location or else
-// its usual one; or else the search for q.
+// startCount is the Count form as `query` asks for it: its Ingredient ingredient chosen,
+// if the signed-in User has it and it is no Staple, in its Storage Location location or
+// else its usual one; or else the search for q.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
 	f := CountForm{Query: strings.TrimSpace(query.Get("q"))}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {

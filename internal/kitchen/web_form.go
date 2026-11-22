@@ -28,8 +28,8 @@ type CountForm struct {
 	Errs       map[string]string
 }
 
-// postedCountForm is the Count form posted in r for ing, as typed, with why each field
-// was refused, by problems.
+// postedCountForm is the Count form posted in `r` for `ing`, as typed, with why each
+// field was refused, by `problems`.
 func postedCountForm(r *http.Request, ing domain.Ingredient, problems map[string]domain.Problem) CountForm {
 	ctx := r.Context()
 	f := CountForm{
@@ -60,8 +60,8 @@ type MoveForm struct {
 	Errs     map[string]string
 }
 
-// postedMoveForm is the form posted in r that moves ing from a Storage Location, which
-// held held, as typed, with why each field was refused, by problems.
+// postedMoveForm is the form posted in `r` that moves `ing` from a Storage Location,
+// which held `held`, as typed, with why each field was refused, by `problems`.
 func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageLocation, held map[domain.StorageLocation]domain.Quantity, problems map[string]domain.Problem) MoveForm {
 	ctx := r.Context()
 	f := MoveForm{
@@ -76,9 +76,9 @@ func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageL
 	return f
 }
 
-// moveErrs is why each field of a move was refused, by problems, in the User's
-// Language: moreThanHeld if it was more than is held, and messages for its quantity's
-// other problems.
+// moveErrs is why each field of a move was refused, by `problems`, in the User's
+// Language: `moreThanHeld` if it was more than is held, and `messages` for its quantity's
+// other `problems`.
 func moveErrs(ctx context.Context, problems map[string]domain.Problem, moreThanHeld string, messages map[domain.Problem]web.Message) map[string]string {
 	errs := map[string]string{}
 	if _, refused := problems["to"]; refused {
@@ -103,7 +103,7 @@ type PortionLotForm struct {
 	Errs            map[string]string
 }
 
-// postedLotForm is the form posted in r for lot, as typed in field.
+// postedLotForm is the form posted in `r` for `lot`, as typed in `field`.
 func postedLotForm(r *http.Request, portion int64, lot domain.PortionLot, field string) PortionLotForm {
 	return PortionLotForm{
 		Portion: portion, Lot: lot, Typed: strings.TrimSpace(r.PostFormValue(field)),
@@ -119,7 +119,7 @@ type PortionsForm struct {
 	Values, Errs        map[string]string
 }
 
-// postedPortions is the Add Portions form posted in r, as typed.
+// postedPortions is the Add Portions form posted in `r`, as typed.
 func postedPortions(r *http.Request) domain.TypedPortions {
 	return domain.TypedPortions{
 		Name: strings.TrimSpace(r.PostFormValue("name")), HowMany: strings.TrimSpace(r.PostFormValue("how_many")),
@@ -128,8 +128,8 @@ func postedPortions(r *http.Request) domain.TypedPortions {
 	}
 }
 
-// refusedPortionsForm is the Add Portions form as typed, with why each field was refused,
-// by problems.
+// refusedPortionsForm is the Add Portions form as `typed`, with why each field was
+// refused, by `problems`.
 func refusedPortionsForm(ctx context.Context, typed domain.TypedPortions, problems map[string]domain.Problem) PortionsForm {
 	f := PortionsForm{
 		Name: typed.Name, HowMany: typed.HowMany, Note: typed.Note, Location: typed.Location,
@@ -147,7 +147,7 @@ func refusedPortionsForm(ctx context.Context, typed domain.TypedPortions, proble
 	return f
 }
 
-// refusals are the fields f refused, in the order the form shows them, for the Add
+// refusals are the fields `f` refused, in the order the form shows them, for the Add
 // Portions page's ErrorSummary.
 func (f PortionsForm) refusals(ctx context.Context) []web.Refusal {
 	var refusals []web.Refusal
