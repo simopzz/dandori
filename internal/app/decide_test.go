@@ -339,6 +339,7 @@ func TestPlanningTracesNameTheirCycle(t *testing.T) {
 		t.Errorf("the Trace's Cycle links to %q, want its page", got)
 	}
 
+	s.Settle()
 	s.Open("/runs/1")
 	s.Sees("Plan again")
 	s.Sees("Planning the Cycle of Thu, Nov 5 – Fri, Nov 6")
