@@ -17,7 +17,7 @@ import (
 const pasteSheetID = "paste"
 
 // library is the Recipe Library page: the Recipe Drafts to check, and the User's Recipes
-// a search for q found, with the search once there is something to search. Its primary
+// a search for `q` found, with the search once there is something to search. Its primary
 // action pastes a recipe, in a sheet, or writes one, on a page of its own.
 templ library(now time.Time, drafts []Draft, recipes []domain.Recipe, q string) {
 	@web.Layout(web.T(ctx, msgRecipesTitle), web.RecipesTab) {
@@ -73,7 +73,7 @@ templ searchForm(q string) {
 	}
 }
 
-// recipeList is the User's Recipes a search for q found, or why there are none.
+// recipeList is the User's Recipes a search for `q` found, or why there are none.
 templ recipeList(recipes []domain.Recipe, q string) {
 	if len(recipes) == 0 {
 		@web.Empty() {
@@ -99,7 +99,7 @@ templ recipeList(recipes []domain.Recipe, q string) {
 	}
 }
 
-// parsedDate is the day a Recipe Draft was parsed, with its year unless it is now's.
+// parsedDate is the day a Recipe Draft was parsed, with its year unless it is `now`'s.
 func parsedDate(ctx context.Context, now, at time.Time) string {
 	if at.Year() != now.Year() {
 		return web.ShortDateInYear(ctx, at)
@@ -107,7 +107,7 @@ func parsedDate(ctx context.Context, now, at time.Time) string {
 	return web.ShortDate(ctx, at)
 }
 
-// kindNames names kinds, of Slot or of appliance, by names, in the order given.
+// kindNames names `kinds`, of Slot or of appliance, by `names`, in the order given.
 func kindNames[K comparable](ctx context.Context, kinds []K, names map[K]web.Message) string {
 	out := make([]string, len(kinds))
 	for i, k := range kinds {
@@ -137,7 +137,7 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 	}
 }
 
-// DraftedRecipe is the planner's Recipe Draft rec, as its Plan Proposal shows it: its
+// DraftedRecipe is the planner's Recipe Draft `rec`, as its Plan Proposal shows it: its
 // name over its Ingredients, each new one marked New with its proposed values, then
 // its steps.
 templ DraftedRecipe(rec domain.Recipe) {
@@ -147,7 +147,7 @@ templ DraftedRecipe(rec domain.Recipe) {
 	@recipeSteps(2, rec.Steps)
 }
 
-// newValues are ing's proposed values if it is new, or nil.
+// newValues are `ing`'s proposed values if it is new, or nil.
 func newValues(ing domain.Ingredient) templ.Component {
 	if !ing.IsNew() {
 		return nil
@@ -171,7 +171,8 @@ templ perPortion(n domain.PortionNutrition) {
 	</p>
 }
 
-// gramsOf is the value a in grams, named name, a floor when floor says so, or unknown.
+// gramsOf is the value `a` in grams, named `name`, a floor when `floor` says so,
+// or unknown.
 templ gramsOf(name web.Message, a domain.Amount, floor bool) {
 	<span>
 		{ web.T(ctx, name) + " " }
@@ -207,7 +208,7 @@ type removal struct {
 	Question, Action, Back, Refusal string
 }
 
-// removePage is the step r as a page of its own, for a browser without htmx.
+// removePage is the step `r` as a page of its own, for a browser without htmx.
 templ removePage(now time.Time, r removal) {
 	@web.Layout(web.Tf(ctx, msgRecipeTitle, web.T(ctx, r.Title)), web.RecipesTab) {
 		@web.PageHeader("レシピ", web.T(ctx, r.Title), now)
@@ -215,8 +216,8 @@ templ removePage(now time.Time, r removal) {
 	}
 }
 
-// removeStep is the step r, under why it was refused, if it was, with a link back unless
-// back is "", as in its sheet.
+// removeStep is the step `r`, under why it was refused, if it was, with a link back
+// unless `back` is "", as in its sheet.
 templ removeStep(r removal, back templ.SafeURL) {
 	if r.Refusal != "" {
 		@web.Alert() {
@@ -321,16 +322,16 @@ templ draftRowSummary(row IngredientRow) {
 	<span class="row-figure">{ strings.TrimSpace(row.Quantity + " " + quantityUnit(ctx, row)) }</span>
 }
 
-// saveButton saves f.
+// saveButton saves `f`.
 templ saveButton(f RecipeForm) {
 	@web.Button(templ.Attributes{"type": "submit"}) {
 		{ web.T(ctx, f.Submit) }
 	}
 }
 
-// addButton adds to the list named list the row at src, which is told the fields of
-// include. A second press while the first loads is dropped, or both would count the same
-// rows and take the same number.
+// addButton adds to the list named `list` the row at `src`, which is told the fields of
+// `include`. A second press while the first loads is dropped, or both would count the
+// same rows and take the same number.
 func addButton(list, src, include string) templ.Attributes {
 	attrs := templ.Attributes{
 		"type": "submit", "name": "add", "value": list,
@@ -342,9 +343,9 @@ func addButton(list, src, include string) templ.Attributes {
 	return attrs
 }
 
-// pickButton picks name, the known Ingredient suggested for the row at index i, swapping
-// the row in place; without htmx it posts the form back with the row picked. It names
-// what it picks, so the row gets the Ingredient the User saw.
+// pickButton picks `name`, the known Ingredient suggested for the row at index `i`,
+// swapping the row in place; without htmx it posts the form back with the row picked. It
+// names what it picks, so the row gets the Ingredient the User saw.
 func pickButton(i int, name string) templ.Attributes {
 	vals, _ := json.Marshal(map[string]string{rowField("pick", i): name})
 	return templ.Attributes{
@@ -354,14 +355,14 @@ func pickButton(i int, name string) templ.Attributes {
 	}
 }
 
-// numberField is a Field for a whole number, its unit in hint, its name its id.
+// numberField is a Field for a whole number, its unit in `hint`, its `name` its id.
 templ numberField(label web.Message, hint, name, value, err string) {
 	@web.Field(web.T(ctx, label), hint, err) {
 		<input type="number" inputmode="numeric" id={ name } name={ name } value={ value } required { ingredients.Invalid(err)... }/>
 	}
 }
 
-// stepRow is one step of the form, taking focus as it arrives when focus says so.
+// stepRow is one step of the form, taking focus as it arrives when `focus` says so.
 templ stepRow(step string, focus bool) {
 	<li><textarea name="steps" rows="2" aria-label={ web.T(ctx, msgStep) } autofocus?={ focus }>{ step }</textarea></li>
 }
@@ -375,7 +376,7 @@ func followRow() templ.Attributes {
 	}
 }
 
-// quantityUnit is the unit row's quantity is in, once its Ingredient has one.
+// quantityUnit is the unit `row`'s quantity is in, once its Ingredient has one.
 func quantityUnit(ctx context.Context, row IngredientRow) string {
 	if unit, ok := ingredients.RecordedIn[domain.Unit(row.Unit)]; ok {
 		return web.T(ctx, unit)
@@ -383,9 +384,9 @@ func quantityUnit(ctx context.Context, row IngredientRow) string {
 	return ""
 }
 
-// ingredientRow is the row at index i: its name, which says what it is as the User leaves
-// it, and its quantity, with what the name leads to beneath them, and a Remove that posts
-// the form back without the row, renumbering the rest.
+// ingredientRow is the `row` at index `i`: its name, which says what it is as the User
+// leaves it, and its quantity, with what the name leads to beneath them, and a Remove
+// that posts the form back without the `row`, renumbering the rest.
 templ ingredientRow(i int, row IngredientRow) {
 	<div class="ingredient-row">
 		@web.Field(web.T(ctx, msgIngredient), "", row.Errs["name"]) {
@@ -415,8 +416,8 @@ templ ingredientRow(i int, row IngredientRow) {
 	</div>
 }
 
-// rowDetails is what the row at index i shows beneath its name: the fields that confirm
-// a new Ingredient, or nothing.
+// rowDetails is what the `row` at index `i` shows beneath its name: the fields that
+// confirm a new Ingredient, or nothing.
 templ rowDetails(i int, row IngredientRow) {
 	if row.Name != "" {
 		<input type="hidden" name={ rowField("new", i) } value={ strconv.FormatBool(row.New) }/>
@@ -442,7 +443,7 @@ type PasteForm struct{ Text, Err string }
 
 // pasteForm reads a pasted recipe into a Recipe Draft through a parse Run. It is a page's
 // form in the sheet too: it goes on to the Run's page, or, refused, to the paste page,
-// which inSheet takes only the form of, into the sheet's body, keeping the User there.
+// which `inSheet` takes only the form of, into the sheet's body, keeping the User there.
 templ pasteForm(f PasteForm, inSheet bool) {
 	<form
 		novalidate
@@ -472,7 +473,8 @@ templ pasteForm(f PasteForm, inSheet bool) {
 	</form>
 }
 
-// recipeFacts is how many Portions rec makes, its minutes, kinds of Slot and appliances.
+// recipeFacts is how many Portions `rec` makes, its minutes, kinds of Slot
+// and appliances.
 templ recipeFacts(rec domain.Recipe) {
 	<dl>
 		<dt>{ web.T(ctx, msgMakes) }</dt>
@@ -496,7 +498,7 @@ templ recipeFacts(rec domain.Recipe) {
 	</dl>
 }
 
-// recipeSteps are a Recipe's steps, if it has any, as Section num.
+// recipeSteps are a Recipe's `steps`, if it has any, as Section `num`.
 templ recipeSteps(num int, steps []string) {
 	if len(steps) > 0 {
 		@web.Section(num, web.T(ctx, msgSteps)) {

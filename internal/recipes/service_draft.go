@@ -15,8 +15,8 @@ import (
 // ErrNoDraft is a Recipe Draft the signed-in User hasn't got.
 var ErrNoDraft = errors.New("the User has no such Recipe Draft")
 
-// StartParse starts a parse Run reading text, pasted by the signed-in User speaking l,
-// into a Recipe Draft, and is the Run's id.
+// StartParse starts a parse Run reading `text`, pasted by the signed-in User speaking
+// `l`, into a Recipe Draft, and is the Run's id.
 func (s *Service) StartParse(ctx context.Context, l domain.Language, text string) (int64, error) {
 	known, err := s.ingredients.List(ctx)
 	if err != nil {
@@ -25,7 +25,7 @@ func (s *Service) StartParse(ctx context.Context, l domain.Language, text string
 	return s.runs.Start(ctx, parseKind, text, s.parseBrief(l, text, known), nil)
 }
 
-// saveDraft stores p as the Recipe Draft of the Run runID, replacing any earlier one.
+// saveDraft stores `p` as the Recipe Draft of the Run `runID`, replacing any earlier one.
 func (s *Service) saveDraft(ctx context.Context, runID int64, p parsedRecipe) error {
 	doc, err := json.Marshal(p)
 	if err != nil {
@@ -34,8 +34,8 @@ func (s *Service) saveDraft(ctx context.Context, runID int64, p parsedRecipe) er
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return storeDraft(ctx, tx, runID, doc) })
 }
 
-// DraftOf is the id of the Recipe Draft the signed-in User's parse Run runID left. It is
-// ErrNoDraft if the Run left none.
+// DraftOf is the id of the Recipe Draft the signed-in User's parse Run `runID` left. It
+// is ErrNoDraft if the Run left none.
 func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 	var id int64
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
@@ -45,7 +45,7 @@ func (s *Service) DraftOf(ctx context.Context, runID int64) (int64, error) {
 	return id, err
 }
 
-// FindDraft is the signed-in User's Recipe Draft id, for them speaking l, each
+// FindDraft is the signed-in User's Recipe Draft `id`, for them speaking `l`, each
 // Ingredient resolved by name to theirs, with the text its Run read, as Pasted. It is
 // ErrNoDraft unless its Run has succeeded, and when there is no such Recipe Draft.
 func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (rec domain.Recipe, pasted string, err error) {
@@ -69,7 +69,7 @@ func (s *Service) FindDraft(ctx context.Context, l domain.Language, id int64) (r
 	return rec, pasted, nil
 }
 
-// Pasted is the text the Run of the signed-in User's Recipe Draft id read, to check the
+// Pasted is the text the Run of the signed-in User's Recipe Draft `id` read, to check the
 // Recipe Draft against, or ErrNoDraft as FindDraft is.
 func (s *Service) Pasted(ctx context.Context, id int64) (string, error) {
 	var pasted string
@@ -97,9 +97,9 @@ func (s *Service) Drafts(ctx context.Context) ([]Draft, error) {
 	return drafts, err
 }
 
-// Accept adds rec, which has no Problems and is what the User made of their Recipe Draft
-// id, as Add does, and deletes the Recipe Draft, all or nothing. A Recipe Draft they
-// haven't got, or whose Run is going, is ErrNoDraft.
+// Accept adds `rec`, which has no Problems and is what the User made of their Recipe
+// Draft `id`, as Add does, and deletes the Recipe Draft, all or nothing. A Recipe Draft
+// they haven't got, or whose Run is going, is ErrNoDraft.
 func (s *Service) Accept(ctx context.Context, l domain.Language, id int64, rec domain.Recipe) (recipeID int64, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := deleteDraft(ctx, tx, id); err != nil {
@@ -111,7 +111,8 @@ func (s *Service) Accept(ctx context.Context, l domain.Language, id int64, rec d
 	return recipeID, err
 }
 
-// Discard deletes the signed-in User's Recipe Draft id and is its name, or ErrNoDraft.
+// Discard deletes the signed-in User's Recipe Draft `id` and is its `name`,
+// or ErrNoDraft.
 func (s *Service) Discard(ctx context.Context, id int64) (name string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		name, err = deleteDraft(ctx, tx, id)
