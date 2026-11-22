@@ -39,7 +39,7 @@ func TestApprovingAPlanProposalShowsThePlanByDay(t *testing.T) {
 // lastPrompt is what the planning Run s started last was told.
 func lastPrompt(t *testing.T, s *apptest.Scenario) string {
 	t.Helper()
-	reqs := s.Model.Requests()
+	reqs := s.Model.Asked()
 	for i := len(reqs) - 1; i >= 0; i-- {
 		if len(reqs[i].Messages) == 1 {
 			return firstTurn(reqs[i])

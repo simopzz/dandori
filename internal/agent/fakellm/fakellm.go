@@ -20,6 +20,7 @@ type LLM struct {
 	steps    []Step
 	requests []agent.Request
 	toolUses int
+	asked    chan struct{} // closed once a request takes the last step scripted
 }
 
 // New returns a fake LLM that answers with steps.
@@ -37,6 +38,25 @@ func (f *LLM) Requests() []agent.Request {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.requests)
+}
+
+// Asked returns every request the model was sent, once one has taken each step scripted:
+// a Run asks its model after the request that started it has been answered. After five
+// seconds it returns those sent so far.
+func (f *LLM) Asked() []agent.Request {
+	f.mu.Lock()
+	if len(f.steps) > 0 && f.asked == nil {
+		f.asked = make(chan struct{})
+	}
+	asked := f.asked
+	f.mu.Unlock()
+	if asked != nil {
+		select {
+		case <-asked:
+		case <-time.After(5 * time.Second):
+		}
+	}
+	return f.Requests()
 }
 
 // Step is one scripted answer of the model.
@@ -137,6 +157,10 @@ func (f *LLM) Send(ctx context.Context, req agent.Request) (agent.Response, erro
 	}
 	step := f.steps[0]
 	f.steps = f.steps[1:]
+	if len(f.steps) == 0 && f.asked != nil {
+		close(f.asked)
+		f.asked = nil
+	}
 	f.mu.Unlock()
 	if step.then != nil {
 		step = step.then(req)
