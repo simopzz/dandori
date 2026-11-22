@@ -90,14 +90,16 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 // rejecting it, `notes` being the Cycle's Planning Notes, newest first, and `note` the
 // one typed; rejecting is open when `reject` says to.
 templ proposalSection(p Proposal, ds []proposalDay, notes []string, note string, reject bool) {
-	@web.Section(1, web.T(ctx, msgPlanProposal)) {
-		@web.Markdown(p.Summary)
-		@averages(p)
-		@changedRow(ds)
-		@missRows(p)
-		@draftedRows(p.Drafted)
-		@decision(p, notes, note, reject)
-	}
+	<div id={ ProposalSectionID }>
+		@web.Section(1, web.T(ctx, msgPlanProposal)) {
+			@web.Markdown(p.Summary)
+			@averages(p)
+			@changedRow(ds)
+			@missRows(p)
+			@draftedRows(p.Drafted)
+			@decision(p, notes, note, reject)
+		}
+	</div>
 }
 
 // averages are p's average over the days it judges against each Target, under heads

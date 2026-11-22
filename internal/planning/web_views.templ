@@ -55,6 +55,10 @@ type cycleLinks struct {
 	Planning          Planning
 }
 
+// ProposalSectionID is the id of the Cycle page's Section 01, its pending Plan Proposal,
+// which Today links straight to.
+const ProposalSectionID = "plan-proposal"
+
 // cycleURL is the Cycle page of the Cycle id.
 func cycleURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d", id)) }
 
@@ -94,21 +98,22 @@ templ switchCycles(shown int64, l cycleLinks) {
 // planningTag is how planning stands as a Tag after a Cycle's dates: a Plan Proposal
 // waiting, being planned, or its last planning Run failed; nothing otherwise.
 templ planningTag(p Planning) {
-	if p.Proposal != nil {
-		{ " " }
-		@web.Tag(false, "") {
-			{ web.T(ctx, msgProposalWaitingTag) }
-		}
-	} else if p.Going != 0 {
-		{ " " }
-		@web.ToneTag(web.Going) {
-			{ web.T(ctx, msgBeingPlannedTag) }
-		}
-	} else if p.Failed != nil && p.Plan == nil {
-		{ " " }
-		@web.Tag(true, "") {
-			{ web.T(ctx, msgFailedTag) }
-		}
+	switch p.Standing() {
+		case ProposalWaiting:
+			{ " " }
+			@web.Tag(false, "") {
+				{ web.T(ctx, msgProposalWaitingTag) }
+			}
+		case BeingPlanned:
+			{ " " }
+			@web.ToneTag(web.Going) {
+				{ web.T(ctx, msgBeingPlannedTag) }
+			}
+		case PlanningFailed:
+			{ " " }
+			@web.Tag(true, "") {
+				{ web.T(ctx, msgFailedTag) }
+			}
 	}
 }
 

@@ -2,15 +2,17 @@ package today
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/simopzz/dandori/internal/kitchen"
+	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is Today at now: the Slot now or next, the day's later Slots a click away, where
-// the Plan will show and what planning needs (no Plan yet), opening a Cycle while there's
-// none, and how up to date it is.
+// page is Today at now: the Slot now or next, the day's later Slots a click away, what
+// to do next about planning, where the Plan will show and what planning needs (no Plan
+// yet), and how up to date it is.
 templ page(now time.Time, d Day) {
 	@web.Layout(web.T(ctx, msgTodayTitle), web.TodayTab) {
 		@web.PageHeader("今日", web.T(ctx, msgToday), now)
@@ -27,6 +29,7 @@ templ page(now time.Time, d Day) {
 				}
 			}
 		}
+		@reminders(d)
 		<div class="section">
 			@web.Empty() {
 				{ web.T(ctx, msgNoPlan) }
@@ -37,15 +40,66 @@ templ page(now time.Time, d Day) {
 						<a class="row-title" href={ templ.SafeURL(step.href) }>{ web.T(ctx, step.text) }</a>
 					}
 				}
-				if d.NoCycle {
-					@web.Row() {
-						<a class="row-title" href="/plan/open">{ web.T(ctx, msgOpenCycle) }</a>
-					}
-				}
 			}
 		</div>
 		@kitchen.Status(now, d.Beat, d.Beaten)
 	}
+}
+
+// reminders are what Today reminds the User to do next about planning, a row each led by
+// the icon of the page it links to: how planning the current Cycle and the next stand,
+// then opening a Cycle, the first or the next, or setting the Targets first.
+templ reminders(d Day) {
+	if len(d.Reminders) > 0 || d.Offer != NoOffer {
+		<div class="section">
+			@web.Rows() {
+				for _, r := range d.Reminders {
+					@standingRow(r)
+				}
+				if o, ok := offers[d.Offer]; ok {
+					@web.Row() {
+						@web.Icon(o.icon)
+						<a class="row-title" href={ templ.SafeURL(o.href) }>{ web.T(ctx, o.text) }</a>
+					}
+				}
+			}
+		</div>
+	}
+}
+
+// standingRow says how planning r's Cycle stands, linking to its Cycle page, straight to
+// the Plan Proposal when one is waiting. A failed one is urgent: the seal, not the Plan
+// page's icon, and an accent Tag.
+templ standingRow(r Reminder) {
+	{{ says, failed := standings[r.Standing], r.Standing == planning.PlanningFailed }}
+	@web.Row() {
+		if failed {
+			@web.Seal()
+		} else {
+			@web.Icon("calendar")
+		}
+		<a class="row-title" href={ standingURL(r) }>
+			if r.Next {
+				{ web.T(ctx, says.next) }
+			} else {
+				{ web.T(ctx, says.current) }
+			}
+		</a>
+		if failed {
+			@web.Tag(true, "") {
+				{ web.T(ctx, msgFailed) }
+			}
+		}
+	}
+}
+
+// standingURL is the Cycle page of r's Cycle, at its Plan Proposal when one is waiting.
+func standingURL(r Reminder) templ.SafeURL {
+	url := fmt.Sprintf("/plan/cycles/%d", r.CycleID)
+	if r.Standing == planning.ProposalWaiting {
+		url += "#" + planning.ProposalSectionID
+	}
+	return templ.SafeURL(url)
 }
 
 // firstText says which Slot is now, or next, and its time of day, as Data: tomorrow's,
