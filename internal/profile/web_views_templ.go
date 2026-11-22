@@ -603,11 +603,11 @@ func profilePage(today time.Time, email string, forms profileForms) templ.Compon
 	})
 }
 
-// sectionForm is the section s, its fields and hints the children, followed by the button
-// that saves it: a form posting to its own route, which htmx swaps in its SectionBody
-// unless s reloads the page. The button shows Save, and its accessible name names the
-// section, so six Saves don't read as one saving the page and a screen reader tells
-// them apart.
+// sectionForm is the section `s`, its fields and hints the children, followed by the
+// button that saves it: a form posting to its own route, which htmx swaps in its
+// SectionBody unless `s` reloads the page. The button shows Save, and its accessible name
+// names the section, so six Saves don't read as one saving the page and a screen reader
+// tells them apart.
 func sectionForm(s section) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -939,8 +939,8 @@ func targetsForm(f TargetsForm) templ.Component {
 	})
 }
 
-// targetField is the Target named field, a whole number, labelled label with its unit
-// and direction in hint.
+// targetField is the Target named `field`, a whole number, labelled `label` with its unit
+// and direction in `hint`.
 func targetField(label, hint web.Message, field string, f TargetsForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1223,8 +1223,8 @@ func mealOutForm(f MealOutForm) templ.Component {
 	})
 }
 
-// mealOutField is the Meal Out estimate's value named field, a whole number from 0,
-// labelled label with its unit in hint, which says so when it may be left blank.
+// mealOutField is the Meal Out estimate's value named `field`, a whole number from 0,
+// labelled `label` with its unit in `hint`, which says so when it may be left blank.
 func mealOutField(label, hint web.Message, field string, f MealOutForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1463,7 +1463,7 @@ func foodsForm(f FoodsForm) templ.Component {
 func noteField(k domain.ApplianceKind) string { return "note-" + string(k) }
 
 // appliancesForm is the appliances' section: a Check per kind, in the list's order, those
-// owned ticked, each with the note on its model beside it under the column's head, or
+// `owned` ticked, each with the note on its model beside it under the column's head, or
 // under it on a phone, where its placeholder says what it is.
 func appliancesForm(owned domain.Appliances) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

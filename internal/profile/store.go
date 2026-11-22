@@ -48,19 +48,19 @@ func loadSlotTimes(ctx context.Context, q db.Querier) (domain.SlotTimes, error) 
 	}, nil
 }
 
-// saveSlotTimes sets the signed-in User's times of day of each kind of Slot to t.
+// saveSlotTimes sets the signed-in User's times of day of each kind of Slot to `t`.
 func saveSlotTimes(ctx context.Context, q db.Querier, t domain.SlotTimes) error {
 	_, err := q.Exec(ctx, `UPDATE profile SET breakfast_at = $1, lunch_at = $2, snack_at = $3, dinner_at = $4`,
 		t[domain.Breakfast].String(), t[domain.Lunch].String(), t[domain.Snack].String(), t[domain.Dinner].String())
 	return err
 }
 
-// timeOfDay is t to the minute.
+// timeOfDay is `t` to the minute.
 func timeOfDay(t pgtype.Time) domain.TimeOfDay {
 	return domain.TimeOfDay(time.Duration(t.Microseconds) * time.Microsecond / time.Minute)
 }
 
-// LoadTargets reads the signed-in User's Targets; set is false until they save theirs,
+// LoadTargets reads the signed-in User's Targets; `set` is false until they save theirs,
 // when only the tolerance is. It has no WHERE on purpose: run in db.AsUser, row-level
 // security leaves only their row.
 func LoadTargets(ctx context.Context, q db.Querier) (t domain.Targets, set bool, err error) {
@@ -74,7 +74,7 @@ func LoadTargets(ctx context.Context, q db.Querier) (t domain.Targets, set bool,
 	return t, kcal.Valid, nil
 }
 
-// saveTargets sets the signed-in User's Targets to t.
+// saveTargets sets the signed-in User's Targets to `t`.
 func saveTargets(ctx context.Context, q db.Querier, t domain.Targets) error {
 	_, err := q.Exec(ctx, `
 		UPDATE profile SET target_kcal = $1, target_protein = $2, target_fibre = $3, target_sugar = $4, kcal_tolerance = $5`,
@@ -105,8 +105,8 @@ func loadMealOut(ctx context.Context, q db.Querier) (domain.Nutrition, error) {
 	}, nil
 }
 
-// saveMealOut sets the signed-in User's Meal Out estimate to n, its values whole numbers;
-// an Unknown one is saved as null.
+// saveMealOut sets the signed-in User's Meal Out estimate to `n`, its values whole
+// numbers; an Unknown one is saved as null.
 func saveMealOut(ctx context.Context, q db.Querier, n domain.Nutrition) error {
 	whole := func(a domain.Amount) pgtype.Int4 { return pgtype.Int4{Int32: int32(a.Value), Valid: a.Known} }
 	_, err := q.Exec(ctx, `
@@ -116,14 +116,14 @@ func saveMealOut(ctx context.Context, q db.Querier, n domain.Nutrition) error {
 	return err
 }
 
-// loadFoods reads the signed-in User's exclusions and allergies, each normalised. It has
-// no WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
+// loadFoods reads the signed-in User's `exclusions` and `allergies`, each normalised. It
+// has no WHERE on purpose: run in db.AsUser, row-level security leaves only their row.
 func loadFoods(ctx context.Context, q db.Querier) (exclusions, allergies []string, err error) {
 	err = q.QueryRow(ctx, `SELECT exclusions, allergies FROM profile`).Scan(&exclusions, &allergies)
 	return exclusions, allergies, err
 }
 
-// saveFoods sets the signed-in User's exclusions and allergies, each normalised.
+// saveFoods sets the signed-in User's `exclusions` and `allergies`, each normalised.
 func saveFoods(ctx context.Context, q db.Querier, exclusions, allergies []string) error {
 	_, err := q.Exec(ctx, `UPDATE profile SET exclusions = $1, allergies = $2`, exclusions, allergies)
 	return err
@@ -136,7 +136,7 @@ func loadBrief(ctx context.Context, q db.Querier) (brief string, err error) {
 	return brief, err
 }
 
-// saveBrief sets the signed-in User's Planning Brief to brief.
+// saveBrief sets the signed-in User's Planning Brief to `brief`.
 func saveBrief(ctx context.Context, q db.Querier, brief string) error {
 	_, err := q.Exec(ctx, `UPDATE profile SET planning_brief = $1`, brief)
 	return err
@@ -156,7 +156,7 @@ func saveAppliances(ctx context.Context, q db.Querier, owned domain.Appliances) 
 	return err
 }
 
-// saveLanguage creates the signed-in User's Profile with Language l, or changes the
+// saveLanguage creates the signed-in User's Profile with Language `l`, or changes the
 // Language of the one they have.
 func saveLanguage(ctx context.Context, q db.Querier, l domain.Language) error {
 	_, err := q.Exec(ctx, `
