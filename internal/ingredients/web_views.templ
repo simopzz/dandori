@@ -31,7 +31,7 @@ templ deleteSheet() {
 	@web.SideSheet(deleteSheetID, web.T(ctx, msgDeleteIngredient))
 }
 
-// deletePage is the step asking before deleting ing, searched for q, as a page of its
+// deletePage is the step asking before deleting `ing`, searched for `q`, as a page of its
 // own for a browser without htmx: confirmed, it lands on the Ingredients page.
 templ deletePage(today time.Time, ing domain.Ingredient, q string) {
 	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
@@ -42,7 +42,7 @@ templ deletePage(today time.Time, ing domain.Ingredient, q string) {
 	}
 }
 
-// deleteBody is the step asking before deleting ing, searched for q, as its sheet's
+// deleteBody is the step asking before deleting `ing`, searched for `q`, as its sheet's
 // body: confirmed, it swaps the Ingredients' body under it and closes.
 templ deleteBody(ing domain.Ingredient, q string) {
 	@web.RemoveStep(web.Tf(ctx, msgDeleteAsk, ing.Name), web.T(ctx, msgDelete), templ.SafeURL(ingredientURL(ing.ID, "/delete")), "", deleteSwap(ing.ID)) {
@@ -50,7 +50,7 @@ templ deleteBody(ing domain.Ingredient, q string) {
 	}
 }
 
-// deleteSwap posts the deletion of the Ingredient id by htmx, swapping the Ingredients'
+// deleteSwap posts the deletion of the Ingredient `id` by htmx, swapping the Ingredients'
 // body under the sheet that asked.
 func deleteSwap(id int64) templ.Attributes {
 	return templ.Attributes{
@@ -69,7 +69,7 @@ templ SheetLink() {
 }
 
 // AddLink opens the Ingredients side sheet to add an Ingredient to count, its add form
-// started on name, which a search found nothing for, or blank; without htmx it goes to
+// started on `name`, which a search found nothing for, or blank; without htmx it goes to
 // the add page.
 templ AddLink(name string) {
 	@web.SideSheetLink(SheetID, templ.SafeURL("/ingredients/new?counting=1&name="+url.QueryEscape(name)), templ.SafeURL("/ingredients/sheet?counting=1&name="+url.QueryEscape(name))) {
@@ -82,7 +82,7 @@ templ AddLink(name string) {
 }
 
 // page is the Ingredients as a page of their own, for a browser without htmx: the search
-// of the User's Ingredients for view's Q under the page's header, and a + to add one.
+// of the User's Ingredients for `view`'s Q under the page's header, and a + to add one.
 templ page(today time.Time, ings []domain.Ingredient, view sheetView) {
 	@web.Layout(web.T(ctx, msgIngredientsTitle), web.KitchenTab) {
 		@web.PageHeader("食材", web.T(ctx, msgIngredients), today)
@@ -94,7 +94,7 @@ templ page(today time.Time, ings []domain.Ingredient, view sheetView) {
 	}
 }
 
-// addPage is the add form as a page of its own, f as typed, for a browser without htmx.
+// addPage is the add form as a page of its own, `f` as typed, for a browser without htmx.
 templ addPage(today time.Time, f AddForm) {
 	@web.Layout(web.T(ctx, msgAddTitle), web.KitchenTab) {
 		@web.PageHeader("食材", web.T(ctx, msgAddIngredient), today)
@@ -104,7 +104,7 @@ templ addPage(today time.Time, f AddForm) {
 	}
 }
 
-// sheetBody is what the Ingredients side sheet shows: view's add form, closed under its
+// sheetBody is what the Ingredients side sheet shows: `view`'s add form, closed under its
 // name until the User opens it or has begun it, then the search of the User's
 // Ingredients for its Q.
 templ sheetBody(ings []domain.Ingredient, view sheetView) {
@@ -114,8 +114,8 @@ templ sheetBody(ings []domain.Ingredient, view sheetView) {
 	@listing(ings, view, 0)
 }
 
-// listing is the search of the User's Ingredients for view's Q, num its group's number:
-// the page's own, or 0, the side sheet's mark.
+// listing is the search of the User's Ingredients for `view`'s Q, `num` its group's
+// number: the page's own, or 0, the side sheet's mark.
 templ listing(ings []domain.Ingredient, view sheetView, num int) {
 	@web.Section(num, web.T(ctx, msgYourIngredients)) {
 		@searchForm(view.Q)
@@ -136,8 +136,8 @@ templ searchForm(q string) {
 	}
 }
 
-// list is the User's Ingredients a search for view's Q found, Staples marked, or why
-// there are none. Each opens in place to edit it, and view's Edit is open with why it
+// list is the User's Ingredients a search for `view`'s Q found, Staples marked, or why
+// there are none. Each opens in place to edit it, and `view`'s Edit is open with why it
 // was refused.
 templ list(ings []domain.Ingredient, view sheetView) {
 	if len(ings) == 0 {
@@ -159,8 +159,8 @@ templ list(ings []domain.Ingredient, view sheetView) {
 	}
 }
 
-// rowSummary is ing's line in the list: its name, Staple marked, where it is usually kept
-// and its nutritional values.
+// rowSummary is `ing`'s line in the list: its name, Staple marked, where it is usually
+// kept and its nutritional values.
 templ rowSummary(ing domain.Ingredient) {
 	<span class="row-title">{ ing.Name }</span>
 	if ing.Staple {
@@ -174,7 +174,8 @@ templ rowSummary(ing domain.Ingredient) {
 	</span>
 }
 
-// editing is the edit form of ing: edit as typed when it was refused, else ing as it is.
+// editing is the edit form of `ing`: `edit` as typed when it was refused, else `ing` as
+// it is.
 func editing(ing domain.Ingredient, edit EditForm) EditForm {
 	if edit.ID != ing.ID {
 		return editFormOf(ing)
@@ -185,11 +186,11 @@ func editing(ing domain.Ingredient, edit EditForm) EditForm {
 	return edit
 }
 
-// editForm edits ing, posted from its row, swapping the side sheet's body when htmx posts
-// it, searched for q as it was. Its Delete opens the step asking first, a link, so Enter
-// still saves. When some Movement refers to it, withMovements, a
-// link opens its Movements in its usual Storage Location, which reach the other two: the
-// only way to them for a Staple, which no Stock Item holds.
+// editForm edits `ing`, posted from its row, swapping the side sheet's body when htmx
+// posts it, searched for `q` as it was. Its Delete opens the step asking first, a link,
+// so Enter still saves. When some Movement refers to it, `withMovements`, a link opens
+// its Movements in its usual Storage Location, which reach the other two: the only way to
+// them for a Staple, which no Stock Item holds.
 templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) {
 	<form
 		novalidate
@@ -237,8 +238,8 @@ templ editForm(ing domain.Ingredient, f EditForm, q string, withMovements bool) 
 	</form>
 }
 
-// deleteURL is the step asking before deleting the Ingredient id, searched for q, then
-// rest: "" for its page, "/sheet" for its sheet's body.
+// deleteURL is the step asking before deleting the Ingredient `id`, searched for `q`,
+// then `rest`: "" for its page, "/sheet" for its sheet's body.
 func deleteURL(id int64, rest, q string) string {
 	if q == "" {
 		return ingredientURL(id, "/delete"+rest)
@@ -246,20 +247,20 @@ func deleteURL(id int64, rest, q string) string {
 	return ingredientURL(id, "/delete"+rest) + "?q=" + url.QueryEscape(q)
 }
 
-// stapleCheck marks an Ingredient a Staple, checked when staple says it is one.
+// stapleCheck marks an Ingredient a Staple, checked when `staple` says it is one.
 templ stapleCheck(staple bool) {
 	@web.Check(web.T(ctx, msgStaple), web.T(ctx, msgStapleHint)) {
 		<input type="checkbox" name="staple" value="on" checked?={ staple }/>
 	}
 }
 
-// movementsURL is the page of ing's Movements in its usual Storage Location.
+// movementsURL is the page of `ing`'s Movements in its usual Storage Location.
 func movementsURL(ing domain.Ingredient) string {
 	query := url.Values{"ingredient": {strconv.FormatInt(ing.ID, 10)}, "location": {string(ing.Usual)}}
 	return "/kitchen/movements?" + query.Encode()
 }
 
-// ingredientURL is the path of the Ingredient id, then rest.
+// ingredientURL is the path of the Ingredient `id`, then `rest`.
 func ingredientURL(id int64, rest string) string {
 	return "/ingredients/" + strconv.FormatInt(id, 10) + rest
 }
@@ -318,7 +319,7 @@ templ addForm(f AddForm) {
 }
 
 // ingredientFields are the fields the add and edit forms share, after the name: the unit,
-// where it is usually kept and the nutritional values, as f has them.
+// where it is usually kept and the nutritional values, as `f` has them.
 templ ingredientFields(f AddForm) {
 	@web.FieldRow() {
 		@web.Field(web.T(ctx, msgUnit), "", f.Errs["unit"]) {
@@ -344,10 +345,10 @@ templ ingredientFields(f AddForm) {
 	@NutritionFields(f.Values, f.Errs, false)
 }
 
-// NutritionFields are the six nutritional value fields, with the values as typed and why
-// each was refused, by field. Fibre and sugar may be left blank. ids gives each control
-// its name as its id, for an ErrorSummary to link to, where no other form on the page
-// has the same names.
+// NutritionFields are the six nutritional value fields, with the `values` as typed and
+// why each was refused, by field. Fibre and sugar may be left blank. `ids` gives each
+// control its name as its id, for an ErrorSummary to link to, where no other form on the
+// page has the same names.
 templ NutritionFields(values, errs map[string]string, ids bool) {
 	@nutritionFields(func(field string) string { return field }, ids, values, errs)
 }
@@ -365,7 +366,7 @@ type TypedIngredient struct {
 }
 
 // NewIngredientFields confirm a new Ingredient inside another form, whose field names
-// are named gives them, as are their ids: its unit, usual Storage Location, Staple flag
+// are `named` gives them, as are their ids: its unit, usual Storage Location, Staple flag
 // and values, and what the values are per, for the unit chosen.
 templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 	@web.FieldRow() {
@@ -399,8 +400,8 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 	}
 }
 
-// nutritionFields are the six fields as NutritionFields has them, named as named says,
-// and with ids, their names as ids.
+// nutritionFields are the six fields as NutritionFields has them, named as `named` says,
+// and with `ids`, their names as ids.
 templ nutritionFields(named func(string) string, ids bool, values, errs map[string]string) {
 	@web.FieldRow() {
 		for _, n := range nutrients {
@@ -426,9 +427,9 @@ templ nutritionFields(named func(string) string, ids bool, values, errs map[stri
 // suggestionID is the id of where the add form says what the name may have meant.
 const suggestionID = "ingredient-suggestion"
 
-// suggestion says closest is what name may have meant, if it isn't blank, and confirms
-// name, so Add means the name typed. Picking closest adds nothing, so it is a link, which
-// Enter doesn't press.
+// suggestion says `closest` is what `name` may have meant, if it isn't blank, and
+// confirms `name`, so Add means the name typed. Picking `closest` adds nothing, so it is
+// a link, which Enter doesn't press.
 templ suggestion(name, closest string) {
 	if closest != "" {
 		<input type="hidden" name="confirm" value={ name }/>
@@ -439,7 +440,7 @@ templ suggestion(name, closest string) {
 	}
 }
 
-// pickLink picks name, swapping the side sheet's body; without htmx it opens the page
+// pickLink picks `name`, swapping the side sheet's body; without htmx it opens the page
 // searched for it.
 func pickLink(name string) templ.Attributes {
 	picked := "?picked=" + url.QueryEscape(name)
@@ -462,7 +463,7 @@ var nutrientHints = map[string]web.Message{
 	"fibre": FibreHint, "sugar": SugarHint,
 }
 
-// Invalid marks a control aria-invalid when err says why its value was refused.
+// Invalid marks a control aria-invalid when `err` says why its value was refused.
 func Invalid(err string) templ.Attributes {
 	if err == "" {
 		return nil
@@ -470,12 +471,12 @@ func Invalid(err string) templ.Attributes {
 	return templ.Attributes{"aria-invalid": "true"}
 }
 
-// Values are ing's nutritional values, per what they are given for, as NutritionFacts.
+// Values are `ing`'s nutritional values, per what they are given for, as NutritionFacts.
 templ Values(ing domain.Ingredient) {
 	@NutritionFacts(web.T(ctx, perUnit[ing.Unit]), ing.Nutrition)
 }
 
-// NutritionFacts are the nutritional values n, per what per says, one span each for a
+// NutritionFacts are the nutritional values `n`, per what `per` says, one span each for a
 // row's details: calories, then grams of the rest, an unknown one a dash that a screen
 // reader says is unknown.
 templ NutritionFacts(per string, n domain.Nutrition) {
@@ -497,7 +498,7 @@ type gramFact struct {
 	amount domain.Amount
 }
 
-// gramFacts are n's values in grams, in the order a row shows them.
+// gramFacts are `n`'s values in grams, in the order a row shows them.
 func gramFacts(n domain.Nutrition) []gramFact {
 	return []gramFact{
 		{msgProteinShort, n.Protein}, {msgCarbsShort, n.Carbs}, {msgFatShort, n.Fat},

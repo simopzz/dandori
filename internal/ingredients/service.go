@@ -87,7 +87,7 @@ func New(pool *pgxpool.Pool, recipesUsing RecipesUsing, usesIngredient UsesIngre
 	return &Service{pool: pool, recipesUsing: recipesUsing, usesIngredient: usesIngredient}
 }
 
-// notInRecipe is an *InRecipeError if a Recipe lists the Ingredient id.
+// notInRecipe is an *InRecipeError if a Recipe lists the Ingredient `id`.
 func (s *Service) notInRecipe(ctx context.Context, q db.Querier, id int64) error {
 	first, others, err := s.recipesUsing(ctx, q, id)
 	if err != nil {
@@ -99,10 +99,10 @@ func (s *Service) notInRecipe(ctx context.Context, q db.Querier, id int64) error
 	return nil
 }
 
-// Add adds ing, which has no Problems, for the signed-in User, whose Language is l, and
-// is its id. One whose name normalises as another's is a *NameTakenError. One whose name
-// is only close to another's is a *SuggestedError, unless confirmed says the User meant
-// the name typed.
+// Add adds `ing`, which has no Problems, for the signed-in User, whose Language is `l`,
+// and is its `id`. One whose name normalises as another's is a *NameTakenError. One whose
+// name is only close to another's is a *SuggestedError, unless `confirmed` says the User
+// meant the name typed.
 func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredient, confirmed bool) (id int64, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if !confirmed {
@@ -120,9 +120,9 @@ func (s *Service) Add(ctx context.Context, l domain.Language, ing domain.Ingredi
 	return id, err
 }
 
-// AddIn adds ing, which has no Problems, for the signed-in User, whose Language is l, in
-// the caller's transaction, and is its id: for a feature creating Ingredients with what
-// it saves. One whose name normalises as another's is a *NameTakenError.
+// AddIn adds `ing`, which has no Problems, for the signed-in User, whose Language is `l`,
+// in the caller's transaction, and is its id: for a feature creating Ingredients with
+// what it saves. One whose name normalises as another's is a *NameTakenError.
 func AddIn(ctx context.Context, q db.Querier, l domain.Language, ing domain.Ingredient) (int64, error) {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
 	id, added, err := saveIngredient(ctx, q, ing, normalised)
@@ -136,11 +136,11 @@ func AddIn(ctx context.Context, q db.Querier, l domain.Language, ing domain.Ingr
 	return 0, &NameTakenError{Existing: existing}
 }
 
-// Edit sets the signed-in User's Ingredient id, whose Language is l, to ing, which has no
-// Problems, at at. Marking it a Staple counts its stock to nothing in the same
-// transaction, and counted is the Movement of each Stock Item that held some; unmarking
+// Edit sets the signed-in User's Ingredient `id`, whose Language is `l`, to `ing`, which
+// has no Problems, at `at`. Marking it a Staple counts its stock to nothing in the same
+// transaction, and `counted` is the Movement of each Stock Item that held some; unmarking
 // it starts it from nothing. A name that normalises as another's is a *NameTakenError. A
-// new name only close to another's is a *SuggestedError, unless confirmed says the User
+// new name only close to another's is a *SuggestedError, unless `confirmed` says the User
 // meant the name typed. A unit changed once Movements refer to the Ingredient is a
 // *UnitFixedError, or an *InRecipeError once a Recipe lists it, and one they haven't got
 // is ErrNoIngredient.
@@ -196,10 +196,10 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 	return counted, nil
 }
 
-// Delete deletes the signed-in User's Ingredient id, and is its name. One that Movements
-// refer to is ErrHasMovements, one a Recipe lists an *InRecipeError and one a Plan or a
-// Plan Proposal uses ErrInPlan, all of which the database also holds to, and one they
-// haven't got is ErrNoIngredient.
+// Delete deletes the signed-in User's Ingredient `id`, and is its name. One that
+// Movements refer to is ErrHasMovements, one a Recipe lists an *InRecipeError and one a
+// Plan or a Plan Proposal uses ErrInPlan, all of which the database also holds to, and
+// one they haven't got is ErrNoIngredient.
 func (s *Service) Delete(ctx context.Context, id int64) (string, error) {
 	name, err := s.delete(ctx, id)
 	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == foreignKeyViolation {
@@ -245,7 +245,7 @@ func (s *Service) delete(ctx context.Context, id int64) (name string, err error)
 // foreignKeyViolation is Postgres's code for a row deleted while another refers to it.
 const foreignKeyViolation = "23503"
 
-// Suggest is the name of the signed-in User's Ingredient that name is close to, which
+// Suggest is the name of the signed-in User's Ingredient that `name` is close to, which
 // they may have meant, or "" if there is none.
 func (s *Service) Suggest(ctx context.Context, l domain.Language, name string) (string, error) {
 	known, err := s.List(ctx)
@@ -255,7 +255,7 @@ func (s *Service) Suggest(ctx context.Context, l domain.Language, name string) (
 	return closeTo(l, name, known), nil
 }
 
-// closeTo is the name of the one of known that name is close to without being the
+// closeTo is the name of the one of `known` that `name` is close to without being the
 // same food, or "" if there is none.
 func closeTo(l domain.Language, name string, known []domain.Ingredient) string {
 	closest, ok := domain.ClosestIngredient(l, name, names(known))
@@ -274,7 +274,7 @@ func (s *Service) List(ctx context.Context) (ings []domain.Ingredient, err error
 	return ings, err
 }
 
-// Find is the signed-in User's Ingredient id; ok is false if they have none.
+// Find is the signed-in User's Ingredient `id`; `ok` is false if they have none.
 func (s *Service) Find(ctx context.Context, id int64) (ing domain.Ingredient, ok bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		ing, ok, err = LoadIngredient(ctx, tx, id)
@@ -283,9 +283,9 @@ func (s *Service) Find(ctx context.Context, id int64) (ing domain.Ingredient, ok
 	return ing, ok, err
 }
 
-// Search is the signed-in User's Ingredients a search for query finds by spelling, the
+// Search is the signed-in User's Ingredients a search for `query` finds by spelling, the
 // most alike first, so a typo still finds the Ingredient: every one, by name, for a blank
-// query. Every feature that finds an Ingredient as the User types searches here.
+// `query`. Every feature that finds an Ingredient as the User types searches here.
 func (s *Service) Search(ctx context.Context, query string) ([]domain.Ingredient, error) {
 	ings, err := s.List(ctx)
 	if err != nil {
@@ -294,7 +294,7 @@ func (s *Service) Search(ctx context.Context, query string) ([]domain.Ingredient
 	return search(query, ings), nil
 }
 
-// Listing is what Search finds for query, with the ids of the signed-in User's
+// Listing is what Search finds for `query`, with the ids of the signed-in User's
 // Ingredients some Movement refers to, read together, for the Ingredients' list.
 func (s *Service) Listing(ctx context.Context, query string) (found []domain.Ingredient, withMovements map[int64]bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -309,7 +309,8 @@ func (s *Service) Listing(ctx context.Context, query string) (found []domain.Ing
 	return found, withMovements, err
 }
 
-// search is the ones of ings a search for query finds by spelling, the most alike first.
+// search is the ones of `ings` a search for `query` finds by spelling, the most
+// alike first.
 func search(query string, ings []domain.Ingredient) []domain.Ingredient {
 	var found []domain.Ingredient
 	for _, i := range domain.SearchNames(query, names(ings)) {
@@ -318,7 +319,7 @@ func search(query string, ings []domain.Ingredient) []domain.Ingredient {
 	return found
 }
 
-// names are ings' names, in their order.
+// names are `ings`' names, in their order.
 func names(ings []domain.Ingredient) []string {
 	ns := make([]string, len(ings))
 	for i, ing := range ings {

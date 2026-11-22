@@ -36,14 +36,14 @@ type EditForm struct {
 	DeleteErr string
 }
 
-// editFormOf is the edit form of ing as it is, before anything is typed.
+// editFormOf is the edit form of `ing` as it is, before anything is typed.
 func editFormOf(ing domain.Ingredient) EditForm {
 	return EditForm{ID: ing.ID, AddForm: AddForm{
 		Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Staple: ing.Staple, Values: ValuesOf(ing.Nutrition),
 	}}
 }
 
-// ValuesOf is n as its fields show it, by field, an unknown value blank.
+// ValuesOf is `n` as its fields show it, by field, an unknown value blank.
 func ValuesOf(n domain.Nutrition) map[string]string {
 	values := map[string]string{}
 	for field, a := range map[string]domain.Amount{
@@ -56,7 +56,7 @@ func ValuesOf(n domain.Nutrition) map[string]string {
 	return values
 }
 
-// parseAddForm reads the add form posted in r as an Ingredient, and the form as typed
+// parseAddForm reads the add form posted in `r` as an Ingredient, and the form as typed
 // with why each field is refused, if any is.
 func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 	ctx := r.Context()
@@ -83,7 +83,7 @@ func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 	return ing, f
 }
 
-// PostedNutrition is the nutritional values posted in r as typed, by field.
+// PostedNutrition is the nutritional values posted in `r` as typed, by field.
 func PostedNutrition(r *http.Request) map[string]string {
 	values := map[string]string{}
 	for _, field := range nutrients {
@@ -93,7 +93,7 @@ func PostedNutrition(r *http.Request) map[string]string {
 }
 
 // NutritionErrs is why each nutritional value is refused, by field, in the User's
-// Language, from problems, which may hold other fields too.
+// Language, from `problems`, which may hold other fields too.
 func NutritionErrs(ctx context.Context, problems map[string]domain.Problem) map[string]string {
 	errs := map[string]string{}
 	for _, field := range nutrients {
@@ -104,8 +104,8 @@ func NutritionErrs(ctx context.Context, problems map[string]domain.Problem) map[
 	return errs
 }
 
-// Refusals are those of errs, the refused fields of NewIngredientFields or
-// NutritionFields, in the order they show them, each linking to the id named gives it.
+// Refusals are those of `errs`, the refused fields of NewIngredientFields or
+// NutritionFields, in the order they show them, each linking to the id `named` gives it.
 func Refusals(ctx context.Context, named func(string) string, errs map[string]string) []web.Refusal {
 	var refusals []web.Refusal
 	refuse := func(field string, label web.Message) {
@@ -121,7 +121,7 @@ func Refusals(ctx context.Context, named func(string) string, errs map[string]st
 	return refusals
 }
 
-// ProblemMessage says why field of an Ingredient is refused for problem.
+// ProblemMessage says why `field` of an Ingredient is refused for `problem`.
 func ProblemMessage(field string, problem domain.Problem) web.Message {
 	switch field {
 	case "name":
