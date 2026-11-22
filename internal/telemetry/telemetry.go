@@ -98,8 +98,8 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Logger logs as text to w and, with logs, over OTLP too. A line logged with a span's
-// context carries the span's ids, trace_id and span_id, on w, so it links to the span;
+// Logger logs as text to `w` and, with `logs`, over OTLP too. A line logged with a span's
+// context carries the span's ids, trace_id and span_id, on `w`, so it links to the span;
 // the OTLP record carries them as its own. A line logged in a signed-in User's request
 // carries their id, dandori.user.id, on both.
 func Logger(w io.Writer, logs log.LoggerProvider) *slog.Logger {
@@ -110,7 +110,7 @@ func Logger(w io.Writer, logs log.LoggerProvider) *slog.Logger {
 	return slog.New(adding{h, userID})
 }
 
-// spanIDs are the ids of ctx's span, if it has one.
+// spanIDs are the ids of `ctx`'s span, if it has one.
 func spanIDs(ctx context.Context) []slog.Attr {
 	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
 		return []slog.Attr{slog.String("trace_id", sc.TraceID().String()), slog.String("span_id", sc.SpanID().String())}
@@ -118,7 +118,7 @@ func spanIDs(ctx context.Context) []slog.Attr {
 	return nil
 }
 
-// userID is the id of the signed-in User ctx carries, if any.
+// userID is the id of the signed-in User `ctx` carries, if any.
 func userID(ctx context.Context) []slog.Attr {
 	if id, ok := db.UserID(ctx); ok {
 		return []slog.Attr{slog.String(string(UserID), id)}
