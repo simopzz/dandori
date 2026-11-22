@@ -388,8 +388,11 @@ type planDay struct {
 	sessions        []domain.PrepSession
 	changedSessions []bool
 	changed         bool
-	// splits are the Plan's freezer splits, on its Delivery's day only.
-	splits []domain.RecipeIngredient
+	// splits are the Plan's freezer splits, on its Delivery's day only, with the indexes
+	// of those a Plan Proposal changes, and whether it changes them at all.
+	splits        []domain.RecipeIngredient
+	changedSplits []int
+	splitsChanged bool
 }
 
 // days are the days of c that p fills a Slot or prepares food on, in order, each's Slots

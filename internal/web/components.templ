@@ -292,7 +292,7 @@ templ Figures() {
 // IngredientRows lists ingredients, each its name and its quantity in its unit, with a
 // New Tag on one not yet saved, as a Recipe Draft's new Ingredient is.
 templ IngredientRows(ingredients []domain.RecipeIngredient) {
-	@IngredientRowsWith(ingredients, nil)
+	@IngredientRowsWith(ingredients, nil, nil)
 }
 
 // Changed marks what a Plan Proposal changes of the Plan, worth weighing: a cream Tag
@@ -322,13 +322,14 @@ templ RowTitle(name string, tagged bool, tag string, changed bool) {
 	</span>
 }
 
-// IngredientRowsWith is IngredientRows with what meta, unless nil, gives of each
-// Ingredient, unless nil, as its row's details: a new one's proposed values.
-templ IngredientRowsWith(ingredients []domain.RecipeIngredient, meta func(domain.Ingredient) templ.Component) {
+// IngredientRowsWith is IngredientRows with each of `ingredients` at an index of
+// `changed` marked Changed, and what `meta`, unless nil, gives of each Ingredient, unless
+// nil, as its row's details: a new one's proposed values.
+templ IngredientRowsWith(ingredients []domain.RecipeIngredient, changed []int, meta func(domain.Ingredient) templ.Component) {
 	@Rows() {
-		for _, ri := range ingredients {
+		for i, ri := range ingredients {
 			@Row() {
-				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew), false)
+				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew), slices.Contains(changed, i))
 				<span class="row-figure">{ Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
 				if meta != nil {
 					if c := meta(ri.Ingredient); c != nil {

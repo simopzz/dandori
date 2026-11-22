@@ -74,6 +74,8 @@ var (
 	msgPortionsHead   = web.Message{En: "Portions", It: "Porzioni"}
 	msgKcalUnit       = web.Message{En: "kcal", It: "kcal"}
 
+	msgNothingToFreezer = web.Message{En: "Nothing to the freezer", It: "Niente nel congelatore"}
+
 	msgPlanningKind = web.Message{En: "Planning a Cycle", It: "Pianificazione di un Ciclo"}
 )
 

@@ -23,7 +23,7 @@ templ proposalPage(now time.Time, v cycleView) {
 	{{ ds := proposalDays(c, p) }}
 	@cycleHeader(now, c, v.Upcoming, ds)
 	@decisionAlert(v.Refusal)
-	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast) || clashed(v.Refusal))) {
+	@web.SideColumn(proposalSection(p, ds, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast) || clashed(v.Refusal))) {
 		@web.Section(2, web.T(ctx, msgDays)) {
 			@figureHeads(p.Targets)
 			@daysBefore(p.Trailing)
@@ -85,15 +85,15 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 }
 
 // proposalSection is the Plan Proposal p as Section 01, all deciding on it needs: the
-// planner's summary, the averages against the Targets, the soft misses grouped by kind,
-// the Recipe Drafts it prepares, then approving it or rejecting it, notes being the
-// Cycle's Planning Notes, newest first, and note the one typed; rejecting is open when
-// reject says to.
-templ proposalSection(p Proposal, notes []string, note string, reject bool) {
+// planner's summary, the averages against the Targets, the days of `ds` it changes, the
+// soft misses grouped by kind, the Recipe Drafts it prepares, then approving it or
+// rejecting it, `notes` being the Cycle's Planning Notes, newest first, and `note` the
+// one typed; rejecting is open when `reject` says to.
+templ proposalSection(p Proposal, ds []proposalDay, notes []string, note string, reject bool) {
 	@web.Section(1, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
 		@averages(p)
-		@changedRow(p)
+		@changedRow(ds)
 		@missRows(p)
 		@draftedRows(p.Drafted)
 		@decision(p, notes, note, reject)
@@ -151,10 +151,11 @@ templ figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, bo
 	}
 }
 
-// changedRow is the line saying which days p changes of the Plan it replaces, led by the
-// changed icon: nothing when it replaces none, or changes nothing.
-templ changedRow(p Proposal) {
-	if first, last, ok := changedDays(p); ok {
+// changedRow is the line saying which of its days `ds` a Plan Proposal changes of the
+// Plan it replaces, led by the changed icon: nothing when it replaces none, or
+// changes nothing.
+templ changedRow(ds []proposalDay) {
+	if first, last, ok := changedDays(ds); ok {
 		@web.Rows() {
 			@web.Row() {
 				@web.Icon("changed")
@@ -173,20 +174,18 @@ func changedRange(first, last time.Time) []domain.Day {
 	return []domain.Day{{On: first}, {On: last}}
 }
 
-// changedDays are the first and last day of a Slot or Prep Session p changes, ok false
-// when it changes none.
-func changedDays(p Proposal) (first, last time.Time, ok bool) {
-	days := make([]time.Time, 0, len(p.Changed)+len(p.ChangedSessions))
-	for _, s := range p.Changed {
-		days = append(days, s.On)
+// changedDays are the first and last of `ds`, in order, marked changed, `ok` false when
+// none is.
+func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
+	for _, d := range ds {
+		if d.changed {
+			if !ok {
+				first = d.On
+			}
+			last, ok = d.On, true
+		}
 	}
-	for _, i := range p.ChangedSessions {
-		days = append(days, p.Plan.PrepSessions[i].At.On)
-	}
-	if len(days) == 0 {
-		return first, last, false
-	}
-	return slices.MinFunc(days, time.Time.Compare), slices.MaxFunc(days, time.Time.Compare), true
+	return first, last, ok
 }
 
 // missRows are p's soft misses beside the averages, a line per kind, each led by its
@@ -484,7 +483,8 @@ type proposalDay struct {
 }
 
 // proposalDays are the days p plans of c, each with what fills its Slots and what is
-// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any.
+// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any or
+// changes the Plan's.
 func proposalDays(c Cycle, p Proposal) []proposalDay {
 	byDay := map[time.Time]planDay{}
 	for _, d := range days(c, p) {
@@ -494,13 +494,14 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	for i, d := range p.Days {
 		out[i] = proposalDay{Day: d, planDay: byDay[d.On]}
 	}
-	if len(p.Plan.FreezerSplits) == 0 {
+	if len(p.Plan.FreezerSplits) == 0 && !p.SplitsChanged {
 		return out
 	}
 	if len(out) == 0 || !out[0].On.Equal(c.Delivery.On) {
 		out = append([]proposalDay{{Day: domain.Day{On: c.Delivery.On}, planDay: planDay{on: c.Delivery.On}}}, out...)
 	}
-	out[0].splits = p.Plan.FreezerSplits
+	out[0].splits, out[0].changedSplits, out[0].splitsChanged = p.Plan.FreezerSplits, p.ChangedSplits, p.SplitsChanged
+	out[0].changed = out[0].changed || p.SplitsChanged
 	return out
 }
 
@@ -572,13 +573,22 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its freezer splits, then its Slots, each with its
-// Portion's size, calories and protein, and where it comes from, then each Prep Session
-// of a Recipe, which opens to its Ingredients and the Portions it leaves for later.
+// dayBody is what a day d holds: its freezer splits, each marked when changed, or that
+// none is left when they all are; then its Slots, each with its Portion's size, calories
+// and protein, and where it comes from, then each Prep Session of a Recipe, which opens
+// to its Ingredients and the Portions it leaves for later.
 templ dayBody(d proposalDay) {
-	if len(d.splits) > 0 {
+	if len(d.splits) > 0 || d.splitsChanged {
 		@web.RowsHead(web.T(ctx, msgToFreezer))
-		@web.IngredientRows(d.splits)
+		if len(d.splits) > 0 {
+			@web.IngredientRowsWith(d.splits, d.changedSplits, nil)
+		} else {
+			@web.Rows() {
+				@web.Row() {
+					@web.RowTitle(web.T(ctx, msgNothingToFreezer), false, "", false)
+				}
+			}
+		}
 	}
 	if len(d.filled) > 0 {
 		@web.RowsHead(web.T(ctx, msgSlots))

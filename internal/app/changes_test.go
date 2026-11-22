@@ -132,6 +132,45 @@ func TestAPlanProposalMarksWhatItChangesOfThePlan(t *testing.T) {
 	}
 }
 
+// A Plan Proposal from asking for changes before the Delivery marks the freezer splits it
+// changes of the Plan: each it names at another quantity, and the Delivery's day. One
+// naming none, where the Plan has some, says nothing goes to the freezer.
+func TestAPlanProposalMarksTheFreezerSplitsItChanges(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFridayWithFreezerSplit(t, s)
+	s.Open("/plan")
+	s.Submits("approve")
+
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			d := fridayDraft(t, req)
+			d["freezer_splits"] = []map[string]any{{"ingredient_id": idIn(t, req, `Ingredient (\d+): chicken breast`), "quantity": 300}}
+			return fakellm.CallTool("check_plan", d)
+		}),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Less chicken to freeze."),
+	)
+	s.AsksForChanges("Less chicken in the freezer.")
+	s.Settle()
+	s.Open("/plan")
+	s.Sees("Changes from the Plan: Thu, Nov 5")
+	s.Sees("Thursday, November 5 changed 1 to the freezer at put-away To the freezer at put-away chicken breast changed 300 g Friday, November 6")
+	if n := strings.Count(apptest.Text(s.Page().Body), "changed"); n != 2 {
+		t.Errorf("the Plan Proposal marks %d things changed, want Thursday and its chicken breast", n)
+	}
+
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("No chicken to freeze."),
+	)
+	s.Rejects("None in the freezer.")
+	s.Settle()
+	s.Open("/plan")
+	s.Sees("Changes from the Plan: Thu, Nov 5")
+	s.Sees("Thursday, November 5 changed To the freezer at put-away Nothing to the freezer Friday, November 6")
+}
+
 // Asking for changes with an empty Planning Note is refused on its field, the step left
 // open, and starts no Run; as htmx it answers the same, and with a note lands on the Run.
 func TestAskingForChangesNeedsAPlanningNote(t *testing.T) {
@@ -257,6 +296,7 @@ func TestAReplanAfterTheDeliveryKeepsThePlansFreezerSplits(t *testing.T) {
 	s.Sees("Draft 1 breaks these hard rules: - split-after-put-away: 300 g chicken breast is split to the freezer, and the Delivery is already put away")
 
 	s.Open("/plan")
+	s.DoesNotSee("Nothing to the freezer")
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")
 	s.Sees("To the freezer at put-away chicken breast 400 g")

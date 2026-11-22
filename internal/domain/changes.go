@@ -48,6 +48,24 @@ func (p Plan) Changes(current Plan, from Slot, portions []Portion) (slots []Slot
 	return slots, sessions
 }
 
+// SplitChanges are the indexes of `p`'s freezer splits `current` has none alike of, the
+// same Ingredient at the same quantity, and whether `p` changes `current`'s freezer
+// splits at all: one of them is changed, or `current` has one `p` has none alike of.
+func (p Plan) SplitChanges(current Plan) (rows []int, changed bool) {
+	alike := func(a RecipeIngredient) func(RecipeIngredient) bool {
+		return func(b RecipeIngredient) bool { return a.Ingredient.ID == b.Ingredient.ID && a.Quantity == b.Quantity }
+	}
+	for i, fs := range p.FreezerSplits {
+		if !slices.ContainsFunc(current.FreezerSplits, alike(fs)) {
+			rows = append(rows, i)
+		}
+	}
+	dropped := slices.ContainsFunc(current.FreezerSplits, func(fs RecipeIngredient) bool {
+		return !slices.ContainsFunc(p.FreezerSplits, alike(fs))
+	})
+	return rows, len(rows) > 0 || dropped
+}
+
 // fill is what fills a Slot at: a Portion's name and values.
 type fill struct {
 	at        Slot

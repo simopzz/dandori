@@ -859,7 +859,9 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 // too: the days it plans and, for a pending one, the seven days before its first Slot;
 // as judged while pending, worked out from today's Recipes once approved. Pending with
 // the Cycle's Plan to replace, it has what it changes of that Plan: the Slots it fills
-// with other food, and the indexes of its Prep Sessions the Plan has none alike of.
+// with other food, and the indexes of its Prep Sessions the Plan has none alike of; and
+// before the Delivery, the indexes of its freezer splits the Plan has none alike of,
+// and whether it changes the Plan's freezer splits at all.
 type Proposal struct {
 	ID              int64
 	Plan            domain.Plan
@@ -871,6 +873,8 @@ type Proposal struct {
 	Trailing, Days  []domain.Day
 	Changed         []domain.Slot
 	ChangedSessions []int
+	ChangedSplits   []int
+	SplitsChanged   bool
 }
 
 // Planning is how planning a Cycle stands: its pending Plan Proposal, its Plan (what its
@@ -970,6 +974,10 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 		p.Proposal = pending.resolve(library, known, named, drafted)
 		if len(own) > 0 {
 			p.Proposal.Changed, p.Proposal.ChangedSessions = p.Proposal.Plan.Changes(plan, pending.first, named)
+			// Approved once the Delivery has arrived, it keeps the Plan's freezer splits.
+			if c.Delivery.Arrives().After(s.clock.Now()) {
+				p.Proposal.ChangedSplits, p.Proposal.SplitsChanged = p.Proposal.Plan.SplitChanges(plan)
+			}
 		}
 	}
 	if len(own) > 0 {

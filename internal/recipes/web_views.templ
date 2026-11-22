@@ -142,7 +142,7 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 // its steps.
 templ DraftedRecipe(rec domain.Recipe) {
 	@web.Section(1, web.Data(rec.Name)) {
-		@web.IngredientRowsWith(rec.Ingredients, newValues)
+		@web.IngredientRowsWith(rec.Ingredients, nil, newValues)
 	}
 	@recipeSteps(2, rec.Steps)
 }
