@@ -70,8 +70,8 @@ const (
 // the next, so it is planned and ordered in time.
 const openNextDays = 3
 
-// offer is what Today offers at now about opening a Cycle, with the User's current and
-// upcoming Cycles, each nil when they have none.
+// offer is what Today offers at `now` about opening a Cycle, with the User's `current`
+// and `upcoming` Cycles, each nil when they have none.
 func offer(current, upcoming *planning.Cycle, now time.Time) Offer {
 	switch {
 	case upcoming != nil:
@@ -84,7 +84,7 @@ func offer(current, upcoming *planning.Cycle, now time.Time) Offer {
 	return NoOffer
 }
 
-// At is what Today shows the signed-in User at now.
+// At is what Today shows the signed-in User at `now`.
 func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	times, err := s.profile.SlotTimes(ctx)
 	if err != nil {
