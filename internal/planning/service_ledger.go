@@ -51,10 +51,10 @@ const (
 	changes
 )
 
-// turn is whether the Run runID may plan the Cycle id now, asking wants of its Plan, read
-// in tx, locked so two Runs can't both find it their turn: ErrPlanned for a first Plan
-// of a Cycle with one, ErrNoPlan for changes to one with none, ErrBusy while another
-// planning Run is going or a Plan Proposal pending, for any Cycle.
+// turn is whether the Run `runID` may plan the Cycle `id` now, asking `wants` of its
+// Plan, read in `tx`, locked so two Runs can't both find it their turn: ErrPlanned for a
+// first Plan of a Cycle with one, ErrNoPlan for changes to one with none, ErrBusy while
+// another planning Run is going or a Plan Proposal pending, for any Cycle.
 func turn(ctx context.Context, tx pgx.Tx, id, runID int64, wants plans) error {
 	if err := lockPlanning(ctx, tx); err != nil {
 		return err
@@ -86,9 +86,9 @@ type cause struct {
 	Dropped  bool             `json:"dropped,omitempty"`
 }
 
-// end cancels, in tx, the planning Run going for the Cycle id, as something that
-// happened, why, ends it, and is what stops it: call stop only once tx has committed.
-// Cancelled once, it stays so.
+// end cancels, in `tx`, the planning Run going for the Cycle `id`, as something that
+// happened, `why`, ends it, and is what stops it: call `stop` only once `tx` has
+// committed. Cancelled once, it stays so.
 func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop func(context.Context), err error) {
 	doc, err := json.Marshal(why)
 	if err != nil {
@@ -101,10 +101,11 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop
 	return s.runs.CancelIn(ctx, tx, runID, doc)
 }
 
-// Arrive takes every Delivery of the signed-in User's whose window has ended by now as
+// Arrive takes every Delivery of the signed-in User's whose window has ended by `now` as
 // arrived: a Cycle it closes has its pending Plan Proposal rejected and its planning Run
 // cancelled, naming the Delivery. Run again for a moment it has reached, it changes
-// nothing. Every request runs it, after bringing the kitchen up to now, as the beat does.
+// nothing. Every request runs it, after bringing the kitchen up to `now`, as the
+// beat does.
 func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 	var stops []func(context.Context)
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -150,7 +151,7 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-// Beat takes the Deliveries arrived by at as arrived for every User, the scheduler's
+// Beat takes the Deliveries arrived by `at` as arrived for every User, the scheduler's
 // beat. One User's failure is logged and doesn't stop the others.
 func (s *Service) Beat(ctx context.Context, at time.Time, log *slog.Logger) {
 	users, err := db.UserIDs(ctx, s.pool)
@@ -165,9 +166,9 @@ func (s *Service) Beat(ctx context.Context, at time.Time, log *slog.Logger) {
 	}
 }
 
-// Approve makes the signed-in User's pending Plan Proposal id their Cycle's Plan at now,
-// accepting its Recipe Drafts into their Recipe Library, unless a rule blocking approval
-// refuses it: ErrStartsInThePast once its first Slot has passed, and a
+// Approve makes the signed-in User's pending Plan Proposal `id` their Cycle's Plan at
+// `now`, accepting its Recipe Drafts into their Recipe Library, unless a rule blocking
+// approval refuses it: ErrStartsInThePast once its first Slot has passed, and a
 // *recipes.ClashError for a Recipe Draft that no longer fits the Recipe Library. It is
 // ErrNoProposal when it isn't pending.
 func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
@@ -210,10 +211,11 @@ func (s *Service) Approve(ctx context.Context, id int64, now time.Time) error {
 	})
 }
 
-// Reject rejects the signed-in User's pending Plan Proposal id at now. With a Planning
-// Note it starts a planning Run of its Cycle, with no Kitchen Check, from its first Slot,
-// or the first still to come once that has passed, and is the Run's id; the rejection,
-// the note and the Run commit together. It is ErrNoProposal when it isn't pending.
+// Reject rejects the signed-in User's pending Plan Proposal `id` at `now`. With a
+// Planning Note it starts a planning Run of its Cycle, with no Kitchen Check, from its
+// first Slot, or the first still to come once that has passed, and is the Run's id; the
+// rejection, the `note` and the Run commit together. It is ErrNoProposal when it
+// isn't pending.
 func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Time) (runID int64, err error) {
 	note = strings.TrimSpace(note)
 	if note == "" {
@@ -240,10 +242,10 @@ func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Ti
 	})
 }
 
-// PlanAgain starts a planning Run of the signed-in User's Cycle id at now, with no
+// PlanAgain starts a planning Run of the signed-in User's Cycle `id` at `now`, with no
 // Kitchen Check, from the first Slot its last planning Run planned from, or the first
-// still to come once that has passed, and is the Run's id. A Planning Note is kept on the
-// Cycle and told to the Run; a blank one is none. It is ErrNoFailure unless that Run
+// still to come once that has passed, and is the Run's id. A Planning Note is kept on
+// the Cycle and told to the Run; a blank one is none. It is ErrNoFailure unless that Run
 // failed: after any other, planning goes through the Kitchen Check.
 func (s *Service) PlanAgain(ctx context.Context, id int64, note string, now time.Time) (int64, error) {
 	note = strings.TrimSpace(note)
@@ -270,12 +272,12 @@ func (s *Service) PlanAgain(ctx context.Context, id int64, note string, now time
 	})
 }
 
-// AskForChanges starts a planning Run of the signed-in User's Cycle id at now, with no
-// Kitchen Check, from its first Slot still to come, told the Planning Note note, which
-// it keeps on the Cycle, and is the Run's id. The Plan stays as it is until the Run's
-// Plan Proposal is approved. It is ErrNoNote for a blank note, ErrNoCycle for a Cycle
-// neither upcoming nor current, ErrNoPlan for one with no Plan, ErrNothingLeft when all
-// its Slots have passed, and ErrBusy while another planning Run is going or a Plan
+// AskForChanges starts a planning Run of the signed-in User's Cycle `id` at `now`, with
+// no Kitchen Check, from its first Slot still to come, told the Planning Note `note`,
+// which it keeps on the Cycle, and is the Run's id. The Plan stays as it is until the
+// Run's Plan Proposal is approved. It is ErrNoNote for a blank `note`, ErrNoCycle for a
+// Cycle neither upcoming nor current, ErrNoPlan for one with no Plan, ErrNothingLeft when
+// all its Slots have passed, and ErrBusy while another planning Run is going or a Plan
 // Proposal is pending.
 func (s *Service) AskForChanges(ctx context.Context, id int64, note string, now time.Time) (int64, error) {
 	note = strings.TrimSpace(note)
@@ -291,8 +293,8 @@ func (s *Service) AskForChanges(ctx context.Context, id int64, note string, now 
 	})
 }
 
-// CycleOfRun is the Cycle the signed-in User's planning Run runID plans, while it is
-// upcoming or current at now, and whether that Run is the latest of its Cycle. It is
+// CycleOfRun is the Cycle the signed-in User's planning Run `runID` plans, while it is
+// upcoming or current at `now`, and whether that Run is the `latest` of its Cycle. It is
 // ErrNoCycle once the Cycle has closed or been dropped.
 func (s *Service) CycleOfRun(ctx context.Context, runID int64, now time.Time) (c Cycle, latest bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -310,8 +312,8 @@ func (s *Service) CycleOfRun(ctx context.Context, runID int64, now time.Time) (c
 	return c, latest, err
 }
 
-// CycleOfProposal is the id of the Cycle the signed-in User's Plan Proposal id, whatever
-// its status, plans, and ErrNoProposal when they have no such Plan Proposal.
+// CycleOfProposal is the id of the Cycle the signed-in User's Plan Proposal `id`,
+// whatever its status, plans, and ErrNoProposal when they have no such Plan Proposal.
 func (s *Service) CycleOfProposal(ctx context.Context, id int64) (cycleID int64, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		cycleID, err = cycleOfProposal(ctx, tx, id)
