@@ -622,8 +622,10 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 
 .figures-head > * > :first-child { color: var(--color-text); }
 
-/* A kind of line led by its icon: what it says under it lines up with its title. */
-.row-static > .icon { align-self: start; margin-top: var(--space-1); }
+/* A kind of line led by its icon: what it says under it lines up with its title. The
+   icon rides the row's baseline, so it sits on the title's first line whether that is
+   text or a link centred in its tap target, wrapped or not; the nudge centres it there. */
+.row-static > .icon { translate: 0 var(--space-1); }
 
 .row-static > .icon ~ .row-meta { padding-left: calc(var(--icon) + var(--space-4)); }
 
