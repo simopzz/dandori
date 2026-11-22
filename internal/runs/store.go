@@ -18,21 +18,21 @@ func insertRun(ctx context.Context, q db.Querier, kind Kind, asked string, at ti
 	return id, err
 }
 
-// setStatus stores how the Run id ended, stored false when it had already.
+// setStatus stores how the Run `id` ended, `stored` false when it had already.
 func setStatus(ctx context.Context, q db.Querier, id int64, status Status, at time.Time) (stored bool, err error) {
 	tag, err := q.Exec(ctx, `UPDATE run SET status = $2, ended_at = $3 WHERE id = $1 AND status = $4`,
 		id, status, at, Going)
 	return tag.RowsAffected() == 1, err
 }
 
-// setCause stores cause as what cancelled the Run id.
+// setCause stores `cause` as what cancelled the Run `id`.
 func setCause(ctx context.Context, q db.Querier, id int64, cause json.RawMessage) error {
 	_, err := q.Exec(ctx, `UPDATE run SET cause = $2 WHERE id = $1`, id, cause)
 	return err
 }
 
-// failGoing fails every Run still going at, whatever User's it is, ending each Trace with
-// the Trace Events failed and ended.
+// failGoing fails every Run still going `at`, whatever User's it is, ending each Trace
+// with the Trace Events `failed` and `ended`.
 func failGoing(ctx context.Context, q db.Querier, at time.Time, failed, ended []byte) error {
 	_, err := q.Exec(ctx, `
 		WITH going AS (
@@ -68,8 +68,8 @@ func listRuns(ctx context.Context, q db.Querier) ([]Run, error) {
 	})
 }
 
-// loadStatus is the kind and status of the signed-in User's Run id, found false when
-// they have no such Run.
+// loadStatus is the `kind` and `status` of the signed-in User's Run `id`, `found` false
+// when they have no such Run.
 func loadStatus(ctx context.Context, q db.Querier, id int64) (kind Kind, status Status, found bool, err error) {
 	err = q.QueryRow(ctx, `SELECT kind, status FROM run WHERE id = $1`, id).Scan(&kind, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -78,7 +78,7 @@ func loadStatus(ctx context.Context, q db.Querier, id int64) (kind Kind, status 
 	return kind, status, err == nil, err
 }
 
-// loadRun is the signed-in User's Run id with its Trace.
+// loadRun is the signed-in User's Run `id` with its Trace.
 func loadRun(ctx context.Context, q db.Querier, id int64) (run Run, found bool, err error) {
 	run.ID = id
 	err = q.QueryRow(ctx, `SELECT kind, status, asked, started_at, cause FROM run WHERE id = $1`, id).
@@ -93,7 +93,7 @@ func loadRun(ctx context.Context, q db.Querier, id int64) (run Run, found bool, 
 	return run, err == nil, err
 }
 
-// loadTrace is the Trace Events of the signed-in User's Run id after the seq-th.
+// loadTrace is the Trace Events of the signed-in User's Run `id` after the seq-th.
 func loadTrace(ctx context.Context, q db.Querier, id int64, seq int) ([]StoredTraceEvent, error) {
 	rows, _ := q.Query(ctx, `SELECT seq, at, kind, data FROM trace_event WHERE run_id = $1 AND seq > $2 ORDER BY seq`, id, seq)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (StoredTraceEvent, error) {

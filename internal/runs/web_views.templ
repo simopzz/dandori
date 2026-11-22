@@ -43,7 +43,7 @@ type result struct{ Text, Href string }
 // runURL is the page of the Run id.
 func runURL(id int64) string { return fmt.Sprintf("/runs/%d", id) }
 
-// lastSeq is the place of the last Trace Event r's page shows, 0 for none.
+// lastSeq is the place of the last Trace Event `r`'s page shows, 0 for none.
 func (r Run) lastSeq() int {
 	if len(r.Trace) == 0 {
 		return 0
@@ -51,7 +51,7 @@ func (r Run) lastSeq() int {
 	return r.Trace[len(r.Trace)-1].Seq
 }
 
-// runsPage lists the User's Runs, newest first, kinds naming each kind.
+// runsPage lists the User's Runs, newest first, `kinds` naming each kind.
 templ runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) {
 	@web.Layout(web.Tf(ctx, msgRunTitle, web.T(ctx, msgRuns)), web.RunsTab) {
 		@web.PageHeader("実行", web.T(ctx, msgRuns), now)
@@ -100,7 +100,7 @@ templ statusTag(s Status) {
 // headlineRunes is how much of what a Run was asked names it on the Runs page.
 const headlineRunes = 60
 
-// headline names a Run on the Runs page by line, the first of what it was asked: cut to
+// headline names a Run on the Runs page by `line`, the first of what it was asked: cut to
 // headlineRunes, with an ellipsis where it was cut.
 func headline(line string) string {
 	line = strings.TrimSpace(line)
@@ -110,12 +110,11 @@ func headline(line string) string {
 	return line
 }
 
-// runPage is a Run and its Trace, with what the User gave it, folded under askedName,
-// and a link to what it left, if anything, or a form posting what it was asked to again.
-// While the Run goes, the page offers to cancel
-// it and appends its Trace Events as they stream in; once it ends, it fetches itself
-// again into the body, which goes on to what the Run left. Without JavaScript, a link
-// opens it again further along.
+// runPage is a Run and its Trace, with what the User gave it, folded under askedName, and
+// a link to what it left, if anything, or a form posting what it was asked to `again`.
+// While the Run goes, the page offers to cancel it and appends its Trace Events as they
+// stream in; once it ends, it fetches itself again into the body, which goes on to what
+// the Run left. Without JavaScript, a link opens it again further along.
 templ runPage(now time.Time, r Run, k KindPage, res result, again string, about templ.Component) {
 	{{ kind, askedName := web.T(ctx, k.Name), web.T(ctx, k.AskedLabel) }}
 	@web.Layout(web.Tf(ctx, msgRunTitle, kind), cmp.Or(k.Tab, web.RunsTab)) {
@@ -218,7 +217,7 @@ templ label(text string) {
 	<span class="trace-kind">{ text }</span>
 }
 
-// detail is what ev's Fold holds, its data verbatim: the model's name, or a tool's over
+// detail is what `ev`'s Fold holds, its data verbatim: the model's name, or a tool's over
 // what it was sent, indented to read, or what it said; a retry's wait; a turn's tokens.
 func detail(ctx context.Context, ev agent.TraceEvent) string {
 	text := ev.Text
@@ -242,7 +241,7 @@ func detail(ctx context.Context, ev agent.TraceEvent) string {
 	return text
 }
 
-// line is ev's fixed line in the Language of ctx, in a Run of kind k.
+// line is `ev`'s fixed line in the Language of `ctx`, in a Run of kind `k`.
 func line(ctx context.Context, ev agent.TraceEvent, k KindPage) string {
 	switch ev.Kind {
 	case agent.Started:

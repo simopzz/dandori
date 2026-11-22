@@ -60,7 +60,7 @@ type Handlers struct {
 	Log   *slog.Logger
 }
 
-// page is what the pages tell of the kind of Run k: nothing, for a kind no feature
+// page is what the pages tell of the kind of Run `k`: nothing, for a kind no feature
 // tells of.
 func (h Handlers) page(k Kind) KindPage {
 	for _, p := range h.Kinds {
@@ -253,8 +253,8 @@ func writeSSE(w io.Writer, id, name, data string) {
 	fmt.Fprint(w, "\n")
 }
 
-// Failure is why run, of the kind k tells of, failed, in the Language of ctx, as its
-// Trace tells it: "" for a Run that didn't.
+// Failure is why `run`, of the kind `k` tells of, failed, in the Language of `ctx`, as
+// its Trace tells it: "" for a Run that didn't.
 func (k KindPage) Failure(ctx context.Context, run Run) string {
 	for _, ev := range run.Trace {
 		if ev.Kind == agent.Failed {
