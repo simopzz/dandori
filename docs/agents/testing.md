@@ -28,7 +28,7 @@ Every page but sign-in needs a signed-in User. `apptest` starts a fake Supabase 
 
 `h.Browser(t)` opens a headless Chromium on the app through playwright-go, for each page's main path as the User gets it, with htmx, CSS and scripts: `Open`, `Sees`, and the rest of `playwright.Page`. `b.Hold(t, path)` holds the browser's requests to a path, as a slow server would, until the test calls `Release` on what it returns, or `Fail` to drop them as a lost connection would; `Count` is how many it held. It sets the clock with `SetClock`, which posts to `POST /_test/clock`: a switch only `apptest` serves, so the production binary, which `cmd/dandori`'s guardrail checks never links `apptest`, has none. `b.Shot(t, name)` saves the page as `name.png` in the folder `DANDORI_SHOTS` names, so `DANDORI_SHOTS=<dir> go test ./internal/app -run <test>` gives a PR its images with no dev server: take each after an assertion, which has waited for the swap. Install the browser once with `mise run browsers`. Without it, browser tests skip locally and fail in CI, which installs it.
 
-A throwaway test, such as one taking screenshots to look at, goes in the session's scratchpad, never in the repo: the pre-commit hook lints every `.go` file in a package, ignored by git or not.
+A throwaway test, such as one taking screenshots to look at, goes in `internal/app` as `zz_<name>_test.go`, beside the scenario helpers it needs (a test outside the module can't import `apptest`), and is deleted before the commit: the pre-commit hook lints every `.go` file in a package, ignored by git or not.
 
 ## Seam 2: the domain core
 

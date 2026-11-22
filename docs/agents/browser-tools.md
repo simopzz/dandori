@@ -9,6 +9,15 @@ Two MCP servers drive a browser. Pick by the question you're asking:
 
 Under `mise run dev` the demo model only parses Recipes: a planning Run needs `DANDORI_DEMO_LLM=false`, which asks Claude. Follow a Run on its Trace, `/runs/<id>`, and stock on `/kitchen`, not in the dev database: their tables don't say what the pages do.
 
+`mise run dev` serves on `.env`'s `DANDORI_ADDR`, `127.0.0.1:8080`. With another dev server already there, `DANDORI_DEV_ADDR=127.0.0.1:8081 mise run dev` serves this branch beside it; a sign-in carries across ports. Run it through the task, which points it at the dev database, never `.env`'s `DANDORI_DATABASE_URL`.
+
+The dev server runs on the real clock. Reach a state that depends on the date, such as three days before a Cycle's end, by editing the dev database: back it up first with `pg_dump -Fc -d <dev URL> -f <scratchpad>/devdb.dump`, and restore it once done with `pg_restore --clean --if-exists --single-transaction -d <dev URL> <scratchpad>/devdb.dump`. The dev URL is the `DANDORI_DATABASE_URL` in `mise.toml`'s `dev` task.
+
+## playwright-brave
+
+- `browser_click` waits for the element to be stable, which it never is in a tab in the background: click and submit with `browser_evaluate` instead, `el.click()` or `form.requestSubmit()`, which htmx's boost follows as a click.
+- `browser_take_screenshot` saves only under the repo: give it a `filename` in `.playwright-mcp/`, which git ignores.
+
 ## chrome-devtools
 
 It launches `/usr/bin/chromium` on its first tool call (`new_page`, `navigate_page`), not before, with a profile kept in `~/.cache/chrome-devtools-mcp/chrome-profile`, so a sign-in survives between sessions. Run the app with `mise run dev` (http://127.0.0.1:8080). The first time, signing in goes through the real Supabase Auth: ask the user to finish the magic link in the window it opened.
