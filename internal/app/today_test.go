@@ -173,17 +173,12 @@ func TestTodaySaysHowPlanningTheNextCycleStands(t *testing.T) {
 			}
 			s.Follows(link)
 			s.Sees("Cycle · Thu, Nov 5 – Fri, Nov 6")
+			if _, anchor, ok := strings.Cut(c.at, "#"); ok {
+				if got := apptest.Anchored(t, s.Page().Body, anchor); !strings.HasPrefix(got, "01 Plan Proposal Rice bowls for Friday.") {
+					t.Errorf("%q lands on %q, want Section 01, the Plan Proposal", link, got)
+				}
+			}
 		})
-	}
-}
-
-// The Plan Proposal a reminder on Today leads straight to is the Cycle page's Section 01.
-func TestTodayLeadsStraightToThePlanProposal(t *testing.T) {
-	s := plannerWithKitchen(t, "ada@example.com")
-	plansFriday(t, s, "Rice bowls for Friday.")
-	s.Open("/plan")
-	if !strings.Contains(s.Page().Body, `<div id="plan-proposal"><section class="section"><h2 class="section-heading">`) {
-		t.Errorf("the Cycle page's Section 01 isn't plan-proposal:\n%s", s.Page().Body)
 	}
 }
 

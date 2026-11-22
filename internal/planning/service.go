@@ -84,6 +84,28 @@ const (
 	Planned Standing = "planned"
 )
 
+// standing is how planning a Cycle stands with a Plan Proposal pending, a planning Run
+// going, a Plan, or its latest planning Run failed, as each says: the first of these
+// that holds, in that order, or Unplanned when none does.
+func standing(pending, going, planned, failed bool) Standing {
+	switch {
+	case pending:
+		return ProposalWaiting
+	case going:
+		return BeingPlanned
+	case planned:
+		return Planned
+	case failed:
+		return PlanningFailed
+	}
+	return Unplanned
+}
+
+// Standing is how planning stands, as the Cycle page tags it and Today names it.
+func (p Planning) Standing() Standing {
+	return standing(p.Proposal != nil, p.Going != 0, p.Plan != nil, p.Failed != nil)
+}
+
 // StandingOf is how planning the signed-in User's Cycle id stands.
 func (s *Service) StandingOf(ctx context.Context, id int64) (st Standing, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {

@@ -18,9 +18,9 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is Today at now: the Slot now or next, the day's later Slots a click away, where
-// the Plan will show and what planning needs (no Plan yet), opening a Cycle while there's
-// none, and how up to date it is.
+// page is Today at now: the Slot now or next, the day's later Slots a click away, what
+// to do next about planning, where the Plan will show and what planning needs (no Plan
+// yet), and how up to date it is.
 func page(now time.Time, d Day) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -276,8 +276,8 @@ func page(now time.Time, d Day) templ.Component {
 }
 
 // reminders are what Today reminds the User to do next about planning, a row each led by
-// its icon and linking to where they do it: how planning the current Cycle and the next
-// stand, then opening a Cycle, the first or the next, or setting the Targets first.
+// the icon of the page it links to: how planning the current Cycle and the next stand,
+// then opening a Cycle, the first or the next, or setting the Targets first.
 func reminders(d Day) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -299,7 +299,7 @@ func reminders(d Day) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if len(d.Planning) > 0 || d.Offer != NoOffer {
+		if len(d.Reminders) > 0 || d.Offer != NoOffer {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"section\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -316,7 +316,7 @@ func reminders(d Day) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				for _, r := range d.Planning {
+				for _, r := range d.Reminders {
 					templ_7745c5c3_Err = standingRow(r).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -396,8 +396,8 @@ func reminders(d Day) templ.Component {
 }
 
 // standingRow says how planning r's Cycle stands, linking to its Cycle page, straight to
-// the Plan Proposal when one is waiting. A failed one is urgent: the seal and an
-// accent Tag.
+// the Plan Proposal when one is waiting. A failed one is urgent: the seal, not the Plan
+// page's icon, and an accent Tag.
 func standingRow(r Reminder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -438,7 +438,7 @@ func standingRow(r Reminder) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = web.Icon(says.icon).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.Icon("calendar").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

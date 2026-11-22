@@ -33,10 +33,10 @@ type Day struct {
 	// until it first has.
 	Beat   time.Time
 	Beaten bool
-	// Planning are the User's current and upcoming Cycles still to plan, in that order,
+	// Reminders are the User's current and upcoming Cycles still to plan, in that order,
 	// each as Today reminds them of it; a Cycle with a Plan, and nothing pending or
 	// going, has none.
-	Planning []Reminder
+	Reminders []Reminder
 	// Offer is what Today offers about opening a Cycle.
 	Offer Offer
 }
@@ -120,7 +120,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 			return Day{}, err
 		}
 		if st != planning.Planned {
-			d.Planning = append(d.Planning, Reminder{CycleID: c.ID, Next: c == upcoming, Standing: st})
+			d.Reminders = append(d.Reminders, Reminder{CycleID: c.ID, Next: c == upcoming, Standing: st})
 		}
 	}
 	return d, nil

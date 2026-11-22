@@ -39,7 +39,7 @@ var (
 )
 
 // offers are what Today says of each Offer about opening a Cycle, where it links and
-// the icon leading it.
+// the icon leading it, its page's.
 var offers = map[Offer]struct {
 	text       web.Message
 	href, icon string
@@ -50,15 +50,12 @@ var offers = map[Offer]struct {
 }
 
 // standings are what Today says of each Standing of a Cycle still to plan, of the
-// current Cycle and of the next, and the icon leading it; the seal leads a failed one.
-var standings = map[planning.Standing]struct {
-	icon          string
-	current, next web.Message
-}{
-	planning.Unplanned:       {"calendar", msgCurrentUnplanned, msgNextUnplanned},
-	planning.BeingPlanned:    {"activity", msgCurrentGoing, msgNextGoing},
-	planning.ProposalWaiting: {"clipboard", msgCurrentProposal, msgNextProposal},
-	planning.PlanningFailed:  {"", msgCurrentFailed, msgNextFailed},
+// current Cycle and of the next.
+var standings = map[planning.Standing]struct{ current, next web.Message }{
+	planning.Unplanned:       {msgCurrentUnplanned, msgNextUnplanned},
+	planning.BeingPlanned:    {msgCurrentGoing, msgNextGoing},
+	planning.ProposalWaiting: {msgCurrentProposal, msgNextProposal},
+	planning.PlanningFailed:  {msgCurrentFailed, msgNextFailed},
 }
 
 // setUp is what planning needs, each named for what the User does at its link.

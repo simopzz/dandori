@@ -89,7 +89,7 @@ One change to what the kitchen holds, with when it happened and what caused it: 
 _Avoid_: Transaction, delta, stock change
 
 **Today**:
-What Dandori shows the user from the moment they open it: the whole day's Slots, the next one first and the later ones a click away; when to start preparing and with what; what to take out of the freezer tonight; a Delivery due; the next Cycle to plan and order, from three days before its Delivery; and what it has assumed since they last looked, for them to correct if it went otherwise.
+What Dandori shows the user from the moment they open it: the whole day's Slots, the next one first and the later ones a click away; when to start preparing and with what; what to take out of the freezer tonight; a Delivery due; the next Cycle to plan and order, from three days before the current Cycle's end date; and what it has assumed since they last looked, for them to correct if it went otherwise.
 _Avoid_: Dashboard, home
 
 **Kitchen Check**:

@@ -7,6 +7,27 @@ import (
 	"golang.org/x/net/html"
 )
 
+// Anchored returns the text shown by the element of page whose id is id, as Text reads
+// it: where a link to #id lands.
+func Anchored(t testing.TB, page, id string) string {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatalf("parse page: %v", err)
+	}
+	for n := range doc.Descendants() {
+		if n.Type == html.ElementNode && attr(n, "id") == id {
+			var b strings.Builder
+			if err := html.Render(&b, n); err != nil {
+				t.Fatalf("render #%s: %v", id, err)
+			}
+			return Text(b.String())
+		}
+	}
+	t.Fatalf("page has no element whose id is %q", id)
+	return ""
+}
+
 // Link returns where the first link on page whose text contains text
 // leads, as a user would follow it: without JavaScript, so one in a noscript too.
 func Link(t testing.TB, page, text string) string {

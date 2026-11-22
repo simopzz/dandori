@@ -183,7 +183,8 @@ func TestCycleFormsPostedAsHTMX(t *testing.T) {
 	}
 }
 
-// Today offers to open a Cycle while there's none, current or upcoming.
+// Today offers to open a Cycle while there's none, current or upcoming; with only an
+// upcoming one, it says the next Cycle is waiting to be planned instead.
 func TestTodayOffersToOpenACycle(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	s.Open("/")
@@ -193,6 +194,7 @@ func TestTodayOffersToOpenACycle(t *testing.T) {
 	s.OpensCycle(thursday)
 	s.Open("/")
 	s.DoesNotSee("Open a Cycle")
+	s.Sees("The next Cycle is waiting to be planned")
 	s.At("Thu 20:00")
 	s.Open("/")
 	s.DoesNotSee("Open a Cycle")
