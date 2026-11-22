@@ -21,8 +21,8 @@ type Loop struct {
 	MaxTurns int
 }
 
-// Run carries out b, emitting every step to tr, until the model ends its turn without
-// calling a tool. It fails with a *Failure, or ctx's error once ctx is cancelled.
+// Run carries out `b`, emitting every step to `tr`, until the model ends its turn without
+// calling a tool. It fails with a *Failure, or `ctx`'s error once `ctx` is cancelled.
 func (l Loop) Run(ctx context.Context, b Brief, tr Trace) error {
 	tools := map[string]Tool{}
 	specs := make([]ToolSpec, 0, len(b.Tools))
@@ -117,9 +117,9 @@ func (l Loop) send(ctx context.Context, req Request, tr Trace) (Response, error)
 	}
 }
 
-// runTools runs the tool calls of the model's turn, in order, and returns their results.
-// A failing tool is reported to the model, not fatal, unless it fails with a *Failure,
-// which fails the Run.
+// runTools runs the tool `calls` of the model's turn, in order, and returns their
+// results. A failing tool is reported to the model, not fatal, unless it fails with a
+// *Failure, which fails the Run.
 func runTools(ctx context.Context, tools map[string]Tool, calls []Block, tr Trace) ([]Block, error) {
 	var results []Block
 	for _, call := range calls {

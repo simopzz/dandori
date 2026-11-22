@@ -29,7 +29,7 @@ type sent struct {
 	raw    []byte
 }
 
-// api is a fake Claude API answering every request with status and reply, recording
+// api is a fake Claude API answering every request with `status` and `reply`, recording
 // what it was sent.
 func api(t *testing.T, status int, reply string) (*LLM, *[]sent) {
 	t.Helper()
@@ -102,7 +102,7 @@ func TestASecondBreakpointEndsTheStableBlock(t *testing.T) {
 	}
 }
 
-// sends sends req, then req's next turn after the model's tool call, checking both
+// sends sends `req`, then `req`'s next turn after the model's tool call, checking both
 // requests have the top-level breakpoint and the same system prompt with its own; it
 // returns what the fake API was sent.
 func sends(t *testing.T, req agent.Request) []sent {
@@ -193,7 +193,7 @@ func TestTheCallsSpanSaysWhoAnswered(t *testing.T) {
 	}
 }
 
-// spanOf is the attributes call gives the span of the context it is passed.
+// spanOf is the attributes `call` gives the span of the context it is passed.
 func spanOf(t *testing.T, call func(ctx context.Context)) map[attribute.Key]string {
 	t.Helper()
 	spans := tracetest.NewInMemoryExporter()
