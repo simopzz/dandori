@@ -198,8 +198,14 @@ func submit(ctx context.Context, q db.Querier, runID int64, plan domain.Plan, ta
 		}
 	}
 	for _, k := range plan.Kept {
-		_, err := q.Exec(ctx, `INSERT INTO kept_portion (plan_proposal_id, portion_id, eat_on, eat_kind) VALUES ($1, $2, $3, $4)`,
-			id, k.Portion, k.At.On.Format(time.DateOnly), k.At.Kind)
+		var portion, planned *int64
+		if k.Portion < 0 {
+			planned = new(domain.PlannedID(k.Portion)) // PlannedID negates both ways
+		} else {
+			portion = &k.Portion
+		}
+		_, err := q.Exec(ctx, `INSERT INTO kept_portion (plan_proposal_id, portion_id, planned_portion_id, eat_on, eat_kind) VALUES ($1, $2, $3, $4, $5)`,
+			id, portion, planned, k.At.On.Format(time.DateOnly), k.At.Kind)
 		if err != nil {
 			return err
 		}
@@ -228,6 +234,7 @@ type storedProposal struct {
 	sessions []storedSession
 	kept     []domain.Kept
 	splits   []domain.RecipeIngredient
+	decided  *time.Time // nil while pending
 }
 
 type storedSession struct {
@@ -236,12 +243,12 @@ type storedSession struct {
 }
 
 // proposalColumns are what scanProposal reads of a plan_proposal pp and its cycle_run cr.
-const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses, pp.days_before, pp.days`
+const proposalColumns = `pp.id, pp.summary, cr.first_on, cr.first_kind, pp.targets, pp.misses, pp.days_before, pp.days, pp.decided_at`
 
 // scanProposal reads proposalColumns of row, and the Plan they store, its days in zone.
 func scanProposal(ctx context.Context, q db.Querier, row pgx.Row, zone *time.Location) (*storedProposal, error) {
 	var sp storedProposal
-	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses, &sp.trailing, &sp.days)
+	err := row.Scan(&sp.id, &sp.summary, &sp.first.On, &sp.first.Kind, &sp.targets, &sp.misses, &sp.trailing, &sp.days, &sp.decided)
 	if err != nil {
 		return nil, err
 	}
@@ -254,13 +261,12 @@ func scanProposal(ctx context.Context, q db.Querier, row pgx.Row, zone *time.Loc
 	return &sp, loadPlan(ctx, q, &sp, zone)
 }
 
-// loadProposal reads the signed-in User's Plan Proposal of the Cycle id with status, its
-// days in zone, or nil when it has none: the pending one, or the approved one that is
-// its Plan.
-func loadProposal(ctx context.Context, q db.Querier, id int64, status ProposalStatus, zone *time.Location) (*storedProposal, error) {
+// loadPending reads the signed-in User's pending Plan Proposal of the Cycle id, its days
+// in zone, or nil when it has none.
+func loadPending(ctx context.Context, q db.Querier, id int64, zone *time.Location) (*storedProposal, error) {
 	sp, err := scanProposal(ctx, q, q.QueryRow(ctx, `
 		SELECT `+proposalColumns+` FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id
-		WHERE cr.cycle_id = $1 AND pp.status = $2`, id, status), zone)
+		WHERE cr.cycle_id = $1 AND pp.status = $2`, id, Pending), zone)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -280,6 +286,25 @@ func loadApproved(ctx context.Context, q db.Querier, from time.Time, zone *time.
 	if err != nil {
 		return nil, err
 	}
+	return loadProposals(ctx, q, rows, zone)
+}
+
+// loadPlanOf reads the signed-in User's approved Plan Proposals of the Cycle id, oldest
+// first, their days in zone: what they leave in place, each from its first Slot on, is
+// its Plan.
+func loadPlanOf(ctx context.Context, q db.Querier, id int64, zone *time.Location) ([]*storedProposal, error) {
+	rows, err := q.Query(ctx, `
+		SELECT pp.id FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id
+		WHERE cr.cycle_id = $1 AND pp.status = $2 ORDER BY pp.id`, id, Approved)
+	if err != nil {
+		return nil, err
+	}
+	return loadProposals(ctx, q, rows, zone)
+}
+
+// loadProposals reads the Plan Proposals whose ids rows are, in their order, their days
+// in zone.
+func loadProposals(ctx context.Context, q db.Querier, rows pgx.Rows, zone *time.Location) ([]*storedProposal, error) {
 	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return nil, err
@@ -302,7 +327,7 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 	in := func(t time.Time) time.Time { return inZone(t, zone) }
 	rows, err := q.Query(ctx, `
 		SELECT s.id, s.prepared_on, s.prepared_kind, coalesce(s.recipe_id, 0), coalesce(s.draft_id, 0), coalesce(s.size, 0)::float8,
-			coalesce(s.ingredient_id, 0), coalesce(s.quantity, 0)::float8, p.location, p.eat_on, coalesce(p.eat_kind, '')
+			coalesce(s.ingredient_id, 0), coalesce(s.quantity, 0)::float8, p.id, p.location, p.eat_on, coalesce(p.eat_kind, '')
 		FROM prep_session s JOIN planned_portion p ON p.prep_session_id = s.id
 		WHERE s.plan_proposal_id = $1 ORDER BY s.id, p.position`, sp.id)
 	if err != nil {
@@ -316,7 +341,7 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 		var pp domain.PlannedPortion
 		var eatOn *time.Time
 		var eatKind domain.SlotKind
-		err := rows.Scan(&sessionID, &ps.At.On, &ps.At.Kind, &ps.recipeID, &ps.draftID, &ps.Size, &ps.ingredientID, &quantity, &pp.Location, &eatOn, &eatKind)
+		err := rows.Scan(&sessionID, &ps.At.On, &ps.At.Kind, &ps.recipeID, &ps.draftID, &ps.Size, &ps.ingredientID, &quantity, &pp.ID, &pp.Location, &eatOn, &eatKind)
 		if err != nil {
 			rows.Close()
 			return err
@@ -335,7 +360,9 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	rows, _ = q.Query(ctx, `SELECT portion_id, eat_on, eat_kind FROM kept_portion WHERE plan_proposal_id = $1 ORDER BY eat_on`, sp.id)
+	rows, _ = q.Query(ctx, `
+		SELECT coalesce(portion_id, -planned_portion_id), eat_on, eat_kind FROM kept_portion
+		WHERE plan_proposal_id = $1 ORDER BY eat_on`, sp.id) // -: domain.PlannedID
 	sp.kept, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (k domain.Kept, err error) {
 		err = row.Scan(&k.Portion, &k.At.On, &k.At.Kind)
 		k.At.On = in(k.At.On)
@@ -354,8 +381,8 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 	return err
 }
 
-// hasPlan reports whether the signed-in User's Cycle id has a Plan, which is the Plan
-// Proposal they approved.
+// hasPlan reports whether the signed-in User's Cycle id has a Plan: a Plan Proposal of it
+// they approved.
 func hasPlan(ctx context.Context, q db.Querier, id int64) (planned bool, err error) {
 	err = q.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id

@@ -25,6 +25,7 @@ var (
 	msgUnknown        = Message{En: "unknown", It: "non noto"}
 	msgAtLeast        = Message{En: "at least", It: "almeno"}
 	msgNew            = Message{En: "New", It: "Nuovo"}
+	msgChanged        = Message{En: "changed", It: "modificato"}
 )
 
 // problems say why a typed value is refused, the same for every field.

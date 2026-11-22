@@ -172,7 +172,7 @@ func TestTheSoftRulesOfAPlansStructure(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.plan.SoftMisses(nil); !slices.EqualFunc(got, tt.want, sameMiss) {
+			if got := tt.plan.SoftMisses(nil, domain.Plan{}); !slices.EqualFunc(got, tt.want, sameMiss) {
 				t.Errorf("SoftMisses() = %+v,\nwant %+v", got, tt.want)
 			}
 		})
@@ -209,7 +209,7 @@ func TestPortionsLeftWithoutASlot(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.plan.SoftMisses(lasagne); !slices.EqualFunc(got, tt.misses, sameMiss) {
+			if got := tt.plan.SoftMisses(lasagne, domain.Plan{}); !slices.EqualFunc(got, tt.misses, sameMiss) {
 				t.Errorf("SoftMisses() = %+v,\nwant %+v", got, tt.misses)
 			}
 			if got := tt.plan.MadeForAfter(); !slices.Equal(got, tt.madeFor) {

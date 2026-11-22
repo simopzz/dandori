@@ -31,6 +31,7 @@ const (
 	refusedPlanned  httpx.Refusal = "the Cycle already has a Plan"
 	refusedNoneLeft httpx.Refusal = "no Slot of the Cycle is left to plan"
 	refusedClash    httpx.Refusal = "a Recipe Draft clashes with the Recipe Library"
+	refusedNoNote   httpx.Refusal = "asking for changes needs a Planning Note"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
@@ -215,13 +216,33 @@ func (h Handlers) PlanAgain(w http.ResponseWriter, r *http.Request) {
 	web.Answer{RedirectTo: fmt.Sprintf("/runs/%d", runID)}.Write(w, r, h.Log)
 }
 
+// AskForChanges starts a planning Run of the Cycle in the path, told the Planning Note
+// posted, landing on it, or answers with the Cycle page saying why it can't: a note left
+// empty on its field.
+func (h Handlers) AskForChanges(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	runID, err := h.Service.AskForChanges(r.Context(), id, r.PostFormValue("note"), h.Clock.Now())
+	switch {
+	case errors.Is(err, ErrNoNote):
+		httpx.Refused(r, refusedNoNote, map[string]string{"note": web.T(r.Context(), msgNoNote)})
+		h.cycle(w, r, http.StatusUnprocessableEntity, id, err)
+	case err != nil:
+		h.refused(w, r, id, "ask for changes to a Plan", err)
+	default:
+		web.Answer{RedirectTo: fmt.Sprintf("/runs/%d", runID)}.Write(w, r, h.Log)
+	}
+}
+
 // refused answers a decision or a replan of the Cycle id that failed with err, doing
 // what: unknown when there's nothing to decide or plan, the Cycle's page saying why when
 // a rule refused it.
 func (h Handlers) refused(w http.ResponseWriter, r *http.Request, id int64, what string, err error) {
 	var refusal httpx.Refusal
 	switch {
-	case errors.Is(err, ErrNoProposal), errors.Is(err, ErrNoCycle), errors.Is(err, ErrNoFailure):
+	case errors.Is(err, ErrNoProposal), errors.Is(err, ErrNoCycle), errors.Is(err, ErrNoFailure), errors.Is(err, ErrNoPlan):
 		http.NotFound(w, r)
 		return
 	case errors.Is(err, ErrStartsInThePast):

@@ -182,6 +182,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /plan/cycles/{id}/check", signedIn(plan.ShowCheck))
 	mux.Handle("POST /plan/cycles/{id}/plan", signedIn(plan.Plan))
 	mux.Handle("POST /plan/cycles/{id}/again", signedIn(plan.PlanAgain))
+	mux.Handle("POST /plan/cycles/{id}/changes", signedIn(plan.AskForChanges))
 	mux.Handle("POST /plan/proposals/{id}/approve", signedIn(plan.Approve))
 	mux.Handle("POST /plan/proposals/{id}/reject", signedIn(plan.Reject))
 	mux.Handle("GET /plan/drafts/{id}", signedIn(plan.ShowDraft))

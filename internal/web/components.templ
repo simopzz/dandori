@@ -254,12 +254,12 @@ templ FoldRow(summary templ.Component) {
 	</li>
 }
 
-// SlotRow is a Slot of kind and the Portion filling it, portion: its size unless "",
-// figures, its nutrition, unless nil, and source, unless "", a word for where the
-// Portion comes from ("cooked", "already in the kitchen").
-templ SlotRow(kind domain.SlotKind, portion, size string, figures templ.Component, source string) {
+// SlotRow is a Slot of kind and the Portion filling it, portion, marked Changed when
+// changed: its size unless "", figures, its nutrition, unless nil, and source, unless
+// "", a word for where the Portion comes from ("cooked", "already in the kitchen").
+templ SlotRow(kind domain.SlotKind, portion string, changed bool, size string, figures templ.Component, source string) {
 	@Row() {
-		<span class="row-title">{ portion }</span>
+		@RowTitle(portion, false, "", changed)
 		if size != "" || figures != nil {
 			<span class="row-figure">
 				{ size }
@@ -292,12 +292,21 @@ templ Figures() {
 // IngredientRows lists ingredients, each its name and its quantity in its unit, with a
 // New Tag on one not yet saved, as a Recipe Draft's new Ingredient is.
 templ IngredientRows(ingredients []domain.RecipeIngredient) {
-	@IngredientRowsWith(ingredients, nil)
+	@IngredientRowsWith(ingredients, nil, nil)
+}
+
+// Changed marks what a Plan Proposal changes of the Plan, worth weighing: a cream Tag
+// with the changed icon (•), said in words to a screen reader.
+templ Changed() {
+	@Tag(false, "") {
+		@Icon("changed")
+		<span class="sr-only">{ T(ctx, msgChanged) }</span>
+	}
 }
 
 // RowTitle is a Row's title: name, and when tagged, tag after it as a plain Tag (a New
-// Ingredient, a new Recipe).
-templ RowTitle(name string, tagged bool, tag string) {
+// Ingredient, a new Recipe), then Changed when changed.
+templ RowTitle(name string, tagged bool, tag string, changed bool) {
 	<span class="row-title">
 		{ name }
 		if tagged {
@@ -306,16 +315,21 @@ templ RowTitle(name string, tagged bool, tag string) {
 				{ tag }
 			}
 		}
+		if changed {
+			{ " " }
+			@Changed()
+		}
 	</span>
 }
 
-// IngredientRowsWith is IngredientRows with what meta, unless nil, gives of each
-// Ingredient, unless nil, as its row's details: a new one's proposed values.
-templ IngredientRowsWith(ingredients []domain.RecipeIngredient, meta func(domain.Ingredient) templ.Component) {
+// IngredientRowsWith is IngredientRows with each of `ingredients` at an index of
+// `changed` marked Changed, and what `meta`, unless nil, gives of each Ingredient, unless
+// nil, as its row's details: a new one's proposed values.
+templ IngredientRowsWith(ingredients []domain.RecipeIngredient, changed []int, meta func(domain.Ingredient) templ.Component) {
 	@Rows() {
-		for _, ri := range ingredients {
+		for i, ri := range ingredients {
 			@Row() {
-				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew))
+				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew), slices.Contains(changed, i))
 				<span class="row-figure">{ Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
 				if meta != nil {
 					if c := meta(ri.Ingredient); c != nil {

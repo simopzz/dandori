@@ -23,7 +23,7 @@ templ proposalPage(now time.Time, v cycleView) {
 	{{ ds := proposalDays(c, p) }}
 	@cycleHeader(now, c, v.Upcoming, ds)
 	@decisionAlert(v.Refusal)
-	@web.SideColumn(proposalSection(p, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast) || clashed(v.Refusal))) {
+	@web.SideColumn(proposalSection(p, ds, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast) || clashed(v.Refusal))) {
 		@web.Section(2, web.T(ctx, msgDays)) {
 			@figureHeads(p.Targets)
 			@daysBefore(p.Trailing)
@@ -85,14 +85,15 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 }
 
 // proposalSection is the Plan Proposal p as Section 01, all deciding on it needs: the
-// planner's summary, the averages against the Targets, the soft misses grouped by kind,
-// the Recipe Drafts it prepares, then approving it or rejecting it, notes being the
-// Cycle's Planning Notes, newest first, and note the one typed; rejecting is open when
-// reject says to.
-templ proposalSection(p Proposal, notes []string, note string, reject bool) {
+// planner's summary, the averages against the Targets, the days of `ds` it changes, the
+// soft misses grouped by kind, the Recipe Drafts it prepares, then approving it or
+// rejecting it, `notes` being the Cycle's Planning Notes, newest first, and `note` the
+// one typed; rejecting is open when `reject` says to.
+templ proposalSection(p Proposal, ds []proposalDay, notes []string, note string, reject bool) {
 	@web.Section(1, web.T(ctx, msgPlanProposal)) {
 		@web.Markdown(p.Summary)
 		@averages(p)
+		@changedRow(ds)
 		@missRows(p)
 		@draftedRows(p.Drafted)
 		@decision(p, notes, note, reject)
@@ -148,6 +149,43 @@ templ figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, bo
 			</span>
 		}
 	}
+}
+
+// changedRow is the line saying which of its days `ds` a Plan Proposal changes of the
+// Plan it replaces, led by the changed icon: nothing when it replaces none, or
+// changes nothing.
+templ changedRow(ds []proposalDay) {
+	if first, last, ok := changedDays(ds); ok {
+		@web.Rows() {
+			@web.Row() {
+				@web.Icon("changed")
+				<span class="row-title">{ web.Tf(ctx, msgChangesFrom, dayRange(ctx, changedRange(first, last))) }</span>
+			}
+		}
+	}
+}
+
+// changedRange is the days from first to last as dayRange reads them: one when they
+// are the same.
+func changedRange(first, last time.Time) []domain.Day {
+	if first.Equal(last) {
+		return []domain.Day{{On: first}}
+	}
+	return []domain.Day{{On: first}, {On: last}}
+}
+
+// changedDays are the first and last of `ds`, in order, marked changed, `ok` false when
+// none is.
+func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
+	for _, d := range ds {
+		if d.changed {
+			if !ok {
+				first = d.On
+			}
+			last, ok = d.On, true
+		}
+	}
+	return first, last, ok
 }
 
 // missRows are p's soft misses beside the averages, a line per kind, each led by its
@@ -314,29 +352,57 @@ templ decision(p Proposal, notes []string, note string, open bool) {
 			}
 		</form>
 		@web.TextButtonFold(web.T(ctx, msgReject), open) {
-			if len(notes) > 0 {
-				@web.RowsHead(web.T(ctx, msgEarlierNotes))
-				@web.Rows() {
-					for _, n := range notes {
-						@web.Row() {
-							<span class="row-title">{ n }</span>
-						}
-					}
+			@earlierNotes(notes)
+			@noteForm("reject", fmt.Sprintf("/plan/proposals/%d/reject", p.ID), msgRejectHint, msgReject, note, false, "")
+		}
+	}
+}
+
+// noteForm is the form id posting a Planning Note to action: the line hint saying what
+// the note does, the note as typed, optional unless required, refused with err if not
+// "", and its button, send.
+templ noteForm(id, action string, hint, send web.Message, note string, required bool, err string) {
+	<form novalidate id={ id } class="stack" method="post" action={ templ.SafeURL(action) }>
+		@web.Hint() {
+			{ web.T(ctx, hint) }
+		}
+		@web.Field(web.T(ctx, msgPlanningNote), optionalUnless(ctx, required), err) {
+			<textarea
+				name="note"
+				rows="3"
+				required?={ required }
+				if err != "" {
+					aria-invalid="true"
+				}
+			>{ note }</textarea>
+		}
+		@web.Actions() {
+			@web.Button(templ.Attributes{"type": "submit"}) {
+				{ web.T(ctx, send) }
+			}
+		}
+	</form>
+}
+
+// optionalUnless is how a Field marks a Planning Note optional, unless required.
+func optionalUnless(ctx context.Context, required bool) string {
+	if required {
+		return ""
+	}
+	return web.T(ctx, msgOptional)
+}
+
+// earlierNotes are the Cycle's earlier Planning Notes, notes, newest first, under their
+// head: nothing before the first.
+templ earlierNotes(notes []string) {
+	if len(notes) > 0 {
+		@web.RowsHead(web.T(ctx, msgEarlierNotes))
+		@web.Rows() {
+			for _, n := range notes {
+				@web.Row() {
+					<span class="row-title">{ n }</span>
 				}
 			}
-			<form novalidate id="reject" class="stack" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/reject", p.ID)) }>
-				@web.Hint() {
-					{ web.T(ctx, msgRejectHint) }
-				}
-				@web.Field(web.T(ctx, msgPlanningNote), web.T(ctx, msgOptional), "") {
-					<textarea name="note" rows="3">{ note }</textarea>
-				}
-				@web.Actions() {
-					@web.Button(templ.Attributes{"type": "submit"}) {
-						{ web.T(ctx, msgReject) }
-					}
-				}
-			</form>
 		}
 	}
 }
@@ -417,7 +483,8 @@ type proposalDay struct {
 }
 
 // proposalDays are the days p plans of c, each with what fills its Slots and what is
-// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any.
+// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any or
+// changes the Plan's.
 func proposalDays(c Cycle, p Proposal) []proposalDay {
 	byDay := map[time.Time]planDay{}
 	for _, d := range days(c, p) {
@@ -427,13 +494,14 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	for i, d := range p.Days {
 		out[i] = proposalDay{Day: d, planDay: byDay[d.On]}
 	}
-	if len(p.Plan.FreezerSplits) == 0 {
+	if len(p.Plan.FreezerSplits) == 0 && !p.SplitsChanged {
 		return out
 	}
 	if len(out) == 0 || !out[0].On.Equal(c.Delivery.On) {
 		out = append([]proposalDay{{Day: domain.Day{On: c.Delivery.On}, planDay: planDay{on: c.Delivery.On}}}, out...)
 	}
-	out[0].splits = p.Plan.FreezerSplits
+	out[0].splits, out[0].changedSplits, out[0].splitsChanged = p.Plan.FreezerSplits, p.ChangedSplits, p.SplitsChanged
+	out[0].changed = out[0].changed || p.SplitsChanged
 	return out
 }
 
@@ -465,10 +533,17 @@ func dayTitle(ctx context.Context, d proposalDay) string {
 	return web.Date(ctx, d.On)
 }
 
-// dayLine is d's row under its date: its figures, each more than 25% off a Target of t
-// marked, then what is cooked on it and its active minutes, when a Slot of it is filled;
-// and how many freezer splits it has, if any.
+// dayLine is d's row under its date: marked Changed when its Plan Proposal changes it,
+// its figures, each more than 25% off a Target of t marked, then what is cooked on it
+// and its active minutes, when a Slot of it is filled; and how many freezer splits it
+// has, if any.
 templ dayLine(t domain.Targets, d proposalDay) {
+	if d.changed {
+		// A span, as Today's Tag is: the line's own children stretch across it.
+		<span>
+			@web.Changed()
+		</span>
+	}
 	if len(d.filled) > 0 {
 		@figureLine(d.Nutrition, dayMissed(t, d.Day))
 		<span>{ cooked(ctx, d.sessions) }</span>
@@ -498,28 +573,37 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its freezer splits, then its Slots, each with its
-// Portion's size, calories and protein, and where it comes from, then each Prep Session
-// of a Recipe, which opens to its Ingredients and the Portions it leaves for later.
+// dayBody is what a day d holds: its freezer splits, each marked when changed, or that
+// none is left when they all are; then its Slots, each with its Portion's size, calories
+// and protein, and where it comes from, then each Prep Session of a Recipe, which opens
+// to its Ingredients and the Portions it leaves for later.
 templ dayBody(d proposalDay) {
-	if len(d.splits) > 0 {
+	if len(d.splits) > 0 || d.splitsChanged {
 		@web.RowsHead(web.T(ctx, msgToFreezer))
-		@web.IngredientRows(d.splits)
+		if len(d.splits) > 0 {
+			@web.IngredientRowsWith(d.splits, d.changedSplits, nil)
+		} else {
+			@web.Rows() {
+				@web.Row() {
+					@web.RowTitle(web.T(ctx, msgNothingToFreezer), false, "", false)
+				}
+			}
+		}
 	}
 	if len(d.filled) > 0 {
 		@web.RowsHead(web.T(ctx, msgSlots))
 		@web.Rows() {
 			for _, f := range d.filled {
-				@web.SlotRow(f.kind, f.name, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+				@web.SlotRow(f.kind, f.name, f.changed, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
 			}
 		}
 	}
 	if slices.ContainsFunc(d.sessions, ofRecipe) {
 		@web.RowsHead(web.T(ctx, msgPrepSessions))
 		@web.Rows() {
-			for _, ps := range d.sessions {
+			for i, ps := range d.sessions {
 				if ofRecipe(ps) {
-					@cookedRow(ps)
+					@cookedRow(ps, d.changedSessions[i])
 				}
 			}
 		}
@@ -546,11 +630,11 @@ func source(ctx context.Context, f filledSlot, on time.Time) string {
 	return web.Tf(ctx, msgCookedOn, web.ShortDate(ctx, f.from.At.On), web.T(ctx, web.InLocations[f.location]))
 }
 
-// cookedRow is ps, a Prep Session of a Recipe, as a row that opens: its Portions and
-// their size, its minutes; opened, its Ingredients scaled, and its Portions eaten on a
-// later day or after the Cycle.
-templ cookedRow(ps domain.PrepSession) {
-	@web.FoldRow(cookedLine(ps)) {
+// cookedRow is ps, a Prep Session of a Recipe, as a row that opens, marked Changed when
+// changed: its Portions and their size, its minutes; opened, its Ingredients scaled, and
+// its Portions eaten on a later day or after the Cycle.
+templ cookedRow(ps domain.PrepSession, changed bool) {
+	@web.FoldRow(cookedLine(ps, changed)) {
 		@web.RowsHead(web.T(ctx, msgIngredients))
 		@web.IngredientRows(ps.Ingredients())
 		if later := eatenLater(ps); len(later) > 0 {
@@ -568,9 +652,10 @@ templ cookedRow(ps domain.PrepSession) {
 }
 
 // cookedLine is the line a Prep Session of a Recipe folds to: its name, a Recipe Draft's
-// marked new, its Portions and their size, its minutes in all and active.
-templ cookedLine(ps domain.PrepSession) {
-	@web.RowTitle(ps.Name(), ps.Recipe.IsDraft(), web.T(ctx, msgNewRecipeSource))
+// marked new, and marked Changed when changed, its Portions and their size, its minutes
+// in all and active.
+templ cookedLine(ps domain.PrepSession, changed bool) {
+	@web.RowTitle(ps.Name(), ps.Recipe.IsDraft(), web.T(ctx, msgNewRecipeSource), changed)
 	<span class="row-figure">{ web.Tf(ctx, msgPortionsSized, len(ps.Portions), size(ctx, ps.Size)) }</span>
 	<span class="row-meta">{ web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes) }</span>
 }

@@ -2,6 +2,8 @@ package planning
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/simopzz/dandori/internal/web"
@@ -11,7 +13,7 @@ import (
 // Cycle's dates beside the title and its Delivery under it; why a decision was refused,
 // if one was; 01 the Plan, the averages and soft misses it was approved with, beside 02
 // its days from today, today marked and open and the days past folded into one line; and
-// 03 dropping the Cycle, apart at the end, while it is upcoming.
+// 03 the Plan's actions, apart at the end: asking for changes and dropping the Cycle.
 templ planPage(now time.Time, v cycleView) {
 	{{ c, p := *v.Cycle, *v.Planning.Plan }}
 	{{ ds := proposalDays(c, p) }}
@@ -28,10 +30,70 @@ templ planPage(now time.Time, v cycleView) {
 				}
 			}
 		}
-		@dropSection(c, v.Upcoming)
+		@planActions(v)
 	}
 	if v.Upcoming {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
+	}
+}
+
+// planActions is Section 03, the Plan's actions apart at the end: while the Cycle is
+// planned again, saying so with a link to the Run; once that Run failed, why, with its
+// Trace, and Plan again; otherwise asking for changes, while no planning Run is going nor
+// Plan Proposal pending for any Cycle. Dropping the Cycle sits beside them, while
+// upcoming; nothing when it has none of them.
+templ planActions(v cycleView) {
+	{{ c, p := *v.Cycle, v.Planning }}
+	{{ ask := !p.Busy && p.Failed == nil }}
+	if p.Going != 0 || p.Failed != nil || ask || v.Upcoming {
+		@web.Section(3, sectionTitle(ctx, v.Upcoming)) {
+			if p.Failed != nil {
+				@failedAlert(p.Failed.ID, v.Failure)
+			}
+			@web.ActionsApart() {
+				if p.Going != 0 {
+					<div class="actions">
+						@beingPlanned(p.Going)
+					</div>
+				} else if p.Failed != nil {
+					@planAgain(c.ID, v.Note, v.Note != "" || v.Refusal != nil)
+				} else if ask {
+					@askForChanges(c.ID, p.Notes, v.Note, noteError(ctx, v.Refusal), v.Note != "" || v.Refusal != nil)
+				}
+				if v.Upcoming {
+					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
+						{ web.T(ctx, msgDropCycle) }
+					}
+				}
+			}
+		}
+	}
+}
+
+// sectionTitle names the Cycle's own Section: Upcoming Cycle, or Current Cycle.
+func sectionTitle(ctx context.Context, upcoming bool) string {
+	if upcoming {
+		return web.T(ctx, msgUpcomingCycle)
+	}
+	return web.T(ctx, msgCurrentCycle)
+}
+
+// noteError is why err refused a Planning Note on its field, or "".
+func noteError(ctx context.Context, err error) string {
+	if errors.Is(err, ErrNoNote) {
+		return web.T(ctx, msgNoNote)
+	}
+	return ""
+}
+
+// askForChanges is Ask for changes to the Plan of the Cycle id, a TextButtonFold that
+// opens in place, as Reject does, to the Cycle's earlier Planning Notes, notes, newest
+// first, the line saying what asking does, and the note it needs, as typed, refused with
+// err if not "": open when open says the User is at it.
+templ askForChanges(id int64, notes []string, note, err string, open bool) {
+	@web.TextButtonFold(web.T(ctx, msgAskForChanges), open) {
+		@earlierNotes(notes)
+		@noteForm("ask-for-changes", fmt.Sprintf("/plan/cycles/%d/changes", id), msgAskHint, msgAskForChanges, note, true, err)
 	}
 }
 

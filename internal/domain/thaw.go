@@ -26,6 +26,19 @@ type Thaw struct {
 // elsewhere, never frozen.
 func (p Plan) Thaws(stock map[StockKey]Quantity) []Thaw {
 	left := maps.Clone(stock)
+	var thaws []Thaw
+	for _, ps := range p.bySlot() {
+		for _, ri := range ps.Ingredients() {
+			if thawed := useUp(left, ri); thawed > 0 {
+				thaws = append(thaws, Thaw{At: ps.At, Ingredient: ri.Ingredient, Quantity: thawed})
+			}
+		}
+	}
+	return thaws
+}
+
+// bySlot are p's Prep Sessions in the order of their Slots.
+func (p Plan) bySlot() []PrepSession {
 	sessions := slices.Clone(p.PrepSessions)
 	slices.SortStableFunc(sessions, func(a, b PrepSession) int {
 		switch {
@@ -36,15 +49,35 @@ func (p Plan) Thaws(stock map[StockKey]Quantity) []Thaw {
 		}
 		return 0
 	})
-	var thaws []Thaw
-	for _, ps := range sessions {
+	return sessions
+}
+
+// RuleMoreThanHeld is a Prep Session of the current Cycle needing more of an Ingredient
+// than the kitchen will hold: no Delivery will bring the rest.
+const RuleMoreThanHeld Rule = "more-than-held"
+
+// NeedsMoreThanHeld are the violations of p's Prep Sessions, in the order of their Slots,
+// each needing more of an Ingredient than stock, what the kitchen holds of each Stock
+// Item, has left of it once those before have used theirs up. A Staple never does: the
+// kitchen always holds it.
+func NeedsMoreThanHeld(p Plan, stock map[StockKey]Quantity) []Violation {
+	left := maps.Clone(stock)
+	var vs []Violation
+	for _, ps := range p.bySlot() {
 		for _, ri := range ps.Ingredients() {
-			if thawed := useUp(left, ri); thawed > 0 {
-				thaws = append(thaws, Thaw{At: ps.At, Ingredient: ri.Ingredient, Quantity: thawed})
+			var held Quantity
+			for _, loc := range StorageLocations {
+				held += max(0, left[StockKey{Ingredient: ri.Ingredient.ID, Location: loc}])
 			}
+			if !ri.Ingredient.Staple && held < ri.Quantity {
+				unit := ri.Ingredient.Unit
+				vs = append(vs, Violation{Rule: RuleMoreThanHeld, Message: fmt.Sprintf("%s at %s needs %g %s %s, and the kitchen will hold only %g %s",
+					ps.Name(), ps.At, ri.Quantity.Number(), unit, ri.Ingredient.Name, held.Number(), unit)})
+			}
+			useUp(left, ri)
 		}
 	}
-	return thaws
+	return vs
 }
 
 // useUp takes ri from stock as a Prep Session uses it up: the stock outside the freezer,

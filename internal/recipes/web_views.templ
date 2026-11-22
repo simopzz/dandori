@@ -142,7 +142,7 @@ templ recipePage(now time.Time, rec domain.Recipe) {
 // its steps.
 templ DraftedRecipe(rec domain.Recipe) {
 	@web.Section(1, web.Data(rec.Name)) {
-		@web.IngredientRowsWith(rec.Ingredients, newValues)
+		@web.IngredientRowsWith(rec.Ingredients, nil, newValues)
 	}
 	@recipeSteps(2, rec.Steps)
 }
@@ -317,7 +317,7 @@ templ recipeForm(f RecipeForm) {
 // draftRowSummary is the line a Recipe Draft's new Ingredient folds to: its name and
 // New, and its quantity in its unit.
 templ draftRowSummary(row IngredientRow) {
-	@web.RowTitle(row.Name, true, web.T(ctx, msgNew))
+	@web.RowTitle(row.Name, true, web.T(ctx, msgNew), false)
 	<span class="row-figure">{ strings.TrimSpace(row.Quantity + " " + quantityUnit(ctx, row)) }</span>
 }
 

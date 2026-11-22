@@ -680,6 +680,17 @@ func (s *Scenario) Rejects(note string) {
 	s.record(fmt.Sprintf("rejects the Plan Proposal with the note %q: %d %s", note, s.page.StatusCode, s.page.Path))
 }
 
+// AsksForChanges asks for changes to the Plan on the page open with the Planning Note
+// note, as a browser without htmx, and lands where that goes: the planning Run's page, or
+// the Cycle page saying why it can't.
+func (s *Scenario) AsksForChanges(note string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, "ask-for-changes")
+	form.Values.Set("note", note)
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("asks for changes with the note %q: %d %s", note, s.page.StatusCode, s.page.Path))
+}
+
 // StartsPlanning confirms the Kitchen Check on the page open with its one button, as a
 // browser without htmx, and lands where that goes: the planning Run's page, the Run
 // going, or the Kitchen Check saying why it can't plan.
