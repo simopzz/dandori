@@ -32,10 +32,10 @@ func New(pool *pgxpool.Pool, log *slog.Logger) *Service {
 	return &Service{pool: pool, log: log}
 }
 
-// Write holds the signed-in User's kitchen until q's transaction ends, hands write the
-// Kitchen Ledger as it then stands, and saves the Movements write makes of it, unless it
-// fails. Every write of Movements goes through it, so none is checked against a Ledger
-// another write has since changed.
+// Write holds the signed-in User's kitchen until `q`'s transaction ends, hands `write`
+// the Kitchen Ledger as it then stands, and saves the Movements `write` makes of it,
+// unless it fails. Every write of Movements goes through it, so none is checked against a
+// Ledger another write has since changed.
 func Write(ctx context.Context, q db.Querier, write func(domain.Ledger) ([]domain.Movement, error)) error {
 	if err := lock(ctx, q); err != nil {
 		return err
@@ -56,11 +56,11 @@ func Write(ctx context.Context, q db.Querier, write func(domain.Ledger) ([]domai
 	return nil
 }
 
-// CountToNothing counts each Stock Item of the signed-in User's Ingredient id holding
-// some of it to nothing at now, as marking it a Staple does, in q's transaction, and is
-// the Movements written, in Storage Location order, each with what its Stock Item held.
-// It holds the kitchen, as a Count does, so no Count or move of it slips in before q's
-// transaction ends.
+// CountToNothing counts each Stock Item of the signed-in User's Ingredient `id` holding
+// some of it to nothing at `now`, as marking it a Staple does, in `q`'s transaction, and
+// is the Movements written, in Storage Location order, each with what its Stock Item
+// held. It holds the kitchen, as a Count does, so no Count or move of it slips in before
+// `q`'s transaction ends.
 func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) (counted []domain.Movement, err error) {
 	err = Write(ctx, q, func(l domain.Ledger) ([]domain.Movement, error) {
 		counted = l.CountToNothing(now, id)
@@ -69,9 +69,10 @@ func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) 
 	return counted, err
 }
 
-// SavePortions saves how many Portions p says for the signed-in User, in q's transaction,
-// and is their ids, for the Movement that adds them, inside Write. It holds the kitchen
-// first, as Write does, so the Portion Lots a Count or move read don't change under it.
+// SavePortions saves how many Portions `p` says for the signed-in User, in `q`'s
+// transaction, and is their ids, for the Movement that adds them, inside Write. It holds
+// the kitchen first, as Write does, so the Portion Lots a Count or move read don't change
+// under it.
 func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]int64, error) {
 	if err := lock(ctx, q); err != nil {
 		return nil, err
@@ -79,13 +80,13 @@ func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 	return savePortions(ctx, q, p)
 }
 
-// BringUpToNow brings the signed-in User's kitchen up to now. Run again for a moment it
+// BringUpToNow brings the signed-in User's kitchen up to `now`. Run again for a moment it
 // has reached, it changes nothing.
 func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveUpTo(ctx, tx, now) })
 }
 
-// Beat brings every User's kitchen up to at, the scheduler's beat, and records the beat
+// Beat brings every User's kitchen up to `at`, the scheduler's beat, and records the beat
 // for each. One User's failure is logged and doesn't stop the others.
 func (s *Service) Beat(ctx context.Context, at time.Time) {
 	users, err := db.UserIDs(ctx, s.pool)
@@ -106,8 +107,8 @@ func (s *Service) Beat(ctx context.Context, at time.Time) {
 	}
 }
 
-// LastBeat is when the scheduler last brought the signed-in User's kitchen up to now; ok
-// is false until it first has.
+// LastBeat is when the scheduler last brought the signed-in User's kitchen up to now;
+// `ok` is false until it first has.
 func (s *Service) LastBeat(ctx context.Context) (at time.Time, ok bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		at, ok, err = loadBeat(ctx, tx)
