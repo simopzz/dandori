@@ -275,6 +275,33 @@ func TestThePlannerIsToldTheLowCareBriefAndTheLanguage(t *testing.T) {
 	promptHolds(t, s, "The user's Language is Italian.", "<brief>\nLow-care Recipes, about 15 active minutes.\n</brief>")
 }
 
+// Once an Italian User's Plan Proposal is stored, the planner is asked for its summary in
+// Italian, where it is asked for it.
+func TestAnItalianUsersPlannerIsAskedForItsSummaryInItalian(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("Italiano")
+	s.Open("/profile")
+	s.SavesTargets(targets)
+	s.Open("/profile")
+	s.SavesAppliances([]string{"hob", "oven", "microwave"}, nil)
+	stockKitchen(s)
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Then(func(req agent.Request) fakellm.Step {
+			if got := lastToolResult(req).Text; !strings.Contains(got, "in Italian") {
+				t.Errorf("the planner was told %q, want it asked for a summary in Italian", got)
+			}
+			return fakellm.Reply("Yogurt tutto venerdì.")
+		}),
+	)
+	s.OpensCycle(apptest.Cycle{Delivery: "05/11/2026", From: "18:00", To: "20:00", Ends: "06/11/2026"})
+	s.PlansCycle()
+	s.Sees("Yogurt tutto venerdì.")
+}
+
 // brokenDraft is a draft Plan of friday, read from the prompt of req, breaking every
 // structural hard rule: the Rice bowl prepared at dinner is eaten at lunch, before it,
 // and on Saturday, after the Cycle; lasagne fills breakfast a second time; and Portion
