@@ -26,7 +26,7 @@ type Message struct {
 	It string
 }
 
-// In is m in l, English for any other.
+// In is `m` in `l`, English for any other.
 func (m Message) In(l domain.Language) string {
 	if l == domain.Italian {
 		return m.It
@@ -34,25 +34,25 @@ func (m Message) In(l domain.Language) string {
 	return m.En
 }
 
-// T is m in the Language of ctx.
+// T is `m` in the Language of `ctx`.
 func T(ctx context.Context, m Message) string { return m.In(LanguageOf(ctx)) }
 
-// Tf is m in the Language of ctx, as a format filled with args.
+// Tf is `m` in the Language of `ctx`, as a format filled with `args`.
 func Tf(ctx context.Context, m Message, args ...any) string {
 	return fmt.Sprintf(T(ctx, m), args...)
 }
 
 type languageKey struct{}
 
-// WithLanguage returns ctx carrying the Language its pages speak, which the request's
+// WithLanguage returns `ctx` carrying the Language its pages speak, which the request's
 // span records.
 func WithLanguage(ctx context.Context, l domain.Language) context.Context {
 	trace.SpanFromContext(ctx).SetAttributes(telemetry.Language.String(string(l)))
 	return context.WithValue(ctx, languageKey{}, l)
 }
 
-// LanguageOf is the Language ctx's pages speak: the User's, once chosen, before that the
-// one the pages were switched to, and English unless they were.
+// LanguageOf is the Language `ctx`'s pages speak: the User's, once chosen, before that
+// the one the pages were switched to, and English unless they were.
 func LanguageOf(ctx context.Context) domain.Language {
 	if l, ok := ctx.Value(languageKey{}).(domain.Language); ok {
 		return l
@@ -93,8 +93,8 @@ var (
 	}
 )
 
-// Date is day's weekday and date in the Language of ctx: "Monday, November 2", "lunedì
-// 2 novembre".
+// Date is `day`'s weekday and date in the Language of `ctx`: "Monday, November 2",
+// "lunedì 2 novembre".
 func Date(ctx context.Context, day time.Time) string {
 	return dayAndMonth(ctx, day, weekdayNames[day.Weekday()], monthNames[day.Month()-1], identity)
 }
@@ -104,7 +104,7 @@ func ShortDate(ctx context.Context, day time.Time) string {
 	return dayAndMonth(ctx, day, weekdayNames[day.Weekday()], monthNames[day.Month()-1], shortName)
 }
 
-// ShortDateInYear is ShortDate with day's year: "Mon, Nov 2, 2026", "Lun 2 Nov 2026".
+// ShortDateInYear is ShortDate with `day`'s year: "Mon, Nov 2, 2026", "Lun 2 Nov 2026".
 func ShortDateInYear(ctx context.Context, day time.Time) string {
 	if LanguageOf(ctx) == domain.Italian {
 		return fmt.Sprintf("%s %d", ShortDate(ctx, day), day.Year())
@@ -112,9 +112,9 @@ func ShortDateInYear(ctx context.Context, day time.Time) string {
 	return fmt.Sprintf("%s, %d", ShortDate(ctx, day), day.Year())
 }
 
-// DateTime is when at was, as of now: its ShortDate, with its year unless that is now's,
-// and its Time, apart so the day doesn't run into the hour: "Mon, Nov 2 · 9:00 am",
-// "Lun 2 Nov · 09:00".
+// DateTime is when `at` was, as of `now`: its ShortDate, with its year unless that is
+// `now`'s, and its Time, apart so the day doesn't run into the hour: "Mon, Nov 2 · 9:00
+// am", "Lun 2 Nov · 09:00".
 func DateTime(ctx context.Context, now, at time.Time) string {
 	day := ShortDate(ctx, at)
 	if at.Year() != now.Year() {
@@ -123,7 +123,8 @@ func DateTime(ctx context.Context, now, at time.Time) string {
 	return day + " · " + Time(ctx, at)
 }
 
-// dayAndMonth writes a weekday, day and month in the order of the Language of ctx.
+// dayAndMonth writes a `weekday`, `day` and `month` in the order of the Language
+// of `ctx`.
 func dayAndMonth(ctx context.Context, day time.Time, weekday, month Message, name func(string) string) string {
 	w, m := name(T(ctx, weekday)), name(T(ctx, month))
 	if LanguageOf(ctx) == domain.Italian {
@@ -134,20 +135,20 @@ func dayAndMonth(ctx context.Context, day time.Time, weekday, month Message, nam
 
 func identity(s string) string { return s }
 
-// Time is the time of day of at in the Language of ctx: "13:00" in Italian, "1:00 pm"
+// Time is the time of day of `at` in the Language of `ctx`: "13:00" in Italian, "1:00 pm"
 // in English.
 func Time(ctx context.Context, at time.Time) string {
 	return domain.FormatTime(LanguageOf(ctx), at, false)
 }
 
-// TimeOfDay is t in the Language of ctx.
+// TimeOfDay is `t` in the Language of `ctx`.
 func TimeOfDay(ctx context.Context, t domain.TimeOfDay) string { return t.In(LanguageOf(ctx)) }
 
-// shortName is a weekday's or a month's name cut to its first three letters, capitalised,
-// which is how both Languages shorten every one of them.
+// shortName is a weekday's or a month's `name` cut to its first three letters,
+// capitalised, which is how both Languages shorten every one of them.
 func shortName(name string) string { return Capitalised(string([]rune(name)[:3])) }
 
-// Capitalised is s with its first letter a capital, as a name starting a label is.
+// Capitalised is `s` with its first letter a capital, as a name starting a label is.
 func Capitalised(s string) string {
 	letters := []rune(s)
 	if len(letters) > 0 {
@@ -156,7 +157,7 @@ func Capitalised(s string) string {
 	return string(letters)
 }
 
-// Number is v as the request's Language writes it, a decimal comma in Italian.
+// Number is `v` as the request's Language writes it, a decimal comma in Italian.
 func Number(ctx context.Context, v float64) string {
 	s := strconv.FormatFloat(v, 'f', -1, 64)
 	if LanguageOf(ctx) == domain.Italian {
@@ -172,9 +173,9 @@ const languageCookie = "dandori_language"
 // languageParam, in a page's query, switches the pages to that Language.
 const languageParam = "lang"
 
-// Languages serves next in the Language the pages were switched to. A request with ?lang=
-// switches them: it is remembered, and the page opens again without it. A signed-in
-// User's own Language, once chosen, replaces it further in.
+// Languages serves `next` in the Language the pages were switched to. A request with
+// ?lang= switches them: it is remembered, and the page opens again without it. A
+// signed-in User's own Language, once chosen, replaces it further in.
 func Languages(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -199,7 +200,7 @@ func Languages(next http.Handler) http.Handler {
 	})
 }
 
-// KeepLanguage remembers l as the Language the pages speak in this browser, for when no
+// KeepLanguage remembers `l` as the Language the pages speak in this browser, for when no
 // User is signed in.
 func KeepLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) {
 	http.SetCookie(w, &http.Cookie{
@@ -213,7 +214,7 @@ func KeepLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) {
 	})
 }
 
-// switchURL is u switching the pages to l.
+// switchURL is `u` switching the pages to `l`.
 func switchURL(u *url.URL, l domain.Language) templ.SafeURL {
 	q := u.Query()
 	q.Set(languageParam, string(l))

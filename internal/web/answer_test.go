@@ -12,7 +12,7 @@ import (
 	"github.com/a-h/templ"
 )
 
-// shows is a component writing text, and the floating Notice its page shows, if any.
+// shows is a component writing `text`, and the floating Notice its page shows, if any.
 func shows(text string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		if n := noticeOf(ctx); n != "" {

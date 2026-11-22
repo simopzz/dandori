@@ -112,8 +112,8 @@ func TestNamesAvoidWhatTheGlossaryAvoids(t *testing.T) {
 	}
 }
 
-// declaredNames are the functions, methods, types, variables and constants file declares
-// at its top level.
+// declaredNames are the functions, methods, types, variables and constants `file`
+// declares at its top level.
 func declaredNames(file *ast.File) []*ast.Ident {
 	var names []*ast.Ident
 	for _, decl := range file.Decls {
@@ -134,7 +134,7 @@ func declaredNames(file *ast.File) []*ast.Ident {
 	return names
 }
 
-// splitName is a Go name as words: TestAStockItem reads "Test A Stock Item".
+// splitName is a Go `name` as words: TestAStockItem reads "Test A Stock Item".
 func splitName(name string) string {
 	return wordBreak.ReplaceAllString(acronymBreak.ReplaceAllString(name, "$1 $2"), "$1 $2")
 }
@@ -149,7 +149,7 @@ var (
 	glossaryAvoid = regexp.MustCompile(`(?m)^_Avoid_: (.+)$`)
 )
 
-// glossaryWords are the glossary's terms and the words it avoids, each as
+// glossaryWords are the `glossary`'s `terms` and the words it avoids, each as
 // a whole-word, case-insensitive pattern; a term matches its plural too.
 func glossaryWords(glossary string) (terms []*regexp.Regexp, avoided map[string]*regexp.Regexp) {
 	word := func(w string) *regexp.Regexp {

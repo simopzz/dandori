@@ -364,9 +364,9 @@ func showNotices() templ.Component {
 	})
 }
 
-// sky is the README banner's dusk: a dithered ramp down through colours, the sun setting
-// behind Fuji, and the wordmark linking Today. It is the masthead above each page on a
-// phone and the top of the rail on desktop, each hidden where the other shows.
+// sky is the README banner's dusk: a dithered ramp down through `colours`, the sun
+// setting behind Fuji, and the wordmark linking Today. It is the masthead above each page
+// on a phone and the top of the rail on desktop, each hidden where the other shows.
 func sky(class string, colours []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -438,7 +438,7 @@ func sky(class string, colours []string) templ.Component {
 	})
 }
 
-// ramp dithers down through colours, each to the next in four steps.
+// ramp dithers down through `colours`, each to the next in four steps.
 func ramp(colours []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -496,7 +496,7 @@ func ramp(colours []string) templ.Component {
 	})
 }
 
-// tab is one link of the shell; aux ones sit apart, at the rail's foot, and leave the
+// tab is one link of the shell; `aux` ones sit apart, at the rail's foot, and leave the
 // bottom tabs on a phone for a link on the Profile.
 func tab(t, current Tab, icon, label string, aux bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

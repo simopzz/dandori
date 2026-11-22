@@ -38,8 +38,8 @@ var problems = map[domain.Problem]Message{
 	domain.NotADate:   {En: "Type a date, like 11/02/2026.", It: "Scrivi una data, come 02/11/2026."},
 }
 
-// ProblemMessage says why a typed value is refused for problem: as own says, a field's
-// own wording, or else as every field does.
+// ProblemMessage says why a typed value is refused for `problem`: as `own` says, a
+// field's `own` wording, or else as every field does.
 func ProblemMessage(problem domain.Problem, own map[domain.Problem]Message) Message {
 	if m, ok := own[problem]; ok {
 		return m
@@ -82,7 +82,8 @@ func ApplianceKindChoices(ctx context.Context) []Choice {
 	return kindChoices(ctx, domain.ApplianceKinds, ApplianceKindNames)
 }
 
-// kindChoices are all as choices named by names, each with the icon named by its code.
+// kindChoices are `all` as choices named by `names`, each with the icon named by
+// its code.
 func kindChoices[K ~string](ctx context.Context, all []K, names map[K]Message) []Choice {
 	choices := make([]Choice, len(all))
 	for i, k := range all {
@@ -110,7 +111,7 @@ var unitQuantities = map[domain.Unit]Message{
 // msgOnePiece is one piece, which alone isn't plural.
 var msgOnePiece = Message{En: "1 piece", It: "1 pezzo"}
 
-// Quantity is q of unit as the request's Language writes it.
+// Quantity is `q` of `unit` as the request's Language writes it.
 func Quantity(ctx context.Context, q domain.Quantity, unit domain.Unit) string {
 	if unit == domain.Pieces && q == domain.QuantityOf(1) {
 		return T(ctx, msgOnePiece)

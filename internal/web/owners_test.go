@@ -81,7 +81,7 @@ var (
 // it, as feature.function.
 type statement struct{ where, function, sql string }
 
-// tableName is name unquoted, as owners keys it.
+// tableName is `name` unquoted, as owners keys it.
 func tableName(name string) string { return strings.ToLower(strings.Trim(name, `"`)) }
 
 // upStatements are the statements of every migration's Up section, without comments.
@@ -201,8 +201,8 @@ func TestStoresWriteAndLockOnlyTheirOwnTables(t *testing.T) {
 	checkAllowedUsed(t, allowedStoreCrossings, used)
 }
 
-// storeSQL is the SQL of each database call in the functions of feature's Go file at
-// path: the string literals among its arguments.
+// storeSQL is the SQL of each database call in the functions of `feature`'s Go file at
+// `path`: the string literals among its arguments.
 //
 // shortcut: SQL held in a variable or a constant outside the call, a CopyFrom's table and
 // a pgx.Batch's queries are not seen; read them if a store ever writes that way.
@@ -244,7 +244,7 @@ func storeSQL(t *testing.T, feature, path string) []statement {
 	return stmts
 }
 
-// touched are the tables sql writes, and those it reads from if it locks rows.
+// touched are the `tables` `sql` writes, and those it reads from if it locks rows.
 func touched(sql string) (tables []string) {
 	for _, m := range written.FindAllStringSubmatch(notWritten.ReplaceAllString(sql, ""), -1) {
 		tables = append(tables, tableName(m[1]))
