@@ -172,6 +172,7 @@ func TestBrowserMarksTheDeliveryOrdered(t *testing.T) {
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
 	b.Open(t, "/plan/cycles/2/grocery-list")
+	b.SeesInTurn(t, "Tentative", "01 To buy", "rice (25 g)", "Mark ordered")
 	b.Shot(t, "grocery-list-tentative")
 	if err := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Mark ordered"}).Click(); err != nil {
 		t.Fatalf("mark the Delivery ordered: %v", err)

@@ -83,7 +83,17 @@ func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) erro
 	if err != nil {
 		return err
 	}
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return markOrdered(ctx, tx, id, now, list.Lines) })
+	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		// Drop's lock: a Cycle dropped meanwhile is ErrNoCycle, and one marked ordered
+		// meanwhile is never dropped.
+		if err := lockPlanning(ctx, tx); err != nil {
+			return err
+		}
+		if _, err := findUpcoming(ctx, tx, id, now); err != nil {
+			return err
+		}
+		return markOrdered(ctx, tx, id, now, list.Lines)
+	})
 }
 
 // UndoOrdered makes the Delivery of the signed-in User's upcoming Cycle `id` tentative

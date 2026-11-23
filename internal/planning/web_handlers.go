@@ -517,11 +517,19 @@ func (h Handlers) ordering(w http.ResponseWriter, r *http.Request, do func(conte
 		return
 	}
 	err := do(r.Context(), id, h.Clock.Now())
-	refusals := map[error]httpx.Refusal{ErrNoPlan: refusedNoPlan, ErrProposalPending: refusedPending, ErrBeingPlanned: refusedGoing}
-	switch refusal, refused := refusals[err]; {
+	var refusal httpx.Refusal
+	switch {
+	case errors.Is(err, ErrNoPlan):
+		refusal = refusedNoPlan
+	case errors.Is(err, ErrProposalPending):
+		refusal = refusedPending
+	case errors.Is(err, ErrBeingPlanned):
+		refusal = refusedGoing
+	}
+	switch {
 	case errors.Is(err, ErrNoCycle):
 		http.NotFound(w, r)
-	case refused:
+	case refusal != "":
 		httpx.Refused(r, refusal, nil)
 		h.groceryList(w, r, http.StatusUnprocessableEntity, id, err)
 	case err != nil:
