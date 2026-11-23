@@ -180,6 +180,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /plan/cycles/{id}/drop/sheet", signedIn(plan.ShowDropSheet))
 	mux.Handle("POST /plan/cycles/{id}/drop", signedIn(plan.Drop))
 	mux.Handle("GET /plan/cycles/{id}/check", signedIn(plan.ShowCheck))
+	mux.Handle("GET /plan/cycles/{id}/grocery-list", signedIn(plan.ShowGroceryList))
 	mux.Handle("POST /plan/cycles/{id}/plan", signedIn(plan.Plan))
 	mux.Handle("POST /plan/cycles/{id}/again", signedIn(plan.PlanAgain))
 	mux.Handle("POST /plan/cycles/{id}/changes", signedIn(plan.AskForChanges))

@@ -1,0 +1,67 @@
+package planning
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/web"
+)
+
+// groceryURL is the Grocery List of the Cycle `id`.
+func groceryURL(id int64) templ.SafeURL {
+	return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/grocery-list", id))
+}
+
+// groceryPage is the Grocery List of the upcoming Cycle `c`, the Cycle's dates beside the
+// title and a link back to the Cycle under it: 01 each line to buy, a checkbox kept only
+// in the page before its name and quantity, and 02 the Staples to check the kitchen still
+// holds. While `c` has no Plan, `list` nil, it says to plan it first.
+templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList) {
+	@web.Layout(web.T(ctx, msgGroceryListTitle), web.PlanTab) {
+		@web.PageHeaderBeside("献立", web.T(ctx, msgGroceryList), dates(ctx, c), now) {
+			<p class="lede">{ web.T(ctx, msgGroceryHint) }</p>
+			<p class="lede">
+				@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
+					{ web.T(ctx, msgBackToTheCycle) }
+				}
+			</p>
+		}
+		if list == nil {
+			<div class="section">
+				@web.Empty() {
+					{ web.T(ctx, msgPlanFirst) }
+				}
+			</div>
+		} else {
+			@web.Section(1, web.T(ctx, msgToBuy)) {
+				if len(list.Lines) == 0 {
+					@web.Empty() {
+						{ web.T(ctx, msgNothingToBuy) }
+					}
+				} else {
+					@web.Rows() {
+						for _, line := range list.Lines {
+							@web.Row() {
+								@web.Check(line.Ingredient.Name, web.Quantity(ctx, line.Quantity, line.Ingredient.Unit)) {
+									<input type="checkbox"/>
+								}
+							}
+						}
+					}
+				}
+			}
+			if len(list.Staples) > 0 {
+				@web.Section(2, web.T(ctx, msgCheckYouHave)) {
+					@web.Rows() {
+						for _, ing := range list.Staples {
+							@web.Row() {
+								@web.RowTitle(ing.Name, false, "", false)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

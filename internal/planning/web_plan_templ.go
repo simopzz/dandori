@@ -46,7 +46,7 @@ func planPage(now time.Time, v cycleView) templ.Component {
 		c, p := *v.Cycle, *v.Planning.Plan
 		ds := proposalDays(c, p)
 		past, ahead := splitPast(ds, now)
-		templ_7745c5c3_Err = cycleHeader(now, c, v.Upcoming, ds).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = cycleHeader(now, v, ds).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

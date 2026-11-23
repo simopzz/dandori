@@ -23,6 +23,9 @@ const maxQuantity = 1000000
 // Number is `q` in its Unit.
 func (q Quantity) Number() float64 { return float64(q) / tenths }
 
+// RoundUp is `q` rounded up to a whole one of its Unit.
+func (q Quantity) RoundUp() Quantity { return (q + tenths - 1) / tenths * tenths }
+
 // QuantityOf is the Quantity of `v` in its Unit, as Number gives it.
 func QuantityOf(v float64) Quantity { return Quantity(math.Round(v * tenths)) }
 

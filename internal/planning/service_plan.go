@@ -101,42 +101,21 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	if err != nil {
 		return 0, err
 	}
-	library, err := s.recipes.Search(ctx, "")
-	if err != nil {
-		return 0, err
-	}
-	known, err := s.ingredients.List(ctx)
-	if err != nil {
-		return 0, err
-	}
-	held, err := s.kitchen.Contents(ctx, now)
+	k, err := s.kitchenAt(ctx, c, slots[0], p.SlotTimes, now)
 	if err != nil {
 		return 0, err
 	}
 	var notes []string
-	var approved, own []*storedProposal
-	var portions []domain.Portion
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
-		if notes, err = loadNotes(ctx, tx, c.ID); err != nil {
-			return err
-		}
-		if approved, err = loadApproved(ctx, tx, slots[0].On.AddDate(0, 0, -7), now.Location()); err != nil {
-			return err
-		}
-		if own, err = loadPlanOf(ctx, tx, c.ID, now.Location()); err != nil {
-			return err
-		}
-		portions, err = ledger.LoadPortions(ctx, tx)
+		notes, err = loadNotes(ctx, tx, c.ID)
 		return err
 	})
 	if err != nil {
 		return 0, err
 	}
-	standing := approvedPlan(approved, library, known, portions)
-	current := cyclePlan(c, own, library, known, portions, p.SlotTimes)
-	earlier := standing.Eaten(portions)
+	library, known, held, portions, current, forecast := k.library, k.known, k.held, k.portions, k.plan, k.forecast
+	earlier := k.standing.Eaten(portions)
 	trailing, _ := domain.PlanDays(earlier, nil, slots[0], slots[0].On)
-	forecast := standing.Forecast(stockOf(held.Held), held.Portions, p.SlotTimes, now, slots[0])
 	if note != "" {
 		notes = append([]string{note}, notes...)
 	}
@@ -170,6 +149,53 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 		}
 		return saveCycleRun(ctx, tx, runID, c.ID, slots[0])
 	})
+}
+
+// cycleKitchen is what planning a Cycle, or shopping for it, reads of the kitchen at a
+// Slot: the Recipe Library, the known Ingredients, what the kitchen holds and its
+// Portions, what every approved Plan Proposal plans together, the Cycle's own Plan,
+// whether it has one, and the kitchen forecast at that Slot.
+type cycleKitchen struct {
+	library        []domain.Recipe
+	known          []domain.Ingredient
+	held           kitchen.Contents
+	portions       []domain.Portion
+	standing, plan domain.Plan
+	planned        bool
+	forecast       domain.Forecast
+}
+
+// kitchenAt is the cycleKitchen of the signed-in User's Cycle `c` at `now` by `times`,
+// its forecast at the Slot `first`, once the approved Prep Sessions before it have used
+// up theirs.
+func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, times domain.SlotTimes, now time.Time) (k cycleKitchen, err error) {
+	if k.library, err = s.recipes.Search(ctx, ""); err != nil {
+		return k, err
+	}
+	if k.known, err = s.ingredients.List(ctx); err != nil {
+		return k, err
+	}
+	if k.held, err = s.kitchen.Contents(ctx, now); err != nil {
+		return k, err
+	}
+	var approved, own []*storedProposal
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		if approved, err = loadApproved(ctx, tx, first.On.AddDate(0, 0, -7), now.Location()); err != nil {
+			return err
+		}
+		if own, err = loadPlanOf(ctx, tx, c.ID, now.Location()); err != nil {
+			return err
+		}
+		k.portions, err = ledger.LoadPortions(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return k, err
+	}
+	k.standing = approvedPlan(approved, k.library, k.known, k.portions)
+	k.plan, k.planned = cyclePlan(c, own, k.library, k.known, k.portions, times), len(own) > 0
+	k.forecast = k.standing.Forecast(stockOf(k.held.Held), k.held.Portions, times, now, first)
+	return k, nil
 }
 
 // approvedPlan is what `approved`, oldest first, plan together, their Recipes,

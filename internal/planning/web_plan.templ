@@ -18,7 +18,7 @@ templ planPage(now time.Time, v cycleView) {
 	{{ c, p := *v.Cycle, *v.Planning.Plan }}
 	{{ ds := proposalDays(c, p) }}
 	{{ past, ahead := splitPast(ds, now) }}
-	@cycleHeader(now, c, v.Upcoming, ds)
+	@cycleHeader(now, v, ds)
 	@decisionAlert(v.Refusal)
 	@web.SideColumn(planSection(p)) {
 		@web.Section(2, web.T(ctx, msgDays)) {
