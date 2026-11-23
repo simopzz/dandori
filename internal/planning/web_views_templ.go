@@ -503,7 +503,7 @@ func cycleBody(now time.Time, v cycleView) templ.Component {
 			}
 		} else {
 			c, p := *v.Cycle, v.Planning
-			templ_7745c5c3_Err = cycleHeader(now, c, v.Upcoming, nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = cycleHeader(now, c, v.Upcoming, nil, false).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

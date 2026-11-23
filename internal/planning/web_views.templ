@@ -141,7 +141,7 @@ templ cycleBody(now time.Time, v cycleView) {
 		</div>
 	} else {
 		{{ c, p := *v.Cycle, v.Planning }}
-		@cycleHeader(now, c, v.Upcoming, nil)
+		@cycleHeader(now, c, v.Upcoming, nil, false)
 		@decisionAlert(v.Refusal)
 		<div class="section">
 			if p.Failed != nil && p.Going == 0 && p.Proposal == nil && p.Plan == nil {

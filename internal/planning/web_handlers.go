@@ -449,3 +449,28 @@ func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
 	}
 	web.Answer{Notice: web.T(r.Context(), msgDropped), RedirectTo: "/plan"}.Write(w, r, h.Log)
 }
+
+// ShowGroceryList is the Grocery List of the upcoming Cycle in the path. Any other Cycle,
+// or none of the User's, redirects to the Cycle page, as ShowCycle does once one closes.
+func (h Handlers) ShowGroceryList(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	ctx, now := r.Context(), h.Clock.Now()
+	c, err := h.Service.Upcoming(ctx, id, now)
+	if errors.Is(err, ErrNoCycle) {
+		http.Redirect(w, r, "/plan", http.StatusSeeOther)
+		return
+	}
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load the Cycle of a Grocery List", err)
+		return
+	}
+	list, planned, err := h.Service.GroceryListOf(ctx, c, now)
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "work out a Grocery List", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, groceryPage(now, c, list, planned))
+}
