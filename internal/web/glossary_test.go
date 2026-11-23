@@ -149,7 +149,7 @@ var (
 	glossaryAvoid = regexp.MustCompile(`(?m)^_Avoid_: (.+)$`)
 )
 
-// glossaryWords are the `glossary`'s `terms` and the words it avoids, each as
+// glossaryWords are `glossary`'s `terms` and the words it avoids, each as
 // a whole-word, case-insensitive pattern; a term matches its plural too.
 func glossaryWords(glossary string) (terms []*regexp.Regexp, avoided map[string]*regexp.Regexp) {
 	word := func(w string) *regexp.Regexp {

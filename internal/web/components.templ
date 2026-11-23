@@ -389,7 +389,7 @@ templ EditRow(open bool, summary templ.Component) {
 }
 
 // EditRowIn is an EditRow one of `group`, e.g. the Slots of a day: opening
-// it closes the `group`'s open one.
+// it closes `group`'s open one.
 templ EditRowIn(group string, open bool, summary templ.Component) {
 	<li class="row">
 		<details { detailsAttributes(group, open)... }>

@@ -43,7 +43,7 @@ func (t TimeOfDay) In(l Language) string {
 
 var typedTime = regexp.MustCompile(`^(\d{1,2})(?:[:.]?(\d{2}))?(?:([ap])\.?m\.?)?$`)
 
-// ParseTimeOfDay reads a time of day as the User `typed` it, in either form: "13:00",
+// ParseTimeOfDay reads a time of day as `typed`, in either form: "13:00",
 // "1:00 pm", "1pm", "1300".
 func ParseTimeOfDay(typed string) (TimeOfDay, Problem) {
 	typed = strings.ToLower(strings.Join(strings.Fields(typed), ""))
@@ -85,7 +85,7 @@ func FormatDate(l Language, day time.Time) string {
 
 var typedDate = regexp.MustCompile(`^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$`)
 
-// ParseDate reads a date as the User `typed` it in `l`'s order of day and month, with any
+// ParseDate reads a date as `typed` in `l`'s order of day and month, with any
 // of / . - between them, as a day at midnight UTC.
 func ParseDate(l Language, typed string) (time.Time, Problem) {
 	typed = strings.TrimSpace(typed)

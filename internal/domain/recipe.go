@@ -45,7 +45,7 @@ type PortionNutrition struct {
 	FibreFloor, SugarFloor bool
 }
 
-// ParseMinutes reads minutes as the User `typed` them: a whole number of at least 0, and
+// ParseMinutes reads minutes as `typed`: a whole number of at least 0, and
 // no more than maxMinutes.
 func ParseMinutes(typed string) (int, Problem) {
 	n, problem := parseWhole(typed)

@@ -84,7 +84,7 @@ const (
 // maxAmount bounds a nutritional value: no food holds 10000 kcal in 100 g or a piece.
 const maxAmount = 10000
 
-// ParseAmount reads a nutritional value as the User `typed` it: blank is Unknown, and a
+// ParseAmount reads a nutritional value as `typed`: blank is Unknown, and a
 // value is a number not negative, to one decimal place at most, with a point or a comma.
 func ParseAmount(typed string) (Amount, Problem) {
 	typed = strings.ReplaceAll(strings.TrimSpace(typed), ",", ".")
@@ -116,7 +116,7 @@ func (n Nutrition) Problems() map[string]Problem {
 	return problems
 }
 
-// ParseNutrition reads nutritional values as the User `typed` them, by field, with why
+// ParseNutrition reads nutritional values as `typed`, by field, with why
 // each field is refused, by field, if any is: one that isn't a valid amount, or is one
 // of the four always known and is left blank.
 func ParseNutrition(typed map[string]string) (Nutrition, map[string]Problem) {

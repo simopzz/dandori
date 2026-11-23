@@ -52,7 +52,7 @@ func firstTurn(req agent.Request) string {
 	return strings.Join(texts, "\n\n")
 }
 
-// idIn is the id the `pattern`'s group finds in what the first request of the Run `req`
+// idIn is the id `pattern`'s group finds in what the first request of the Run `req`
 // belongs to was told.
 func idIn(t *testing.T, req agent.Request, pattern string) int64 {
 	t.Helper()

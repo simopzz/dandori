@@ -26,7 +26,7 @@ func (q Quantity) Number() float64 { return float64(q) / tenths }
 // QuantityOf is the Quantity of `v` in its Unit, as Number gives it.
 func QuantityOf(v float64) Quantity { return Quantity(math.Round(v * tenths)) }
 
-// ParseQuantity reads a quantity of `unit` as the User `typed` it, with a point or a
+// ParseQuantity reads a quantity of `unit` as `typed`, with a point or a
 // comma: grams and millilitres are whole numbers, pieces have one decimal place, and
 // nothing is negative.
 func ParseQuantity(unit Unit, typed string) (Quantity, Problem) {
@@ -143,9 +143,9 @@ func ParseCount(unit Unit, location StorageLocation, stated string) (Quantity, m
 	return q, problems
 }
 
-// ParseMove reads a move of `unit` from one Storage Location as the User typed it: the
-// Storage Location it goes `to`, another, and the quantity to move, and problems, why
-// each field is refused, by field, if any is.
+// ParseMove reads `moved`, the quantity of `unit` to move from `from` to `to`, another
+// Storage Location: the quantity, and problems, why each field is refused, by field, if
+// any is.
 func ParseMove(unit Unit, from, to StorageLocation, moved string) (Quantity, map[string]Problem) {
 	problems := map[string]Problem{}
 	if to == from || !slices.Contains(StorageLocations, to) {
@@ -236,7 +236,7 @@ func (m Movement) placePortions(where map[int64]StorageLocation) {
 	}
 }
 
-// HeldAt is what each Storage Location holds of the Ingredient `id` at a moment. A
+// HeldAt is what each Storage Location holds of the Ingredient `id` at `at`. A
 // Storage Location no Movement of it has reached has no entry.
 func (l Ledger) HeldAt(at time.Time, id int64) map[StorageLocation]Quantity {
 	held := make(map[StorageLocation]Quantity, len(StorageLocations))

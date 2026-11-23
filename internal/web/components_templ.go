@@ -1725,7 +1725,7 @@ func EditRow(open bool, summary templ.Component) templ.Component {
 }
 
 // EditRowIn is an EditRow one of `group`, e.g. the Slots of a day: opening
-// it closes the `group`'s open one.
+// it closes `group`'s open one.
 func EditRowIn(group string, open bool, summary templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

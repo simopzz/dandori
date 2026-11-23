@@ -116,7 +116,7 @@ func tenDayScript(t *testing.T) []fakellm.Step {
 	}
 }
 
-// idsIn are the ids the `pattern`'s group finds in the prompt of the first request of the
+// idsIn are the ids `pattern`'s group finds in the prompt of the first request of the
 // Run `req` belongs to.
 func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
 	t.Helper()
