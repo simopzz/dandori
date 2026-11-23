@@ -165,7 +165,7 @@ The user-editable link from an Ingredient to the Catalog Product preferred for b
 _Avoid_: Product match, SKU mapping
 
 **Grocery List**:
-What a Cycle's Plan needs minus the stock the kitchen will hold when its Delivery arrives (the Stock Items left once the current Cycle's Prep Sessions have used theirs up), rounded up to whole Catalog Products through each Ingredient's Product Mapping, grouped by aisle. An Ingredient with no Product Mapping is flagged and listed at what is needed, rounded up to whole pieces when it is measured in pieces. It follows the Plan until its Delivery is marked ordered, which fixes it; so a Delivery is marked ordered only once its Cycle has a Plan. Once its Delivery arrives, ordered or not, everything on it becomes Stock Items, the rounding surplus included, put away as the Plan says; what came otherwise the user corrects with Counts and moves.
+What a Cycle's Plan needs minus the stock the kitchen will hold when its Delivery arrives (the Stock Items left once the current Cycle's Prep Sessions have used theirs up), rounded up to whole Catalog Products through each Ingredient's Product Mapping, grouped by aisle. An Ingredient with no Product Mapping is flagged and listed at what is needed, rounded up to a whole gram, millilitre or piece. It follows the Plan until its Delivery is marked ordered, which fixes it; so a Delivery is marked ordered only once its Cycle has a Plan. Once its Delivery arrives, ordered or not, everything on it becomes Stock Items, the rounding surplus included, put away as the Plan says; what came otherwise the user corrects with Counts and moves.
 _Avoid_: Shopping list, order
 
 **Cart Fill**:

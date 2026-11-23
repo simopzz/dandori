@@ -467,10 +467,14 @@ func (h Handlers) ShowGroceryList(w http.ResponseWriter, r *http.Request) {
 		httpx.ServerError(w, r, h.Log, "load the Cycle of a Grocery List", err)
 		return
 	}
-	list, planned, err := h.Service.GroceryListOf(ctx, c, now)
+	list, err := h.Service.GroceryListOf(ctx, c, now)
+	if errors.Is(err, ErrNoPlan) {
+		httpx.Render(w, r, h.Log, http.StatusOK, groceryPage(now, c, nil))
+		return
+	}
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "work out a Grocery List", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, groceryPage(now, c, list, planned))
+	httpx.Render(w, r, h.Log, http.StatusOK, groceryPage(now, c, &list))
 }

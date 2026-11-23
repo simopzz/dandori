@@ -24,8 +24,8 @@ func groceryURL(id int64) templ.SafeURL {
 // groceryPage is the Grocery List of the upcoming Cycle `c`, the Cycle's dates beside the
 // title: 01 each line to buy, a checkbox kept only in the page before its name and
 // quantity, and 02 the Staples to check the kitchen still holds. While `c` has no Plan,
-// `planned` false, it says to plan it first, linking to the Cycle.
-func groceryPage(now time.Time, c Cycle, list domain.GroceryList, planned bool) templ.Component {
+// `list` nil, it says to plan it first, linking to the Cycle.
+func groceryPage(now time.Time, c Cycle, list *domain.GroceryList) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -93,7 +93,7 @@ func groceryPage(now time.Time, c Cycle, list domain.GroceryList, planned bool) 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if !planned {
+			if list == nil {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"section\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -228,7 +228,7 @@ func groceryPage(now time.Time, c Cycle, list domain.GroceryList, planned bool) 
 								}()
 							}
 							ctx = templ.InitializeContext(ctx)
-							for _, ri := range list.Lines {
+							for _, line := range list.Lines {
 								templ_7745c5c3_Var14 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 									templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 									templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -259,7 +259,7 @@ func groceryPage(now time.Time, c Cycle, list domain.GroceryList, planned bool) 
 										}
 										return nil
 									})
-									templ_7745c5c3_Err = web.Check(ri.Ingredient.Name, web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
+									templ_7745c5c3_Err = web.Check(line.Ingredient.Name, web.Quantity(ctx, line.Quantity, line.Ingredient.Unit)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}

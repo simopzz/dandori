@@ -8,8 +8,14 @@ import (
 // GroceryList is what a Plan needs beyond what the kitchen will hold: a line for each
 // Ingredient short, and the Staples it uses, which the kitchen always holds.
 type GroceryList struct {
-	Lines   []RecipeIngredient
+	Lines   []GroceryLine
 	Staples []Ingredient
+}
+
+// GroceryLine is how much of an Ingredient a Grocery List buys, in its Unit.
+type GroceryLine struct {
+	Ingredient Ingredient
+	Quantity   Quantity
 }
 
 // GroceryList is the Grocery List of `p` against `stock`, the kitchen forecast at its
@@ -39,7 +45,7 @@ func (p Plan) GroceryList(stock map[StockKey]Quantity) GroceryList {
 			short -= max(0, stock[StockKey{Ingredient: ing.ID, Location: loc}])
 		}
 		if short > 0 {
-			list.Lines = append(list.Lines, RecipeIngredient{Ingredient: ing, Quantity: (short + tenths - 1) / tenths * tenths})
+			list.Lines = append(list.Lines, GroceryLine{Ingredient: ing, Quantity: short.RoundUp()})
 		}
 	}
 	return list

@@ -380,6 +380,8 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
 .lede { margin: 0; color: var(--color-text-soft); }
 
+.lede a { display: inline-flex; align-items: center; min-height: var(--tap); }
+
 /* What a page is of, beside its title: in the body face, smaller, on the title's
    baseline or under it on a narrow screen. */
 .title-beside { display: inline-block; font: 400 1rem/1.4 var(--font-body); letter-spacing: normal; color: var(--color-text-soft); white-space: nowrap; }

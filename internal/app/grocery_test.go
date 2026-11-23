@@ -92,12 +92,18 @@ func TestAPlannedCyclesGroceryList(t *testing.T) {
 }
 
 // An approved replan changes the Grocery List: smaller Portions of Oiled rice need no
-// more rice than Friday leaves.
+// more rice than Friday leaves. While the replan is pending, the Cycle page still links
+// the list, which follows the Plan approved.
 func TestAnApprovedReplanChangesTheGroceryList(t *testing.T) {
 	s := sundayAfterFriday(t, 1.5)
 	plansSunday(t, s, 1.25)
 	s.AsksForChanges("Smaller Portions.")
 	s.Settle()
+	s.Open("/plan/cycles/2")
+	s.Sees("01 Plan Proposal")
+	s.Follows("Grocery List")
+	s.Sees("01 To buy rice (25 g) yogurt (250 g)")
+
 	s.Open("/plan/cycles/2")
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")
@@ -142,6 +148,7 @@ func TestBrowserTicksOffTheGroceryList(t *testing.T) {
 	b := s.Browser(t)
 	b.SignIn(t, "ada@example.com")
 	b.Open(t, "/plan/cycles/2")
+	b.Shot(t, "cycle-grocery-link")
 	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Grocery List"}).Click(); err != nil {
 		t.Fatalf("follow the Grocery List: %v", err)
 	}

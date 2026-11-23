@@ -21,7 +21,7 @@ import (
 templ proposalPage(now time.Time, v cycleView) {
 	{{ c, p := *v.Cycle, *v.Planning.Proposal }}
 	{{ ds := proposalDays(c, p) }}
-	@cycleHeader(now, c, v.Upcoming, ds, v.Upcoming && v.Planning.Plan != nil)
+	@cycleHeader(now, v, ds)
 	@decisionAlert(v.Refusal)
 	@web.SideColumn(proposalSection(p, ds, v.Planning.Notes, v.Note, v.Note != "" || errors.Is(v.Refusal, ErrStartsInThePast) || clashed(v.Refusal))) {
 		@web.Section(2, web.T(ctx, msgDays)) {
@@ -41,11 +41,11 @@ templ proposalPage(now time.Time, v cycleView) {
 	@web.SideSheet(draftSheetID, web.T(ctx, msgNewRecipe))
 }
 
-// cycleHeader is the head of the Cycle page with a Plan: the Cycle's dates beside the
-// title, and its Delivery under it, linking its Grocery List when `listed`.
-templ cycleHeader(now time.Time, c Cycle, upcoming bool, ds []proposalDay, listed bool) {
-	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, c), now) {
-		@deliveryLine(c, upcoming, ds, listed)
+// cycleHeader is the head of the Cycle page of `v`: the Cycle's dates beside the title,
+// and its Delivery under it, linking its Grocery List when it has one.
+templ cycleHeader(now time.Time, v cycleView, ds []proposalDay) {
+	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, *v.Cycle), now) {
+		@deliveryLine(*v.Cycle, v.Upcoming, ds, v.listed())
 	}
 }
 

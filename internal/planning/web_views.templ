@@ -48,6 +48,10 @@ type cycleView struct {
 	Links    *cycleLinks
 }
 
+// listed reports whether the Cycle of `v` has a Grocery List: only an upcoming one with
+// a Plan does.
+func (v cycleView) listed() bool { return v.Upcoming && v.Planning.Plan != nil }
+
 // cycleLinks are the User's current and upcoming Cycles, which the Cycle page links
 // while they have both, with how planning the upcoming one stands.
 type cycleLinks struct {
@@ -141,7 +145,7 @@ templ cycleBody(now time.Time, v cycleView) {
 		</div>
 	} else {
 		{{ c, p := *v.Cycle, v.Planning }}
-		@cycleHeader(now, c, v.Upcoming, nil, false)
+		@cycleHeader(now, v, nil)
 		@decisionAlert(v.Refusal)
 		<div class="section">
 			if p.Failed != nil && p.Going == 0 && p.Proposal == nil && p.Plan == nil {

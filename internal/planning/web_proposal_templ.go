@@ -49,7 +49,7 @@ func proposalPage(now time.Time, v cycleView) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		c, p := *v.Cycle, *v.Planning.Proposal
 		ds := proposalDays(c, p)
-		templ_7745c5c3_Err = cycleHeader(now, c, v.Upcoming, ds, v.Upcoming && v.Planning.Plan != nil).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = cycleHeader(now, v, ds).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -143,9 +143,9 @@ func proposalPage(now time.Time, v cycleView) templ.Component {
 	})
 }
 
-// cycleHeader is the head of the Cycle page with a Plan: the Cycle's dates beside the
-// title, and its Delivery under it, linking its Grocery List when `listed`.
-func cycleHeader(now time.Time, c Cycle, upcoming bool, ds []proposalDay, listed bool) templ.Component {
+// cycleHeader is the head of the Cycle page of `v`: the Cycle's dates beside the title,
+// and its Delivery under it, linking its Grocery List when it has one.
+func cycleHeader(now time.Time, v cycleView, ds []proposalDay) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -178,13 +178,13 @@ func cycleHeader(now time.Time, c Cycle, upcoming bool, ds []proposalDay, listed
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = deliveryLine(c, upcoming, ds, listed).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = deliveryLine(*v.Cycle, v.Upcoming, ds, v.listed()).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, c), now).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, *v.Cycle), now).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
