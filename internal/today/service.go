@@ -126,7 +126,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		switch {
 		case st != planning.Planned:
 			d.Reminders = append(d.Reminders, Reminder{CycleID: c.ID, Next: c == upcoming, Standing: st})
-		case c == upcoming && !c.Ordered:
+		case c.Delivery.State == domain.Tentative: // the current Cycle's has arrived
 			d.OrderNext = c.ID
 		}
 	}

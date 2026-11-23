@@ -142,7 +142,6 @@ func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, id i
 		http.Redirect(w, r, "/plan", http.StatusSeeOther)
 		return
 	}
-	v.Upcoming = v.Cycle != nil && v.Cycle == upcoming
 	if v.Cycle != nil {
 		if v.Planning, err = h.Service.PlanningOf(ctx, *v.Cycle, now.Location()); err != nil {
 			httpx.ServerError(w, r, h.Log, "load how planning the Cycle stands", err)
@@ -154,7 +153,7 @@ func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, id i
 	}
 	if current != nil && upcoming != nil {
 		v.Links = &cycleLinks{Current: *current, Upcoming: *upcoming, Planning: v.Planning}
-		if !v.Upcoming {
+		if !v.upcoming() {
 			if v.Links.Planning, err = h.Service.PlanningOf(ctx, *upcoming, now.Location()); err != nil {
 				httpx.ServerError(w, r, h.Log, "load how planning the upcoming Cycle stands", err)
 				return

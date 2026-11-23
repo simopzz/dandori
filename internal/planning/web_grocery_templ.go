@@ -82,7 +82,7 @@ func groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal error
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = deliveryLine(c, true, nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = deliveryLine(c, nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -397,7 +397,7 @@ func orderForm(c Cycle) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if c.Ordered {
+		if c.Delivery.State == domain.Ordered {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<form novalidate id=\"undo-ordered\" class=\"stack\" method=\"post\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

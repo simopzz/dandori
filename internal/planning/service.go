@@ -33,12 +33,10 @@ var (
 	ErrOrdered = errors.New("the Delivery is marked ordered")
 )
 
-// Cycle is one of the User's Cycles, by its id, and whether its Delivery is
-// marked ordered.
+// Cycle is one of the User's Cycles, by its id.
 type Cycle struct {
 	ID int64
 	domain.Cycle
-	Ordered bool
 }
 
 // Service is the signed-in User's Cycles and planning them. It reads the Profile, the
@@ -178,7 +176,7 @@ func (s *Service) Drop(ctx context.Context, id int64, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		if c.Ordered {
+		if c.Delivery.State == domain.Ordered {
 			return ErrOrdered
 		}
 		if stop, err = s.end(ctx, tx, id, cause{Dropped: true}); err != nil {

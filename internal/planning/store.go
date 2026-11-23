@@ -35,6 +35,7 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 		switch status {
 		case domain.Current:
 			current = &cycles[i]
+			current.Delivery.State = domain.Arrived
 		case domain.Upcoming:
 			upcoming = &cycles[i]
 		}
@@ -57,8 +58,12 @@ func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
 		var c Cycle
-		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &c.Ordered)
-		c.Delivery.On, c.Ends = inZone(c.Delivery.On, zone), inZone(c.Ends, zone)
+		var ordered bool
+		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered)
+		c.Delivery.On, c.Ends, c.Delivery.State = inZone(c.Delivery.On, zone), inZone(c.Ends, zone), domain.Tentative
+		if ordered {
+			c.Delivery.State = domain.Ordered
+		}
 		return c, err
 	})
 }

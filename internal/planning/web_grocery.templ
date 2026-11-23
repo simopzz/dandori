@@ -32,7 +32,7 @@ func tentativeURL(id int64) templ.SafeURL {
 templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal error) {
 	@web.Layout(web.T(ctx, msgGroceryListTitle), web.PlanTab) {
 		@web.PageHeaderBeside("献立", web.T(ctx, msgGroceryList), dates(ctx, c), now) {
-			@deliveryLine(c, true, nil)
+			@deliveryLine(c, nil)
 			<p class="lede">{ web.T(ctx, msgGroceryHint) }</p>
 			<p class="lede">
 				@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
@@ -85,7 +85,7 @@ templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal erro
 // is ordered, each with a hint of what it does.
 templ orderForm(c Cycle) {
 	<div class="section">
-		if c.Ordered {
+		if c.Delivery.State == domain.Ordered {
 			<form novalidate id="undo-ordered" class="stack" method="post" action={ tentativeURL(c.ID) }>
 				@web.Hint() {
 					{ web.T(ctx, msgUndoOrderedHint) }

@@ -42,7 +42,7 @@ func (s *Service) GroceryListOf(ctx context.Context, c Cycle, now time.Time) (do
 		return domain.GroceryList{}, ErrNoPlan
 	}
 	list := k.plan.GroceryList(k.forecast.Stock)
-	if !c.Ordered {
+	if c.Delivery.State != domain.Ordered {
 		return list, nil
 	}
 	var fixed map[int64]domain.Quantity
@@ -66,7 +66,7 @@ func (s *Service) GroceryListOf(ctx context.Context, c Cycle, now time.Time) (do
 // changes nothing.
 func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) error {
 	c, err := s.Upcoming(ctx, id, now)
-	if err != nil || c.Ordered {
+	if err != nil || c.Delivery.State == domain.Ordered {
 		return err
 	}
 	// Read before the list: a replan pending or going by the time it is fixed is one

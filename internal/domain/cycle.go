@@ -30,12 +30,24 @@ const (
 	TooLong Problem = "too long"
 )
 
-// Delivery is one supermarket delivery: its day, at midnight in the clock's zone, and its
-// time window on that day.
+// Delivery is one supermarket delivery: its day, at midnight in the clock's zone, its
+// time window on that day, and where it is.
 type Delivery struct {
 	On       time.Time
 	From, To TimeOfDay
+	// State is never stored with the Delivery a planning Run names: it had arrived.
+	State DeliveryState `json:"-"`
 }
+
+// DeliveryState is where a Delivery is: tentative until the User marks it ordered, which
+// they can undo, and arrived, neither, once its Cycle is current.
+type DeliveryState string
+
+const (
+	Tentative DeliveryState = "tentative"
+	Ordered   DeliveryState = "ordered"
+	Arrived   DeliveryState = "arrived"
+)
 
 // Arrives is when `d` is taken to have arrived: the end of its window.
 func (d Delivery) Arrives() time.Time {

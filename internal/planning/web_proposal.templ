@@ -46,7 +46,7 @@ templ proposalPage(now time.Time, v cycleView) {
 // has one.
 templ cycleHeader(now time.Time, v cycleView, ds []proposalDay) {
 	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, *v.Cycle), now) {
-		@deliveryLine(*v.Cycle, v.Upcoming, ds)
+		@deliveryLine(*v.Cycle, ds)
 		if v.listed() {
 			<p class="lede">
 				@web.TextLink(templ.Attributes{"href": string(groceryURL(v.Cycle.ID))}) {
@@ -73,21 +73,18 @@ templ dropSection(c Cycle, droppable bool) {
 }
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
-// Ordered or Tentative while `upcoming`, and the Slot the first day is planned from when
+// Ordered or Tentative until it arrives, and the Slot the first day is planned from when
 // it is planned only partly.
-templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
+templ deliveryLine(c Cycle, ds []proposalDay) {
 	<p class="lede">
 		{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
-		if upcoming && c.Ordered {
+		if tag, ok := deliveryTags[c.Delivery.State]; ok {
 			{ " " }
 			@web.Tag(false, "") {
-				{ web.T(ctx, msgOrdered) }
+				{ web.T(ctx, tag) }
 			}
-		} else if upcoming {
-			{ " " }
-			@web.Tag(false, "") {
-				{ web.T(ctx, msgTentative) }
-			}
+		}
+		if c.Delivery.State == domain.Tentative {
 			{ " " }
 			// A span: web.Hint is a <p>, which can't sit in the lede.
 			<span class="hint">{ web.T(ctx, msgTentativeHint) }</span>

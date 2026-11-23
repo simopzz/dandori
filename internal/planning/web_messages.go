@@ -14,8 +14,6 @@ var (
 	msgCurrentCycle  = web.Message{En: "Current Cycle", It: "Ciclo in corso"}
 	msgDelivery      = web.Message{En: "Delivery", It: "Consegna"}
 	msgWindow        = web.Message{En: "%s, %s to %s", It: "%s, dalle %s alle %s"}
-	msgTentative     = web.Message{En: "Tentative", It: "Provvisoria"}
-	msgOrdered       = web.Message{En: "Ordered", It: "Ordinata"}
 	msgEndDate       = web.Message{En: "End date", It: "Data di fine"}
 	msgNoCycle       = web.Message{
 		En: "No Cycle is upcoming. Open one to plan the stretch your next Delivery has to last.",
@@ -259,3 +257,10 @@ var (
 		It: "La Consegna del Ciclo è segnata come ordinata: annullalo nella sua Lista della spesa per annullare il Ciclo.",
 	}
 )
+
+// deliveryTags are what the Tag after a Delivery's window says of each state until
+// it arrives.
+var deliveryTags = map[domain.DeliveryState]web.Message{
+	domain.Tentative: {En: "Tentative", It: "Provvisoria"},
+	domain.Ordered:   {En: "Ordered", It: "Ordinata"},
+}

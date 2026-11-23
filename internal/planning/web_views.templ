@@ -40,7 +40,6 @@ func window(ctx context.Context, d domain.Delivery) string {
 // the Cycles it links, if any.
 type cycleView struct {
 	Cycle    *Cycle
-	Upcoming bool
 	Planning Planning
 	Failure  string
 	Refusal  error
@@ -50,11 +49,14 @@ type cycleView struct {
 
 // listed reports whether the Cycle of `v` has a Grocery List: only an upcoming one with
 // a Plan does.
-func (v cycleView) listed() bool { return v.Upcoming && v.Planning.Plan != nil }
+func (v cycleView) listed() bool { return v.upcoming() && v.Planning.Plan != nil }
+
+// upcoming reports whether the Cycle of `v` is upcoming: its Delivery hasn't arrived.
+func (v cycleView) upcoming() bool { return v.Cycle != nil && v.Cycle.Delivery.State != domain.Arrived }
 
 // droppable reports whether the Cycle of `v` can be dropped: only an upcoming one whose
 // Delivery is tentative can.
-func (v cycleView) droppable() bool { return v.Upcoming && !v.Cycle.Ordered }
+func (v cycleView) droppable() bool { return v.Cycle != nil && v.Cycle.Delivery.State == domain.Tentative }
 
 // cycleLinks are the User's current and upcoming Cycles, which the Cycle page links
 // while they have both, with how planning the upcoming one stands.
