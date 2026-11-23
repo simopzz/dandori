@@ -14,23 +14,23 @@ func groceryURL(id int64) templ.SafeURL {
 }
 
 // groceryPage is the Grocery List of the upcoming Cycle `c`, the Cycle's dates beside the
-// title: 01 each line to buy, a checkbox kept only in the page before its name and
-// quantity, and 02 the Staples to check the kitchen still holds. While `c` has no Plan,
-// `list` nil, it says to plan it first, linking to the Cycle.
+// title and a link back to the Cycle under it: 01 each line to buy, a checkbox kept only
+// in the page before its name and quantity, and 02 the Staples to check the kitchen still
+// holds. While `c` has no Plan, `list` nil, it says to plan it first.
 templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList) {
 	@web.Layout(web.T(ctx, msgGroceryListTitle), web.PlanTab) {
 		@web.PageHeaderBeside("献立", web.T(ctx, msgGroceryList), dates(ctx, c), now) {
 			<p class="lede">{ web.T(ctx, msgGroceryHint) }</p>
+			<p class="lede">
+				@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
+					{ web.T(ctx, msgBackToTheCycle) }
+				}
+			</p>
 		}
 		if list == nil {
 			<div class="section">
 				@web.Empty() {
 					{ web.T(ctx, msgPlanFirst) }
-				}
-				@web.Actions() {
-					@web.ButtonLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
-						{ web.T(ctx, msgSeeCycle) }
-					}
 				}
 			</div>
 		} else {

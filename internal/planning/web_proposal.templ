@@ -42,10 +42,19 @@ templ proposalPage(now time.Time, v cycleView) {
 }
 
 // cycleHeader is the head of the Cycle page of `v`: the Cycle's dates beside the title,
-// and its Delivery under it, linking its Grocery List when it has one.
+// its Delivery under it, and its Grocery List's link on a line of its own when it
+// has one.
 templ cycleHeader(now time.Time, v cycleView, ds []proposalDay) {
 	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, *v.Cycle), now) {
-		@deliveryLine(*v.Cycle, v.Upcoming, ds, v.listed())
+		@deliveryLine(*v.Cycle, v.Upcoming, ds)
+		if v.listed() {
+			<p class="lede">
+				@web.TextLink(templ.Attributes{"href": string(groceryURL(v.Cycle.ID))}) {
+					@web.Icon("list")
+					{ web.T(ctx, msgGroceryList) }
+				}
+			</p>
+		}
 	}
 }
 
@@ -65,8 +74,8 @@ templ dropSection(c Cycle, upcoming bool) {
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
 // Tentative while `upcoming`, and the Slot the first day is planned from when it is
-// planned only partly, then its Grocery List's link when `listed`.
-templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay, listed bool) {
+// planned only partly.
+templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 	<p class="lede">
 		{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
 		if upcoming {
@@ -81,10 +90,6 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay, listed bool) {
 		{{ first := firstFilled(ds) }}
 		if from, partly := first.plannedFrom(); partly {
 			{ " · " + web.Tf(ctx, msgPlannedFrom, web.ShortDate(ctx, first.On), web.T(ctx, web.SlotKindNames[from])) }
-		}
-		if listed {
-			{ " · " }
-			<a href={ groceryURL(c.ID) }>{ web.T(ctx, msgGroceryList) }</a>
 		}
 	</p>
 }

@@ -380,8 +380,6 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
 .lede { margin: 0; color: var(--color-text-soft); }
 
-.lede a { display: inline-flex; align-items: center; min-height: var(--tap); }
-
 /* What a page is of, beside its title: in the body face, smaller, on the title's
    baseline or under it on a narrow screen. */
 .title-beside { display: inline-block; font: 400 1rem/1.4 var(--font-body); letter-spacing: normal; color: var(--color-text-soft); white-space: nowrap; }
@@ -758,7 +756,7 @@ legend.field-label { margin-bottom: var(--space-1); }
 
 .btn-text:has(+ .btn-text) { margin-right: 0; }
 
-a.btn-text { display: inline-flex; align-items: center; }
+a.btn-text { display: inline-flex; align-items: center; gap: var(--space-2); }
 
 /* TextButtonFold and ButtonFold: a TextButton or Button that opens in place onto a line
    of its own, its chevron turning */

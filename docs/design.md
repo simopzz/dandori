@@ -139,7 +139,8 @@ size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 for what is worth weighing, `repeat` for a Portion eaten back to back,
 `package` (the Kitchen's crate) for a Portion left unused, `snowflake` for one
 made for after the Cycle and for the freezer splits at put-away, `scale` for the
-days more than 25% off a Target, and `book-open` for a new Recipe. A reminder on
+days more than 25% off a Target, `book-open` for a new Recipe, and `list` for
+the Grocery List. A reminder on
 Today leads with the icon of the page it links to, its tab's: `calendar` (Plan)
 for opening a Cycle and for how planning one stands, `user` (Profile) for the
 Targets planning needs; a failed one, urgent, has the seal instead. A new kind of

@@ -224,8 +224,9 @@ var (
 		En: "What the Plan needs beyond what the kitchen will hold when the Delivery arrives. Tick each line as you fill the cart.",
 		It: "Ciò che serve al Piano oltre a quanto la cucina avrà all'arrivo della Consegna. Spunta ogni riga mentre riempi il carrello.",
 	}
-	msgToBuy        = web.Message{En: "To buy", It: "Da comprare"}
-	msgNothingToBuy = web.Message{En: "The kitchen will hold all the Plan needs.", It: "La cucina avrà tutto ciò che serve al Piano."}
-	msgCheckYouHave = web.Message{En: "Check you still have", It: "Controlla di avere ancora"}
-	msgPlanFirst    = web.Message{En: "Plan the Cycle first: its Grocery List follows its Plan.", It: "Prima pianifica il Ciclo: la sua Lista della spesa segue il suo Piano."}
+	msgToBuy          = web.Message{En: "To buy", It: "Da comprare"}
+	msgNothingToBuy   = web.Message{En: "The kitchen will hold all the Plan needs.", It: "La cucina avrà tutto ciò che serve al Piano."}
+	msgCheckYouHave   = web.Message{En: "Check you still have", It: "Controlla di avere ancora"}
+	msgBackToTheCycle = web.Message{En: "Back to the Cycle", It: "Torna al Ciclo"}
+	msgPlanFirst      = web.Message{En: "Plan the Cycle first: its Grocery List follows its Plan.", It: "Prima pianifica il Ciclo: la sua Lista della spesa segue il suo Piano."}
 )

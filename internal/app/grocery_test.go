@@ -89,6 +89,8 @@ func TestAPlannedCyclesGroceryList(t *testing.T) {
 	s.IsAt("/plan/cycles/2/grocery-list")
 	s.Sees("Grocery List · Sat, Nov 7 – Sun, Nov 8")
 	s.Sees("01 To buy rice (25 g) yogurt (250 g) 02 Check you still have olive oil")
+	s.Follows("Back to the Cycle")
+	s.IsAt("/plan/cycles/2")
 }
 
 // An approved replan changes the Grocery List: smaller Portions of Oiled rice need no
@@ -112,8 +114,8 @@ func TestAnApprovedReplanChangesTheGroceryList(t *testing.T) {
 	s.DoesNotSee("rice (")
 }
 
-// The Grocery List of a Cycle without a Plan says to plan it first, linking to the Cycle,
-// which links no list.
+// The Grocery List of a Cycle without a Plan says to plan it first, linking back to the
+// Cycle, which links no list.
 func TestTheGroceryListOfACycleWithoutAPlan(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	s.OpensCycle(friday)
@@ -121,7 +123,7 @@ func TestTheGroceryListOfACycleWithoutAPlan(t *testing.T) {
 	s.DoesNotSee("Grocery List")
 	s.Open("/plan/cycles/1/grocery-list")
 	s.Sees("Plan the Cycle first: its Grocery List follows its Plan.")
-	s.Follows("See the Cycle")
+	s.Follows("Back to the Cycle")
 	s.IsAt("/plan/cycles/1")
 }
 
