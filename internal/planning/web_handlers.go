@@ -32,6 +32,10 @@ const (
 	refusedNoneLeft httpx.Refusal = "no Slot of the Cycle is left to plan"
 	refusedClash    httpx.Refusal = "a Recipe Draft clashes with the Recipe Library"
 	refusedNoNote   httpx.Refusal = "asking for changes needs a Planning Note"
+	refusedNoPlan   httpx.Refusal = "the Cycle has no Plan"
+	refusedPending  httpx.Refusal = "a Plan Proposal of the Cycle is pending"
+	refusedGoing    httpx.Refusal = "a planning Run of the Cycle is going"
+	refusedOrdered  httpx.Refusal = "the Delivery is marked ordered"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
@@ -432,7 +436,8 @@ func (h Handlers) showDrop(w http.ResponseWriter, r *http.Request, sheet bool) {
 	httpx.Render(w, r, h.Log, http.StatusOK, dropPage(now, c))
 }
 
-// Drop drops the upcoming Cycle in the path, landing on the Cycle page.
+// Drop drops the upcoming Cycle in the path, landing on the Cycle page, or answers with
+// the Cycle page saying why it can't.
 func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -441,6 +446,11 @@ func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
 	err := h.Service.Drop(r.Context(), id, h.Clock.Now())
 	if errors.Is(err, ErrNoCycle) {
 		http.NotFound(w, r)
+		return
+	}
+	if errors.Is(err, ErrOrdered) {
+		httpx.Refused(r, refusedOrdered, nil)
+		h.cycle(w, r, http.StatusUnprocessableEntity, id, err)
 		return
 	}
 	if err != nil {
@@ -457,6 +467,13 @@ func (h Handlers) ShowGroceryList(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.groceryList(w, r, http.StatusOK, id, nil)
+}
+
+// groceryList answers with the Grocery List of the upcoming Cycle `id`, with `status`,
+// saying why marking its Delivery ordered was refused, if it was. Any other Cycle
+// redirects to the Cycle page.
+func (h Handlers) groceryList(w http.ResponseWriter, r *http.Request, status int, id int64, refusal error) {
 	ctx, now := r.Context(), h.Clock.Now()
 	c, err := h.Service.Upcoming(ctx, id, now)
 	if errors.Is(err, ErrNoCycle) {
@@ -469,12 +486,47 @@ func (h Handlers) ShowGroceryList(w http.ResponseWriter, r *http.Request) {
 	}
 	list, err := h.Service.GroceryListOf(ctx, c, now)
 	if errors.Is(err, ErrNoPlan) {
-		httpx.Render(w, r, h.Log, http.StatusOK, groceryPage(now, c, nil))
+		httpx.Render(w, r, h.Log, status, groceryPage(now, c, nil, refusal))
 		return
 	}
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "work out a Grocery List", err)
 		return
 	}
-	httpx.Render(w, r, h.Log, http.StatusOK, groceryPage(now, c, &list))
+	httpx.Render(w, r, h.Log, status, groceryPage(now, c, &list, refusal))
+}
+
+// MarkOrdered marks the Delivery of the upcoming Cycle in the path ordered, landing on
+// its Grocery List, or answers with the list saying why it can't be.
+func (h Handlers) MarkOrdered(w http.ResponseWriter, r *http.Request) {
+	h.ordering(w, r, h.Service.MarkOrdered, msgMarkedOrdered, "mark a Delivery ordered")
+}
+
+// UndoOrdered makes the Delivery of the upcoming Cycle in the path tentative again,
+// landing on its Grocery List.
+func (h Handlers) UndoOrdered(w http.ResponseWriter, r *http.Request) {
+	h.ordering(w, r, h.Service.UndoOrdered, msgTentativeAgain, "undo marking a Delivery ordered")
+}
+
+// ordering answers marking ordered, or undoing it, the Delivery of the Cycle in the path
+// with `do`, doing `what`: on the Grocery List confirming `done`, or saying why it was
+// refused. A Cycle the User has none upcoming of is unknown.
+func (h Handlers) ordering(w http.ResponseWriter, r *http.Request, do func(context.Context, int64, time.Time) error, done web.Message, what string) {
+	id, ok := httpx.PathID(w, r)
+	if !ok {
+		return
+	}
+	err := do(r.Context(), id, h.Clock.Now())
+	refusals := map[error]httpx.Refusal{ErrNoPlan: refusedNoPlan, ErrProposalPending: refusedPending, ErrBeingPlanned: refusedGoing}
+	switch refusal, refused := refusals[err]; {
+	case errors.Is(err, ErrNoCycle):
+		http.NotFound(w, r)
+	case refused:
+		httpx.Refused(r, refusal, nil)
+		h.groceryList(w, r, http.StatusUnprocessableEntity, id, err)
+	case err != nil:
+		httpx.ServerError(w, r, h.Log, what, err)
+	default:
+		web.Answer{Notice: web.T(r.Context(), done), RedirectTo: string(groceryURL(id))}.Write(w, r, h.Log)
+	}
 }

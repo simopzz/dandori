@@ -15,6 +15,7 @@ var (
 	msgDelivery      = web.Message{En: "Delivery", It: "Consegna"}
 	msgWindow        = web.Message{En: "%s, %s to %s", It: "%s, dalle %s alle %s"}
 	msgTentative     = web.Message{En: "Tentative", It: "Provvisoria"}
+	msgOrdered       = web.Message{En: "Ordered", It: "Ordinata"}
 	msgEndDate       = web.Message{En: "End date", It: "Data di fine"}
 	msgNoCycle       = web.Message{
 		En: "No Cycle is upcoming. Open one to plan the stretch your next Delivery has to last.",
@@ -224,9 +225,37 @@ var (
 		En: "What the Plan needs beyond what the kitchen will hold when the Delivery arrives. Tick each line as you fill the cart.",
 		It: "Ciò che serve al Piano oltre a quanto la cucina avrà all'arrivo della Consegna. Spunta ogni riga mentre riempi il carrello.",
 	}
-	msgToBuy          = web.Message{En: "To buy", It: "Da comprare"}
-	msgNothingToBuy   = web.Message{En: "The kitchen will hold all the Plan needs.", It: "La cucina avrà tutto ciò che serve al Piano."}
-	msgCheckYouHave   = web.Message{En: "Check you still have", It: "Controlla di avere ancora"}
-	msgBackToTheCycle = web.Message{En: "Back to the Cycle", It: "Torna al Ciclo"}
-	msgPlanFirst      = web.Message{En: "Plan the Cycle first: its Grocery List follows its Plan.", It: "Prima pianifica il Ciclo: la sua Lista della spesa segue il suo Piano."}
+	msgToBuy           = web.Message{En: "To buy", It: "Da comprare"}
+	msgNothingToBuy    = web.Message{En: "The kitchen will hold all the Plan needs.", It: "La cucina avrà tutto ciò che serve al Piano."}
+	msgCheckYouHave    = web.Message{En: "Check you still have", It: "Controlla di avere ancora"}
+	msgBackToTheCycle  = web.Message{En: "Back to the Cycle", It: "Torna al Ciclo"}
+	msgPlanFirst       = web.Message{En: "Plan the Cycle first: its Grocery List follows its Plan.", It: "Prima pianifica il Ciclo: la sua Lista della spesa segue il suo Piano."}
+	msgMarkOrdered     = web.Message{En: "Mark ordered", It: "Segna come ordinata"}
+	msgMarkOrderedHint = web.Message{
+		En: "Once you've checked out on the supermarket's site: this fixes the list, which no longer follows the Plan.",
+		It: "Dopo aver concluso l'acquisto sul sito del supermercato: la lista resta così e non segue più il Piano.",
+	}
+	msgUndoOrdered     = web.Message{En: "Undo ordered", It: "Annulla ordinata"}
+	msgUndoOrderedHint = web.Message{
+		En: "Until the Delivery arrives: the list follows the Plan again.",
+		It: "Fino all'arrivo della Consegna: la lista torna a seguire il Piano.",
+	}
+	msgMarkedOrdered  = web.Message{En: "Delivery marked ordered.", It: "Consegna segnata come ordinata."}
+	msgTentativeAgain = web.Message{En: "Delivery tentative again.", It: "Consegna di nuovo provvisoria."}
+	msgOrderedNoPlan  = web.Message{
+		En: "The Cycle has no Plan yet, so there's nothing to buy.",
+		It: "Il Ciclo non ha ancora un Piano, quindi non c'è niente da comprare.",
+	}
+	msgOrderedPending = web.Message{
+		En: "Decide on the Cycle's Plan Proposal first: approving it would change the list.",
+		It: "Prima decidi sulla Proposta di Piano del Ciclo: approvarla cambierebbe la lista.",
+	}
+	msgOrderedGoing = web.Message{
+		En: "Wait for the Cycle to be planned first: its Plan Proposal could change the list.",
+		It: "Prima aspetta che il Ciclo sia pianificato: la sua Proposta di Piano potrebbe cambiare la lista.",
+	}
+	msgUndoOrderedFirst = web.Message{
+		En: "The Cycle's Delivery is marked ordered: undo that on its Grocery List to drop the Cycle.",
+		It: "La Consegna del Ciclo è segnata come ordinata: annullalo nella sua Lista della spesa per annullare il Ciclo.",
+	}
 )

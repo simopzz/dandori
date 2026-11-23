@@ -126,7 +126,7 @@ func planPage(now time.Time, v cycleView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if v.Upcoming {
+		if v.droppable() {
 			templ_7745c5c3_Err = web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -139,8 +139,8 @@ func planPage(now time.Time, v cycleView) templ.Component {
 // planActions is Section 03, the Plan's actions apart at the end: while the Cycle is
 // planned again, saying so with a link to the Run; once that Run failed, why, with its
 // Trace, and Plan again; otherwise asking for changes, while no planning Run is going nor
-// Plan Proposal pending for any Cycle. Dropping the Cycle sits beside them, while
-// upcoming; nothing when it has none of them.
+// Plan Proposal pending for any Cycle. Dropping the Cycle sits beside them, while it can
+// be dropped; nothing when it has none of them.
 func planActions(v cycleView) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -164,7 +164,7 @@ func planActions(v cycleView) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		c, p := *v.Cycle, v.Planning
 		ask := !p.Busy && p.Failed == nil
-		if p.Going != 0 || p.Failed != nil || ask || v.Upcoming {
+		if p.Going != 0 || p.Failed != nil || ask || v.droppable() {
 			templ_7745c5c3_Var6 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -227,7 +227,7 @@ func planActions(v cycleView) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if v.Upcoming {
+					if v.droppable() {
 						templ_7745c5c3_Var8 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 							templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 							templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)

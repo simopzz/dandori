@@ -33,9 +33,9 @@ templ proposalPage(now time.Time, v cycleView) {
 				}
 			}
 		}
-		@dropSection(c, v.Upcoming)
+		@dropSection(c, v.droppable())
 	}
-	if v.Upcoming {
+	if v.droppable() {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 	}
 	@web.SideSheet(draftSheetID, web.T(ctx, msgNewRecipe))
@@ -59,9 +59,9 @@ templ cycleHeader(now time.Time, v cycleView, ds []proposalDay) {
 }
 
 // dropSection is Section 03, dropping the Cycle `c`, apart at the end, only
-// while `upcoming`.
-templ dropSection(c Cycle, upcoming bool) {
-	if upcoming {
+// while `droppable`.
+templ dropSection(c Cycle, droppable bool) {
+	if droppable {
 		@web.Section(3, web.T(ctx, msgUpcomingCycle)) {
 			@web.Actions() {
 				@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
@@ -73,12 +73,17 @@ templ dropSection(c Cycle, upcoming bool) {
 }
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
-// Tentative while `upcoming`, and the Slot the first day is planned from when it is
-// planned only partly.
+// Ordered or Tentative while `upcoming`, and the Slot the first day is planned from when
+// it is planned only partly.
 templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 	<p class="lede">
 		{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
-		if upcoming {
+		if upcoming && c.Ordered {
+			{ " " }
+			@web.Tag(false, "") {
+				{ web.T(ctx, msgOrdered) }
+			}
+		} else if upcoming {
 			{ " " }
 			@web.Tag(false, "") {
 				{ web.T(ctx, msgTentative) }

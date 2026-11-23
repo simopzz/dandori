@@ -13,13 +13,26 @@ func groceryURL(id int64) templ.SafeURL {
 	return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/grocery-list", id))
 }
 
+// orderedURL is marking the Delivery of the Cycle `id` ordered, and tentativeURL
+// undoing that.
+func orderedURL(id int64) templ.SafeURL {
+	return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/ordered", id))
+}
+
+func tentativeURL(id int64) templ.SafeURL {
+	return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/tentative", id))
+}
+
 // groceryPage is the Grocery List of the upcoming Cycle `c`, the Cycle's dates beside the
-// title and a link back to the Cycle under it: 01 each line to buy, a checkbox kept only
-// in the page before its name and quantity, and 02 the Staples to check the kitchen still
-// holds. While `c` has no Plan, `list` nil, it says to plan it first.
-templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList) {
+// title, its Delivery, tentative or ordered, and a link back to the Cycle under it; why
+// marking it ordered was refused, if it was: 01 each line to buy, a checkbox kept only in
+// the page before its name and quantity, 02 the Staples to check the kitchen still
+// holds, then marking the Delivery ordered or, once it is, undoing that. While `c` has
+// no Plan, `list` nil, it says to plan it first.
+templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal error) {
 	@web.Layout(web.T(ctx, msgGroceryListTitle), web.PlanTab) {
 		@web.PageHeaderBeside("献立", web.T(ctx, msgGroceryList), dates(ctx, c), now) {
+			@deliveryLine(c, true, nil)
 			<p class="lede">{ web.T(ctx, msgGroceryHint) }</p>
 			<p class="lede">
 				@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
@@ -27,6 +40,7 @@ templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList) {
 				}
 			</p>
 		}
+		@decisionAlert(refusal)
 		if list == nil {
 			<div class="section">
 				@web.Empty() {
@@ -62,6 +76,37 @@ templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList) {
 					}
 				}
 			}
+			@orderForm(c)
 		}
 	}
+}
+
+// orderForm marks `c`'s Delivery ordered while it is tentative, and undoes that once it
+// is ordered, each with a hint of what it does.
+templ orderForm(c Cycle) {
+	<div class="section">
+		if c.Ordered {
+			<form novalidate id="undo-ordered" class="stack" method="post" action={ tentativeURL(c.ID) }>
+				@web.Hint() {
+					{ web.T(ctx, msgUndoOrderedHint) }
+				}
+				@web.Actions() {
+					@web.TextButton(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgUndoOrdered) }
+					}
+				}
+			</form>
+		} else {
+			<form novalidate id="mark-ordered" class="stack" method="post" action={ orderedURL(c.ID) }>
+				@web.Hint() {
+					{ web.T(ctx, msgMarkOrderedHint) }
+				}
+				@web.Actions() {
+					@web.Button(templ.Attributes{"type": "submit"}) {
+						{ web.T(ctx, msgMarkOrdered) }
+					}
+				}
+			</form>
+		}
+	</div>
 }

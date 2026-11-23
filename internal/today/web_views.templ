@@ -48,13 +48,20 @@ templ page(now time.Time, d Day) {
 
 // reminders are what Today reminds the User to do next about planning, a row each led by
 // the icon of the page it links to: how planning the current Cycle and the next stand,
-// then opening a Cycle, the first or the next, or setting the Targets first.
+// ordering the next Delivery from its Grocery List, then opening a Cycle, the first or
+// the next, or setting the Targets first.
 templ reminders(d Day) {
-	if len(d.Reminders) > 0 || d.Offer != NoOffer {
+	if len(d.Reminders) > 0 || d.OrderNext != 0 || d.Offer != NoOffer {
 		<div class="section">
 			@web.Rows() {
 				for _, r := range d.Reminders {
 					@standingRow(r)
+				}
+				if d.OrderNext != 0 {
+					@web.Row() {
+						@web.Icon("list")
+						<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/grocery-list", d.OrderNext)) }>{ web.T(ctx, msgOrderingNext) }</a>
+					}
 				}
 				if o, ok := offers[d.Offer]; ok {
 					@web.Row() {

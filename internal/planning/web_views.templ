@@ -52,6 +52,10 @@ type cycleView struct {
 // a Plan does.
 func (v cycleView) listed() bool { return v.Upcoming && v.Planning.Plan != nil }
 
+// droppable reports whether the Cycle of `v` can be dropped: only an upcoming one whose
+// Delivery is tentative can.
+func (v cycleView) droppable() bool { return v.Upcoming && !v.Cycle.Ordered }
+
 // cycleLinks are the User's current and upcoming Cycles, which the Cycle page links
 // while they have both, with how planning the upcoming one stands.
 type cycleLinks struct {
@@ -128,8 +132,8 @@ func dates(ctx context.Context, c Cycle) string {
 
 // cycleBody is the Cycle page without a Plan Proposal or a Plan: with a Cycle, its dates
 // and Delivery under the title, why planning failed, if it did, and its one step forward,
-// a filled button: plan it, see it being planned, or plan it again; dropping it, while
-// upcoming, sits apart at the end. With none, a button to open one.
+// a filled button: plan it, see it being planned, or plan it again; dropping it, while it
+// can be, sits apart at the end. With none, a button to open one.
 templ cycleBody(now time.Time, v cycleView) {
 	if v.Cycle == nil {
 		@web.PageHeader("献立", web.T(ctx, msgCycle), now)
@@ -168,14 +172,14 @@ templ cycleBody(now time.Time, v cycleView) {
 						}
 					}
 				</div>
-				if v.Upcoming {
+				if v.droppable() {
 					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
 						{ web.T(ctx, msgDropCycle) }
 					}
 				}
 			}
 		</div>
-		if v.Upcoming {
+		if v.droppable() {
 			@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 		}
 	}
@@ -234,7 +238,8 @@ templ planAgain(id int64, note string, open bool) {
 	}
 }
 
-// decisionAlert says why deciding on a Plan Proposal or planning was refused, if it was.
+// decisionAlert says why deciding on a Plan Proposal, planning, dropping the Cycle or
+// marking its Delivery ordered was refused, if it was.
 templ decisionAlert(err error) {
 	if clash, ok := errors.AsType[*recipes.ClashError](err); ok {
 		@web.Alert() {
@@ -248,7 +253,8 @@ templ decisionAlert(err error) {
 	}
 }
 
-// refusalOf says why `err` refused deciding or planning, `ok` false when it didn't.
+// refusalOf says why `err` refused deciding, planning, dropping or marking ordered, `ok`
+// false when it didn't.
 func refusalOf(err error) (msg web.Message, ok bool) {
 	switch {
 	case errors.Is(err, ErrStartsInThePast):
@@ -259,6 +265,14 @@ func refusalOf(err error) (msg web.Message, ok bool) {
 		return msgPlanned, true
 	case errors.Is(err, ErrNothingLeft):
 		return msgNothingLeft, true
+	case errors.Is(err, ErrOrdered):
+		return msgUndoOrderedFirst, true
+	case errors.Is(err, ErrNoPlan):
+		return msgOrderedNoPlan, true
+	case errors.Is(err, ErrProposalPending):
+		return msgOrderedPending, true
+	case errors.Is(err, ErrBeingPlanned):
+		return msgOrderedGoing, true
 	}
 	return web.Message{}, false
 }

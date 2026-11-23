@@ -22,6 +22,7 @@ var (
 	msgSetTargets   = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
 	msgOpenCycle    = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
 	msgOpenNext     = web.Message{En: "Open the next Cycle", It: "Apri il prossimo Ciclo"}
+	msgOrderingNext = web.Message{En: "Order the next Delivery", It: "Ordina la prossima Consegna"}
 	msgNeedsTargets = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
 	msgFailed       = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
 )
