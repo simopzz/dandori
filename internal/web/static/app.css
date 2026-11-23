@@ -758,6 +758,10 @@ legend.field-label { margin-bottom: var(--space-1); }
 
 a.btn-text { display: inline-flex; align-items: center; gap: var(--space-2); }
 
+/* An icon before a text link's words: one bitmap pixel down, onto the middle of their
+   lowercase letters, which sit below the middle of the font's box. */
+a.btn-text > .icon { translate: 0 calc(var(--icon) / 10); }
+
 /* TextButtonFold and ButtonFold: a TextButton or Button that opens in place onto a line
    of its own, its chevron turning */
 .button-fold > summary { list-style: none; display: inline-flex; align-items: center; gap: var(--space-1); }
