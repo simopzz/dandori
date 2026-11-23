@@ -19,11 +19,11 @@ type Thaw struct {
 	Quantity   Quantity
 }
 
-// Thaws are what p's Prep Sessions, in the order of their Slots, thaw of stock, what the
-// kitchen holds of each Stock Item. Each uses up the stock outside the freezer, and the
-// frozen stock of an Ingredient usually kept there, used from frozen; what it still needs
-// is thawed from the freezer as far as the freezer holds it. What falls short comes from
-// elsewhere, never frozen.
+// Thaws are what `p`'s Prep Sessions, in the order of their Slots, thaw of `stock`, what
+// the kitchen holds of each Stock Item. Each uses up the `stock` outside the freezer, and
+// the frozen `stock` of an Ingredient usually kept there, used from frozen; what it still
+// needs is thawed from the freezer as far as the freezer holds it. What falls short comes
+// from elsewhere, never frozen.
 func (p Plan) Thaws(stock map[StockKey]Quantity) []Thaw {
 	left := maps.Clone(stock)
 	var thaws []Thaw
@@ -37,7 +37,7 @@ func (p Plan) Thaws(stock map[StockKey]Quantity) []Thaw {
 	return thaws
 }
 
-// bySlot are p's Prep Sessions in the order of their Slots.
+// bySlot are `p`'s Prep Sessions in the order of their Slots.
 func (p Plan) bySlot() []PrepSession {
 	sessions := slices.Clone(p.PrepSessions)
 	slices.SortStableFunc(sessions, func(a, b PrepSession) int {
@@ -56,10 +56,10 @@ func (p Plan) bySlot() []PrepSession {
 // than the kitchen will hold: no Delivery will bring the rest.
 const RuleMoreThanHeld Rule = "more-than-held"
 
-// NeedsMoreThanHeld are the violations of p's Prep Sessions, in the order of their Slots,
-// each needing more of an Ingredient than stock, what the kitchen holds of each Stock
-// Item, has left of it once those before have used theirs up. A Staple never does: the
-// kitchen always holds it.
+// NeedsMoreThanHeld are the violations of `p`'s Prep Sessions, in the order of their
+// Slots, each needing more of an Ingredient than `stock`, what the kitchen holds of each
+// Stock Item, has left of it once those before have used theirs up. A Staple never does:
+// the kitchen always holds it.
 func NeedsMoreThanHeld(p Plan, stock map[StockKey]Quantity) []Violation {
 	left := maps.Clone(stock)
 	var vs []Violation
@@ -80,13 +80,13 @@ func NeedsMoreThanHeld(p Plan, stock map[StockKey]Quantity) []Violation {
 	return vs
 }
 
-// useUp takes ri from stock as a Prep Session uses it up: the stock outside the freezer,
-// and the frozen stock of an Ingredient usually kept there, then what it still needs
-// from the freezer, and is how much of that it thaws.
+// useUp takes `ri` from `stock` as a Prep Session uses it up: the `stock` outside the
+// freezer, and the frozen `stock` of an Ingredient usually kept there, then what it still
+// needs from the freezer, and is how much of that it thaws.
 func useUp(stock map[StockKey]Quantity, ri RecipeIngredient) (thawed Quantity) {
 	need := ri.Quantity
 	// shortcut: a Stock Item is one per Storage Location, so "oldest first" is the order
-	// of StorageLocations; it changes nothing thawed.
+	// of StorageLocations; it changes nothing `thawed`.
 	for _, loc := range StorageLocations {
 		if loc == Freezer && ri.Ingredient.Usual != Freezer {
 			continue
@@ -96,7 +96,7 @@ func useUp(stock map[StockKey]Quantity, ri RecipeIngredient) (thawed Quantity) {
 	return take(stock, StockKey{Ingredient: ri.Ingredient.ID, Location: Freezer}, need)
 }
 
-// take takes up to need from what stock holds at key, and is how much it took.
+// take takes up to `need` from what `stock` holds at `key`, and is how much it took.
 func take(stock map[StockKey]Quantity, key StockKey, need Quantity) Quantity {
 	took := min(need, stock[key])
 	if took <= 0 {
@@ -106,11 +106,11 @@ func take(stock map[StockKey]Quantity, key StockKey, need Quantity) Quantity {
 	return took
 }
 
-// NoEveningToThaw are the violations of p's frozen food with no evening left to thaw it
-// at now, the evening before a Slot passing at midnight of its day: a Portion without a
-// Slot in the freezer, as frozen says by id, put in a Slot; what p's Prep Sessions thaw
-// of stock, unless the Delivery arriving at arrives is still to come and brings it fresh;
-// and a Portion p puts in the freezer eaten the day it is prepared.
+// NoEveningToThaw are the violations of `p`'s frozen food with no evening left to thaw it
+// at `now`, the evening before a Slot passing at midnight of its day: a Portion without a
+// Slot in the freezer, as `frozen` says by id, put in a Slot; what `p`'s Prep Sessions
+// thaw of `stock`, unless the Delivery arriving at `arrives` is still to come and brings
+// it fresh; and a Portion `p` puts in the freezer eaten the day it is prepared.
 func NoEveningToThaw(p Plan, frozen map[int64]bool, stock map[StockKey]Quantity, now, arrives time.Time) []Violation {
 	var vs []Violation
 	add := func(format string, args ...any) {

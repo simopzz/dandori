@@ -12,8 +12,8 @@ import (
 // lasagnaSheets is a known Ingredient a slip away from the parsed "lasagne sheets".
 var lasagnaSheets = apptest.Ingredient{Name: "lasagna sheets", Unit: "g", Usual: "pantry", Kcal: "360", Protein: "13", Carbs: "72", Fat: "1.5"}
 
-// draftedLasagneWith is a User who has ings and a Recipe Draft of submittedLasagne, open
-// on its form.
+// draftedLasagneWith is a User who has `ings` and a Recipe Draft of submittedLasagne,
+// open on its form.
 func draftedLasagneWith(t *testing.T, ings ...apptest.Ingredient) *apptest.Scenario {
 	t.Helper()
 	s := kitchenWith(t, ings...)

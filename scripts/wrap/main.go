@@ -48,7 +48,8 @@ func main() {
 	}
 }
 
-// walk calls fn with each .go and .templ file under root a person wrote, and its source.
+// walk calls `fn` with each .go and .templ file under `root` a person wrote, and
+// its source.
 func walk(root string, fn func(path, src string) error) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -72,7 +73,7 @@ func walk(root string, fn func(path, src string) error) error {
 	})
 }
 
-// problems says where src breaks the wrapping rule, as "line: why".
+// problems says where `src` breaks the wrapping rule, as "line: why".
 func problems(src string) []string {
 	var found []string
 	lines := strings.Split(src, "\n")
@@ -95,7 +96,7 @@ func problems(src string) []string {
 	return found
 }
 
-// wrap is src with each comment that breaks the wrapping rule filled again, and the
+// wrap is `src` with each comment that breaks the wrapping rule filled again, and the
 // lines where those that aren't plain prose start, left as they are.
 func wrap(src string) (string, []int) {
 	var out []string
@@ -128,14 +129,14 @@ func wrap(src string) (string, []int) {
 // listItem starts a line of a list: "- ", "* ", "+ " or "1. ".
 var listItem = regexp.MustCompile(`^([-*+]|\d+\.) `)
 
-// notProse is whether line is part of a list, or indented further, as code is.
+// notProse is whether `line` is part of a list, or indented further, as code is.
 func notProse(line string) bool {
 	after := strings.TrimPrefix(strings.TrimSpace(line), "// ")
 	return strings.HasPrefix(after, " ") || listItem.MatchString(after)
 }
 
-// fill is block's words filled to width at its first line's indent, the last line taking
-// a word from the one before rather than hold one alone.
+// fill is `block`'s words filled to width at its first line's indent, the last line
+// taking a word from the one before rather than hold one alone.
 func fill(block []string) []string {
 	prefix := block[0][:strings.Index(block[0], "//")] + "// "
 	var rows [][]string
@@ -160,18 +161,18 @@ func fill(block []string) []string {
 	return out
 }
 
-// isComment is whether line is a whole-line comment a person wrapped: not a directive
+// isComment is whether `line` is a whole-line comment a person wrapped: not a directive
 // such as //go:build or //nolint.
 func isComment(line string) bool {
 	return strings.HasPrefix(strings.TrimSpace(line), "// ")
 }
 
-// text is line's comment without its marker.
+// text is `line`'s comment without its marker.
 func text(line string) string {
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "//"))
 }
 
-// columns is how many columns line takes.
+// columns is how many columns `line` takes.
 func columns(line string) int {
 	return len([]rune(strings.ReplaceAll(line, "\t", strings.Repeat(" ", tab))))
 }

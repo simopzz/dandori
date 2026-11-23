@@ -26,10 +26,10 @@ type OpenForm struct {
 // dropSheetID is the id of the sheet asking before dropping the upcoming Cycle.
 const dropSheetID = "drop-cycle"
 
-// dropURL is the step asking before dropping the Cycle id.
+// dropURL is the step asking before dropping the Cycle `id`.
 func dropURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/drop", id)) }
 
-// window is d's date and window as the Language writes them.
+// window is `d`'s date and window as the Language writes them.
 func window(ctx context.Context, d domain.Delivery) string {
 	return web.Tf(ctx, msgWindow, web.Date(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))
 }
@@ -59,7 +59,7 @@ type cycleLinks struct {
 // which Today links straight to.
 const ProposalSectionID = "plan-proposal"
 
-// cycleURL is the Cycle page of the Cycle id.
+// cycleURL is the Cycle page of the Cycle `id`.
 func cycleURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d", id)) }
 
 // cyclePage is the Cycle page: the Cycles it links above the title, if any; then, with a
@@ -80,9 +80,9 @@ templ cyclePage(now time.Time, v cycleView) {
 	}
 }
 
-// switchCycles links the current and the upcoming Cycle of l by their dates, the one
-// shown, the Cycle shown, marked; the upcoming one says how planning it stands, so a Plan
-// Proposal waiting is never hidden behind the current Cycle.
+// switchCycles links the current and the upcoming Cycle of `l` by their dates, the one
+// `shown`, the Cycle shown, marked; the upcoming one says how planning it stands, so a
+// Plan Proposal waiting is never hidden behind the current Cycle.
 templ switchCycles(shown int64, l cycleLinks) {
 	@web.SegmentedLinks(web.T(ctx, msgCycles)) {
 		@web.SegmentLink(shown == l.Current.ID, templ.Attributes{"href": string(cycleURL(l.Current.ID))}) {
@@ -117,7 +117,7 @@ templ planningTag(p Planning) {
 	}
 }
 
-// dates are c's Delivery's date and its end date, as the Cycle's title shows them.
+// dates are `c`'s Delivery's date and its end date, as the Cycle's title shows them.
 func dates(ctx context.Context, c Cycle) string {
 	return web.Tf(ctx, msgDates, web.ShortDate(ctx, c.Delivery.On), web.ShortDate(ctx, c.Ends))
 }
@@ -177,7 +177,7 @@ templ cycleBody(now time.Time, v cycleView) {
 	}
 }
 
-// failedAlert says the planning Run runID failed, as failure says why, linking to
+// failedAlert says the planning Run `runID` failed, as `failure` says why, linking to
 // its Trace.
 templ failedAlert(runID int64, failure string) {
 	@web.Alert() {
@@ -186,7 +186,7 @@ templ failedAlert(runID int64, failure string) {
 	}
 }
 
-// beingPlanned says a Cycle is being planned by the Run runID, linking to its progress.
+// beingPlanned says a Cycle is being planned by the Run `runID`, linking to its progress.
 templ beingPlanned(runID int64) {
 	@web.ToneTag(web.Going) {
 		{ web.T(ctx, msgBeingPlannedTag) }
@@ -196,8 +196,8 @@ templ beingPlanned(runID int64) {
 	}
 }
 
-// runAbout is what a planning Run's page tells of its Cycle c: a line naming it, linking
-// to the Cycle page, and, after a failed Run, Plan again.
+// runAbout is what a planning Run's page tells of its Cycle `c`: a line naming it,
+// linking to the Cycle page, and, after a failed Run, Plan again.
 templ runAbout(c Cycle, again bool) {
 	<p class="lede">
 		@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
@@ -211,8 +211,8 @@ templ runAbout(c Cycle, again bool) {
 	}
 }
 
-// cancelledBy says what cancelled a planning Run when the User didn't, why: the Delivery
-// that closed its Cycle, or its Cycle dropped; nothing otherwise.
+// cancelledBy says what cancelled a planning Run when the User didn't, `why`: the
+// Delivery that closed its Cycle, or its Cycle dropped; nothing otherwise.
 templ cancelledBy(why cause) {
 	if d := why.ClosedBy; d != nil {
 		<p class="lede">{ web.Tf(ctx, msgClosedBy, web.Tf(ctx, msgWindow, web.ShortDate(ctx, d.On), web.TimeOfDay(ctx, d.From), web.TimeOfDay(ctx, d.To))) }</p>
@@ -221,9 +221,9 @@ templ cancelledBy(why cause) {
 	}
 }
 
-// planAgain is the step forward after a failed planning Run of the Cycle id: Plan again,
-// a ButtonFold, which opens in place to the line saying what a Planning Note does, the
-// note as typed and its own button, as Reject does; open when the User is at it.
+// planAgain is the step forward after a failed planning Run of the Cycle `id`: Plan
+// again, a ButtonFold, which opens in place to the line saying what a Planning Note does,
+// the `note` as typed and its own button, as Reject does; open when the User is at it.
 templ planAgain(id int64, note string, open bool) {
 	@web.ButtonFold(web.T(ctx, msgPlanAgain), open) {
 		@noteForm("plan-again", fmt.Sprintf("/plan/cycles/%d/again", id), msgPlanAgainHint, msgPlanAgain, note, false, "")
@@ -244,7 +244,7 @@ templ decisionAlert(err error) {
 	}
 }
 
-// refusalOf says why err refused deciding or planning, ok false when it didn't.
+// refusalOf says why `err` refused deciding or planning, `ok` false when it didn't.
 func refusalOf(err error) (msg web.Message, ok bool) {
 	switch {
 	case errors.Is(err, ErrStartsInThePast):
@@ -262,19 +262,19 @@ func refusalOf(err error) (msg web.Message, ok bool) {
 // draftSheetID is the id of the sheet a Plan Proposal's Recipe Draft opens in.
 const draftSheetID = "recipe-draft"
 
-// draftURL is the page of the planner's Recipe Draft id.
+// draftURL is the page of the planner's Recipe Draft `id`.
 func draftURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/drafts/%d", id)) }
 
-// clashed is whether err refused approving because a Recipe Draft clashes.
+// clashed is whether `err` refused approving because a Recipe Draft clashes.
 func clashed(err error) bool {
 	_, ok := errors.AsType[*recipes.ClashError](err)
 	return ok
 }
 
-// checkURL is the Kitchen Check before planning the Cycle id.
+// checkURL is the Kitchen Check before planning the Cycle `id`.
 func checkURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/check", id)) }
 
-// checkPage is the Kitchen Check before planning c: why planning is refused, if it is,
+// checkPage is the Kitchen Check before planning `c`: why planning is refused, if it is,
 // what the kitchen holds today with a Count for each, and one button that confirms it
 // and starts planning.
 templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error) {
@@ -299,7 +299,7 @@ templ checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error
 	}
 }
 
-// kcalProtein is n's calories and protein, whole, as a Slot's row shows them.
+// kcalProtein is `n`'s calories and protein, whole, as a Slot's row shows them.
 templ kcalProtein(n domain.PortionNutrition) {
 	{{ kcal, _ := n.Of(domain.TargetKcal) }}
 	{{ protein, floor := n.Of(domain.TargetProtein) }}
@@ -310,7 +310,7 @@ templ kcalProtein(n domain.PortionNutrition) {
 	{ " " + web.T(ctx, msgProteinWord) }
 }
 
-// prepSession is ps as a row that opens to read it: how many Portions at what size and
+// prepSession is `ps` as a row that opens to read it: how many Portions at what size and
 // its minutes, then its Ingredients scaled and where each Portion goes.
 templ prepSession(ps domain.PrepSession) {
 	@web.FoldRow(prepSessionLine(ps)) {
@@ -328,7 +328,7 @@ templ prepSession(ps domain.PrepSession) {
 	}
 }
 
-// prepSessionLine is the line ps folds to: how many Portions at what size, and its
+// prepSessionLine is the line `ps` folds to: how many Portions at what size, and its
 // minutes for a Recipe.
 templ prepSessionLine(ps domain.PrepSession) {
 	<span class="row-title">{ portionsOf(ctx, ps) }</span>
@@ -349,7 +349,8 @@ func sizeOf(ctx context.Context, s float64) string {
 // size is a Portion size as the Language writes it: "1.25×".
 func size(ctx context.Context, s float64) string { return web.Tf(ctx, msgSize, web.Number(ctx, s)) }
 
-// portionsOf is ps's name with how many Portions it yields, and their size for a Recipe.
+// portionsOf is `ps`'s name with how many Portions it yields, and their size for
+// a Recipe.
 func portionsOf(ctx context.Context, ps domain.PrepSession) string {
 	n := len(ps.Portions)
 	switch {
@@ -400,8 +401,8 @@ type planDay struct {
 	splitsChanged bool
 }
 
-// days are the days of c that p fills a Slot or prepares food on, in order, each's Slots
-// in the order of the day.
+// days are the days of `c` that `p` fills a Slot or prepares food on, in order, each's
+// Slots in the order of the day.
 func days(c Cycle, p Proposal) []planDay {
 	var out []planDay
 	for on := c.Delivery.On; !on.After(c.Ends); on = on.AddDate(0, 0, 1) {
@@ -436,8 +437,8 @@ func days(c Cycle, p Proposal) []planDay {
 	return out
 }
 
-// openPage is the form opening a Cycle, f: why it is refused as a whole first, if it is,
-// then its Delivery's date and window, and its end date, which may be left blank.
+// openPage is the form opening a Cycle, `f`: why it is refused as a whole first, if it
+// is, then its Delivery's date and window, and its end date, which may be left blank.
 templ openPage(now time.Time, f OpenForm) {
 	@web.Layout(web.T(ctx, msgOpenCycleTitle), web.PlanTab) {
 		@web.PageHeader("献立", web.T(ctx, msgOpenCycle), now)
@@ -477,7 +478,7 @@ templ refusalAlert(err error, upcoming *Cycle) {
 	}
 }
 
-// dropPage is the step asking before dropping c as a page of its own, for a browser
+// dropPage is the step asking before dropping `c` as a page of its own, for a browser
 // without htmx.
 templ dropPage(now time.Time, c Cycle) {
 	@web.Layout(web.T(ctx, msgCycleTitle), web.PlanTab) {
@@ -486,12 +487,13 @@ templ dropPage(now time.Time, c Cycle) {
 	}
 }
 
-// dropStep asks before dropping c, with a link back unless back is "", as in its sheet.
+// dropStep asks before dropping `c`, with a link back unless `back` is "", as in
+// its sheet.
 templ dropStep(c Cycle, back templ.SafeURL) {
 	@web.RemoveStep(web.Tf(ctx, msgDropAsk, web.Date(ctx, c.Delivery.On)), web.T(ctx, msgDrop), dropURL(c.ID), back, nil)
 }
 
-// bounds are what t allows a day of target, as a column's head shows them: calories'
+// bounds are what `t` allows a day of `target`, as a column's head shows them: calories'
 // range, a floor as ≥ and a ceiling as ≤, each said in words to a screen reader.
 templ bounds(t domain.Targets, target domain.Target) {
 	switch target {
@@ -532,6 +534,6 @@ var targetMessages = map[domain.Target]struct{ head, word web.Message }{
 	domain.TargetSugar:   {msgSugar, msgSugarWord},
 }
 
-// whole is v rounded to whole, as the Language writes it.
+// whole is `v` rounded to whole, as the Language writes it.
 func whole(ctx context.Context, v float64) string { return web.Number(ctx, math.Round(v)) }
 

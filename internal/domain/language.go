@@ -12,7 +12,7 @@ const (
 // Languages lists every Language a User can choose.
 var Languages = []Language{English, Italian}
 
-// ParseLanguage reads a Language from its code, reporting whether it is one a User
+// ParseLanguage reads a Language from its `code`, reporting whether it is one a User
 // can choose.
 func ParseLanguage(code string) (Language, bool) {
 	for _, l := range Languages {
@@ -40,7 +40,7 @@ func (f FoodTerms) Any() bool {
 	return f.Ingredients > 0 || f.Portions > 0 || f.Recipes > 0 || f.Drafts > 0 || f.Exclusions > 0 || f.Allergies > 0
 }
 
-// LanguageCanChange reports whether a User who has written f can still change their
+// LanguageCanChange reports whether a User who has written `f` can still change their
 // Language: only until they have written a Food Term, since an Ingredient is identified
 // by its name and mixing languages would split one food in two.
 func LanguageCanChange(f FoodTerms) bool { return !f.Any() }

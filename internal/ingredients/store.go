@@ -19,8 +19,8 @@ func CountIngredients(ctx context.Context, q db.Querier) (int, error) {
 	return n, err
 }
 
-// saveIngredient adds ing for the signed-in User under its normalised name, unless they
-// have an Ingredient of that name, and is its id; added says whether it did.
+// saveIngredient adds `ing` for the signed-in User under its normalised name, unless they
+// have an Ingredient of that name, and is its `id`; `added` says whether it did.
 func saveIngredient(ctx context.Context, q db.Querier, ing domain.Ingredient, normalised string) (id int64, added bool, err error) {
 	n := ing.Nutrition
 	err = q.QueryRow(ctx, `
@@ -36,7 +36,7 @@ func saveIngredient(ctx context.Context, q db.Querier, ing domain.Ingredient, no
 	return id, err == nil, err
 }
 
-// loadNameOf is the name of the signed-in User's Ingredient under the key normalised.
+// loadNameOf is the name of the signed-in User's Ingredient under the key `normalised`.
 func loadNameOf(ctx context.Context, q db.Querier, normalised string) (string, error) {
 	var name string
 	err := q.QueryRow(ctx, `SELECT name FROM ingredient WHERE normalised_name = $1`, normalised).Scan(&name)
@@ -57,8 +57,8 @@ func LoadIngredients(ctx context.Context, q db.Querier) ([]domain.Ingredient, er
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Ingredient, error) { return scanIngredient(row) })
 }
 
-// LoadIngredient is the signed-in User's Ingredient id; ok is false if they have none:
-// row-level security hides another User's.
+// LoadIngredient is the signed-in User's Ingredient `id`; `ok` is false if they have
+// none: row-level security hides another User's.
 func LoadIngredient(ctx context.Context, q db.Querier, id int64) (ing domain.Ingredient, ok bool, err error) {
 	ing, err = scanIngredient(q.QueryRow(ctx, `SELECT `+ingredientColumns+` FROM ingredient WHERE id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -67,7 +67,7 @@ func LoadIngredient(ctx context.Context, q db.Querier, id int64) (ing domain.Ing
 	return ing, err == nil, err
 }
 
-// scanIngredient reads one row of ingredientColumns.
+// scanIngredient reads one `row` of ingredientColumns.
 func scanIngredient(row pgx.Row) (domain.Ingredient, error) {
 	var (
 		ing                       domain.Ingredient
@@ -84,7 +84,7 @@ func scanIngredient(row pgx.Row) (domain.Ingredient, error) {
 	return ing, err
 }
 
-// nullable is a as stored: null when Unknown.
+// nullable is `a` as stored: null when Unknown.
 func nullable(a domain.Amount) *float64 {
 	if !a.Known {
 		return nil
@@ -100,7 +100,7 @@ func amount(v *float64) domain.Amount {
 	return domain.Known(*v)
 }
 
-// updateIngredient sets the signed-in User's Ingredient id to ing, its Staple flag
+// updateIngredient sets the signed-in User's Ingredient `id` to `ing`, its Staple flag
 // included, under its normalised name.
 func updateIngredient(ctx context.Context, q db.Querier, id int64, ing domain.Ingredient, normalised string) error {
 	n := ing.Nutrition
@@ -113,8 +113,8 @@ func updateIngredient(ctx context.Context, q db.Querier, id int64, ing domain.In
 	return err
 }
 
-// loadOtherNameOf is the name of the signed-in User's Ingredient other than id under the
-// key normalised, or "" if there is none.
+// loadOtherNameOf is the name of the signed-in User's Ingredient other than `id` under
+// the key `normalised`, or "" if there is none.
 func loadOtherNameOf(ctx context.Context, q db.Querier, id int64, normalised string) (string, error) {
 	var name string
 	err := q.QueryRow(ctx, `SELECT name FROM ingredient WHERE normalised_name = $1 AND id <> $2`, normalised, id).Scan(&name)
@@ -124,7 +124,7 @@ func loadOtherNameOf(ctx context.Context, q db.Querier, id int64, normalised str
 	return name, err
 }
 
-// deleteIngredient deletes the signed-in User's Ingredient id.
+// deleteIngredient deletes the signed-in User's Ingredient `id`.
 func deleteIngredient(ctx context.Context, q db.Querier, id int64) error {
 	_, err := q.Exec(ctx, `DELETE FROM ingredient WHERE id = $1`, id)
 	return err

@@ -21,13 +21,13 @@ type Answer struct {
 	Notice, Trigger, RedirectTo string
 }
 
-// Redirects reports whether a answers r with its redirect whatever its Page and Fragment,
-// so a write needn't load what they show.
+// Redirects reports whether `a` answers `r` with its redirect whatever its Page and
+// Fragment, so a write needn't load what they show.
 func (a Answer) Redirects(r *http.Request) bool {
 	return a.RedirectTo != "" && !httpx.IsPartial(r)
 }
 
-// Write answers r with a.
+// Write answers `r` with `a`.
 func (a Answer) Write(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
 	status := a.Status
 	if status == 0 {

@@ -9,7 +9,7 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// briefOnForm is the Planning Brief the Planning Brief's form on page holds.
+// briefOnForm is the Planning Brief the Planning Brief's form on `page` holds.
 func briefOnForm(t *testing.T, page string) string {
 	t.Helper()
 	return apptest.Form(t, page, "profile-brief").Get("brief")

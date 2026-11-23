@@ -10,7 +10,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 )
 
-// saveUser creates the User at their first sign-in, and keeps their email
+// saveUser creates the User at their first sign-in, and keeps their `email`
 // as Supabase has it at each one after.
 func saveUser(ctx context.Context, q db.Querier, id, email string, now time.Time) error {
 	_, err := q.Exec(ctx, `

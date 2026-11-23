@@ -71,7 +71,7 @@ var kitchenNames = map[domain.Language][]string{
 	},
 }
 
-// typosOf are name's single-letter slips: each letter dropped, and each pair swapped.
+// typosOf are `name`'s single-letter slips: each letter dropped, and each pair swapped.
 func typosOf(l domain.Language, name string) []string {
 	r := []rune(name)
 	var typos []string
@@ -93,7 +93,7 @@ func typosOf(l domain.Language, name string) []string {
 	return typos
 }
 
-// without is names with name left out.
+// without is `names` with `name` left out.
 func without(names []string, name string) []string {
 	return slices.DeleteFunc(slices.Clone(names), func(n string) bool { return n == name })
 }

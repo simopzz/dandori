@@ -31,7 +31,7 @@ type Service struct {
 // New creates the Service.
 func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
-// Language is the signed-in User's Language; ok is false until they choose one.
+// Language is the signed-in User's Language; `ok` is false until they choose one.
 func (s *Service) Language(ctx context.Context) (l domain.Language, ok bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		l, ok, err = loadLanguage(ctx, tx)
@@ -50,7 +50,7 @@ func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error)
 	return t, err
 }
 
-// SetSlotTimes saves typed, by SlotKind, as the signed-in User's time of day of each
+// SetSlotTimes saves `typed`, by SlotKind, as the signed-in User's time of day of each
 // kind of Slot, unless a field is refused: then it saves nothing and is each problem.
 func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (domain.SlotTimes, map[string]domain.Problem, error) {
 	t, problems := domain.ParseSlotTimes(typed)
@@ -60,7 +60,7 @@ func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (do
 	return t, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveSlotTimes(ctx, tx, t) })
 }
 
-// Targets is the signed-in User's Targets; set is false until they save theirs, when
+// Targets is the signed-in User's Targets; `set` is false until they save theirs, when
 // only the tolerance is.
 func (s *Service) Targets(ctx context.Context) (t domain.Targets, set bool, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -70,7 +70,7 @@ func (s *Service) Targets(ctx context.Context) (t domain.Targets, set bool, err 
 	return t, set, err
 }
 
-// SetTargets saves typed as the signed-in User's Targets, by field, unless a field is
+// SetTargets saves `typed` as the signed-in User's Targets, by field, unless a field is
 // refused: then it saves nothing and is the problem with each.
 func (s *Service) SetTargets(ctx context.Context, typed map[string]string) (domain.Targets, map[string]domain.Problem, error) {
 	t, problems := domain.ParseTargets(typed)
@@ -90,7 +90,7 @@ func (s *Service) MealOut(ctx context.Context) (n domain.Nutrition, err error) {
 	return n, err
 }
 
-// SetMealOut saves typed as the signed-in User's Meal Out estimate, by field, unless a
+// SetMealOut saves `typed` as the signed-in User's Meal Out estimate, by field, unless a
 // field is refused: then it saves nothing and is the problem with each.
 func (s *Service) SetMealOut(ctx context.Context, typed map[string]string) (domain.Nutrition, map[string]domain.Problem, error) {
 	n, problems := domain.ParseMealOut(typed)
@@ -100,8 +100,8 @@ func (s *Service) SetMealOut(ctx context.Context, typed map[string]string) (doma
 	return n, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveMealOut(ctx, tx, n) })
 }
 
-// Foods are the signed-in User's exclusions and allergies, the foods they never eat and
-// those they are allergic to, each normalised.
+// Foods are the signed-in User's `exclusions` and `allergies`, the foods they never eat
+// and those they are allergic to, each normalised.
 func (s *Service) Foods(ctx context.Context) (exclusions, allergies []string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		exclusions, allergies, err = loadFoods(ctx, tx)
@@ -110,7 +110,7 @@ func (s *Service) Foods(ctx context.Context) (exclusions, allergies []string, er
 	return exclusions, allergies, err
 }
 
-// SetFoods saves the exclusions and allergies typed as the signed-in User's, each
+// SetFoods saves the `exclusions` and `allergies` typed as the signed-in User's, each
 // normalised, and is what it saved. Either may be empty.
 func (s *Service) SetFoods(ctx context.Context, typedExclusions, typedAllergies string) (exclusions, allergies []string, err error) {
 	exclusions, allergies = domain.NormaliseFoods(typedExclusions), domain.NormaliseFoods(typedAllergies)
@@ -126,7 +126,7 @@ func (s *Service) Brief(ctx context.Context) (brief string, err error) {
 	return brief, err
 }
 
-// SetBrief saves typed as the signed-in User's Planning Brief, and is what it saved:
+// SetBrief saves `typed` as the signed-in User's Planning Brief, and is what it saved:
 // each line ending in a bare newline, and without the blank space around it, so a blank
 // Brief is empty.
 func (s *Service) SetBrief(ctx context.Context, typed string) (string, error) {
@@ -144,9 +144,9 @@ func (s *Service) Appliances(ctx context.Context) (owned domain.Appliances, err 
 	return owned, err
 }
 
-// SetAppliances saves the kinds whose codes are ticked as those the signed-in User owns,
-// each with its note in notes, and is what it saved: a note on a kind left unticked
-// is dropped.
+// SetAppliances saves the kinds whose codes are `ticked` as those the signed-in User
+// owns, each with its note in `notes`, and is what it saved: a note on a kind left
+// unticked is dropped.
 func (s *Service) SetAppliances(ctx context.Context, ticked []string, notes map[domain.ApplianceKind]string) (domain.Appliances, error) {
 	owned := domain.ParseAppliances(ticked, notes)
 	return owned, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveAppliances(ctx, tx, owned) })

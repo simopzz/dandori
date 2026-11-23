@@ -107,6 +107,14 @@ Rules code review checks against. Each says what it protects.
   in `scripts/wrap`, with its lone-word rule: when a last line would hold one
   word, break the earlier lines sooner or reword. *Protects: comments that
   read as prose, without lines that stop early.*
+- **A comment writes a parameter, named result or receiver as `name`**, in
+  backticks, with a field or method on it inside them (`p.Slots`): in a doc
+  comment or one in the body, a closure's and a type parameter's too. Types,
+  functions, fields and glossary terms stay plain, as does a name used as the
+  word it is ("from that Slot on"). `TestCommentNames`, in `scripts/wrap`,
+  fails on a bare one that isn't a word. *Protects: a name that is also a word
+  (`from`, `at`, `now`, `held`) reads as the name, not as part of the
+  sentence.*
 
 ## Tests
 

@@ -149,7 +149,7 @@ var causeNames = map[domain.Cause]web.Message{
 	domain.Added:        {En: "Added", It: "Aggiunte"},
 }
 
-// causeText tells the cause of m as a Movement of the Stock Item in location.
+// causeText tells the cause of `m` as a Movement of the Stock Item in `location`.
 func causeText(ctx context.Context, m domain.StockMovement, location domain.StorageLocation) string {
 	switch {
 	case m.Cause != domain.Moved:

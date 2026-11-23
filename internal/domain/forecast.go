@@ -15,11 +15,12 @@ type Forecast struct {
 	Made  []MadeForAfter
 }
 
-// Forecast is the kitchen forecast at the Slot at, by times, of the kitchen holding stock
-// and lots at now, as p brings Movements at the Slots after now and before at: its Prep
-// Sessions use up stock and make Portions, those not eaten before at left without a
-// Slot, and the Portions without a Slot it puts in those Slots are eaten. What p brings
-// before now the kitchen is taken to hold already. Stock never goes below nothing.
+// Forecast is the kitchen forecast at the Slot `at`, by `times`, of the kitchen holding
+// `stock` and `lots` at `now`, as `p` brings Movements at the Slots after `now` and
+// before `at`: its Prep Sessions use up `stock` and make Portions, those not eaten before
+// `at` left without a Slot, and the Portions without a Slot it puts in those Slots are
+// eaten. What `p` brings before `now` the kitchen is taken to hold already. Stock never
+// goes below nothing.
 func (p Plan) Forecast(stock map[StockKey]Quantity, lots []PortionLot, times SlotTimes, now time.Time, at Slot) Forecast {
 	between := func(s Slot) bool { return s.At(times).After(now) && s.Before(at) }
 	f := Forecast{Stock: maps.Clone(stock)}

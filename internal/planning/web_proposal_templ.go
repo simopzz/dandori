@@ -192,7 +192,8 @@ func cycleHeader(now time.Time, c Cycle, upcoming bool, ds []proposalDay) templ.
 	})
 }
 
-// dropSection is Section 03, dropping the Cycle c, apart at the end, only while upcoming.
+// dropSection is Section 03, dropping the Cycle `c`, apart at the end, only
+// while `upcoming`.
 func dropSection(c Cycle, upcoming bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -254,7 +255,7 @@ func dropSection(c Cycle, upcoming bool) templ.Component {
 						var templ_7745c5c3_Var11 string
 						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgDropCycle))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 58, Col: 31}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 59, Col: 31}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 						if templ_7745c5c3_Err != nil {
@@ -284,7 +285,7 @@ func dropSection(c Cycle, upcoming bool) templ.Component {
 }
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
-// Tentative while upcoming, and the Slot the first day is planned from when it is
+// Tentative while `upcoming`, and the Slot the first day is planned from when it is
 // planned only partly.
 func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -314,7 +315,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 70, Col: 165}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 71, Col: 165}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -328,7 +329,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 72, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 73, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -349,7 +350,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgTentative))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 74, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 75, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -364,7 +365,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 76, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 77, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -377,7 +378,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgTentativeHint))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 78, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 79, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -393,7 +394,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + web.Tf(ctx, msgPlannedFrom, web.ShortDate(ctx, first.On), web.T(ctx, web.SlotKindNames[from])))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 82, Col: 108}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 83, Col: 108}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -408,7 +409,7 @@ func deliveryLine(c Cycle, upcoming bool, ds []proposalDay) templ.Component {
 	})
 }
 
-// proposalSection is the Plan Proposal p as Section 01, all deciding on it needs: the
+// proposalSection is the Plan Proposal `p` as Section 01, all deciding on it needs: the
 // planner's summary, the averages against the Targets, the days of `ds` it changes, the
 // soft misses grouped by kind, the Recipe Drafts it prepares, then approving it or
 // rejecting it, `notes` being the Cycle's Planning Notes, newest first, and `note` the
@@ -441,7 +442,7 @@ func proposalSection(p Proposal, ds []proposalDay, notes []string, note string, 
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProposalSectionID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 93, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 94, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -501,7 +502,7 @@ func proposalSection(p Proposal, ds []proposalDay, notes []string, note string, 
 	})
 }
 
-// averages are p's average over the days it judges against each Target, under heads
+// averages are `p`'s average over the days it judges against each Target, under heads
 // naming each Target's unit and bounds, those missed marked, and the line saying when a
 // figure is marked; nothing when no day is judged.
 func averages(p Proposal) templ.Component {
@@ -554,7 +555,7 @@ func averages(p Proposal) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgMarkRule))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 115, Col: 29}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 116, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -606,7 +607,7 @@ func figureHeads(t domain.Targets) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, targetMessages[target].head))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 126, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 127, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -633,8 +634,8 @@ func figureHeads(t domain.Targets) templ.Component {
 	})
 }
 
-// figureLine is n's values of what the Targets aim at, whole, a column each, named for a
-// screen reader, those missed marked worth weighing, under or over, if missed says.
+// figureLine is `n`'s values of what the Targets aim at, whole, a column each, named for
+// a screen reader, those missed marked worth weighing, under or over, if `missed` says.
 func figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, bool)) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -678,7 +679,7 @@ func figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, boo
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, targetMessages[target].word) + " ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 143, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 144, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -792,7 +793,7 @@ func changedRow(ds []proposalDay) templ.Component {
 					var templ_7745c5c3_Var35 string
 					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgChangesFrom, dayRange(ctx, changedRange(first, last))))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 164, Col: 99}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 165, Col: 99}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 					if templ_7745c5c3_Err != nil {
@@ -819,7 +820,7 @@ func changedRow(ds []proposalDay) templ.Component {
 	})
 }
 
-// changedRange is the days from first to last as dayRange reads them: one when they
+// changedRange is the days from `first` to `last` as dayRange reads them: one when they
 // are the same.
 func changedRange(first, last time.Time) []domain.Day {
 	if first.Equal(last) {
@@ -828,8 +829,8 @@ func changedRange(first, last time.Time) []domain.Day {
 	return []domain.Day{{On: first}, {On: last}}
 }
 
-// changedDays are the first and last of `ds`, in order, marked changed, `ok` false when
-// none is.
+// changedDays are the `first` and `last` of `ds`, in order, marked changed, `ok` false
+// when none is.
 func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
 	for _, d := range ds {
 		if d.changed {
@@ -842,7 +843,7 @@ func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
 	return first, last, ok
 }
 
-// missRows are p's soft misses beside the averages, a line per kind, each led by its
+// missRows are `p`'s soft misses beside the averages, a line per kind, each led by its
 // icon: the days more than 25% off a Target, each with the Targets it misses; each
 // Portion eaten back to back; the Portions carried in left unused; then, as
 // information, the Portions made for after the Cycle.
@@ -906,7 +907,7 @@ func missRows(p Proposal) templ.Component {
 						var templ_7745c5c3_Var39 string
 						templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(daysOffTitle(ctx, len(off)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 205, Col: 58}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 206, Col: 58}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 						if templ_7745c5c3_Err != nil {
@@ -924,7 +925,7 @@ func missRows(p Proposal) templ.Component {
 							var templ_7745c5c3_Var40 string
 							templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(web.ShortDate(ctx, d[0].On) + ": ")
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 209, Col: 44}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 210, Col: 44}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 							if templ_7745c5c3_Err != nil {
@@ -939,7 +940,7 @@ func missRows(p Proposal) templ.Component {
 									var templ_7745c5c3_Var41 string
 									templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 212, Col: 15}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 213, Col: 15}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 									if templ_7745c5c3_Err != nil {
@@ -965,7 +966,7 @@ func missRows(p Proposal) templ.Component {
 									var templ_7745c5c3_Var43 string
 									templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, targetMessages[m.Target].word))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 215, Col: 53}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 216, Col: 53}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 									if templ_7745c5c3_Err != nil {
@@ -1019,7 +1020,7 @@ func missRows(p Proposal) templ.Component {
 							var templ_7745c5c3_Var45 string
 							templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(backToBack(ctx, m))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 227, Col: 50}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 228, Col: 50}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 							if templ_7745c5c3_Err != nil {
@@ -1062,7 +1063,7 @@ func missRows(p Proposal) templ.Component {
 							var templ_7745c5c3_Var47 string
 							templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgUnused, m.Name, m.Count, m.Held, web.T(ctx, web.InLocations[m.Location])))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 235, Col: 120}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 236, Col: 120}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 							if templ_7745c5c3_Err != nil {
@@ -1104,7 +1105,7 @@ func missRows(p Proposal) templ.Component {
 						var templ_7745c5c3_Var49 string
 						templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgMadeForAfter, m.Name, m.Portions, web.T(ctx, web.InLocations[m.Location])))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 242, Col: 125}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 243, Col: 125}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 						if templ_7745c5c3_Err != nil {
@@ -1204,7 +1205,7 @@ func draftedRows(drafted []recipes.Drafted) templ.Component {
 							var templ_7745c5c3_Var54 string
 							templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgNewRecipeNamed, d.Recipe.Name))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 259, Col: 54}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 260, Col: 54}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 							if templ_7745c5c3_Err != nil {
@@ -1223,7 +1224,7 @@ func draftedRows(drafted []recipes.Drafted) templ.Component {
 						var templ_7745c5c3_Var55 string
 						templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(newIngredients(ctx, d.Recipe))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 262, Col: 59}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 263, Col: 59}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 						if templ_7745c5c3_Err != nil {
@@ -1251,7 +1252,7 @@ func draftedRows(drafted []recipes.Drafted) templ.Component {
 	})
 }
 
-// newIngredients says how many of rec's Ingredients are new, or nothing when none is.
+// newIngredients says how many of `rec`'s Ingredients are new, or nothing when none is.
 func newIngredients(ctx context.Context, rec domain.Recipe) string {
 	n := 0
 	for _, ri := range rec.Ingredients {
@@ -1268,9 +1269,9 @@ func newIngredients(ctx context.Context, rec domain.Recipe) string {
 	return web.Tf(ctx, msgNewIngredients, n)
 }
 
-// draftPage is the planner's Recipe Draft rec as a page of its own, for a browser without
-// htmx: the sheet's body, under the page's header, with a link back to the Cycle cycleID
-// its Plan Proposal plans.
+// draftPage is the planner's Recipe Draft `rec` as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header, with a link back to the Cycle
+// `cycleID` its Plan Proposal plans.
 func draftPage(now time.Time, rec domain.Recipe, cycleID int64) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1335,7 +1336,7 @@ func draftPage(now time.Time, rec domain.Recipe, cycleID int64) templ.Component 
 					var templ_7745c5c3_Var60 string
 					templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgBackToTheProposal))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 294, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 295, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 					if templ_7745c5c3_Err != nil {
@@ -1371,13 +1372,13 @@ func draftPage(now time.Time, rec domain.Recipe, cycleID int64) templ.Component 
 	})
 }
 
-// notTargets is whether m is a miss of a rule other than the Targets'.
+// notTargets is whether `m` is a miss of a rule other than the Targets'.
 func notTargets(m domain.Miss) bool {
 	return m.Rule == domain.RuleBackToBack || m.Rule == domain.RuleUnusedPortion
 }
 
-// daysOff are the days misses holds more than 25% off a Target, in order, each the
-// misses of that day.
+// daysOff are the days `misses` holds more than 25% off a Target, in order, each the
+// `misses` of that day.
 func daysOff(misses []domain.Miss) [][]domain.Miss {
 	var off [][]domain.Miss
 	for _, m := range misses {
@@ -1393,7 +1394,7 @@ func daysOff(misses []domain.Miss) [][]domain.Miss {
 	return off
 }
 
-// daysOffTitle says n days are more than 25% off a Target.
+// daysOffTitle says `n` days are more than 25% off a Target.
 func daysOffTitle(ctx context.Context, n int) string {
 	if n == 1 {
 		return web.Tf(ctx, msgOneDayOff)
@@ -1401,7 +1402,7 @@ func daysOffTitle(ctx context.Context, n int) string {
 	return web.Tf(ctx, msgDaysOff, n)
 }
 
-// backToBack is m, a Portion eaten back to back, with its days.
+// backToBack is `m`, a Portion eaten back to back, with its days.
 func backToBack(ctx context.Context, m domain.Miss) string {
 	days := make([]string, len(m.Days))
 	for i, d := range m.Days {
@@ -1414,10 +1415,10 @@ func backToBack(ctx context.Context, m domain.Miss) string {
 	return web.Tf(ctx, msgBackToBack, m.Name, list)
 }
 
-// decision is approving p, and beside it Reject, which opens in place to the Cycle's
-// earlier Planning Notes, notes, newest first, the line saying what a note does, and
-// the note, as typed: open when open says the User is at it, as when a rejection or an
-// approval was refused.
+// decision is approving `p`, and beside it Reject, which opens in place to the Cycle's
+// earlier Planning Notes, `notes`, newest first, the line saying what a note does, and
+// the `note`, as typed: open when `open` says the User is at it, as when a rejection or
+// an approval was refused.
 func decision(p Proposal, notes []string, note string, open bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1458,7 +1459,7 @@ func decision(p Proposal, notes []string, note string, open bool) templ.Componen
 			var templ_7745c5c3_Var63 templ.SafeURL
 			templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/approve", p.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 351, Col: 117}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 352, Col: 117}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 			if templ_7745c5c3_Err != nil {
@@ -1483,7 +1484,7 @@ func decision(p Proposal, notes []string, note string, open bool) templ.Componen
 				var templ_7745c5c3_Var65 string
 				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgApprove))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 353, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 354, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 				if templ_7745c5c3_Err != nil {
@@ -1535,9 +1536,9 @@ func decision(p Proposal, notes []string, note string, open bool) templ.Componen
 	})
 }
 
-// noteForm is the form id posting a Planning Note to action: the line hint saying what
-// the note does, the note as typed, optional unless required, refused with err if not
-// "", and its button, send.
+// noteForm is the form `id` posting a Planning Note to `action`: the line `hint` saying
+// what the note does, the `note` as typed, optional unless `required`, refused with `err`
+// if not "", and its button, `send`.
 func noteForm(id, action string, hint, send web.Message, note string, required bool, err string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1566,7 +1567,7 @@ func noteForm(id, action string, hint, send web.Message, note string, required b
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 367, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 368, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 		if templ_7745c5c3_Err != nil {
@@ -1579,7 +1580,7 @@ func noteForm(id, action string, hint, send web.Message, note string, required b
 		var templ_7745c5c3_Var69 templ.SafeURL
 		templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(action))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 367, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 368, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 		if templ_7745c5c3_Err != nil {
@@ -1604,7 +1605,7 @@ func noteForm(id, action string, hint, send web.Message, note string, required b
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, hint))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 369, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 370, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 			if templ_7745c5c3_Err != nil {
@@ -1651,7 +1652,7 @@ func noteForm(id, action string, hint, send web.Message, note string, required b
 			var templ_7745c5c3_Var73 string
 			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(note)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 379, Col: 10}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 380, Col: 10}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 			if templ_7745c5c3_Err != nil {
@@ -1694,7 +1695,7 @@ func noteForm(id, action string, hint, send web.Message, note string, required b
 				var templ_7745c5c3_Var76 string
 				templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, send))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 383, Col: 22}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 384, Col: 22}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 				if templ_7745c5c3_Err != nil {
@@ -1720,7 +1721,7 @@ func noteForm(id, action string, hint, send web.Message, note string, required b
 	})
 }
 
-// optionalUnless is how a Field marks a Planning Note optional, unless required.
+// optionalUnless is how a Field marks a Planning Note optional, unless `required`.
 func optionalUnless(ctx context.Context, required bool) string {
 	if required {
 		return ""
@@ -1728,7 +1729,7 @@ func optionalUnless(ctx context.Context, required bool) string {
 	return web.T(ctx, msgOptional)
 }
 
-// earlierNotes are the Cycle's earlier Planning Notes, notes, newest first, under their
+// earlierNotes are the Cycle's earlier Planning Notes, `notes`, newest first, under their
 // head: nothing before the first.
 func earlierNotes(notes []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -1788,7 +1789,7 @@ func earlierNotes(notes []string) templ.Component {
 						var templ_7745c5c3_Var80 string
 						templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(n)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 405, Col: 32}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 406, Col: 32}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 						if templ_7745c5c3_Err != nil {
@@ -1816,7 +1817,7 @@ func earlierNotes(notes []string) templ.Component {
 	})
 }
 
-// daysBefore are the days before a Plan Proposal, trailing, folded into one Group: how
+// daysBefore are the days before a Plan Proposal, `trailing`, folded into one Group: how
 // many an approved Plan covered and how many none did; opened, each covered day with
 // its figures, and the days no Plan covered collapsed into ranges.
 func daysBefore(trailing []domain.Day) templ.Component {
@@ -1886,7 +1887,7 @@ func daysBefore(trailing []domain.Day) templ.Component {
 								var templ_7745c5c3_Var85 string
 								templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgNoPlanOn, dayRange(ctx, r)))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 422, Col: 75}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 423, Col: 75}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 								if templ_7745c5c3_Err != nil {
@@ -1904,7 +1905,7 @@ func daysBefore(trailing []domain.Day) templ.Component {
 								var templ_7745c5c3_Var86 string
 								templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(web.ShortDate(ctx, r[0].On))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 424, Col: 60}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 425, Col: 60}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 								if templ_7745c5c3_Err != nil {
@@ -1943,7 +1944,7 @@ func daysBefore(trailing []domain.Day) templ.Component {
 	})
 }
 
-// text is s as a component.
+// text is `s` as a component.
 func text(s string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1968,7 +1969,7 @@ func text(s string) templ.Component {
 		var templ_7745c5c3_Var88 string
 		templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 436, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 437, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 		if templ_7745c5c3_Err != nil {
@@ -1997,7 +1998,7 @@ func beforeLine(ctx context.Context, trailing []domain.Day) string {
 	return strings.Join(parts, ", ")
 }
 
-// dayRuns are days split into runs: each day a Plan covered alone, and the days in a
+// dayRuns are `days` split into runs: each day a Plan covered alone, and the days in a
 // row no Plan covered together.
 func dayRuns(days []domain.Day) [][]domain.Day {
 	var runs [][]domain.Day
@@ -2011,7 +2012,7 @@ func dayRuns(days []domain.Day) [][]domain.Day {
 	return runs
 }
 
-// dayRange is the days r, as their first and last, or the one day.
+// dayRange is the days `r`, as their first and last, or the one day.
 func dayRange(ctx context.Context, r []domain.Day) string {
 	if len(r) == 1 {
 		return web.ShortDate(ctx, r[0].On)
@@ -2026,9 +2027,9 @@ type proposalDay struct {
 	planDay
 }
 
-// proposalDays are the days p plans of c, each with what fills its Slots and what is
-// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any or
-// changes the Plan's.
+// proposalDays are the days `p` plans of `c`, each with what fills its Slots and what is
+// prepared on it, and the Delivery's day with `p`'s freezer splits, first, if it has any
+// or changes the Plan's.
 func proposalDays(c Cycle, p Proposal) []proposalDay {
 	byDay := map[time.Time]planDay{}
 	for _, d := range days(c, p) {
@@ -2049,7 +2050,7 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	return out
 }
 
-// firstFilled is the first of ds that fills a Slot, past a Delivery's day holding only
+// firstFilled is the first of `ds` that fills a Slot, past a Delivery's day holding only
 // freezer splits, or none.
 func firstFilled(ds []proposalDay) proposalDay {
 	for _, d := range ds {
@@ -2060,7 +2061,7 @@ func firstFilled(ds []proposalDay) proposalDay {
 	return proposalDay{}
 }
 
-// plannedFrom is the Slot d is planned from, its first filled, and whether that is d
+// plannedFrom is the Slot `d` is planned from, its first filled, and whether that is `d`
 // being planned only partly: a Plan fills every Slot from its first on.
 func (d proposalDay) plannedFrom() (domain.SlotKind, bool) {
 	if !d.Partly || len(d.filled) == 0 {
@@ -2069,7 +2070,7 @@ func (d proposalDay) plannedFrom() (domain.SlotKind, bool) {
 	return d.filled[0].kind, true
 }
 
-// dayTitle is d's date, and the Slot it is planned from when only partly.
+// dayTitle is `d`'s date, and the Slot it is planned from when only partly.
 func dayTitle(ctx context.Context, d proposalDay) string {
 	if from, partly := d.plannedFrom(); partly {
 		return web.Tf(ctx, msgFromSlot, web.Date(ctx, d.On), web.T(ctx, web.SlotKindNames[from]))
@@ -2077,8 +2078,8 @@ func dayTitle(ctx context.Context, d proposalDay) string {
 	return web.Date(ctx, d.On)
 }
 
-// dayLine is d's row under its date: marked Changed when its Plan Proposal changes it,
-// its figures, each more than 25% off a Target of t marked, then what is cooked on it
+// dayLine is `d`'s row under its date: marked Changed when its Plan Proposal changes it,
+// its figures, each more than 25% off a Target of `t` marked, then what is cooked on it
 // and its active minutes, when a Slot of it is filled; and how many freezer splits it
 // has, if any.
 func dayLine(t domain.Targets, d proposalDay) templ.Component {
@@ -2128,7 +2129,7 @@ func dayLine(t domain.Targets, d proposalDay) templ.Component {
 			var templ_7745c5c3_Var90 string
 			templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(cooked(ctx, d.sessions))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 551, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 552, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 			if templ_7745c5c3_Err != nil {
@@ -2155,7 +2156,7 @@ func dayLine(t domain.Targets, d proposalDay) templ.Component {
 			var templ_7745c5c3_Var91 string
 			templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgToFreezerCount, n))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 556, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 557, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 			if templ_7745c5c3_Err != nil {
@@ -2170,7 +2171,7 @@ func dayLine(t domain.Targets, d proposalDay) templ.Component {
 	})
 }
 
-// cooked names the Recipes sessions cook, with their active minutes together, or says
+// cooked names the Recipes `sessions` cook, with their active minutes together, or says
 // nothing is cooked.
 func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	var names []string
@@ -2187,7 +2188,7 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its freezer splits, each marked when changed, or that
+// dayBody is what a day `d` holds: its freezer splits, each marked when changed, or that
 // none is left when they all are; then its Slots, each with its Portion's size, calories
 // and protein, and where it comes from, then each Prep Session of a Recipe, which opens
 // to its Ingredients and the Portions it leaves for later.
@@ -2331,11 +2332,11 @@ func dayBody(d proposalDay) templ.Component {
 	})
 }
 
-// ofRecipe is whether ps prepares a Recipe, not one Ingredient as it is.
+// ofRecipe is whether `ps` prepares a Recipe, not one Ingredient as it is.
 func ofRecipe(ps domain.PrepSession) bool { return ps.Recipe != nil }
 
-// source says where f's Portion comes from, eaten on the day on: cooked that day, or a
-// new Recipe when that is a Recipe Draft's, from the day it was cooked and where it is
+// source says where `f`'s Portion comes from, eaten on the day `on`: cooked that day, or
+// a new Recipe when that is a Recipe Draft's, from the day it was cooked and where it is
 // kept, where one Ingredient is kept, or already in the kitchen.
 func source(ctx context.Context, f filledSlot, on time.Time) string {
 	switch {
@@ -2351,9 +2352,9 @@ func source(ctx context.Context, f filledSlot, on time.Time) string {
 	return web.Tf(ctx, msgCookedOn, web.ShortDate(ctx, f.from.At.On), web.T(ctx, web.InLocations[f.location]))
 }
 
-// cookedRow is ps, a Prep Session of a Recipe, as a row that opens, marked Changed when
-// changed: its Portions and their size, its minutes; opened, its Ingredients scaled, and
-// its Portions eaten on a later day or after the Cycle.
+// cookedRow is `ps`, a Prep Session of a Recipe, as a row that opens, marked Changed when
+// `changed`: its Portions and their size, its minutes; opened, its Ingredients scaled,
+// and its Portions eaten on a later day or after the Cycle.
 func cookedRow(ps domain.PrepSession, changed bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2432,7 +2433,7 @@ func cookedRow(ps domain.PrepSession, changed bool) templ.Component {
 							var templ_7745c5c3_Var101 string
 							templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(laterSlot(ctx, pp.EatAt))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 647, Col: 56}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 648, Col: 56}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 							if templ_7745c5c3_Err != nil {
@@ -2445,7 +2446,7 @@ func cookedRow(ps domain.PrepSession, changed bool) templ.Component {
 							var templ_7745c5c3_Var102 string
 							templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinStringErrs(web.Capitalised(web.T(ctx, web.InLocations[pp.Location])))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 648, Col: 88}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 649, Col: 88}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var102))
 							if templ_7745c5c3_Err != nil {
@@ -2480,7 +2481,7 @@ func cookedRow(ps domain.PrepSession, changed bool) templ.Component {
 }
 
 // cookedLine is the line a Prep Session of a Recipe folds to: its name, a Recipe Draft's
-// marked new, and marked Changed when changed, its Portions and their size, its minutes
+// marked new, and marked Changed when `changed`, its Portions and their size, its minutes
 // in all and active.
 func cookedLine(ps domain.PrepSession, changed bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -2514,7 +2515,7 @@ func cookedLine(ps domain.PrepSession, changed bool) templ.Component {
 		var templ_7745c5c3_Var104 string
 		templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgPortionsSized, len(ps.Portions), size(ctx, ps.Size)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 661, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 662, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 		if templ_7745c5c3_Err != nil {
@@ -2527,7 +2528,7 @@ func cookedLine(ps domain.PrepSession, changed bool) templ.Component {
 		var templ_7745c5c3_Var105 string
 		templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 662, Col: 102}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_proposal.templ`, Line: 663, Col: 102}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
 		if templ_7745c5c3_Err != nil {
@@ -2541,7 +2542,7 @@ func cookedLine(ps domain.PrepSession, changed bool) templ.Component {
 	})
 }
 
-// eatenLater are ps's Portions eaten on a day after it is prepared, or after the Cycle.
+// eatenLater are `ps`'s Portions eaten on a day after it is prepared, or after the Cycle.
 func eatenLater(ps domain.PrepSession) []domain.PlannedPortion {
 	var later []domain.PlannedPortion
 	for _, pp := range ps.Portions {

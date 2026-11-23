@@ -82,7 +82,7 @@ func startFakeAuth(t testing.TB, c clock.Clock) *FakeAuth {
 	return f
 }
 
-// Invite invites email, as from Supabase's dashboard: it can sign in from
+// Invite invites `email`, as from Supabase's dashboard: it can sign in from
 // then on, and its mailbox gets an invitation linking to the app.
 func (f *FakeAuth) Invite(email string) {
 	f.mu.Lock()
@@ -93,7 +93,7 @@ func (f *FakeAuth) Invite(email string) {
 	f.sendLink(email, f.SiteURL+"/auth/confirm", "invite")
 }
 
-// LastLink is the link in the last email sent to email.
+// LastLink is the link in the last email sent to `email`.
 func (f *FakeAuth) LastLink(t testing.TB, email string) string {
 	t.Helper()
 	f.mu.Lock()
@@ -105,7 +105,7 @@ func (f *FakeAuth) LastLink(t testing.TB, email string) string {
 	return mail[len(mail)-1]
 }
 
-// Mail is every link emailed to email, oldest first.
+// Mail is every link emailed to `email`, oldest first.
 func (f *FakeAuth) Mail(email string) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -221,7 +221,7 @@ func (f *FakeAuth) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// newSession issues sess a new access token, for an hour, and a refresh
+// newSession issues `sess` a new access token, for an hour, and a refresh
 // token that renews it once.
 func (f *FakeAuth) newSession(sess fakeSession) map[string]any {
 	userID, email := f.users[sess.email], sess.email

@@ -363,8 +363,8 @@ func TestAddingARowWithoutHTMXKeepsWhatWasTyped(t *testing.T) {
 	}
 }
 
-// removesRow posts form with its row at index pressed Remove, as htmx and as a plain
-// post, checking each comes back as want, saving nothing and refusing nothing.
+// removesRow posts `form` with its row at `index` pressed Remove, as htmx and as a plain
+// post, checking each comes back as `want`, saving nothing and refusing nothing.
 func removesRow(t *testing.T, s *apptest.Scenario, form apptest.FormData, index string, want map[string]string, gone string) {
 	t.Helper()
 	form.Values.Set("remove", index)

@@ -15,15 +15,15 @@ import (
 // to use each; app.css styles them.
 
 // PageHeader opens a page: an eyebrow with the page's Japanese name and
-// today's date, then the title. Children, if any, are a lede below it.
+// `today`'s date, then the `title`. Children, if any, are a lede below it.
 templ PageHeader(ja, title string, today time.Time) {
 	@PageHeaderBeside(ja, title, "", today) {
 		{ children... }
 	}
 }
 
-// PageHeaderBeside is a PageHeader with beside, unless "", after the title and a dot in
-// the body face, smaller: what the page is of, such as a Cycle's dates.
+// PageHeaderBeside is a PageHeader with `beside`, unless "", after the `title` and a dot
+// in the body face, smaller: what the page is of, such as a Cycle's dates.
 templ PageHeaderBeside(ja, title, beside string, today time.Time) {
 	<header class="page-header">
 		<p class="eyebrow"><span lang="ja">{ ja }</span> · { Date(ctx, today) }</p>
@@ -38,7 +38,7 @@ templ PageHeaderBeside(ja, title, beside string, today time.Time) {
 	</header>
 }
 
-// Section is a numbered group of a page's content under a heading; num 0 marks it
+// Section is a numbered group of a page's content under a heading; `num` 0 marks it
 // instead, for a group that isn't one of a page's, such as a side sheet's.
 templ Section(num int, title string) {
 	<section class="section">
@@ -50,8 +50,8 @@ templ Section(num int, title string) {
 	</section>
 }
 
-// FieldGroup is a Section of a form: its fields under a numbered legend, followed by hint
-// in brackets, as a Field's, when set.
+// FieldGroup is a Section of a form: its fields under a numbered `legend`, followed by
+// `hint` in brackets, as a Field's, when set.
 templ FieldGroup(num int, legend, hint string) {
 	<fieldset class="section">
 		<legend class="section-heading">
@@ -65,9 +65,9 @@ templ FieldGroup(num int, legend, hint string) {
 	</fieldset>
 }
 
-// FieldGroupAction is a FieldGroup with action beside its legend, for a secondary action
-// on what the legend names. id is the legend text's: it alone names the group, leaving
-// the action out.
+// FieldGroupAction is a FieldGroup with `action` beside its `legend`, for a secondary
+// action on what the `legend` names. `id` is the legend text's: it alone names the group,
+// leaving the `action` out.
 templ FieldGroupAction(id string, num int, legend string, action templ.Component) {
 	<fieldset class="section" aria-labelledby={ id }>
 		<legend class="section-heading">
@@ -92,7 +92,7 @@ templ number(n int) {
 	}
 }
 
-// Data marks s, in a title, as data: a time, a quantity or User text, which the title
+// Data marks `s`, in a title, as data: a time, a quantity or User text, which the title
 // sets in the body face, as the pixel face makes l, I and 1 hard to tell apart. Only
 // PageHeader's, Section's and FieldGroup's titles read the mark.
 func Data(s string) string { return dataStart + s + dataEnd }
@@ -107,7 +107,7 @@ type titlePart struct {
 	data bool
 }
 
-// titleParts splits title into its runs of Data and the rest.
+// titleParts splits `title` into its runs of Data and the rest.
 func titleParts(title string) []titlePart {
 	var parts []titlePart
 	for {
@@ -124,7 +124,7 @@ func titleParts(title string) []titlePart {
 	}
 }
 
-// titleText is title, its Data in the body face.
+// titleText is `title`, its Data in the body face.
 templ titleText(title string) {
 	for _, p := range titleParts(title) {
 		if p.data {
@@ -147,14 +147,15 @@ templ Empty() {
 </p>
 }
 
-// Verbatim is text shown exactly as it was, such as a paste or a Trace Event's data: its
-// lines kept, wrapping, on the surface.
+// Verbatim is `text` shown exactly as it was, such as a paste or a Trace Event's data:
+// its lines kept, wrapping, on the surface.
 templ Verbatim(text string) {
 	<pre class="verbatim">{ text }</pre>
 }
 
-// Disclosure is a group of a page's content a click away, under summary: closed until the
-// User opens it, unless open says it holds what they are at, such as a refused form.
+// Disclosure is a group of a page's content a click away, under `summary`: closed until
+// the User opens it, unless `open` says it holds what they are at, such as a
+// refused form.
 templ Disclosure(summary string, open bool) {
 	<details class="disclosure section" open?={ open }>
 		<summary>
@@ -165,9 +166,10 @@ templ Disclosure(summary string, open bool) {
 	</details>
 }
 
-// Fold is a line, summary, that opens in place to show what it holds, the children: its
+// Fold is a line, `summary`, that opens in place to show what it holds, the children: its
 // chevron points right while closed and down while open, and it starts closed. Without
-// holds it is the line alone, the chevron's room kept, so a list of Folds stays aligned.
+// `holds` it is the line alone, the chevron's room kept, so a list of Folds
+// stays aligned.
 templ Fold(summary templ.Component, holds bool) {
 	if holds {
 		<details class="fold">
@@ -210,8 +212,8 @@ templ Seal() {
 	</span>
 }
 
-// Group is a part of a Section's content under an h3, title, with meta, unless nil,
-// under it: a soft line, or a day's Figures. It opens in place, closed unless open says
+// Group is a part of a Section's content under an h3, `title`, with `meta`, unless nil,
+// under it: a soft line, or a day's Figures. It opens in place, closed unless `open` says
 // it holds what the User is at, such as a refused form. What a Group holds is Rows,
 // never a deeper heading.
 templ Group(title string, meta templ.Component, open bool) {
@@ -231,13 +233,13 @@ templ Group(title string, meta templ.Component, open bool) {
 	</details>
 }
 
-// RowsHead is label, a small caption over the Rows that follow it.
+// RowsHead is `label`, a small caption over the Rows that follow it.
 templ RowsHead(label string) {
 	<p class="rows-head">{ label }</p>
 }
 
-// FoldRow is a Row that opens in place to read what the children hold: unlike an
-// EditRow it changes nothing and isn't raised. summary is the line, laid out as a Row's.
+// FoldRow is a Row that opens in place to read what the children hold: unlike an EditRow
+// it changes nothing and isn't raised. `summary` is the line, laid out as a Row's.
 templ FoldRow(summary templ.Component) {
 	<li class="row">
 		<details class="fold-row">
@@ -254,9 +256,10 @@ templ FoldRow(summary templ.Component) {
 	</li>
 }
 
-// SlotRow is a Slot of kind and the Portion filling it, portion, marked Changed when
-// changed: its size unless "", figures, its nutrition, unless nil, and source, unless
-// "", a word for where the Portion comes from ("cooked", "already in the kitchen").
+// SlotRow is a Slot of `kind` and the Portion filling it, `portion`, marked Changed when
+// `changed`: its `size` unless "", `figures`, its nutrition, unless nil, and `source`,
+// unless "", a word for where the Portion comes from ("cooked", "already in
+// the kitchen").
 templ SlotRow(kind domain.SlotKind, portion string, changed bool, size string, figures templ.Component, source string) {
 	@Row() {
 		@RowTitle(portion, false, "", changed)
@@ -289,7 +292,7 @@ templ Figures() {
 	</span>
 }
 
-// IngredientRows lists ingredients, each its name and its quantity in its unit, with a
+// IngredientRows lists `ingredients`, each its name and its quantity in its unit, with a
 // New Tag on one not yet saved, as a Recipe Draft's new Ingredient is.
 templ IngredientRows(ingredients []domain.RecipeIngredient) {
 	@IngredientRowsWith(ingredients, nil, nil)
@@ -304,8 +307,8 @@ templ Changed() {
 	}
 }
 
-// RowTitle is a Row's title: name, and when tagged, tag after it as a plain Tag (a New
-// Ingredient, a new Recipe), then Changed when changed.
+// RowTitle is a Row's title: `name`, and when `tagged`, `tag` after it as a plain Tag (a
+// New Ingredient, a new Recipe), then Changed when `changed`.
 templ RowTitle(name string, tagged bool, tag string, changed bool) {
 	<span class="row-title">
 		{ name }
@@ -343,9 +346,9 @@ templ IngredientRowsWith(ingredients []domain.RecipeIngredient, changed []int, m
 	}
 }
 
-// Amount is the nutritional value a, then unit unless it is "": a dash a screen reader
-// says is unknown when a isn't known, and "29+" when floor says only a floor is known,
-// which a screen reader says as "at least 29".
+// Amount is the nutritional value `a`, then `unit` unless it is "": a dash a screen
+// reader says is unknown when `a` isn't known, and "29+" when `floor` says only a floor
+// is known, which a screen reader says as "at least 29".
 templ Amount(a domain.Amount, floor bool, unit string) {
 	if !a.Known {
 		<span aria-hidden="true">–</span>
@@ -377,7 +380,7 @@ func AmountText(ctx context.Context, a domain.Amount, floor bool, unit string) s
 	return strings.TrimSpace(s + " " + unit)
 }
 
-// EditRow is one line of a list that opens in place to edit: summary is
+// EditRow is one line of a list that opens in place to edit: `summary` is
 // the line, the children are what it opens to.
 templ EditRow(open bool, summary templ.Component) {
 	@EditRowIn("", open, summary) {
@@ -385,8 +388,8 @@ templ EditRow(open bool, summary templ.Component) {
 	}
 }
 
-// EditRowIn is an EditRow one of group, e.g. the Slots of a day: opening
-// it closes the group's open one.
+// EditRowIn is an EditRow one of `group`, e.g. the Slots of a day: opening
+// it closes `group`'s open one.
 templ EditRowIn(group string, open bool, summary templ.Component) {
 	<li class="row">
 		<details { detailsAttributes(group, open)... }>
@@ -404,8 +407,8 @@ templ EditRowIn(group string, open bool, summary templ.Component) {
 	</li>
 }
 
-// detailsAttributes are an EditRow's <details> attributes: open, and the
-// name of its group when it has one.
+// detailsAttributes are an EditRow's <details> attributes: `open`, and the
+// name of its `group` when it has one.
 func detailsAttributes(group string, open bool) templ.Attributes {
 	a := templ.Attributes{"open": open}
 	if group != "" {
@@ -414,8 +417,8 @@ func detailsAttributes(group string, open bool) templ.Attributes {
 	return a
 }
 
-// Field is a labelled form control: the control is the children. hint, when set,
-// follows the label (e.g. "optional"); err is why the value was rejected.
+// Field is a labelled form control: the control is the children. `hint`, when set,
+// follows the `label` (e.g. "optional"); `err` is why the value was rejected.
 templ Field(label, hint, err string) {
 	<label class="field">
 		<span class="field-label">
@@ -430,8 +433,8 @@ templ Field(label, hint, err string) {
 }
 
 // SearchField is the search box over a list: the input is the children, with the
-// magnifying glass inside it. label names it for a screen reader; the input's placeholder
-// says it on screen.
+// magnifying glass inside it. `label` names it for a screen reader; the input's
+// placeholder says it on screen.
 templ SearchField(label string) {
 	<label class="search-field">
 		<span class="sr-only">{ label }</span>
@@ -440,9 +443,10 @@ templ SearchField(label string) {
 	</label>
 }
 
-// ListSearch searches a list as the User types, swapping listURL's answer into the
-// element listID alone when htmx sends it, so the field keeps its focus; without htmx it
-// opens action searched. The children are the input of its SearchField, named by label.
+// ListSearch searches a list as the User types, swapping `listURL`'s answer into the
+// element `listID` alone when htmx sends it, so the field keeps its focus; without htmx
+// it opens `action` searched. The children are the input of its SearchField, named
+// by `label`.
 templ ListSearch(id, action, listURL, listID, label string) {
 	<form
 		novalidate
@@ -462,7 +466,7 @@ templ ListSearch(id, action, listURL, listID, label string) {
 }
 
 // TimeField is a Field for a time of day, which the User types in either form, holding
-// value as the Language writes it (TimeOfDay). Not a native time input: that follows
+// `value` as the Language writes it (TimeOfDay). Not a native time input: that follows
 // the browser's locale, not the User's Language.
 templ TimeField(label, name, value, err string) {
 	@Field(label, "", err) {
@@ -481,9 +485,9 @@ templ TimeField(label, name, value, err string) {
 	}
 }
 
-// DateField is a Field for a day, holding value as the Language writes it
-// (domain.FormatDate), for the same reason as TimeField. hint follows the label: a day
-// that may be left blank says optional, and isn't required.
+// DateField is a Field for a day, holding `value` as the Language writes it
+// (domain.FormatDate), for the same reason as TimeField. `hint` follows the `label`: a
+// day that may be left blank says optional, and isn't required.
 templ DateField(label, hint, name, value, err string) {
 	@Field(label, hint, err) {
 		<input
@@ -501,7 +505,7 @@ templ DateField(label, hint, name, value, err string) {
 	}
 }
 
-// CellField is a Field in a grid whose column heads name it, so its label
+// CellField is a Field in a grid whose column heads name it, so its `label`
 // is shown only on a phone, where the heads are hidden.
 templ CellField(label, err string) {
 	<label class="field">
@@ -511,7 +515,8 @@ templ CellField(label, err string) {
 	</label>
 }
 
-// Check is a checkbox, the child, before its label; hint, when set, follows the label.
+// Check is a checkbox, the child, before its `label`; `hint`, when set, follows
+// the `label`.
 templ Check(label, hint string) {
 	<label class="check">
 		{ children... }
@@ -524,10 +529,10 @@ templ Check(label, hint string) {
 	</label>
 }
 
-// Checks is a group of checkboxes named name under legend, hint in brackets after it as a
-// Field's, one per choice, those whose Values are in ticked ticked, in as many columns as
-// the width allows. err marks each and shows under them, the first taking name as its id,
-// for an ErrorSummary to link to.
+// Checks is a group of checkboxes named `name` under `legend`, `hint` in brackets after
+// it as a Field's, one per choice, those whose Values are in `ticked` ticked, in as many
+// columns as the width allows. `err` marks each and shows under them, the first taking
+// `name` as its id, for an ErrorSummary to link to.
 templ Checks(legend, hint, name string, choices []Choice, ticked []string, err string) {
 	<fieldset class="stack">
 		<legend class="field-label">
@@ -591,7 +596,7 @@ templ ActionsApart() {
 	</div>
 }
 
-// Button is the primary action, in ink. attrs must give its type.
+// Button is the primary action, in ink. `attrs` must give its type.
 templ Button(attrs templ.Attributes) {
 	<button class="btn" { attrs... }>
 		{ children... }
@@ -599,14 +604,14 @@ templ Button(attrs templ.Attributes) {
 }
 
 // ButtonLink is a Button that is a link: the step forward that only goes to another page.
-// attrs must give its href.
+// `attrs` must give its href.
 templ ButtonLink(attrs templ.Attributes) {
 	<a class="btn" { attrs... }>
 		{ children... }
 	</a>
 }
 
-// TextButton is a secondary action. attrs must give its type.
+// TextButton is a secondary action. `attrs` must give its type.
 templ TextButton(attrs templ.Attributes) {
 	<button class="btn-text" { attrs... }>
 		{ children... }
@@ -614,15 +619,15 @@ templ TextButton(attrs templ.Attributes) {
 }
 
 // TextLink is a secondary action that writes nothing, looking as a TextButton does.
-// attrs must give its href.
+// `attrs` must give its href.
 templ TextLink(attrs templ.Attributes) {
 	<a class="btn-text" { attrs... }>
 		{ children... }
 	</a>
 }
 
-// TextButtonFold is a TextButton, label, with a chevron, that opens in place to what
-// acting needs first, the children, such as Reject's Planning Note: closed unless open
+// TextButtonFold is a TextButton, `label`, with a chevron, that opens in place to what
+// acting needs first, the children, such as Reject's Planning Note: closed unless `open`
 // says it holds what the User is at. In Actions, it opens onto a line of its own.
 templ TextButtonFold(label string, open bool) {
 	@buttonFold("btn-text", label, open) {
@@ -638,7 +643,7 @@ templ ButtonFold(label string, open bool) {
 	}
 }
 
-// buttonFold is a ButtonFold or TextButtonFold, its summary of class.
+// buttonFold is a ButtonFold or TextButtonFold, its summary of `class`.
 templ buttonFold(class, label string, open bool) {
 	<details class="button-fold" open?={ open }>
 		<summary class={ class }>
@@ -651,7 +656,7 @@ templ buttonFold(class, label string, open bool) {
 	</details>
 }
 
-// SideColumn is a page's main column, the children, beside side: side comes first on
+// SideColumn is a page's main column, the children, beside `side`: `side` comes first on
 // a phone; from 1200px it is a column of its own on the right, which stays in view
 // while the main column scrolls, such as a Plan Proposal's decision beside its days.
 templ SideColumn(side templ.Component) {
@@ -665,15 +670,16 @@ templ SideColumn(side templ.Component) {
 	</div>
 }
 
-// DestructiveButton removes or discards something. attrs must give its type.
+// DestructiveButton removes or discards something. `attrs` must give its type.
 templ DestructiveButton(attrs templ.Attributes) {
 	<button class="btn-text btn-danger" { attrs... }>
 		{ children... }
 	</button>
 }
 
-// RemoveLink is a DestructiveButton that asks first: it opens the SideSheet id on the
-// RemoveStep loaded from src, a fragment, or without htmx goes to href, the step's page.
+// RemoveLink is a DestructiveButton that asks first: it opens the SideSheet `id` on the
+// RemoveStep loaded from `src`, a fragment, or without htmx goes to `href`, the
+// step's page.
 templ RemoveLink(id string, href, src templ.SafeURL) {
 	@sheetLink("btn-text btn-danger", id, href, src, nil) {
 		{ children... }
@@ -683,10 +689,10 @@ templ RemoveLink(id string, href, src templ.SafeURL) {
 // RemoveStepID is the id of a RemoveStep's form.
 const RemoveStepID = "remove-step"
 
-// RemoveStep asks once before deleting or discarding what the User wrote, question
-// naming what will go: a form posting to action, whose DestructiveButton says remove,
-// attrs adding such as the swap of a sheet's body, and the children its hidden fields.
-// back, unless "", is a TextLink back, for the step as a page of its own; in a sheet,
+// RemoveStep asks once before deleting or discarding what the User wrote, `question`
+// naming what will go: a form posting to `action`, whose DestructiveButton says `remove`,
+// `attrs` adding such as the swap of a sheet's body, and the children its hidden fields.
+// `back`, unless "", is a TextLink back, for the step as a page of its own; in a sheet,
 // the sheet's Close is the way back.
 templ RemoveStep(question, remove string, action, back templ.SafeURL, attrs templ.Attributes) {
 	<form novalidate id={ RemoveStepID } class="stack" method="post" action={ action } { attrs... }>
@@ -713,10 +719,10 @@ type Choice struct {
 	Icon  string
 }
 
-// Segmented chooses one of a few options with square toggles, under legend, shown as a
-// Field's label: none when the group around it already names it. selected is the chosen
-// Value; err is why a choice was rejected, marking each option, the first then taking
-// name as its id, for an ErrorSummary to link to.
+// Segmented chooses one of a few options with square toggles, under `legend`, shown as a
+// Field's label: none when the group around it already names it. `selected` is the chosen
+// Value; `err` is why a choice was rejected, marking each option, the first then taking
+// `name` as its id, for an ErrorSummary to link to.
 templ Segmented(legend, name string, choices []Choice, selected, err string) {
 	<fieldset class="field">
 		if legend != "" {
@@ -748,15 +754,15 @@ templ Segmented(legend, name string, choices []Choice, selected, err string) {
 
 // SegmentedLinks is Segmented for options that each open something rather than fill in a
 // form, so the one shown is reachable from the others: its children are SegmentLinks.
-// label is for a screen reader.
+// `label` is for a screen reader.
 templ SegmentedLinks(label string) {
 	<nav class="seg seg-links" aria-label={ label }>
 		{ children... }
 	</nav>
 }
 
-// SegmentLink is one option of SegmentedLinks, shown as chosen when current. attrs must
-// give its href.
+// SegmentLink is one option of SegmentedLinks, shown as chosen when `current`. `attrs`
+// must give its href.
 templ SegmentLink(current bool, attrs templ.Attributes) {
 	<a
 		if current {
@@ -778,8 +784,8 @@ templ Alert() {
 type Refusal struct{ ID, Label, Err string }
 
 // ErrorSummary opens a rejected form longer than a screen: an Alert listing each of
-// refusals, in the form's order, as a link to its field, taking focus as the page loads.
-// It is nothing when there are none.
+// `refusals`, in the form's order, as a link to its field, taking focus as the page
+// loads. It is nothing when there are none.
 templ ErrorSummary(refusals []Refusal) {
 	if len(refusals) > 0 {
 		<div class="alert error-summary" role="alert" tabindex="-1" autofocus>
@@ -793,7 +799,7 @@ templ ErrorSummary(refusals []Refusal) {
 	}
 }
 
-// notices is where floating Notices show, at the top of the screen: text, when set, is
+// notices is where floating Notices show, at the top of the screen: `text`, when set, is
 // the one the page shows as it loads. It is shown without JS; Layout's showNotices only
 // raises it into the top layer, over an open sheet, as a popover.
 templ notices(text string) {
@@ -804,7 +810,7 @@ templ notices(text string) {
 	</div>
 }
 
-// notice says text happened as asked, until its time runs out, which its line tells,
+// notice says `text` happened as asked, until its time runs out, which its line tells,
 // or Close closes it; hovering or focusing it stops its time.
 templ notice(text string) {
 	<div class="notice">
@@ -815,7 +821,7 @@ templ notice(text string) {
 	</div>
 }
 
-// noticePartial adds a floating Notice saying text, newest first, from a fragment
+// noticePartial adds a floating Notice saying `text`, newest first, from a fragment
 // htmx swaps.
 templ noticePartial(text string) {
 	<hx-partial hx-target="#notices" hx-swap="afterbegin">
@@ -823,7 +829,7 @@ templ noticePartial(text string) {
 	</hx-partial>
 }
 
-// Tag is a short label on a row or field. accent marks one that needs
+// Tag is a short label on a row or field. `accent` marks one that needs
 // attention; its text must say why.
 templ Tag(accent bool, title string) {
 	<span
@@ -846,7 +852,7 @@ const (
 	Done  Tone = "done"
 )
 
-// ToneTag is a Tag with a tone of its own beside cream.
+// ToneTag is a Tag with a `tone` of its own beside cream.
 templ ToneTag(tone Tone) {
 	<span class={ "tag", "tag-" + string(tone) }>
 		{ children... }
@@ -863,7 +869,7 @@ type AddChoice struct {
 }
 
 // AddButton is a page's primary add action: a square + that opens the sheet of the first
-// of choices. With more than one, the + shows the icon of what it adds, and a chevron
+// of `choices`. With more than one, the + shows the icon of what it adds, and a chevron
 // beside it chooses another: choosing changes what the + adds and opens nothing, and a
 // new page starts on the first again.
 templ AddButton(choices []AddChoice) {
@@ -902,7 +908,8 @@ templ AddButton(choices []AddChoice) {
 	}
 }
 
-// addFace is what the + of c shows: with others to choose from, the icon of what it adds.
+// addFace is what the + of `c` shows: with others to choose from, the icon of what
+// it adds.
 templ addFace(c AddChoice, chosen bool) {
 	@Icon("plus")
 	if chosen {
@@ -917,7 +924,7 @@ var choosesAdd = templ.Attributes{
 }
 
 // AddSheet is the sheet of an add form, the children: from the bottom on a phone, centred
-// on desktop. An AddButton opens it. open shows it already open, for a rejected
+// on desktop. An AddButton opens it. `open` shows it already open, for a rejected
 // submission, with focus on the first rejected field.
 templ AddSheet(id, title string, open bool) {
 	@sheet(id, "sheet", title, open) {
@@ -942,12 +949,12 @@ templ SideSheet(id, title string) {
 	}
 }
 
-// sheet is a modal dialog of class titled title, the children under its head: the page
-// behind it is inert, and a tap on the veil or Esc closes it, the top one of several.
-// closedby="any" closes it on the veil where the browser knows it; where it doesn't, a
-// press that both starts and ends on the veil does, so dragging out of a field doesn't
-// close it. Once its form is changed the veil no longer closes it (see keepsChanges).
-// open marks it to open as the page loads.
+// sheet is a modal dialog of `class` titled `title`, the children under its head: the
+// page behind it is inert, and a tap on the veil or Esc closes it, the top one of
+// several. closedby="any" closes it on the veil where the browser knows it; where it
+// doesn't, a press that both starts and ends on the veil does, so dragging out of a field
+// doesn't close it. Once its form is changed the veil no longer closes it (see
+// keepsChanges). `open` marks it to open as the page loads.
 templ sheet(id, class, title string, open bool) {
 	<dialog
 		id={ id }
@@ -983,7 +990,7 @@ var keepsChanges = templ.Attributes{
 	"hx-on:htmx:after:request": "if (event.detail.ctx.request.method === 'POST' && event.detail.ctx.response?.status < 400) " + sheetChanged(false),
 }
 
-// sheetChanged is the script that marks a sheet's form changed, or not.
+// sheetChanged is the script that marks a sheet's form `changed`, or not.
 func sheetChanged(changed bool) string {
 	return "{ this.changed = " + fmt.Sprint(changed) + "; this.setAttribute('closedby', this.changed ? 'closerequest' : 'any') }"
 }
@@ -1001,7 +1008,7 @@ var closesOnDone = templ.Attributes{
 // onVeil is whether the pointer event, on a sheet, is outside its box: on its backdrop.
 const onVeil = `event.target === this && ((r) => event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom)(this.getBoundingClientRect())`
 
-// SheetBody is the body of the sheet id, an AddSheet's or a SideSheet's, for one whose
+// SheetBody is the body of the sheet `id`, an AddSheet's or a SideSheet's, for one whose
 // content swaps in place; the children are what it starts with. Each swap into it opens
 // the sheet, if it isn't open, and focuses the first field marked aria-invalid, or else
 // marked autofocus, so a rejected form in it is shown again in place. A swap into part
@@ -1028,12 +1035,12 @@ templ SectionBody(id string) {
 	</div>
 }
 
-// SideSheetBody is the id of the SheetBody of the sheet id, which a form in it targets.
+// SideSheetBody is the id of the SheetBody of the sheet `id`, which a form in it targets.
 func SideSheetBody(id string) string { return id + "-body" }
 
-// SideSheetLink opens the sheet id with its SheetBody loaded from src, a fragment, and
-// focuses its field marked autofocus, or else its first shown, not in a closed
-// Disclosure. Without htmx it is a plain link to href, a page of the same content. htmx
+// SideSheetLink opens the sheet `id` with its SheetBody loaded from `src`, a fragment,
+// and focuses its field marked autofocus, or else its first shown, not in a closed
+// Disclosure. Without htmx it is a plain link to `href`, a page of the same content. htmx
 // tells the swap to the link, so the link opens the sheet; a form in the body, swapped
 // away, has htmx tell the body instead. The link is the sheet's source, so one inside
 // another sheet opens over it and leaves it open.
@@ -1043,15 +1050,15 @@ templ SideSheetLink(id string, href, src templ.SafeURL) {
 	}
 }
 
-// SideSheetLinkWith is a SideSheetLink with more attrs, such as an hx-include that adds
-// to src what the page around it says at that moment.
+// SideSheetLinkWith is a SideSheetLink with more `attrs`, such as an hx-include that adds
+// to `src` what the page around it says at that moment.
 templ SideSheetLinkWith(id string, href, src templ.SafeURL, attrs templ.Attributes) {
 	@sheetLink("sheet-link", id, href, src, attrs) {
 		{ children... }
 	}
 }
 
-// sheetLink is a link of class that opens the sheet id, as SideSheetLink does.
+// sheetLink is a link of `class` that opens the sheet `id`, as SideSheetLink does.
 templ sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attributes) {
 	<a
 		class={ class }
@@ -1068,7 +1075,7 @@ templ sheetLink(class, id string, href, src templ.SafeURL, attrs templ.Attribute
 }
 
 // LanguageSwitch switches the pages before signing in between Languages, each named in
-// itself, staying on the page at u. The one they speak is marked current.
+// itself, staying on the page at `u`. The one they speak is marked current.
 templ LanguageSwitch(u *url.URL) {
 	<nav class="lang-switch" aria-label={ T(ctx, msgLanguageSwitch) }>
 		for i, l := range domain.Languages {

@@ -7,8 +7,8 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Anchored returns the text shown by the element of page whose id is id, as Text reads
-// it: where a link to #id lands.
+// Anchored returns the text shown by the element of `page` whose `id` is `id`, as Text
+// reads it: where a link to #id lands.
 func Anchored(t testing.TB, page, id string) string {
 	t.Helper()
 	doc, err := html.Parse(strings.NewReader(page))
@@ -28,7 +28,7 @@ func Anchored(t testing.TB, page, id string) string {
 	return ""
 }
 
-// Link returns where the first link on page whose text contains text
+// Link returns where the first link on `page` whose text contains `text`
 // leads, as a user would follow it: without JavaScript, so one in a noscript too.
 func Link(t testing.TB, page, text string) string {
 	t.Helper()
@@ -45,8 +45,8 @@ func Link(t testing.TB, page, text string) string {
 	return ""
 }
 
-// SheetSource returns the fragment the first link on page whose text contains text loads
-// into its sheet, as htmx follows it: a SideSheetLink's src.
+// SheetSource returns the fragment the first link on `page` whose text contains `text`
+// loads into its sheet, as htmx follows it: a SideSheetLink's src.
 func SheetSource(t testing.TB, page, text string) string {
 	t.Helper()
 	doc, err := html.Parse(strings.NewReader(page))
@@ -62,7 +62,7 @@ func SheetSource(t testing.TB, page, text string) string {
 	return ""
 }
 
-// CurrentLink is the text of the link on page marked aria-current="true", the one shown
+// CurrentLink is the text of the link on `page` marked aria-current="true", the one shown
 // of those a page switches between. A tab, marked "page", isn't one.
 func CurrentLink(t testing.TB, page string) string {
 	t.Helper()

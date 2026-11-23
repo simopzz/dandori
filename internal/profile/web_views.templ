@@ -162,11 +162,11 @@ templ profilePage(today time.Time, email string, forms profileForms) {
 	}
 }
 
-// sectionForm is the section s, its fields and hints the children, followed by the button
-// that saves it: a form posting to its own route, which htmx swaps in its SectionBody
-// unless s reloads the page. The button shows Save, and its accessible name names the
-// section, so six Saves don't read as one saving the page and a screen reader tells
-// them apart.
+// sectionForm is the section `s`, its fields and hints the children, followed by the
+// button that saves it: a form posting to its own route, which htmx swaps in its
+// SectionBody unless `s` reloads the page. The button shows Save, and its accessible name
+// names the section, so six Saves don't read as one saving the page and a screen reader
+// tells them apart.
 templ sectionForm(s section) {
 	<form
 		novalidate
@@ -216,8 +216,8 @@ templ targetsForm(f TargetsForm) {
 	}
 }
 
-// targetField is the Target named field, a whole number, labelled label with its unit
-// and direction in hint.
+// targetField is the Target named `field`, a whole number, labelled `label` with its unit
+// and direction in `hint`.
 templ targetField(label, hint web.Message, field string, f TargetsForm) {
 	@web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]) {
 		<input
@@ -265,8 +265,8 @@ templ mealOutForm(f MealOutForm) {
 	}
 }
 
-// mealOutField is the Meal Out estimate's value named field, a whole number from 0,
-// labelled label with its unit in hint, which says so when it may be left blank.
+// mealOutField is the Meal Out estimate's value named `field`, a whole number from 0,
+// labelled `label` with its unit in `hint`, which says so when it may be left blank.
 templ mealOutField(label, hint web.Message, field string, f MealOutForm) {
 	@web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]) {
 		<input
@@ -300,11 +300,11 @@ templ foodsForm(f FoodsForm) {
 	}
 }
 
-// noteField names the field of the note on k's model.
+// noteField names the field of the note on `k`'s model.
 func noteField(k domain.ApplianceKind) string { return "note-" + string(k) }
 
 // appliancesForm is the appliances' section: a Check per kind, in the list's order, those
-// owned ticked, each with the note on its model beside it under the column's head, or
+// `owned` ticked, each with the note on its model beside it under the column's head, or
 // under it on a phone, where its placeholder says what it is.
 templ appliancesForm(owned domain.Appliances) {
 	@sectionForm(appliancesSection) {

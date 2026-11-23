@@ -79,7 +79,7 @@ func TestBrowserTheSkyIsSlimOnEveryPageButToday(t *testing.T) {
 	}
 }
 
-// measure is the number script works out on b's page.
+// measure is the number `script` works out on `b`'s page.
 func measure(t *testing.T, b *apptest.Browser, script string) float64 {
 	t.Helper()
 	got, err := b.Evaluate("() => " + script)

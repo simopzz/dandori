@@ -29,15 +29,15 @@ func PathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 // swapping its own fragment.
 func IsHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
 
-// IsPartial reports whether htmx sent r to swap part of a page, so a fragment answers it:
-// not a boosted one, swapping the whole body, which is answered as a plain browser is.
-// htmx 4 also marks a request that uses hx-select "full", so that one gets the whole page
-// to select from, even with an hx-target.
+// IsPartial reports whether htmx sent `r` to swap part of a page, so a fragment answers
+// it: not a boosted one, swapping the whole body, which is answered as a plain browser
+// is. htmx 4 also marks a request that uses hx-select "full", so that one gets the whole
+// page to select from, even with an hx-target.
 func IsPartial(r *http.Request) bool {
 	return IsHTMX(r) && r.Header.Get("HX-Request-Type") != "full"
 }
 
-// Render answers with page as HTML, with status.
+// Render answers with `page` as HTML, with `status`.
 func Render(w http.ResponseWriter, r *http.Request, log *slog.Logger, status int, page templ.Component) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
@@ -52,8 +52,8 @@ func Secure(r *http.Request) bool {
 	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
-// ServerError logs err as what failed, in r's span, and answers 500 without its details
-// but with the span's trace id, for a report to quote.
+// ServerError logs `err` as `what` failed, in `r`'s span, and answers 500 without its
+// details but with the span's trace id, for a report to quote.
 func ServerError(w http.ResponseWriter, r *http.Request, log *slog.Logger, what string, err error) {
 	log.ErrorContext(r.Context(), what, "err", err)
 	msg := "Something went wrong; see the server log."
@@ -67,8 +67,8 @@ func ServerError(w http.ResponseWriter, r *http.Request, log *slog.Logger, what 
 // feature names its own.
 type Refusal string
 
-// Refused records on r's span why the app refuses it: reason, followed by the fields of
-// errs, a form's, if it has any. Never what the User typed.
+// Refused records on `r`'s span why the app refuses it: `reason`, followed by the fields
+// of `errs`, a form's, if it has any. Never what the User typed.
 func Refused(r *http.Request, reason Refusal, errs map[string]string) {
 	s := string(reason)
 	if len(errs) > 0 {

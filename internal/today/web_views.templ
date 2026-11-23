@@ -10,7 +10,7 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is Today at now: the Slot now or next, the day's later Slots a click away, what
+// page is Today at `now`: the Slot now or next, the day's later Slots a click away, what
 // to do next about planning, where the Plan will show and what planning needs (no Plan
 // yet), and how up to date it is.
 templ page(now time.Time, d Day) {
@@ -67,9 +67,9 @@ templ reminders(d Day) {
 	}
 }
 
-// standingRow says how planning r's Cycle stands, linking to its Cycle page, straight to
-// the Plan Proposal when one is waiting. A failed one is urgent: the seal, not the Plan
-// page's icon, and an accent Tag.
+// standingRow says how planning `r`'s Cycle stands, linking to its Cycle page, straight
+// to the Plan Proposal when one is waiting. A failed one is urgent: the seal, not the
+// Plan page's icon, and an accent Tag.
 templ standingRow(r Reminder) {
 	{{ says, failed := standings[r.Standing], r.Standing == planning.PlanningFailed }}
 	@web.Row() {
@@ -93,7 +93,7 @@ templ standingRow(r Reminder) {
 	}
 }
 
-// standingURL is the Cycle page of r's Cycle, at its Plan Proposal when one is waiting.
+// standingURL is the Cycle page of `r`'s Cycle, at its Plan Proposal when one is waiting.
 func standingURL(r Reminder) templ.SafeURL {
 	url := fmt.Sprintf("/plan/cycles/%d", r.CycleID)
 	if r.Standing == planning.ProposalWaiting {

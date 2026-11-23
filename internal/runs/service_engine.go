@@ -71,8 +71,8 @@ type Engine struct {
 // DefaultModel is the model every Run uses unless Config names another.
 const DefaultModel = "claude-opus-5-5"
 
-// New creates an Engine with no Runs going, filling in what cfg leaves unset. Each Run,
-// and each of its calls to the model, is a span made by tp.
+// New creates an Engine with no Runs going, filling in what `cfg` leaves unset. Each Run,
+// and each of its calls to the model, is a span made by `tp`.
 func New(pool *pgxpool.Pool, c clock.Clock, cfg Config, tp oteltrace.TracerProvider, log *slog.Logger) *Engine {
 	cfg.Model = cmp.Or(cfg.Model, DefaultModel)
 	cfg.Retries = cmp.Or(cfg.Retries, 3)
@@ -110,11 +110,11 @@ func (e *Engine) FailLeftGoing(ctx context.Context) error {
 // Wait waits for every Run going to end, for a test that reads what it left.
 func (e *Engine) Wait() { e.wg.Wait() }
 
-// Start records a new Run of kind for the signed-in User, asked asked, and carries out b
-// in the background as that User. The tools of b find the Run's id with IDFrom. The Run
-// is a span under ctx's, though it outlives it. link, if set, runs in the transaction
-// recording the Run, given its id, so what it records commits with the Run: an error
-// from it records and starts nothing.
+// Start records a new Run of `kind` for the signed-in User, asked `asked`, and carries
+// out `b` in the background as that User. The tools of `b` find the Run's id with IDFrom.
+// The Run is a span under `ctx`'s, though it outlives it. `link`, if set, runs in the
+// transaction recording the Run, given its id, so what it records commits with the Run:
+// an error from it records and starts nothing.
 func (e *Engine) Start(ctx context.Context, kind Kind, asked string, b agent.Brief, link func(tx pgx.Tx, id int64) error) (int64, error) {
 	userID, ok := db.UserID(ctx)
 	if !ok {
@@ -206,10 +206,10 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 	tr.finish()
 }
 
-// Cancel cancels the signed-in User's Run id if it is going, storing it cancelled before
-// it stops, so nothing it does from now on counts, then waits a moment for it to stop, so
-// its Trace says it ended. found is false when they have no such Run; one that has ended
-// stays as it ended.
+// Cancel cancels the signed-in User's Run `id` if it is going, storing it cancelled
+// before it stops, so nothing it does from now on counts, then waits a moment for it to
+// stop, so its Trace says it ended. `found` is false when they have no such Run; one that
+// has ended stays as it ended.
 func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	var stop func(context.Context)
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
@@ -226,10 +226,10 @@ func (e *Engine) Cancel(ctx context.Context, id int64) (found bool, err error) {
 	return true, nil
 }
 
-// CancelIn stores the signed-in User's Run id cancelled in tx if it is going, by cause, a
-// document its kind's page tells, or nil when the User cancels it, and is stop, which
-// stops it and waits a moment for it to, as Cancel does: call it only once tx has
-// committed, so a Run is never stopped by a cancel that didn't happen.
+// CancelIn stores the signed-in User's Run `id` cancelled in `tx` if it is going, by
+// `cause`, a document its kind's page tells, or nil when the User cancels it, and is
+// `stop`, which stops it and waits a moment for it to, as Cancel does: call it only once
+// `tx` has committed, so a Run is never stopped by a cancel that didn't happen.
 func (e *Engine) CancelIn(ctx context.Context, tx pgx.Tx, id int64, cause json.RawMessage) (stop func(context.Context), err error) {
 	none := func(context.Context) {}
 	cancelled, err := setStatus(ctx, tx, id, Cancelled, e.clock.Now())
@@ -257,8 +257,8 @@ func (e *Engine) CancelIn(ctx context.Context, tx pgx.Tx, id int64, cause json.R
 // cancelWait bounds how long Cancel waits for a cancelled Run to record its end.
 const cancelWait = 2 * time.Second
 
-// Status is the kind and status of the signed-in User's Run id, found false when they
-// have none.
+// Status is the `kind` and `status` of the signed-in User's Run `id`, `found` false when
+// they have none.
 func (e *Engine) Status(ctx context.Context, id int64) (kind Kind, status Status, found bool, err error) {
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
 		kind, status, found, err = loadStatus(ctx, tx, id)
@@ -276,7 +276,8 @@ func (e *Engine) List(ctx context.Context) (list []Run, err error) {
 	return list, err
 }
 
-// TraceAfter is the stored Trace Events of the signed-in User's Run id after the seq-th.
+// TraceAfter is the stored Trace Events of the signed-in User's Run `id` after
+// the seq-th.
 func (e *Engine) TraceAfter(ctx context.Context, id int64, seq int) (events []StoredTraceEvent, err error) {
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
 		events, err = loadTrace(ctx, tx, id, seq)
@@ -285,9 +286,9 @@ func (e *Engine) TraceAfter(ctx context.Context, id int64, seq int) (events []St
 	return events, err
 }
 
-// Follow follows the Run id's Trace Events from now on, while it goes in this process:
-// the channel closes once the Run has ended, or falls behind, and stop stops following.
-// ok is false when the Run isn't going here.
+// Follow follows the Run `id`'s Trace Events from now on, while it goes in this process:
+// the channel closes once the Run has ended, or falls behind, and `stop` stops following.
+// `ok` is false when the Run isn't going here.
 func (e *Engine) Follow(id int64) (events <-chan StoredTraceEvent, stop func(), ok bool) {
 	tr := e.liveRun(id)
 	if tr == nil {
@@ -302,7 +303,7 @@ func (e *Engine) liveRun(id int64) *trace {
 	return e.live[id]
 }
 
-// carryOut carries out b with the agent loop. A panic, say in a tool, fails the Run
+// carryOut carries out `b` with the agent loop. A panic, say in a tool, fails the Run
 // rather than Dandori.
 func (e *Engine) carryOut(ctx context.Context, tr agent.Trace, b agent.Brief) (err error) {
 	defer func() {
@@ -318,10 +319,10 @@ func (e *Engine) carryOut(ctx context.Context, tr agent.Trace, b agent.Brief) (e
 	return loop.Run(ctx, b, tr)
 }
 
-// Leaves has the Run ctx is running in, as its Brief's tools or Ended find it, store
-// what it leaves with store, in the transaction storing it succeeded: what it leaves
+// Leaves has the Run `ctx` is running in, as its Brief's tools or Ended find it, `store`
+// what it leaves with `store`, in the transaction storing it succeeded: what it leaves
 // commits only with its success, never with a Run the User cancelled as it ended. An
-// error from store fails the Run.
+// error from `store` fails the Run.
 func (e *Engine) Leaves(ctx context.Context, store func(ctx context.Context, tx pgx.Tx) error) {
 	if tr := e.liveRun(IDFrom(ctx)); tr != nil {
 		tr.leaves = store // set and read only in the Run's own goroutine
@@ -337,7 +338,8 @@ func IDFrom(ctx context.Context) int64 {
 	return id
 }
 
-// Find is the signed-in User's Run id with its Trace, found false when they have none.
+// Find is the signed-in User's Run `id` with its Trace, `found` false when they
+// have none.
 func (e *Engine) Find(ctx context.Context, id int64) (run Run, found bool, err error) {
 	err = db.AsUser(ctx, e.pool, func(tx pgx.Tx) (err error) {
 		run, found, err = loadRun(ctx, tx, id)

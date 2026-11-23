@@ -47,7 +47,7 @@ func opensTheCountSheet(t *testing.T, b *apptest.Browser) {
 	}
 }
 
-// tapsBehind presses the screen where l stands, whatever is over it, as a finger does,
+// tapsBehind presses the screen where `l` stands, whatever is over it, as a finger does,
 // and fails the test if the tap clicks anything outside a sheet: a press on the page.
 func tapsBehind(t *testing.T, b *apptest.Browser, what string, l playwright.Locator) {
 	t.Helper()

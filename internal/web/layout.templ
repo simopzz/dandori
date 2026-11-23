@@ -180,9 +180,9 @@ templ showNotices() {
 	</script>
 }
 
-// sky is the README banner's dusk: a dithered ramp down through colours, the sun setting
-// behind Fuji, and the wordmark linking Today. It is the masthead above each page on a
-// phone and the top of the rail on desktop, each hidden where the other shows.
+// sky is the README banner's dusk: a dithered ramp down through `colours`, the sun
+// setting behind Fuji, and the wordmark linking Today. It is the masthead above each page
+// on a phone and the top of the rail on desktop, each hidden where the other shows.
 templ sky(class string, colours []string) {
 	<div class={ "sky", class }>
 		@ramp(colours)
@@ -196,7 +196,7 @@ templ sky(class string, colours []string) {
 	</div>
 }
 
-// ramp dithers down through colours, each to the next in four steps.
+// ramp dithers down through `colours`, each to the next in four steps.
 templ ramp(colours []string) {
 	<div class="ramp" aria-hidden="true">
 		for _, step := range ditherSteps(colours) {
@@ -205,7 +205,7 @@ templ ramp(colours []string) {
 	</div>
 }
 
-// tab is one link of the shell; aux ones sit apart, at the rail's foot, and leave the
+// tab is one link of the shell; `aux` ones sit apart, at the rail's foot, and leave the
 // bottom tabs on a phone for a link on the Profile.
 templ tab(t, current Tab, icon, label string, aux bool) {
 	<a

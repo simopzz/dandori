@@ -46,15 +46,15 @@ type Service struct {
 	prepares    Prepares
 }
 
-// New creates the Service, its parse Runs going through engine.
+// New creates the Service, its parse Runs going through `engine`.
 func New(pool *pgxpool.Pool, ings *ingredients.Service, engine *runs.Engine, prepares Prepares) *Service {
 	return &Service{pool: pool, ingredients: ings, runs: engine, prepares: prepares}
 }
 
-// Add adds rec, which has no Problems, for the signed-in User, whose Language is l, and
-// its new Ingredients, all or nothing, and is its id. A name another of theirs has is a
-// *NameTakenError. A new Ingredient the User has added since the form was read comes back
-// as the *ingredients.NameTakenError it is.
+// Add adds `rec`, which has no Problems, for the signed-in User, whose Language is `l`,
+// and its new Ingredients, all or nothing, and is its `id`. A name another of theirs has
+// is a *NameTakenError. A new Ingredient the User has added since the form was read comes
+// back as the *ingredients.NameTakenError it is.
 func (s *Service) Add(ctx context.Context, l domain.Language, rec domain.Recipe) (id int64, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		id, err = addIn(ctx, tx, l, rec)
@@ -80,9 +80,9 @@ func addIn(ctx context.Context, q db.Querier, l domain.Language, rec domain.Reci
 	return id, saveIngredients(ctx, q, l, id, rec)
 }
 
-// Edit sets the signed-in User's Recipe id, whose Language is l, to rec, which has no
-// Problems, adding its new Ingredients, all or nothing. Only the Recipe changes: what is
-// already recorded keeps its own name and values. A name another of theirs has is a
+// Edit sets the signed-in User's Recipe `id`, whose Language is `l`, to `rec`, which has
+// no Problems, adding its new Ingredients, all or nothing. Only the Recipe changes: what
+// is already recorded keeps its own name and values. A name another of theirs has is a
 // *NameTakenError, a new Ingredient added since the form was read an
 // *ingredients.NameTakenError, and one they haven't got is ErrNoRecipe.
 func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, rec domain.Recipe) error {
@@ -105,9 +105,9 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, id int64, rec dom
 	})
 }
 
-// Delete deletes the signed-in User's Recipe id with its own rows, freeing its
-// Ingredients, and is its name, or ErrNoRecipe. One a Plan or a Plan Proposal prepares
-// is ErrInPlan, with its name.
+// Delete deletes the signed-in User's Recipe `id` with its own rows, freeing its
+// Ingredients, and is its `name`, or ErrNoRecipe. One a Plan or a Plan Proposal prepares
+// is ErrInPlan, with its `name`.
 func (s *Service) Delete(ctx context.Context, id int64) (name string, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if name, err = deleteRecipe(ctx, tx, id); err != nil {
@@ -122,8 +122,8 @@ func (s *Service) Delete(ctx context.Context, id int64) (name string, err error)
 	return name, err
 }
 
-// saveIngredients adds rec's new Ingredients for a User speaking l, in the caller's
-// transaction, and lists all of them on the Recipe id.
+// saveIngredients adds `rec`'s new Ingredients for a User speaking `l`, in the caller's
+// transaction, and lists all of them on the Recipe `id`.
 func saveIngredients(ctx context.Context, q db.Querier, l domain.Language, id int64, rec domain.Recipe) (err error) {
 	for i, ri := range rec.Ingredients {
 		if !ri.Ingredient.IsNew() {
@@ -136,8 +136,8 @@ func saveIngredients(ctx context.Context, q db.Querier, l domain.Language, id in
 	return saveRecipeIngredients(ctx, q, id, rec)
 }
 
-// Search is the signed-in User's Recipes whose names a search for query finds, most alike
-// first, or all of them by name for a blank query.
+// Search is the signed-in User's Recipes whose names a search for `query` finds, most
+// alike first, or all of them by name for a blank `query`.
 func (s *Service) Search(ctx context.Context, query string) ([]domain.Recipe, error) {
 	var recipes []domain.Recipe
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
@@ -158,7 +158,7 @@ func (s *Service) Search(ctx context.Context, query string) ([]domain.Recipe, er
 	return found, nil
 }
 
-// Find is the signed-in User's Recipe id, or ErrNoRecipe.
+// Find is the signed-in User's Recipe `id`, or ErrNoRecipe.
 func (s *Service) Find(ctx context.Context, id int64) (domain.Recipe, error) {
 	var recipes []domain.Recipe
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {

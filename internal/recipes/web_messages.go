@@ -108,7 +108,7 @@ var (
 	msgNeeds       = web.Message{En: "Needs", It: "Richiede"}
 )
 
-// fieldMessage says why field of the Recipe is refused for problem.
+// fieldMessage says why `field` of the Recipe is refused for `problem`.
 func fieldMessage(field string, problem domain.Problem) web.Message {
 	switch {
 	case field == "name":

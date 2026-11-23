@@ -31,7 +31,7 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
-// SignedIn serves next only to a signed-in User, on a context carrying
+// SignedIn serves `next` only to a signed-in User, on a context carrying
 // them, whose id the request's span records; anyone else goes to sign-in.
 func (h Handlers) SignedIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

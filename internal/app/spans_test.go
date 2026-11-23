@@ -455,8 +455,8 @@ func TestSupabaseIsSentNoTraceparent(t *testing.T) {
 	}
 }
 
-// onlySpan is the one span that matches, described as what; finding none or several fails
-// the test.
+// onlySpan is the one span that matches, described as `what`; finding none or several
+// fails the test.
 func onlySpan(t *testing.T, spans tracetest.SpanStubs, what string, match func(tracetest.SpanStub) bool) tracetest.SpanStub {
 	t.Helper()
 	var found []tracetest.SpanStub
@@ -471,7 +471,7 @@ func onlySpan(t *testing.T, spans tracetest.SpanStubs, what string, match func(t
 	return found[0]
 }
 
-// hasQueryUnder reports whether a child of parent is a query's span: a client's,
+// hasQueryUnder reports whether a child of `parent` is a query's span: a client's,
 // but not a call to Supabase Auth.
 func hasQueryUnder(spans tracetest.SpanStubs, parent tracetest.SpanStub) bool {
 	for _, s := range spans {
@@ -482,7 +482,7 @@ func hasQueryUnder(spans tracetest.SpanStubs, parent tracetest.SpanStub) bool {
 	return false
 }
 
-// names lists the spans' names, for a failure to show.
+// names lists the `spans`' names, for a failure to show.
 func names(spans tracetest.SpanStubs) string {
 	var n []string
 	for _, s := range spans {
@@ -491,8 +491,8 @@ func names(spans tracetest.SpanStubs) string {
 	return strings.Join(n, ", ")
 }
 
-// get requests path from the app with header, as a browser or htmx would, returning the
-// response's header.
+// get requests `path` from the app with `header`, as a browser or htmx would, returning
+// the response's header.
 func get(t *testing.T, h *apptest.Harness, path string, header http.Header) http.Header {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodGet, h.URL+path, nil)
@@ -516,7 +516,7 @@ func requestSpan(t *testing.T, spans *recordedSpans) tracetest.SpanStub {
 	})
 }
 
-// attr is the span's attribute key, if it has one.
+// attr is the span's attribute `key`, if it has one.
 func attr(s tracetest.SpanStub, key attribute.Key) (attribute.Value, bool) {
 	for _, a := range s.Attributes {
 		if a.Key == key {
@@ -527,7 +527,7 @@ func attr(s tracetest.SpanStub, key attribute.Key) (attribute.Value, bool) {
 }
 
 // parseWithSpans is a signed-in User who knows rice, their spans going to the exporter it
-// returns, who has pasted pastedLasagne for a parse Run the model answers with steps.
+// returns, who has pasted pastedLasagne for a parse Run the model answers with `steps`.
 func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *recordedSpans) {
 	t.Helper()
 	opt, spans := withSpans(t)
@@ -544,7 +544,7 @@ func parseWithSpans(t *testing.T, steps ...fakellm.Step) (*apptest.Scenario, *re
 }
 
 // runAndCallSpans is the one Run's span among those exported, and the spans of its
-// calls to the model under it, in order.
+// `calls` to the model under it, in order.
 func runAndCallSpans(t *testing.T, spans *recordedSpans) (run tracetest.SpanStub, calls tracetest.SpanStubs) {
 	t.Helper()
 	all := spans.GetSpans()
@@ -681,8 +681,8 @@ func TestARunInterruptedByAStopIsAnErrorSpanButNotItsCall(t *testing.T) {
 	}
 }
 
-// hasAttrs fails the test for each attribute of want the span, described as what, lacks
-// or holds otherwise.
+// hasAttrs fails the test for each attribute of `want` the span, described as `what`,
+// lacks or holds otherwise.
 func hasAttrs(t *testing.T, what string, s tracetest.SpanStub, want map[attribute.Key]attribute.Value) {
 	t.Helper()
 	for key, value := range want {

@@ -34,7 +34,7 @@ func NewScenario(t testing.TB, opts ...Option) *Scenario {
 	return s
 }
 
-// At moves the clock forward to when: a weekday and a time, "Tue 10:00",
+// At moves the clock forward to `when`: a weekday and a time, "Tue 10:00",
 // the next one from now (or now itself), or a date and a time,
 // "2026-11-03 10:00". The clock never moves back.
 func (s *Scenario) At(when string) {
@@ -77,7 +77,7 @@ func (s *Scenario) NextDay() {
 	s.record("next day")
 }
 
-// Open requests path as the User's browser does, and keeps the page for
+// Open requests `path` as the User's browser does, and keeps the page for
 // the checks that follow.
 func (s *Scenario) Open(path string) {
 	s.t.Helper()
@@ -88,7 +88,7 @@ func (s *Scenario) Open(path string) {
 	}
 }
 
-// IsAt checks the page last opened is at path, where any redirect led.
+// IsAt checks the page last opened is at `path`, where any redirect led.
 func (s *Scenario) IsAt(path string) {
 	s.t.Helper()
 	if s.page.Path != path {
@@ -98,13 +98,13 @@ func (s *Scenario) IsAt(path string) {
 	s.record("is at " + path)
 }
 
-// Invite invites email, as from Supabase's dashboard.
+// Invite invites `email`, as from Supabase's dashboard.
 func (s *Scenario) Invite(email string) {
 	s.Harness.Invite(email)
 	s.record("invites " + email)
 }
 
-// AsksForALink asks for a magic link for email on the sign-in page.
+// AsksForALink asks for a magic link for `email` on the sign-in page.
 func (s *Scenario) AsksForALink(email string) {
 	s.t.Helper()
 	s.page = s.AskForLink(s.t, email)
@@ -114,7 +114,7 @@ func (s *Scenario) AsksForALink(email string) {
 // Page is the page last opened.
 func (s *Scenario) Page() Response { return s.page }
 
-// SignsIn signs the invited email in by magic link, landing on Today, or at a first
+// SignsIn signs the invited `email` in by magic link, landing on Today, or at a first
 // sign-in on the Language choice.
 func (s *Scenario) SignsIn(email string) {
 	s.t.Helper()
@@ -125,7 +125,7 @@ func (s *Scenario) SignsIn(email string) {
 	}
 }
 
-// ChoosesLanguage chooses the Language named name, as named on the Language choice open
+// ChoosesLanguage chooses the Language named `name`, as named on the Language choice open
 // at a first sign-in.
 func (s *Scenario) ChoosesLanguage(name string) {
 	s.t.Helper()
@@ -133,7 +133,7 @@ func (s *Scenario) ChoosesLanguage(name string) {
 	s.record(fmt.Sprintf("chooses %s: %d %s", name, s.page.StatusCode, s.page.Path))
 }
 
-// ChangesLanguage changes the Language to the one named name on the Profile open.
+// ChangesLanguage changes the Language to the one named `name` on the Profile open.
 func (s *Scenario) ChangesLanguage(name string) {
 	s.t.Helper()
 	form := Choose(s.t, s.page.Body, "profile-language", name)
@@ -141,7 +141,7 @@ func (s *Scenario) ChangesLanguage(name string) {
 	s.record(fmt.Sprintf("changes the Language to %s: %d %s", name, s.page.StatusCode, s.page.Path))
 }
 
-// SwitchesTo signs out from the Profile and signs the invited email in, as another User
+// SwitchesTo signs out from the Profile and signs the invited `email` in, as another User
 // sharing the browser.
 func (s *Scenario) SwitchesTo(email string) {
 	s.t.Helper()
@@ -150,7 +150,7 @@ func (s *Scenario) SwitchesTo(email string) {
 	s.SignsIn(email)
 }
 
-// Follows follows the link on the page open that shows text.
+// Follows follows the link on the page open that shows `text`.
 func (s *Scenario) Follows(text string) {
 	s.t.Helper()
 	s.page = s.Get(s.t, Link(s.t, s.page.Body, text))
@@ -165,7 +165,7 @@ func (s *Scenario) SignsOut() {
 	s.record(fmt.Sprintf("signs out: %d %s", s.page.StatusCode, s.page.Path))
 }
 
-// Sees checks the page last opened shows want.
+// Sees checks the page last opened shows `want`.
 func (s *Scenario) Sees(want string) {
 	s.t.Helper()
 	if shown := Text(s.page.Body); !strings.Contains(shown, want) {
@@ -176,7 +176,7 @@ func (s *Scenario) Sees(want string) {
 	s.record(fmt.Sprintf("sees %q", want))
 }
 
-// DoesNotSee checks the page last opened doesn't show unwanted.
+// DoesNotSee checks the page last opened doesn't show `unwanted`.
 func (s *Scenario) DoesNotSee(unwanted string) {
 	s.t.Helper()
 	if shown := Text(s.page.Body); strings.Contains(shown, unwanted) {
@@ -187,7 +187,7 @@ func (s *Scenario) DoesNotSee(unwanted string) {
 	s.record(fmt.Sprintf("does not see %q", unwanted))
 }
 
-// IsConfirmed checks the page last opened confirms want in a floating Notice.
+// IsConfirmed checks the page last opened confirms `want` in a floating Notice.
 func (s *Scenario) IsConfirmed(want string) {
 	s.t.Helper()
 	notices := Notices(s.t, s.page.Body)
@@ -225,7 +225,7 @@ type Ingredient struct {
 	Staple                                  bool
 }
 
-// Fill sets f, the add form, to ing.
+// Fill sets `f`, the add form, to `ing`.
 func (ing Ingredient) Fill(f FormData) {
 	for field, v := range map[string]string{
 		"name": ing.Name, "unit": ing.Unit, "usual": ing.Usual,
@@ -240,8 +240,8 @@ func (ing Ingredient) Fill(f FormData) {
 	}
 }
 
-// AddsIngredient adds ing with the add form on the page open, or else on the add page the
-// Ingredients page's + goes to, posted as a browser without htmx.
+// AddsIngredient adds `ing` with the add form on the page open, or else on the add page
+// the Ingredients page's + goes to, posted as a browser without htmx.
 func (s *Scenario) AddsIngredient(ing Ingredient) {
 	s.t.Helper()
 	if !strings.Contains(s.page.Body, `id="ingredient-add"`) {
@@ -258,7 +258,7 @@ type Portions struct {
 	Name, HowMany, Location, Kcal, Protein, Carbs, Fat, Fibre, Sugar, Note string
 }
 
-// AddsPortions adds p with the Add Portions page, posted as a browser without htmx.
+// AddsPortions adds `p` with the Add Portions page, posted as a browser without htmx.
 func (s *Scenario) AddsPortions(p Portions) {
 	s.t.Helper()
 	s.Open("/kitchen/portions")
@@ -273,8 +273,8 @@ func (s *Scenario) AddsPortions(p Portions) {
 	s.record(fmt.Sprintf("adds %s of the Portions %q: %d %s", p.HowMany, p.Name, s.page.StatusCode, s.page.Path))
 }
 
-// EditsIngredient edits the Ingredient named name with its edit form on the page open,
-// setting every field to ing's, posted as a browser without htmx.
+// EditsIngredient edits the Ingredient named `name` with its edit form on the page open,
+// setting every field to `ing`'s, posted as a browser without htmx.
 func (s *Scenario) EditsIngredient(name string, ing Ingredient) {
 	s.t.Helper()
 	form := EditForm(s.t, s.page.Body, name)
@@ -283,7 +283,7 @@ func (s *Scenario) EditsIngredient(name string, ing Ingredient) {
 	s.record(fmt.Sprintf("edits the Ingredient %q to %q: %d %s", name, ing.Name, s.page.StatusCode, s.page.Path))
 }
 
-// DeletesIngredient deletes the Ingredient named name from the page open, following its
+// DeletesIngredient deletes the Ingredient named `name` from the page open, following its
 // Delete to the step that asks first and confirming there, as a browser without htmx.
 func (s *Scenario) DeletesIngredient(name string) {
 	s.t.Helper()
@@ -293,7 +293,7 @@ func (s *Scenario) DeletesIngredient(name string) {
 	s.record(fmt.Sprintf("deletes the Ingredient %q: %d %s", name, s.page.StatusCode, s.page.Path))
 }
 
-// Submits submits the form with id on the page open as it is shown, as a browser
+// Submits submits the form with `id` on the page open as it is shown, as a browser
 // without htmx.
 func (s *Scenario) Submits(id string) {
 	s.t.Helper()
@@ -302,7 +302,7 @@ func (s *Scenario) Submits(id string) {
 	s.record(fmt.Sprintf("submits %s: %d %s", id, s.page.StatusCode, s.page.Path))
 }
 
-// SearchesIngredients searches the Ingredients for query with the page's search form,
+// SearchesIngredients searches the Ingredients for `query` with the page's search form,
 // as a browser without htmx.
 func (s *Scenario) SearchesIngredients(query string) {
 	s.t.Helper()
@@ -312,7 +312,7 @@ func (s *Scenario) SearchesIngredients(query string) {
 	s.record(fmt.Sprintf("searches the Ingredients for %q: %d %s", query, s.page.StatusCode, s.page.Path))
 }
 
-// SearchesRecipes searches the Recipe Library for query with the page's search form, as
+// SearchesRecipes searches the Recipe Library for `query` with the page's search form, as
 // a browser without htmx.
 func (s *Scenario) SearchesRecipes(query string) {
 	s.t.Helper()
@@ -332,9 +332,9 @@ func (s *Scenario) IsRefused() {
 	s.record("is refused")
 }
 
-// Moves opens the Kitchen page, follows the row's link (such as "Move rice in the
-// pantry") and posts its form: quantity, unless blank leaves its default, to the Storage
-// Location to, with note.
+// Moves opens the Kitchen page, follows the row's `link` (such as "Move rice in the
+// pantry") and posts its form: `quantity`, unless blank leaves its default, to the
+// Storage Location `to`, with `note`.
 func (s *Scenario) Moves(link, quantity, to, note string) {
 	s.t.Helper()
 	s.Open("/kitchen")
@@ -363,9 +363,9 @@ func (s *Scenario) CountsAgainASecondAhead() {
 	s.record("counts again, a second ahead")
 }
 
-// Counts counts name with the Count form, as a browser without htmx: it finds the
-// Ingredient, keeps its usual Storage Location unless location is given, and states
-// stated, with note.
+// Counts counts `name` with the Count form, as a browser without htmx: it finds the
+// Ingredient, keeps its usual Storage Location unless `location` is given, and states
+// `stated`, with `note`.
 func (s *Scenario) Counts(name, location, stated, note string) {
 	s.t.Helper()
 	s.Open("/kitchen/count")
@@ -380,7 +380,7 @@ func (s *Scenario) Counts(name, location, stated, note string) {
 	s.record(fmt.Sprintf("counts %s of %s in %q: %d %s", stated, name, location, s.page.StatusCode, s.page.Path))
 }
 
-// LinkQuery opens the Kitchen page and is the query of its link showing text, such as a
+// LinkQuery opens the Kitchen page and is the query of its link showing `text`, such as a
 // Portion Lot's "Count lasagne in the freezer".
 func (s *Scenario) LinkQuery(text string) string {
 	s.t.Helper()
@@ -393,8 +393,8 @@ func (s *Scenario) LinkQuery(text string) string {
 	return query
 }
 
-// CountsPortions opens the Kitchen page, follows the Lot's link (such as "Count lasagne
-// in the freezer") and posts its form as a browser without htmx: stated, with note.
+// CountsPortions opens the Kitchen page, follows the Lot's `link` (such as "Count lasagne
+// in the freezer") and posts its form as a browser without htmx: `stated`, with `note`.
 func (s *Scenario) CountsPortions(link, stated, note string) {
 	s.t.Helper()
 	s.Open("/kitchen")
@@ -422,7 +422,7 @@ type Recipe struct {
 	Ingredients                   []RecipeRow
 }
 
-// Fill sets f, the Recipe form, to r.
+// Fill sets `f`, the Recipe form, to `r`.
 func (r Recipe) Fill(f FormData) {
 	for field, v := range map[string]string{
 		"name": r.Name, "portions": r.Portions, "active": r.Active, "total": r.Total,
@@ -455,14 +455,14 @@ func (r Recipe) Fill(f FormData) {
 	}
 }
 
-// WritesRecipe writes r with the Recipe form, posted as a browser without htmx.
+// WritesRecipe writes `r` with the Recipe form, posted as a browser without htmx.
 func (s *Scenario) WritesRecipe(r Recipe) {
 	s.t.Helper()
 	s.Open("/recipes/new")
 	s.PostsRecipeForm(r)
 }
 
-// PostsRecipeForm posts the Recipe form on the page open, set to r.
+// PostsRecipeForm posts the Recipe form on the page open, set to `r`.
 func (s *Scenario) PostsRecipeForm(r Recipe) {
 	s.t.Helper()
 	form := Form(s.t, s.page.Body, "recipe-form")
@@ -471,7 +471,7 @@ func (s *Scenario) PostsRecipeForm(r Recipe) {
 	s.record(fmt.Sprintf("writes the Recipe %q: %d %s", r.Name, s.page.StatusCode, s.page.Path))
 }
 
-// PastesRecipe pastes text on the paste page, lands on its Run's page, and
+// PastesRecipe pastes `text` on the paste page, lands on its Run's page, and
 // reloads it once the Run has ended.
 func (s *Scenario) PastesRecipe(text string) {
 	s.t.Helper()
@@ -480,7 +480,7 @@ func (s *Scenario) PastesRecipe(text string) {
 	s.Open(s.page.Path)
 }
 
-// StartsParse pastes text on the paste page, the Recipe Library's + without htmx, and
+// StartsParse pastes `text` on the paste page, the Recipe Library's + without htmx, and
 // lands on its Run's page, the Run going.
 func (s *Scenario) StartsParse(text string) {
 	s.t.Helper()
@@ -498,7 +498,7 @@ func (s *Scenario) Restarts() {
 	s.record("restarts Dandori")
 }
 
-// CancelsRun cancels a Run with form, the cancel form its page showed, and lands where
+// CancelsRun cancels a Run with `form`, the cancel form its page showed, and lands where
 // that goes.
 func (s *Scenario) CancelsRun(form FormData) {
 	s.t.Helper()
@@ -511,7 +511,7 @@ type Targets struct {
 	Kcal, Protein, Fibre, Sugar, Tolerance string
 }
 
-// Fill sets f, the Targets form, to targets.
+// Fill sets `f`, the Targets form, to `targets`.
 func (targets Targets) Fill(f FormData) {
 	for field, v := range map[string]string{
 		"kcal": targets.Kcal, "protein": targets.Protein, "fibre": targets.Fibre,
@@ -521,7 +521,7 @@ func (targets Targets) Fill(f FormData) {
 	}
 }
 
-// SavesTargets saves targets with the Targets form on the Profile open, posted as a
+// SavesTargets saves `targets` with the Targets form on the Profile open, posted as a
 // browser without htmx.
 func (s *Scenario) SavesTargets(targets Targets) {
 	s.t.Helper()
@@ -537,7 +537,7 @@ type TimesOfDay struct {
 	Breakfast, Lunch, Snack, Dinner string
 }
 
-// Fill sets f, the times-of-day form, to times.
+// Fill sets `f`, the times-of-day form, to `times`.
 func (times TimesOfDay) Fill(f FormData) {
 	for field, v := range map[string]string{
 		"breakfast": times.Breakfast, "lunch": times.Lunch, "snack": times.Snack, "dinner": times.Dinner,
@@ -546,7 +546,7 @@ func (times TimesOfDay) Fill(f FormData) {
 	}
 }
 
-// SavesTimesOfDay saves times with the times-of-day form on the Profile open, posted as
+// SavesTimesOfDay saves `times` with the times-of-day form on the Profile open, posted as
 // a browser without htmx.
 func (s *Scenario) SavesTimesOfDay(times TimesOfDay) {
 	s.t.Helper()
@@ -561,7 +561,7 @@ type MealOut struct {
 	Kcal, Protein, Carbs, Fat, Fibre, Sugar string
 }
 
-// Fill sets f, the Meal Out estimate's form, to estimate.
+// Fill sets `f`, the Meal Out estimate's form, to `estimate`.
 func (estimate MealOut) Fill(f FormData) {
 	for field, v := range map[string]string{
 		"kcal": estimate.Kcal, "protein": estimate.Protein, "carbs": estimate.Carbs,
@@ -571,7 +571,7 @@ func (estimate MealOut) Fill(f FormData) {
 	}
 }
 
-// SavesMealOut saves estimate with the Meal Out estimate's form on the Profile open,
+// SavesMealOut saves `estimate` with the Meal Out estimate's form on the Profile open,
 // posted as a browser without htmx.
 func (s *Scenario) SavesMealOut(estimate MealOut) {
 	s.t.Helper()
@@ -581,7 +581,7 @@ func (s *Scenario) SavesMealOut(estimate MealOut) {
 	s.record(fmt.Sprintf("saves the Meal Out estimate %+v: %d %s", estimate, s.page.StatusCode, s.page.Path))
 }
 
-// SavesFoods saves exclusions and allergies, each as typed, with their form on the
+// SavesFoods saves `exclusions` and `allergies`, each as typed, with their form on the
 // Profile open, posted as a browser without htmx.
 func (s *Scenario) SavesFoods(exclusions, allergies string) {
 	s.t.Helper()
@@ -592,8 +592,8 @@ func (s *Scenario) SavesFoods(exclusions, allergies string) {
 	s.record(fmt.Sprintf("saves exclusions %q and allergies %q: %d %s", exclusions, allergies, s.page.StatusCode, s.page.Path))
 }
 
-// SavesAppliances ticks the kinds of appliance ticked, by code, unticking the rest, and
-// types notes, by code, beside any of them, with their form on the Profile open, posted
+// SavesAppliances ticks the kinds of appliance `ticked`, by code, unticking the rest, and
+// types `notes`, by code, beside any of them, with their form on the Profile open, posted
 // as a browser without htmx.
 func (s *Scenario) SavesAppliances(ticked []string, notes map[string]string) {
 	s.t.Helper()
@@ -606,7 +606,7 @@ func (s *Scenario) SavesAppliances(ticked []string, notes map[string]string) {
 	s.record(fmt.Sprintf("saves appliances %q with notes %q: %d %s", ticked, notes, s.page.StatusCode, s.page.Path))
 }
 
-// SavesBrief saves brief, as typed, as the Planning Brief with its form on the Profile
+// SavesBrief saves `brief`, as typed, as the Planning Brief with its form on the Profile
 // open, posted as a browser without htmx.
 func (s *Scenario) SavesBrief(brief string) {
 	s.t.Helper()
@@ -621,14 +621,14 @@ type Cycle struct {
 	Delivery, From, To, Ends string
 }
 
-// Fill sets f, the form opening a Cycle, to c.
+// Fill sets `f`, the form opening a Cycle, to `c`.
 func (c Cycle) Fill(f FormData) {
 	for field, v := range map[string]string{"delivery": c.Delivery, "from": c.From, "to": c.To, "ends": c.Ends} {
 		f.Values.Set(field, v)
 	}
 }
 
-// OpensCycle opens c with the form on the page to open a Cycle, posted as a browser
+// OpensCycle opens `c` with the form on the page to open a Cycle, posted as a browser
 // without htmx.
 func (s *Scenario) OpensCycle(c Cycle) {
 	s.t.Helper()
@@ -671,7 +671,7 @@ func (s *Scenario) PlansCycle() {
 }
 
 // Rejects rejects the pending Plan Proposal on the page open with the Planning Note
-// note, none when "", as a browser without htmx, and lands where that goes.
+// `note`, none when "", as a browser without htmx, and lands where that goes.
 func (s *Scenario) Rejects(note string) {
 	s.t.Helper()
 	form := Form(s.t, s.page.Body, "reject")
@@ -681,8 +681,8 @@ func (s *Scenario) Rejects(note string) {
 }
 
 // AsksForChanges asks for changes to the Plan on the page open with the Planning Note
-// note, as a browser without htmx, and lands where that goes: the planning Run's page, or
-// the Cycle page saying why it can't.
+// `note`, as a browser without htmx, and lands where that goes: the planning Run's page,
+// or the Cycle page saying why it can't.
 func (s *Scenario) AsksForChanges(note string) {
 	s.t.Helper()
 	form := Form(s.t, s.page.Body, "ask-for-changes")

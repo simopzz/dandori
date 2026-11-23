@@ -63,7 +63,7 @@ func (DemoLLM) Send(_ context.Context, req agent.Request) (agent.Response, error
 	}, nil
 }
 
-// pastedName is the first line of the recipe text in a parse Run's prompt, at most 80
+// pastedName is the first line of the recipe text in a parse Run's `prompt`, at most 80
 // characters of it.
 func pastedName(prompt string) string {
 	_, text, _ := strings.Cut(prompt, "<recipe>\n")
@@ -75,7 +75,7 @@ func pastedName(prompt string) string {
 	return ""
 }
 
-// knownUnits are the units of the known Ingredients a parse Run's prompt lists, by
+// knownUnits are the units of the known Ingredients a parse Run's `prompt` lists, by
 // normalised name, from its lines "- name (unit)".
 func knownUnits(l domain.Language, prompt string) map[string]domain.Unit {
 	units := map[string]domain.Unit{}

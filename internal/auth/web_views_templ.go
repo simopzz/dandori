@@ -398,7 +398,7 @@ func sentPage(today time.Time) templ.Component {
 }
 
 // confirmPage asks for one click before redeeming a magic link, so a mail scanner opening
-// the link can't use it up. u is the link, which switching Language keeps.
+// the link can't use it up. `u` is the link, which switching Language keeps.
 func confirmPage(u *url.URL, today time.Time, tokenHash, kind string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

@@ -55,9 +55,9 @@ type proposedIngredient struct {
 	Staple  bool                   `json:"staple"`
 }
 
-// recipe is p for a User speaking l, each Ingredient resolved by name to the one of known
-// it is, if any, and otherwise new with the values proposed. problems are what p has
-// that a Recipe can't, by field path, as the model is told.
+// recipe is `p` for a User speaking `l`, each Ingredient resolved by name to the one of
+// `known` it is, if any, and otherwise new with the values proposed. `problems` are what
+// `p` has that a Recipe can't, by field path, as the model is told.
 func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec domain.Recipe, problems map[string]string) {
 	problems = map[string]string{}
 	rec = domain.Recipe{
@@ -121,8 +121,8 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 	return rec, problems
 }
 
-// unknownKinds says which of got aren't on the list of kinds known, each a kind of what,
-// all of them so the model fixes them in one call, or is "" when there are none.
+// unknownKinds says which of `got` aren't on the list of kinds `known`, each a kind of
+// `what`, all of them so the model fixes them in one call, or is "" when there are none.
 func unknownKinds[K ~string](got, known []K, what string) string {
 	var unknown []string
 	for _, k := range got {
@@ -133,7 +133,7 @@ func unknownKinds[K ~string](got, known []K, what string) string {
 	return strings.Join(unknown, "; ")
 }
 
-// fixThese is problems, by field path, as the model is told them to fix, or nil when
+// fixThese is `problems`, by field path, as the model is told them to fix, or nil when
 // there are none.
 func fixThese(problems map[string]string) error {
 	if len(problems) == 0 {
@@ -154,8 +154,8 @@ var schemaFields = map[string]string{
 	"ingredient.fat": "new.fat_g", "ingredient.usual": "new.usual",
 }
 
-// amount is a proposed value v, nil being unknown, or why it can't be, kept in problems
-// at field.
+// amount is a proposed value `v`, nil being unknown, or why it can't be, kept in
+// `problems` at `field`.
 func amount(problems map[string]string, field string, v *float64) domain.Amount {
 	if v == nil {
 		return domain.Unknown
@@ -230,7 +230,7 @@ var submitRecipeSchema = json.RawMessage(fmt.Sprintf(`{
   "required": ["name", "portions", "active_minutes", "total_minutes", "slot_kinds", "appliances", "steps", "ingredients"]
 }`, enumOf(domain.SlotKinds), enumOf(domain.ApplianceKinds)))
 
-// enumOf is kinds as a JSON array of their codes, for a schema's enum.
+// enumOf is `kinds` as a JSON array of their codes, for a schema's enum.
 func enumOf[K ~string](kinds []K) []byte {
 	b, err := json.Marshal(kinds)
 	if err != nil {
@@ -239,8 +239,8 @@ func enumOf[K ~string](kinds []K) []byte {
 	return b
 }
 
-// parseBrief reads text into a Recipe Draft for a User speaking l, stored with the Run.
-// known are their Ingredients, which the model is told to reuse.
+// parseBrief reads `text` into a Recipe Draft for a User speaking `l`, stored with the
+// Run. `known` are their Ingredients, which the model is told to reuse.
 func (s *Service) parseBrief(l domain.Language, text string, known []domain.Ingredient) agent.Brief {
 	var prompt strings.Builder
 	prompt.WriteString("Known Ingredients:\n")

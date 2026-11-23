@@ -18,7 +18,7 @@ const (
 // SlotKinds lists every SlotKind in the order of a day.
 var SlotKinds = []SlotKind{Breakfast, Lunch, Snack, Dinner}
 
-// Before is the kind before k in the day; breakfast has none, "".
+// Before is the kind before `k` in the day; breakfast has none, "".
 func (k SlotKind) Before() SlotKind {
 	if i := slices.Index(SlotKinds, k); i > 0 {
 		return SlotKinds[i-1]
@@ -35,9 +35,9 @@ var DefaultSlotTimes = SlotTimes{Breakfast: 8 * 60, Lunch: 13 * 60, Snack: 17 * 
 // NotAfterTheOneBefore is a kind's time of day not after the one before it in the day.
 const NotAfterTheOneBefore Problem = "not after the one before"
 
-// ParseSlotTimes reads SlotTimes as typed, by SlotKind, with a problem per field refused:
-// a kind's time not after the one before's is refused on the later kind, and a field that
-// isn't a time skips the order check against it.
+// ParseSlotTimes reads SlotTimes as `typed`, by SlotKind, with a problem per field
+// refused: a kind's time not after the one before's is refused on the later kind, and a
+// field that isn't a time skips the order check against it.
 func ParseSlotTimes(typed map[string]string) (SlotTimes, map[string]Problem) {
 	times, problems := SlotTimes{}, map[string]Problem{}
 	for _, k := range SlotKinds {
@@ -60,7 +60,7 @@ type Slot struct {
 	Kind SlotKind
 }
 
-// At is when s is, by times, on the wall clock of its day.
+// At is when `s` is, by `times`, on the wall clock of its day.
 func (s Slot) At(times SlotTimes) time.Time {
 	y, m, d := s.On.Date()
 	t := times[s.Kind]
@@ -79,10 +79,10 @@ type Today struct {
 	Later []Slot
 }
 
-// TodayAt is the day's Slots at at, by times. A Slot is now from its time of day up to
-// and including NowFor after, to the minute; the latest such is First. Otherwise First is
-// the next Slot, tomorrow's breakfast once dinner's hour is past, and a dinner whose hour
-// runs past midnight is still now after it.
+// TodayAt is the day's Slots at `at`, by `times`. A Slot is now from its time of day up
+// to and including NowFor after, to the minute; the latest such is First. Otherwise First
+// is the next Slot, tomorrow's breakfast once dinner's hour is past, and a dinner whose
+// hour runs past midnight is still now after it.
 func TodayAt(at time.Time, times SlotTimes) Today {
 	y, m, d := at.Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, at.Location())

@@ -47,7 +47,7 @@ type Contents struct {
 	Portions []domain.PortionLot
 }
 
-// Contents is what the signed-in User's Kitchen Ledger adds up to at now.
+// Contents is what the signed-in User's Kitchen Ledger adds up to at `now`.
 func (s *Service) Contents(ctx context.Context, now time.Time) (Contents, error) {
 	var c Contents
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -86,9 +86,9 @@ type StockItemMovements struct {
 	Movements  []domain.StockMovement
 }
 
-// StockItemMovements is the Stock Item of the Ingredient id in location with its
+// StockItemMovements is the Stock Item of the Ingredient `id` in `location` with its
 // Movements, none if nothing has moved there, or nil if the signed-in User has no such
-// Ingredient or location is no Storage Location. One counted to nothing, or whose
+// Ingredient or `location` is no Storage Location. One counted to nothing, or whose
 // Ingredient is now a Staple, keeps them.
 func (s *Service) StockItemMovements(ctx context.Context, id int64, location domain.StorageLocation) (*StockItemMovements, error) {
 	if !slices.Contains(domain.StorageLocations, location) {
@@ -119,8 +119,8 @@ type Holding struct {
 	Held       map[domain.StorageLocation]domain.Quantity
 }
 
-// Holding is the signed-in User's Ingredient id and what each Storage Location holds of
-// it at now, or nil if they have no such Ingredient.
+// Holding is the signed-in User's Ingredient `id` and what each Storage Location holds of
+// it at `now`, or nil if they have no such Ingredient.
 func (s *Service) Holding(ctx context.Context, now time.Time, id int64) (holding *Holding, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		movements, err := ledger.LoadMovements(ctx, tx)
@@ -133,8 +133,8 @@ func (s *Service) Holding(ctx context.Context, now time.Time, id int64) (holding
 	return holding, err
 }
 
-// loadHolding is the Holding of the Ingredient id, or nil if there is none, as a Movement
-// written at now would find it in l.
+// loadHolding is the Holding of the Ingredient `id`, or nil if there is none, as a
+// Movement written at `now` would find it in `l`.
 func loadHolding(ctx context.Context, q db.Querier, l domain.Ledger, now time.Time, id int64) (*Holding, error) {
 	ing, ok, err := ingredients.LoadIngredient(ctx, q, id)
 	if err != nil || !ok {
@@ -143,9 +143,9 @@ func loadHolding(ctx context.Context, q db.Querier, l domain.Ledger, now time.Ti
 	return &Holding{Ingredient: ing, Held: l.HeldAt(l.WriteAt(now), id)}, nil
 }
 
-// Countable is the signed-in User's Ingredients a search for query finds, Staples left
-// out: no Stock Item holds one. When query names a Staple and nothing else is found,
-// staple is its name, speaking l.
+// Countable is the signed-in User's Ingredients a search for `query` finds, Staples left
+// out: no Stock Item holds one. When `query` names a Staple and nothing else is found,
+// `staple` is its name, speaking `l`.
 func (s *Service) Countable(ctx context.Context, l domain.Language, query string) (found []domain.Ingredient, staple string, err error) {
 	all, err := s.ingredients.Search(ctx, query)
 	if err != nil {
@@ -174,11 +174,11 @@ type Recorded struct {
 	Problems map[string]domain.Problem
 }
 
-// Count records at now the Count of the Ingredient id in location, stating what the User
-// typed is there, as domain.ParseCount reads it. All is read once the kitchen is held, in
-// the transaction that writes it, so the Count is of the Kitchen Ledger as it stands and
-// not as a form showed it. It is nil if the signed-in User has no such Ingredient.
-// Counting a Staple is ErrStaple, with what was read.
+// Count records at `now` the Count of the Ingredient `id` in `location`, stating what the
+// User typed is there, as domain.ParseCount reads it. All is read once the kitchen is
+// held, in the transaction that writes it, so the Count is of the Kitchen Ledger as it
+// stands and not as a form showed it. It is nil if the signed-in User has no such
+// Ingredient. Counting a Staple is ErrStaple, with what was read.
 func (s *Service) Count(ctx context.Context, now time.Time, id int64, location domain.StorageLocation, stated, note string) (rec *Recorded, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
@@ -202,7 +202,7 @@ func (s *Service) Count(ctx context.Context, now time.Time, id int64, location d
 	return rec, err
 }
 
-// AddPortions adds at now the Portions the User typed, as domain.ParsePortions reads
+// AddPortions adds at `now` the Portions in `typed`, as domain.ParsePortions reads
 // them: each Portion a row of its own and one Movement that lists them. Refused, as
 // also when the Portion Lot they join can't fit them, it writes nothing and says why,
 // by field.
@@ -232,8 +232,8 @@ func (s *Service) AddPortions(ctx context.Context, now time.Time, typed domain.T
 	return p, problems, err
 }
 
-// loadLot is the Portion Lot key names, as a Movement written at now would find it in l,
-// with the signed-in User's Portions; or nil if they have no such Portion.
+// loadLot is the Portion Lot `key` names, as a Movement written at `now` would find it in
+// `l`, with the signed-in User's Portions; or nil if they have no such Portion.
 func loadLot(ctx context.Context, q db.Querier, l domain.Ledger, now time.Time, key domain.LotKey) (*domain.PortionLot, []domain.Portion, error) {
 	portions, err := ledger.LoadPortions(ctx, q)
 	if err != nil {
@@ -246,7 +246,7 @@ func loadLot(ctx context.Context, q db.Querier, l domain.Ledger, now time.Time, 
 	return &lot, portions, nil
 }
 
-// PortionLot is the Portion Lot key names at now, or nil if the signed-in User has no
+// PortionLot is the Portion Lot `key` names at `now`, or nil if the signed-in User has no
 // such Portion.
 func (s *Service) PortionLot(ctx context.Context, now time.Time, key domain.LotKey) (lot *domain.PortionLot, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -266,7 +266,7 @@ type LotMovements struct {
 	Movements []domain.StockMovement
 }
 
-// LotMovements is the Portion Lot key names with its Movements, or nil if the signed-in
+// LotMovements is the Portion Lot `key` names with its Movements, or nil if the signed-in
 // User has no such Portion.
 func (s *Service) LotMovements(ctx context.Context, now time.Time, key domain.LotKey) (item *LotMovements, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -296,9 +296,9 @@ type RecordedPortions struct {
 	Problems map[string]domain.Problem
 }
 
-// writeLot holds the kitchen, reads the Portion Lot key names, and has write fill in the
-// Movement to record of it, if any: one that lists no Portion records nothing. It is nil
-// if the signed-in User has no such Portion.
+// writeLot holds the kitchen, reads the Portion Lot `key` names, and has `write` fill in
+// the Movement to record of it, if any: one that lists no Portion records nothing. It is
+// nil if the signed-in User has no such Portion.
 func (s *Service) writeLot(ctx context.Context, now time.Time, key domain.LotKey, write func(pgx.Tx, domain.Ledger, []domain.Portion, *RecordedPortions) error) (rec *RecordedPortions, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
@@ -316,10 +316,10 @@ func (s *Service) writeLot(ctx context.Context, now time.Time, key domain.LotKey
 	return rec, err
 }
 
-// CountPortions records at now the Count of the Portion Lot key names, stating what the
-// User typed is there, as domain.ParsePortionCount reads it, once the kitchen is held.
-// Counting up saves the Portions it adds. A Count of nothing where nothing is held, as
-// from a form another write has overtaken, lists no Portion, so records nothing.
+// CountPortions records at `now` the Count of the Portion Lot `key` names, stating what
+// the User typed is there, as domain.ParsePortionCount reads it, once the kitchen is
+// held. Counting up saves the Portions it adds. A Count of nothing where nothing is held,
+// as from a form another write has overtaken, lists no Portion, so records nothing.
 func (s *Service) CountPortions(ctx context.Context, now time.Time, key domain.LotKey, stated, note string) (*RecordedPortions, error) {
 	return s.writeLot(ctx, now, key, func(tx pgx.Tx, l domain.Ledger, _ []domain.Portion, rec *RecordedPortions) (err error) {
 		q, problems := domain.ParsePortionCount(key.Location, stated)
@@ -338,7 +338,7 @@ func (s *Service) CountPortions(ctx context.Context, now time.Time, key domain.L
 	})
 }
 
-// MovePortions records at now a move of some of the Portion Lot key names to another
+// MovePortions records at `now` a move of some of the Portion Lot `key` names to another
 // Storage Location, of what the User typed, as domain.ParseMove reads it, once the
 // kitchen is held; one domain.Ledger.MovePortions refuses is a problem of its quantity.
 func (s *Service) MovePortions(ctx context.Context, now time.Time, key domain.LotKey, to domain.StorageLocation, moved, note string) (*RecordedPortions, error) {
@@ -357,11 +357,11 @@ func (s *Service) MovePortions(ctx context.Context, now time.Time, key domain.Lo
 	})
 }
 
-// Move records at now a move of the Ingredient id from one Storage Location to another,
-// of what the User typed, as domain.ParseMove reads it. All is read once the kitchen is
-// held, so a move is checked against the Kitchen Ledger as it stands and not as a form
-// showed it; one domain.CheckMove refuses is a problem of its quantity. It is nil if the
-// signed-in User has no such Ingredient.
+// Move records at `now` a move of the Ingredient `id` from one Storage Location to
+// another, of what the User typed, as domain.ParseMove reads it. All is read once the
+// kitchen is held, so a move is checked against the Kitchen Ledger as it stands and not
+// as a form showed it; one domain.CheckMove refuses is a problem of its quantity. It is
+// nil if the signed-in User has no such Ingredient.
 func (s *Service) Move(ctx context.Context, now time.Time, id int64, from, to domain.StorageLocation, moved, note string) (rec *Recorded, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {

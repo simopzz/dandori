@@ -123,7 +123,7 @@ func (a *App) Settle() { a.runs.Wait() }
 
 // Schedule starts the scheduler, which beats on the app's clock every ledger.BeatEvery,
 // bringing every User's kitchen up to now and taking their Deliveries arrived as arrived,
-// until ctx ends. Each beat is a span.
+// until `ctx` ends. Each beat is a span.
 func (a *App) Schedule(ctx context.Context) {
 	tracer := a.spans.Tracer("github.com/simopzz/dandori/internal/app")
 	a.clock.Every(ctx, ledger.BeatEvery, func(at time.Time) {
@@ -258,8 +258,8 @@ func (a *App) Handler() http.Handler {
 		otelhttp.WithFilter(traced))
 }
 
-// traced reports whether r is a span: not the health check, which asks every ten seconds,
-// nor the assets every page loads.
+// traced reports whether `r` is a span: not the health check, which asks every ten
+// seconds, nor the assets every page loads.
 func traced(r *http.Request) bool {
 	switch p := r.URL.Path; {
 	case p == "/healthz", p == "/sw.js", p == "/manifest.webmanifest", strings.HasPrefix(p, "/static/"):
@@ -289,8 +289,8 @@ func described(next http.Handler) http.Handler {
 	})
 }
 
-// named names the request's span after the route mux matched. otelhttp would, but it sees
-// only the request web.Languages copies before mux routes it.
+// named names the request's span after the route `mux` matched. otelhttp would, but it
+// sees only the request web.Languages copies before `mux` routes it.
 func named(mux *http.ServeMux) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)

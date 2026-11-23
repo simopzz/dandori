@@ -93,8 +93,8 @@ func refused(err error) bool {
 	return ok && apiErr.Status < http.StatusInternalServerError
 }
 
-// sendMagicLink asks Supabase Auth to email a magic link to email, whose
-// link leads to redirectTo. It never creates a User: an email that wasn't
+// sendMagicLink asks Supabase Auth to email a magic link to `email`, whose
+// link leads to `redirectTo`. It never creates a User: an email that wasn't
 // invited is refused. An invited User who hasn't confirmed yet is sent
 // the signup confirmation instead, a link of type signup.
 func (s *supabase) sendMagicLink(ctx context.Context, email, redirectTo string) error {
@@ -102,7 +102,7 @@ func (s *supabase) sendMagicLink(ctx context.Context, email, redirectTo string) 
 	return s.post(ctx, "/auth/v1/otp?"+q.Encode(), "", map[string]any{"email": email, "create_user": false}, nil)
 }
 
-// verify redeems a link's token hash for a session. kind is the link's
+// verify redeems a link's token hash for a session. `kind` is the link's
 // type: email for a magic link, invite for an invitation, signup for a
 // signup confirmation.
 func (s *supabase) verify(ctx context.Context, tokenHash, kind string) (session, error) {
@@ -118,7 +118,7 @@ func (s *supabase) refresh(ctx context.Context, refreshToken string) (session, e
 	return sess, err
 }
 
-// signOut revokes the session accessToken belongs to.
+// signOut revokes the session `accessToken` belongs to.
 func (s *supabase) signOut(ctx context.Context, accessToken string) error {
 	return s.post(ctx, "/auth/v1/logout?scope=local", accessToken, nil, nil)
 }
@@ -170,7 +170,7 @@ var errNoKeys = errors.New("signing keys unavailable")
 // tokens with made-up kids can't make every request fetch it.
 const keyRefetch = time.Minute
 
-// check verifies accessToken was signed by the project for a signed-in
+// check verifies `accessToken` was signed by the project for a signed-in
 // User, and has not expired by the app's clock. It returns their id.
 func (s *supabase) check(ctx context.Context, accessToken string) (userID string, err error) {
 	var c struct {
@@ -199,8 +199,8 @@ func (s *supabase) check(ctx context.Context, accessToken string) (userID string
 	return c.Subject, nil
 }
 
-// key is the project's public signing key kid, fetching the JWKS again
-// when kid is new, at most once every keyRefetch: Supabase rotates its keys.
+// key is the project's public signing key `kid`, fetching the JWKS again
+// when `kid` is new, at most once every keyRefetch: Supabase rotates its keys.
 func (s *supabase) key(ctx context.Context, kid string) (any, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

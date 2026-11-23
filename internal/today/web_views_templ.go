@@ -18,7 +18,7 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is Today at now: the Slot now or next, the day's later Slots a click away, what
+// page is Today at `now`: the Slot now or next, the day's later Slots a click away, what
 // to do next about planning, where the Plan will show and what planning needs (no Plan
 // yet), and how up to date it is.
 func page(now time.Time, d Day) templ.Component {
@@ -395,9 +395,9 @@ func reminders(d Day) templ.Component {
 	})
 }
 
-// standingRow says how planning r's Cycle stands, linking to its Cycle page, straight to
-// the Plan Proposal when one is waiting. A failed one is urgent: the seal, not the Plan
-// page's icon, and an accent Tag.
+// standingRow says how planning `r`'s Cycle stands, linking to its Cycle page, straight
+// to the Plan Proposal when one is waiting. A failed one is urgent: the seal, not the
+// Plan page's icon, and an accent Tag.
 func standingRow(r Reminder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -524,7 +524,7 @@ func standingRow(r Reminder) templ.Component {
 	})
 }
 
-// standingURL is the Cycle page of r's Cycle, at its Plan Proposal when one is waiting.
+// standingURL is the Cycle page of `r`'s Cycle, at its Plan Proposal when one is waiting.
 func standingURL(r Reminder) templ.SafeURL {
 	url := fmt.Sprintf("/plan/cycles/%d", r.CycleID)
 	if r.Standing == planning.ProposalWaiting {

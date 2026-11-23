@@ -72,9 +72,9 @@ func serveBytes(contentType string, body []byte) http.HandlerFunc {
 
 type faroKey struct{}
 
-// Faro serves next with the Faro collector's url, which the Layout sends the browser's
-// telemetry to (static/faro.js). Without one, as in `mise run dev` and the tests, the
-// pages load no Faro at all.
+// Faro serves `next` with the Faro collector's `url`, which the Layout sends the
+// browser's telemetry to (static/faro.js). Without one, as in `mise run dev` and the
+// tests, the pages load no Faro at all.
 func Faro(url string, next http.Handler) http.Handler {
 	if url == "" {
 		return next

@@ -198,8 +198,8 @@ func TestARefusedRecipeDraftOpensTheRefusedRow(t *testing.T) {
 	}
 }
 
-// rowFolded reports whether the control named field on page is in a row that folds, and
-// whether that row is open.
+// rowFolded reports whether the control named `field` on `page` is in a row that folds,
+// and whether that row is `open`.
 func rowFolded(t *testing.T, page, field string) (folded, open bool) {
 	t.Helper()
 	doc, err := html.Parse(strings.NewReader(page))
@@ -317,7 +317,7 @@ func TestARecipeDraftFixesTheLanguage(t *testing.T) {
 	s.Sees(msgLanguageStays)
 }
 
-// draftHolds checks the Recipe form open on s holds each field's value.
+// draftHolds checks the Recipe form open on `s` holds each field's value.
 func draftHolds(t *testing.T, s *apptest.Scenario, want map[string]string) {
 	t.Helper()
 	form := apptest.Form(t, s.Page().Body, "recipe-form")

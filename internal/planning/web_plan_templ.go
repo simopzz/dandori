@@ -281,7 +281,7 @@ func sectionTitle(ctx context.Context, upcoming bool) string {
 	return web.T(ctx, msgCurrentCycle)
 }
 
-// noteError is why err refused a Planning Note on its field, or "".
+// noteError is why `err` refused a Planning Note on its field, or "".
 func noteError(ctx context.Context, err error) string {
 	if errors.Is(err, ErrNoNote) {
 		return web.T(ctx, msgNoNote)
@@ -289,10 +289,10 @@ func noteError(ctx context.Context, err error) string {
 	return ""
 }
 
-// askForChanges is Ask for changes to the Plan of the Cycle id, a TextButtonFold that
-// opens in place, as Reject does, to the Cycle's earlier Planning Notes, notes, newest
-// first, the line saying what asking does, and the note it needs, as typed, refused with
-// err if not "": open when open says the User is at it.
+// askForChanges is Ask for changes to the Plan of the Cycle `id`, a TextButtonFold that
+// opens in place, as Reject does, to the Cycle's earlier Planning Notes, `notes`, newest
+// first, the line saying what asking does, and the `note` it needs, as typed, refused
+// with `err` if not "": open when `open` says the User is at it.
 func askForChanges(id int64, notes []string, note, err string, open bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -344,7 +344,7 @@ func askForChanges(id int64, notes []string, note, err string, open bool) templ.
 	})
 }
 
-// planSection is the Plan p as Section 01: the averages and the soft misses it was
+// planSection is the Plan `p` as Section 01: the averages and the soft misses it was
 // approved with.
 func planSection(p Proposal) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -397,7 +397,7 @@ func planSection(p Proposal) templ.Component {
 	})
 }
 
-// planDayLine is d's line under its date, marked Today when it is.
+// planDayLine is `d`'s line under its date, marked Today when it is.
 func planDayLine(p Proposal, d proposalDay, now time.Time) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -464,8 +464,8 @@ func planDayLine(p Proposal, d proposalDay, now time.Time) templ.Component {
 	})
 }
 
-// pastFold is the days past, folded into one Group, each a row with its figures; nothing
-// when none is past.
+// pastFold is the days `past`, folded into one Group, each a row with its figures;
+// nothing when none is past.
 func pastFold(p Proposal, past []proposalDay) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -570,7 +570,7 @@ func pastFold(p Proposal, past []proposalDay) templ.Component {
 	})
 }
 
-// daysPastTitle says n days are past.
+// daysPastTitle says `n` days are past.
 func daysPastTitle(ctx context.Context, n int) string {
 	if n == 1 {
 		return web.T(ctx, msgOneDayPast)
@@ -578,7 +578,7 @@ func daysPastTitle(ctx context.Context, n int) string {
 	return web.Tf(ctx, msgDaysPast, n)
 }
 
-// splitPast splits ds into the days before today, at now, that fill a Slot, and those
+// splitPast splits `ds` into the days before today, at `now`, that fill a Slot, and those
 // from it on: a Delivery's day past with only its freezer splits has nothing left to do.
 func splitPast(ds []proposalDay, now time.Time) (past, ahead []proposalDay) {
 	for i, d := range ds {
@@ -592,10 +592,10 @@ func splitPast(ds []proposalDay, now time.Time) (past, ahead []proposalDay) {
 	return past, nil
 }
 
-// isToday is whether d is the day of now.
+// isToday is whether `d` is the day of `now`.
 func isToday(d proposalDay, now time.Time) bool { return d.On.Equal(startOfDay(now)) }
 
-// startOfDay is midnight of the day of t, in its zone.
+// startOfDay is midnight of the day of `t`, in its zone.
 func startOfDay(t time.Time) time.Time {
 	y, m, d := t.Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())

@@ -143,7 +143,7 @@ func TestPortionsFollowTheirMovements(t *testing.T) {
 	}
 }
 
-// whole is n Portions as a Quantity, as a Movement holds them.
+// whole is `n` Portions as a Quantity, as a Movement holds them.
 func whole(n float64) domain.Quantity { return domain.QuantityOf(n) }
 
 // A Lot is what is alike the Portion asked for, in that Storage Location; one no longer

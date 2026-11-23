@@ -15,14 +15,15 @@ import (
 // page it lands on, which shows it once.
 const noticeCookie = "notice"
 
-// redirectWithNotice answers a plain post with a redirect to path, whose page says text
-// in a floating Notice, once: a reload of that page, or Back to it, doesn't show it.
+// redirectWithNotice answers a plain post with a redirect to `path`, whose page says
+// `text` in a floating Notice, once: a reload of that page, or Back to it, doesn't
+// show it.
 func redirectWithNotice(w http.ResponseWriter, r *http.Request, path, text string) {
 	http.SetCookie(w, noticeCookieOf(r, base64.RawURLEncoding.EncodeToString([]byte(text)), 0))
 	http.Redirect(w, r, path, http.StatusSeeOther)
 }
 
-// noticeCookieOf is the notice cookie holding value, or with maxAge -1 its deletion.
+// noticeCookieOf is the notice cookie holding `value`, or with `maxAge` -1 its deletion.
 func noticeCookieOf(r *http.Request, value string, maxAge int) *http.Cookie {
 	return &http.Cookie{
 		Name: noticeCookie, Value: value, Path: "/", MaxAge: maxAge,
@@ -74,21 +75,21 @@ func (f *forgetsNotice) Write(b []byte) (int, error) {
 
 type noticeKey struct{}
 
-// WithNotice is ctx with text for Layout to show in a floating Notice, for a page that
-// confirms something without a redirect, such as the Ingredient just picked.
+// WithNotice is `ctx` with `text` for Layout to show in a floating Notice, for a page
+// that confirms something without a redirect, such as the Ingredient just picked.
 func WithNotice(ctx context.Context, text string) context.Context {
 	return context.WithValue(ctx, noticeKey{}, text)
 }
 
-// noticeOf is the text of the floating Notice the page in ctx shows, or "".
+// noticeOf is the text of the floating Notice the page in `ctx` shows, or "".
 func noticeOf(ctx context.Context) string {
 	text, _ := ctx.Value(noticeKey{}).(string)
 	return text
 }
 
-// FragmentWithNotice is c, a fragment htmx swaps, followed by a floating Notice saying
-// text, which htmx shows over the page, an open sheet included. c is nil for an answer
-// that only confirms.
+// FragmentWithNotice is `c`, a fragment htmx swaps, followed by a floating Notice saying
+// `text`, which htmx shows over the page, an open sheet included. `c` is nil for an
+// answer that only confirms.
 func FragmentWithNotice(c templ.Component, text string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		if c != nil {

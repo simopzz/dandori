@@ -65,7 +65,7 @@ func blankForm(known []domain.Ingredient) RecipeForm {
 	return newForm(RecipeForm{Known: known, Errs: map[string]string{}})
 }
 
-// formOf is the form to edit rec with, holding it as it is.
+// formOf is the form to edit `rec` with, holding it as it is.
 func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) RecipeForm {
 	f := RecipeForm{
 		ID: rec.ID, Name: rec.Name, Portions: strconv.Itoa(rec.Portions), Active: strconv.Itoa(rec.ActiveMinutes),
@@ -88,14 +88,15 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 	return newForm(f)
 }
 
-// draftForm is the form to check the Recipe Draft id with, holding rec as it was parsed.
+// draftForm is the form to check the Recipe Draft `id` with, holding `rec` as it
+// was parsed.
 func draftForm(ctx context.Context, id int64, rec domain.Recipe, known []domain.Ingredient) RecipeForm {
 	f := formOf(ctx, rec, known)
 	f.DraftID = id
 	return newForm(f)
 }
 
-// newForm is f as the form to post, with a row and a step to type in.
+// newForm is `f` as the form to post, with a row and a step to type in.
 func newForm(f RecipeForm) RecipeForm {
 	f.Action, f.Title, f.Heading, f.Submit = "/recipes", msgWriteTitle, msgWrite, msgSave
 	switch {
@@ -115,7 +116,7 @@ func newForm(f RecipeForm) RecipeForm {
 	return f
 }
 
-// byName is known by the key that identifies each for a User speaking l.
+// byName is `known` by the key that identifies each for a User speaking `l`.
 func byName(l domain.Language, known []domain.Ingredient) map[string]domain.Ingredient {
 	m := make(map[string]domain.Ingredient, len(known))
 	for _, ing := range known {
@@ -124,7 +125,7 @@ func byName(l domain.Language, known []domain.Ingredient) map[string]domain.Ingr
 	return m
 }
 
-// namesOf is known's names.
+// namesOf is `known`'s names.
 func namesOf(known []domain.Ingredient) []string {
 	names := make([]string, len(known))
 	for i, ing := range known {
@@ -133,20 +134,20 @@ func namesOf(known []domain.Ingredient) []string {
 	return names
 }
 
-// unitChanged says to give a quantity again in unit, which Dandori won't convert to.
+// unitChanged says to give a quantity again in `unit`, which Dandori won't convert to.
 func unitChanged(ctx context.Context, unit domain.Unit) string {
 	return web.Tf(ctx, msgUnitChanged, web.T(ctx, ingredients.RecordedIn[unit]))
 }
 
-// rowField is the form field of field on the row at index i.
+// rowField is the form field of `field` on the row at index `i`.
 func rowField(field string, i int) string { return fmt.Sprintf("ing_%s_%d", field, i) }
 
-// readRow reads the row at index i of form, matching its name to known, as an Ingredient
-// (one without an ID being new) and the row as shown. settled says the User has seen
-// the row for what it is now: a new one's fields, or a known one as known. A row picked
-// takes the name of the known Ingredient picked, if the User still has it. A row
-// shown in a unit that becomes a known Ingredient in another has its quantity
-// cleared, never converted.
+// readRow reads the row at index `i` of `form`, matching its name to `known`, as an
+// Ingredient (one without an ID being new) and the `row` as shown. `settled` says the
+// User has seen the row for what it is now: a new one's fields, or a known one as
+// `known`. A row picked takes the name of the known Ingredient picked, if the User still
+// has it. A row shown in a unit that becomes a known Ingredient in another has its
+// quantity cleared, never converted.
 func readRow(ctx context.Context, form url.Values, i int, known map[string]domain.Ingredient) (ing domain.Ingredient, row IngredientRow, settled bool) {
 	l := web.LanguageOf(ctx)
 	in := func(field string) string { return strings.TrimSpace(form.Get(rowField(field, i))) }
@@ -185,10 +186,11 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 	return ing, row, !row.Confirming
 }
 
-// readForm reads a posted form for the Recipe id, 0 for a new one, checked from the
-// Recipe Draft draftID unless that is 0, matching its rows to known and leaving out the
-// one whose Remove was pressed. It is the Recipe, the form to show back, and whether the
-// Recipe can be saved: it is valid and the User has seen every new Ingredient's fields.
+// readForm reads a posted form for the Recipe `id`, 0 for a new one, checked from the
+// Recipe Draft `draftID` unless that is 0, matching its rows to `known` and leaving out
+// the one whose Remove was pressed. It is the Recipe, the form to show back, and whether
+// the Recipe can be saved: it is valid and the User has seen every new
+// Ingredient's fields.
 func readForm(ctx context.Context, form url.Values, id, draftID int64, known []domain.Ingredient) (domain.Recipe, RecipeForm, bool) {
 	l := web.LanguageOf(ctx)
 	get := func(field string) string { return strings.TrimSpace(form.Get(field)) }
@@ -260,7 +262,7 @@ func readForm(ctx context.Context, form url.Values, id, draftID int64, known []d
 	return rec, f, ok && len(f.Errs) == 0 && !f.Confirm
 }
 
-// refusals are the fields f refused, in the order the form shows them: what its
+// refusals are the fields `f` refused, in the order the form shows them: what its
 // ErrorSummary lists.
 func (f RecipeForm) refusals(ctx context.Context) []web.Refusal {
 	var refusals []web.Refusal
@@ -282,7 +284,7 @@ func (f RecipeForm) refusals(ctx context.Context) []web.Refusal {
 	return refusals
 }
 
-// rowProblem says why field of a row is refused.
+// rowProblem says why `field` of a row is refused.
 func rowProblem(ctx context.Context, field string, problem domain.Problem) string {
 	switch field {
 	case "name":
@@ -293,7 +295,7 @@ func rowProblem(ctx context.Context, field string, problem domain.Problem) strin
 	return web.T(ctx, ingredients.ProblemMessage(field, problem))
 }
 
-// typed is row as the fields confirming its new Ingredient show it.
+// typed is `row` as the fields confirming its new Ingredient show it.
 func (row IngredientRow) typed() ingredients.TypedIngredient {
 	return ingredients.TypedIngredient{
 		Unit: row.Unit, Usual: row.Usual, Staple: row.Staple, Values: row.Values, Errs: row.Errs, Focus: row.Confirming,
@@ -301,7 +303,7 @@ func (row IngredientRow) typed() ingredients.TypedIngredient {
 	}
 }
 
-// nonBlank is lines trimmed, without the blank ones.
+// nonBlank is `lines` trimmed, without the blank ones.
 func nonBlank(lines []string) []string {
 	out := []string{}
 	for _, line := range lines {
@@ -312,7 +314,7 @@ func nonBlank(lines []string) []string {
 	return out
 }
 
-// picking reports whether form picks a suggestion for one of its rows.
+// picking reports whether `form` picks a suggestion for one of its rows.
 func picking(form url.Values) bool {
 	for field := range form {
 		if strings.HasPrefix(field, "ing_pick_") {
@@ -322,7 +324,7 @@ func picking(form url.Values) bool {
 	return false
 }
 
-// rowIndex is the row a fragment's query is about, from its name field's number.
+// rowIndex is the row a fragment's `query` is about, from its name field's number.
 func rowIndex(query url.Values) (int, bool) {
 	for field := range query {
 		if n, ok := strings.CutPrefix(field, "ing_name_"); ok {

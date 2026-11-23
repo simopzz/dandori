@@ -21,9 +21,9 @@ func CountRecipes(ctx context.Context, q db.Querier) (int, error) {
 	return n, err
 }
 
-// RecipesUsing is the first by name of the signed-in User's Recipes that list the
-// Ingredient id, or "" if none does, and how many others do, which ingredients is given
-// by app since this feature depends on it.
+// RecipesUsing is the `first` by name of the signed-in User's Recipes that list the
+// Ingredient `id`, or "" if none does, and how many `others` do, which ingredients is
+// given by app since this feature depends on it.
 func RecipesUsing(ctx context.Context, q db.Querier, id int64) (first string, others int, err error) {
 	err = q.QueryRow(ctx, `
 		SELECT r.name, count(*) OVER () - 1
@@ -36,7 +36,7 @@ func RecipesUsing(ctx context.Context, q db.Querier, id int64) (first string, ot
 	return first, others, err
 }
 
-// kindsIn is the kinds of all whose codes are in codes, in all's order, each once.
+// kindsIn is the kinds of `all` whose codes are in `codes`, in `all`'s order, each once.
 func kindsIn[K ~string](all []K, codes []string) []K {
 	var in []K
 	for _, k := range all {
@@ -47,8 +47,8 @@ func kindsIn[K ~string](all []K, codes []string) []K {
 	return in
 }
 
-// saveRecipe adds rec for the signed-in User under its normalised name, unless they have
-// a Recipe of that name, and is its id; added says whether it did.
+// saveRecipe adds `rec` for the signed-in User under its normalised name, unless they
+// have a Recipe of that name, and is its `id`; `added` says whether it did.
 func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised string) (id int64, added bool, err error) {
 	err = q.QueryRow(ctx, `
 		INSERT INTO recipe (name, normalised_name, portions, active_minutes, total_minutes, slot_kinds, appliances, steps)
@@ -62,8 +62,8 @@ func saveRecipe(ctx context.Context, q db.Querier, rec domain.Recipe, normalised
 	return id, err == nil, err
 }
 
-// updateRecipe sets the signed-in User's Recipe id to rec under its normalised name, or
-// is ErrNoRecipe.
+// updateRecipe sets the signed-in User's Recipe `id` to `rec` under its normalised name,
+// or is ErrNoRecipe.
 func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe, normalised string) error {
 	tag, err := q.Exec(ctx, `
 		UPDATE recipe SET name = $2, normalised_name = $3, portions = $4, active_minutes = $5, total_minutes = $6,
@@ -76,13 +76,14 @@ func updateRecipe(ctx context.Context, q db.Querier, id int64, rec domain.Recipe
 	return err
 }
 
-// deleteRecipeIngredients takes every Ingredient off the Recipe id.
+// deleteRecipeIngredients takes every Ingredient off the Recipe `id`.
 func deleteRecipeIngredients(ctx context.Context, q db.Querier, id int64) error {
 	_, err := q.Exec(ctx, `DELETE FROM recipe_ingredient WHERE recipe_id = $1`, id)
 	return err
 }
 
-// deleteRecipe deletes the signed-in User's Recipe id and is its name, or ErrNoRecipe.
+// deleteRecipe deletes the signed-in User's Recipe `id` and is its `name`,
+// or ErrNoRecipe.
 func deleteRecipe(ctx context.Context, q db.Querier, id int64) (name string, err error) {
 	err = q.QueryRow(ctx, `DELETE FROM recipe WHERE id = $1 RETURNING name`, id).Scan(&name)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -91,7 +92,7 @@ func deleteRecipe(ctx context.Context, q db.Querier, id int64) (name string, err
 	return name, err
 }
 
-// saveRecipeIngredients lists rec's Ingredients, every one saved, on the Recipe id.
+// saveRecipeIngredients lists `rec`'s Ingredients, every one saved, on the Recipe `id`.
 func saveRecipeIngredients(ctx context.Context, q db.Querier, id int64, rec domain.Recipe) error {
 	for i, ri := range rec.Ingredients {
 		if _, err := q.Exec(ctx, `
@@ -103,8 +104,8 @@ func saveRecipeIngredients(ctx context.Context, q db.Querier, id int64, rec doma
 	return nil
 }
 
-// loadTaken is the id and name of the signed-in User's Recipe under the key normalised,
-// other than the one except, or 0 if there is none.
+// loadTaken is the `id` and `name` of the signed-in User's Recipe under the key
+// `normalised`, other than the one `except`, or 0 if there is none.
 func loadTaken(ctx context.Context, q db.Querier, normalised string, except int64) (id int64, name string, err error) {
 	err = q.QueryRow(ctx, `SELECT id, name FROM recipe WHERE normalised_name = $1 AND id <> $2`, normalised, except).Scan(&id, &name)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -114,7 +115,7 @@ func loadTaken(ctx context.Context, q db.Querier, normalised string, except int6
 }
 
 // loadRecipes is the signed-in User's Recipes by name with their Ingredients, or only the
-// one with the id only, if that isn't nil.
+// one with the id `only`, if that isn't nil.
 func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recipe, error) {
 	rows, err := q.Query(ctx, `
 		SELECT id, name, portions, active_minutes, total_minutes, slot_kinds, appliances, steps FROM recipe
@@ -168,8 +169,9 @@ func loadRecipes(ctx context.Context, q db.Querier, only *int64) ([]domain.Recip
 // errRunEnded is a Recipe Draft its Run stores once it is no longer going, say cancelled.
 var errRunEnded = errors.New("the Run has ended")
 
-// storeDraft stores doc as the Recipe Draft of the Run runID, replacing any earlier one,
-// while the Run is going: locking it, so a cancel lands before or after, never between.
+// storeDraft stores `doc` as the Recipe Draft of the Run `runID`, replacing any earlier
+// one, while the Run is going: locking it, so a cancel lands before or after,
+// never between.
 func storeDraft(ctx context.Context, q db.Querier, runID int64, doc []byte) error {
 	tag, err := q.Exec(ctx, `
 		INSERT INTO recipe_draft (run_id, document)
@@ -181,7 +183,7 @@ func storeDraft(ctx context.Context, q db.Querier, runID int64, doc []byte) erro
 	return err
 }
 
-// loadDraftID is the id of the Recipe Draft the Run runID left, or ErrNoDraft.
+// loadDraftID is the `id` of the Recipe Draft the Run `runID` left, or ErrNoDraft.
 func loadDraftID(ctx context.Context, q db.Querier, runID int64) (id int64, err error) {
 	err = q.QueryRow(ctx, `SELECT id FROM recipe_draft WHERE run_id = $1`, runID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -190,7 +192,7 @@ func loadDraftID(ctx context.Context, q db.Querier, runID int64) (id int64, err 
 	return id, err
 }
 
-// loadDraft is the document of the Recipe Draft id and the text its Run read, or
+// loadDraft is the document of the Recipe Draft `id` and the text its Run read, or
 // ErrNoDraft unless its Run has succeeded: while it goes the model may still change it,
 // and a failed or cancelled Run's is never checked.
 func loadDraft(ctx context.Context, q db.Querier, id int64) (doc []byte, pasted string, err error) {
@@ -236,8 +238,8 @@ func loadDrafts(ctx context.Context, q db.Querier) ([]Draft, error) {
 	})
 }
 
-// deleteDraft deletes the Recipe Draft id and is its name, or ErrNoDraft unless its Run
-// has succeeded, as loadDraft has it.
+// deleteDraft deletes the Recipe Draft `id` and is its `name`, or ErrNoDraft unless its
+// Run has succeeded, as loadDraft has it.
 func deleteDraft(ctx context.Context, q db.Querier, id int64) (name string, err error) {
 	err = q.QueryRow(ctx, `
 		DELETE FROM recipe_draft d USING run r

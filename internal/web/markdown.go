@@ -13,7 +13,7 @@ import (
 // writes can't add markup to the page.
 var markdown = goldmark.New()
 
-// Markdown is text an agent wrote, such as a Run's closing notes, rendered
+// Markdown is `text` an agent wrote, such as a Run's closing notes, rendered
 // from its Markdown in a block of class prose.
 func Markdown(text string) templ.Component {
 	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {

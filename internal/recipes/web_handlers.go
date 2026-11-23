@@ -152,7 +152,7 @@ func (h Handlers) ShowDeleteSheet(w http.ResponseWriter, r *http.Request) {
 	h.showRemoval(w, r, true, h.deletion)
 }
 
-// discarding is the step asking before discarding the Recipe Draft id.
+// discarding is the step asking before discarding the Recipe Draft `id`.
 func (h Handlers) discarding(ctx context.Context, id int64) (removal, error) {
 	rec, _, err := h.Service.FindDraft(ctx, web.LanguageOf(ctx), id)
 	return removal{
@@ -161,7 +161,7 @@ func (h Handlers) discarding(ctx context.Context, id int64) (removal, error) {
 	}, err
 }
 
-// deletion is the step asking before deleting the Recipe id.
+// deletion is the step asking before deleting the Recipe `id`.
 func (h Handlers) deletion(ctx context.Context, id int64) (removal, error) {
 	rec, err := h.Service.Find(ctx, id)
 	return removal{
@@ -170,8 +170,9 @@ func (h Handlers) deletion(ctx context.Context, id int64) (removal, error) {
 	}, err
 }
 
-// showRemoval answers with the step find makes of the id in the path: as its sheet's body
-// when sheet, else as a page. An id the User has no Recipe or Recipe Draft of is unknown.
+// showRemoval answers with the step `find` makes of the id in the path: as its sheet's
+// body when `sheet`, else as a page. An id the User has no Recipe or Recipe Draft of
+// is unknown.
 func (h Handlers) showRemoval(w http.ResponseWriter, r *http.Request, sheet bool, find func(context.Context, int64) (removal, error)) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -225,8 +226,8 @@ func (h Handlers) RunPage() runs.KindPage {
 	}
 }
 
-// draftPage is the page of the Recipe Draft the signed-in User's parse Run runID left, or
-// "" if it left none: a Run's page links to it.
+// draftPage is the page of the Recipe Draft the signed-in User's parse Run `runID` left,
+// or "" if it left none: a Run's page links to it.
 func (h Handlers) draftPage(ctx context.Context, runID int64) (string, error) {
 	id, err := h.Service.DraftOf(ctx, runID)
 	if errors.Is(err, ErrNoDraft) {
@@ -376,11 +377,11 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	web.Answer{Notice: web.Tf(ctx, msgDeleted, name), RedirectTo: "/recipes"}.Write(w, r, h.Log)
 }
 
-// save saves the Recipe posted, with its new Ingredients, over the Recipe id, or as a new
-// one if id is 0, accepting the Recipe Draft draftID unless that is 0. A form that adds a
-// row, for a browser without htmx, comes back with one more and saves nothing; one that
-// removes a row comes back without it. One the form refuses comes back as typed with
-// why, a row of an unknown name opened to confirm.
+// save saves the Recipe posted, with its new Ingredients, over the Recipe `id`, or as a
+// new one if `id` is 0, accepting the Recipe Draft `draftID` unless that is 0. A form
+// that adds a row, for a browser without htmx, comes back with one more and saves
+// nothing; one that removes a row comes back without it. One the form refuses comes back
+// as typed with why, a row of an unknown name opened to confirm.
 func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64) {
 	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
@@ -478,21 +479,21 @@ func (h Handlers) save(w http.ResponseWriter, r *http.Request, id, draftID int64
 	web.Answer{Notice: web.Tf(ctx, notice, rec.Name), RedirectTo: recipeURL(id)}.Write(w, r, h.Log)
 }
 
-// withRow is f with one more Ingredient row, showing nothing refused yet.
+// withRow is `f` with one more Ingredient row, showing nothing refused yet.
 func withRow(f RecipeForm) RecipeForm {
 	f = unrefused(f)
 	f.Ingredients = append(f.Ingredients, IngredientRow{})
 	return f
 }
 
-// withStep is f with one more step, showing nothing refused yet.
+// withStep is `f` with one more step, showing nothing refused yet.
 func withStep(f RecipeForm) RecipeForm {
 	f = unrefused(f)
 	f.Steps = append(f.Steps, "")
 	return f
 }
 
-// unrefused is f before anything was refused.
+// unrefused is `f` before anything was refused.
 func unrefused(f RecipeForm) RecipeForm {
 	f.Errs, f.Confirm = map[string]string{}, false
 	for i := range f.Ingredients {
@@ -501,8 +502,8 @@ func unrefused(f RecipeForm) RecipeForm {
 	return f
 }
 
-// recipeURL is the page of the Recipe id.
+// recipeURL is the page of the Recipe `id`.
 func recipeURL(id int64) string { return "/recipes/" + strconv.FormatInt(id, 10) }
 
-// draftURL is the page of the Recipe Draft id.
+// draftURL is the page of the Recipe Draft `id`.
 func draftURL(id int64) string { return "/recipe-drafts/" + strconv.FormatInt(id, 10) }

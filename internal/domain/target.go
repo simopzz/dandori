@@ -43,7 +43,7 @@ type Targets struct {
 	Kcal, Protein, Fibre, Sugar, Tolerance int
 }
 
-// ByField is t by its fields, as typed.
+// ByField is `t` by its fields, as typed.
 func (t Targets) ByField() map[string]int {
 	return map[string]int{
 		string(TargetKcal): t.Kcal, string(TargetProtein): t.Protein, string(TargetFibre): t.Fibre,
@@ -51,7 +51,7 @@ func (t Targets) ByField() map[string]int {
 	}
 }
 
-// ParseTargets reads Targets as typed, by field, with a problem per field refused. Each
+// ParseTargets reads Targets as `typed`, by field, with a problem per field refused. Each
 // field is checked on its own.
 func ParseTargets(typed map[string]string) (Targets, map[string]Problem) {
 	problems := map[string]Problem{}
@@ -90,7 +90,7 @@ func checkTolerance(n int) Problem {
 	return ""
 }
 
-// parseWhole reads a whole number as typed. One too large for an int reads as the
+// parseWhole reads a whole number as `typed`. One too large for an int reads as the
 // largest, or the smallest, int, for the caller's range to refuse.
 func parseWhole(typed string) (int, Problem) {
 	typed = strings.TrimSpace(typed)

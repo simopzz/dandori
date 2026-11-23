@@ -124,7 +124,7 @@ func messages(t *testing.T) []foundMessage {
 	return found
 }
 
-// isMessage reports whether typ names Message, from web, or in it when inWeb: another
+// isMessage reports whether `typ` names Message, from web, or in it when `inWeb`: another
 // package's Message, such as the agent's, is not one.
 func isMessage(typ ast.Expr, inWeb bool) bool {
 	switch typ := typ.(type) {

@@ -9,8 +9,8 @@ import (
 )
 
 // Icon is a pixel icon, inline, in the text colour. It is decorative: say what it means
-// in text next to it or in an aria-label. A name missing from icons fails the render, so
-// a typo shows up in tests, not as a blank.
+// in text next to it or in an aria-label. A `name` missing from icons fails the render,
+// so a typo shows up in tests, not as a blank.
 func Icon(name string) templ.Component {
 	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
 		rows, ok := icons[name]

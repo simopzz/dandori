@@ -49,7 +49,8 @@ templ cycleHeader(now time.Time, c Cycle, upcoming bool, ds []proposalDay) {
 	}
 }
 
-// dropSection is Section 03, dropping the Cycle c, apart at the end, only while upcoming.
+// dropSection is Section 03, dropping the Cycle `c`, apart at the end, only
+// while `upcoming`.
 templ dropSection(c Cycle, upcoming bool) {
 	if upcoming {
 		@web.Section(3, web.T(ctx, msgUpcomingCycle)) {
@@ -63,7 +64,7 @@ templ dropSection(c Cycle, upcoming bool) {
 }
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
-// Tentative while upcoming, and the Slot the first day is planned from when it is
+// Tentative while `upcoming`, and the Slot the first day is planned from when it is
 // planned only partly.
 templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 	<p class="lede">
@@ -84,7 +85,7 @@ templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
 	</p>
 }
 
-// proposalSection is the Plan Proposal p as Section 01, all deciding on it needs: the
+// proposalSection is the Plan Proposal `p` as Section 01, all deciding on it needs: the
 // planner's summary, the averages against the Targets, the days of `ds` it changes, the
 // soft misses grouped by kind, the Recipe Drafts it prepares, then approving it or
 // rejecting it, `notes` being the Cycle's Planning Notes, newest first, and `note` the
@@ -102,7 +103,7 @@ templ proposalSection(p Proposal, ds []proposalDay, notes []string, note string,
 	</div>
 }
 
-// averages are p's average over the days it judges against each Target, under heads
+// averages are `p`'s average over the days it judges against each Target, under heads
 // naming each Target's unit and bounds, those missed marked, and the line saying when a
 // figure is marked; nothing when no day is judged.
 templ averages(p Proposal) {
@@ -132,8 +133,8 @@ templ figureHeads(t domain.Targets) {
 	</span>
 }
 
-// figureLine is n's values of what the Targets aim at, whole, a column each, named for a
-// screen reader, those missed marked worth weighing, under or over, if missed says.
+// figureLine is `n`'s values of what the Targets aim at, whole, a column each, named for
+// a screen reader, those missed marked worth weighing, under or over, if `missed` says.
 templ figureLine(n domain.PortionNutrition, missed func(domain.Target) (bool, bool)) {
 	@web.Figures() {
 		for _, target := range domain.Aimed {
@@ -167,7 +168,7 @@ templ changedRow(ds []proposalDay) {
 	}
 }
 
-// changedRange is the days from first to last as dayRange reads them: one when they
+// changedRange is the days from `first` to `last` as dayRange reads them: one when they
 // are the same.
 func changedRange(first, last time.Time) []domain.Day {
 	if first.Equal(last) {
@@ -176,8 +177,8 @@ func changedRange(first, last time.Time) []domain.Day {
 	return []domain.Day{{On: first}, {On: last}}
 }
 
-// changedDays are the first and last of `ds`, in order, marked changed, `ok` false when
-// none is.
+// changedDays are the `first` and `last` of `ds`, in order, marked changed, `ok` false
+// when none is.
 func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
 	for _, d := range ds {
 		if d.changed {
@@ -190,7 +191,7 @@ func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
 	return first, last, ok
 }
 
-// missRows are p's soft misses beside the averages, a line per kind, each led by its
+// missRows are `p`'s soft misses beside the averages, a line per kind, each led by its
 // icon: the days more than 25% off a Target, each with the Targets it misses; each
 // Portion eaten back to back; the Portions carried in left unused; then, as
 // information, the Portions made for after the Cycle.
@@ -266,7 +267,7 @@ templ draftedRows(drafted []recipes.Drafted) {
 	}
 }
 
-// newIngredients says how many of rec's Ingredients are new, or nothing when none is.
+// newIngredients says how many of `rec`'s Ingredients are new, or nothing when none is.
 func newIngredients(ctx context.Context, rec domain.Recipe) string {
 	n := 0
 	for _, ri := range rec.Ingredients {
@@ -283,9 +284,9 @@ func newIngredients(ctx context.Context, rec domain.Recipe) string {
 	return web.Tf(ctx, msgNewIngredients, n)
 }
 
-// draftPage is the planner's Recipe Draft rec as a page of its own, for a browser without
-// htmx: the sheet's body, under the page's header, with a link back to the Cycle cycleID
-// its Plan Proposal plans.
+// draftPage is the planner's Recipe Draft `rec` as a page of its own, for a browser
+// without htmx: the sheet's body, under the page's header, with a link back to the Cycle
+// `cycleID` its Plan Proposal plans.
 templ draftPage(now time.Time, rec domain.Recipe, cycleID int64) {
 	@web.Layout(web.T(ctx, msgNewRecipe), web.PlanTab) {
 		@web.PageHeader("献立", web.T(ctx, msgNewRecipe), now) {
@@ -299,13 +300,13 @@ templ draftPage(now time.Time, rec domain.Recipe, cycleID int64) {
 	}
 }
 
-// notTargets is whether m is a miss of a rule other than the Targets'.
+// notTargets is whether `m` is a miss of a rule other than the Targets'.
 func notTargets(m domain.Miss) bool {
 	return m.Rule == domain.RuleBackToBack || m.Rule == domain.RuleUnusedPortion
 }
 
-// daysOff are the days misses holds more than 25% off a Target, in order, each the
-// misses of that day.
+// daysOff are the days `misses` holds more than 25% off a Target, in order, each the
+// `misses` of that day.
 func daysOff(misses []domain.Miss) [][]domain.Miss {
 	var off [][]domain.Miss
 	for _, m := range misses {
@@ -321,7 +322,7 @@ func daysOff(misses []domain.Miss) [][]domain.Miss {
 	return off
 }
 
-// daysOffTitle says n days are more than 25% off a Target.
+// daysOffTitle says `n` days are more than 25% off a Target.
 func daysOffTitle(ctx context.Context, n int) string {
 	if n == 1 {
 		return web.Tf(ctx, msgOneDayOff)
@@ -329,7 +330,7 @@ func daysOffTitle(ctx context.Context, n int) string {
 	return web.Tf(ctx, msgDaysOff, n)
 }
 
-// backToBack is m, a Portion eaten back to back, with its days.
+// backToBack is `m`, a Portion eaten back to back, with its days.
 func backToBack(ctx context.Context, m domain.Miss) string {
 	days := make([]string, len(m.Days))
 	for i, d := range m.Days {
@@ -342,10 +343,10 @@ func backToBack(ctx context.Context, m domain.Miss) string {
 	return web.Tf(ctx, msgBackToBack, m.Name, list)
 }
 
-// decision is approving p, and beside it Reject, which opens in place to the Cycle's
-// earlier Planning Notes, notes, newest first, the line saying what a note does, and
-// the note, as typed: open when open says the User is at it, as when a rejection or an
-// approval was refused.
+// decision is approving `p`, and beside it Reject, which opens in place to the Cycle's
+// earlier Planning Notes, `notes`, newest first, the line saying what a note does, and
+// the `note`, as typed: open when `open` says the User is at it, as when a rejection or
+// an approval was refused.
 templ decision(p Proposal, notes []string, note string, open bool) {
 	@web.Actions() {
 		<form novalidate id="approve" method="post" action={ templ.SafeURL(fmt.Sprintf("/plan/proposals/%d/approve", p.ID)) }>
@@ -360,9 +361,9 @@ templ decision(p Proposal, notes []string, note string, open bool) {
 	}
 }
 
-// noteForm is the form id posting a Planning Note to action: the line hint saying what
-// the note does, the note as typed, optional unless required, refused with err if not
-// "", and its button, send.
+// noteForm is the form `id` posting a Planning Note to `action`: the line `hint` saying
+// what the note does, the `note` as typed, optional unless `required`, refused with `err`
+// if not "", and its button, `send`.
 templ noteForm(id, action string, hint, send web.Message, note string, required bool, err string) {
 	<form novalidate id={ id } class="stack" method="post" action={ templ.SafeURL(action) }>
 		@web.Hint() {
@@ -386,7 +387,7 @@ templ noteForm(id, action string, hint, send web.Message, note string, required 
 	</form>
 }
 
-// optionalUnless is how a Field marks a Planning Note optional, unless required.
+// optionalUnless is how a Field marks a Planning Note optional, unless `required`.
 func optionalUnless(ctx context.Context, required bool) string {
 	if required {
 		return ""
@@ -394,7 +395,7 @@ func optionalUnless(ctx context.Context, required bool) string {
 	return web.T(ctx, msgOptional)
 }
 
-// earlierNotes are the Cycle's earlier Planning Notes, notes, newest first, under their
+// earlierNotes are the Cycle's earlier Planning Notes, `notes`, newest first, under their
 // head: nothing before the first.
 templ earlierNotes(notes []string) {
 	if len(notes) > 0 {
@@ -409,7 +410,7 @@ templ earlierNotes(notes []string) {
 	}
 }
 
-// daysBefore are the days before a Plan Proposal, trailing, folded into one Group: how
+// daysBefore are the days before a Plan Proposal, `trailing`, folded into one Group: how
 // many an approved Plan covered and how many none did; opened, each covered day with
 // its figures, and the days no Plan covered collapsed into ranges.
 templ daysBefore(trailing []domain.Day) {
@@ -431,7 +432,7 @@ templ daysBefore(trailing []domain.Day) {
 	}
 }
 
-// text is s as a component.
+// text is `s` as a component.
 templ text(s string) {
 	{ s }
 }
@@ -455,7 +456,7 @@ func beforeLine(ctx context.Context, trailing []domain.Day) string {
 	return strings.Join(parts, ", ")
 }
 
-// dayRuns are days split into runs: each day a Plan covered alone, and the days in a
+// dayRuns are `days` split into runs: each day a Plan covered alone, and the days in a
 // row no Plan covered together.
 func dayRuns(days []domain.Day) [][]domain.Day {
 	var runs [][]domain.Day
@@ -469,7 +470,7 @@ func dayRuns(days []domain.Day) [][]domain.Day {
 	return runs
 }
 
-// dayRange is the days r, as their first and last, or the one day.
+// dayRange is the days `r`, as their first and last, or the one day.
 func dayRange(ctx context.Context, r []domain.Day) string {
 	if len(r) == 1 {
 		return web.ShortDate(ctx, r[0].On)
@@ -484,9 +485,9 @@ type proposalDay struct {
 	planDay
 }
 
-// proposalDays are the days p plans of c, each with what fills its Slots and what is
-// prepared on it, and the Delivery's day with p's freezer splits, first, if it has any or
-// changes the Plan's.
+// proposalDays are the days `p` plans of `c`, each with what fills its Slots and what is
+// prepared on it, and the Delivery's day with `p`'s freezer splits, first, if it has any
+// or changes the Plan's.
 func proposalDays(c Cycle, p Proposal) []proposalDay {
 	byDay := map[time.Time]planDay{}
 	for _, d := range days(c, p) {
@@ -507,7 +508,7 @@ func proposalDays(c Cycle, p Proposal) []proposalDay {
 	return out
 }
 
-// firstFilled is the first of ds that fills a Slot, past a Delivery's day holding only
+// firstFilled is the first of `ds` that fills a Slot, past a Delivery's day holding only
 // freezer splits, or none.
 func firstFilled(ds []proposalDay) proposalDay {
 	for _, d := range ds {
@@ -518,7 +519,7 @@ func firstFilled(ds []proposalDay) proposalDay {
 	return proposalDay{}
 }
 
-// plannedFrom is the Slot d is planned from, its first filled, and whether that is d
+// plannedFrom is the Slot `d` is planned from, its first filled, and whether that is `d`
 // being planned only partly: a Plan fills every Slot from its first on.
 func (d proposalDay) plannedFrom() (domain.SlotKind, bool) {
 	if !d.Partly || len(d.filled) == 0 {
@@ -527,7 +528,7 @@ func (d proposalDay) plannedFrom() (domain.SlotKind, bool) {
 	return d.filled[0].kind, true
 }
 
-// dayTitle is d's date, and the Slot it is planned from when only partly.
+// dayTitle is `d`'s date, and the Slot it is planned from when only partly.
 func dayTitle(ctx context.Context, d proposalDay) string {
 	if from, partly := d.plannedFrom(); partly {
 		return web.Tf(ctx, msgFromSlot, web.Date(ctx, d.On), web.T(ctx, web.SlotKindNames[from]))
@@ -535,8 +536,8 @@ func dayTitle(ctx context.Context, d proposalDay) string {
 	return web.Date(ctx, d.On)
 }
 
-// dayLine is d's row under its date: marked Changed when its Plan Proposal changes it,
-// its figures, each more than 25% off a Target of t marked, then what is cooked on it
+// dayLine is `d`'s row under its date: marked Changed when its Plan Proposal changes it,
+// its figures, each more than 25% off a Target of `t` marked, then what is cooked on it
 // and its active minutes, when a Slot of it is filled; and how many freezer splits it
 // has, if any.
 templ dayLine(t domain.Targets, d proposalDay) {
@@ -558,7 +559,7 @@ templ dayLine(t domain.Targets, d proposalDay) {
 	}
 }
 
-// cooked names the Recipes sessions cook, with their active minutes together, or says
+// cooked names the Recipes `sessions` cook, with their active minutes together, or says
 // nothing is cooked.
 func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	var names []string
@@ -575,7 +576,7 @@ func cooked(ctx context.Context, sessions []domain.PrepSession) string {
 	return web.Tf(ctx, msgCooked, strings.Join(names, ", "), active)
 }
 
-// dayBody is what a day d holds: its freezer splits, each marked when changed, or that
+// dayBody is what a day `d` holds: its freezer splits, each marked when changed, or that
 // none is left when they all are; then its Slots, each with its Portion's size, calories
 // and protein, and where it comes from, then each Prep Session of a Recipe, which opens
 // to its Ingredients and the Portions it leaves for later.
@@ -612,11 +613,11 @@ templ dayBody(d proposalDay) {
 	}
 }
 
-// ofRecipe is whether ps prepares a Recipe, not one Ingredient as it is.
+// ofRecipe is whether `ps` prepares a Recipe, not one Ingredient as it is.
 func ofRecipe(ps domain.PrepSession) bool { return ps.Recipe != nil }
 
-// source says where f's Portion comes from, eaten on the day on: cooked that day, or a
-// new Recipe when that is a Recipe Draft's, from the day it was cooked and where it is
+// source says where `f`'s Portion comes from, eaten on the day `on`: cooked that day, or
+// a new Recipe when that is a Recipe Draft's, from the day it was cooked and where it is
 // kept, where one Ingredient is kept, or already in the kitchen.
 func source(ctx context.Context, f filledSlot, on time.Time) string {
 	switch {
@@ -632,9 +633,9 @@ func source(ctx context.Context, f filledSlot, on time.Time) string {
 	return web.Tf(ctx, msgCookedOn, web.ShortDate(ctx, f.from.At.On), web.T(ctx, web.InLocations[f.location]))
 }
 
-// cookedRow is ps, a Prep Session of a Recipe, as a row that opens, marked Changed when
-// changed: its Portions and their size, its minutes; opened, its Ingredients scaled, and
-// its Portions eaten on a later day or after the Cycle.
+// cookedRow is `ps`, a Prep Session of a Recipe, as a row that opens, marked Changed when
+// `changed`: its Portions and their size, its minutes; opened, its Ingredients scaled,
+// and its Portions eaten on a later day or after the Cycle.
 templ cookedRow(ps domain.PrepSession, changed bool) {
 	@web.FoldRow(cookedLine(ps, changed)) {
 		@web.RowsHead(web.T(ctx, msgIngredients))
@@ -654,7 +655,7 @@ templ cookedRow(ps domain.PrepSession, changed bool) {
 }
 
 // cookedLine is the line a Prep Session of a Recipe folds to: its name, a Recipe Draft's
-// marked new, and marked Changed when changed, its Portions and their size, its minutes
+// marked new, and marked Changed when `changed`, its Portions and their size, its minutes
 // in all and active.
 templ cookedLine(ps domain.PrepSession, changed bool) {
 	@web.RowTitle(ps.Name(), ps.Recipe.IsDraft(), web.T(ctx, msgNewRecipeSource), changed)
@@ -662,7 +663,7 @@ templ cookedLine(ps domain.PrepSession, changed bool) {
 	<span class="row-meta">{ web.Tf(ctx, msgTotalActive, ps.Recipe.TotalMinutes, ps.Recipe.ActiveMinutes) }</span>
 }
 
-// eatenLater are ps's Portions eaten on a day after it is prepared, or after the Cycle.
+// eatenLater are `ps`'s Portions eaten on a day after it is prepared, or after the Cycle.
 func eatenLater(ps domain.PrepSession) []domain.PlannedPortion {
 	var later []domain.PlannedPortion
 	for _, pp := range ps.Portions {

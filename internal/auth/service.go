@@ -45,12 +45,12 @@ type Service struct {
 	clock    clock.Clock
 }
 
-// New creates the Service, whose calls to Supabase Auth are spans made by tp.
+// New creates the Service, whose calls to Supabase Auth are spans made by `tp`.
 func New(pool *pgxpool.Pool, cfg Config, c clock.Clock, tp trace.TracerProvider) *Service {
 	return &Service{pool: pool, supabase: newSupabase(cfg, c, tp), clock: c}
 }
 
-// SendMagicLink emails a magic link leading to redirectTo, if email was
+// SendMagicLink emails a magic link leading to `redirectTo`, if `email` was
 // invited. Whether it was is never told: Supabase refusing an email is no
 // error, even a rate limit, which it applies only to invited emails. Only
 // failing to reach Supabase is.
@@ -61,7 +61,7 @@ func (s *Service) SendMagicLink(ctx context.Context, email, redirectTo string) e
 	return nil
 }
 
-// Redeem signs in with a magic link's token hash, kind being the link's
+// Redeem signs in with a magic link's token hash, `kind` being the link's
 // type, and creates the User at their first sign-in.
 func (s *Service) Redeem(ctx context.Context, tokenHash, kind string) (Tokens, error) {
 	sess, err := s.supabase.verify(ctx, tokenHash, kind)
@@ -81,8 +81,8 @@ func (s *Service) Redeem(ctx context.Context, tokenHash, kind string) (Tokens, e
 	return Tokens{Access: sess.AccessToken, Refresh: sess.RefreshToken}, nil
 }
 
-// Authenticate tells who tokens sign in. When the access token has
-// expired, it refreshes the session: renewed are the Tokens to keep in
+// Authenticate tells who `tokens` sign in. When the access token has
+// expired, it refreshes the session: `renewed` are the Tokens to keep in
 // its place. It is ErrSignedOut when they sign no one in any more; failing
 // to reach Supabase is another error, which signs no one out.
 func (s *Service) Authenticate(ctx context.Context, tokens Tokens) (userID string, renewed *Tokens, err error) {
@@ -109,7 +109,7 @@ func (s *Service) Authenticate(ctx context.Context, tokens Tokens) (userID strin
 	return userID, &Tokens{Access: sess.AccessToken, Refresh: sess.RefreshToken}, nil
 }
 
-// SignOut ends the session tokens belong to, at Supabase. Supabase takes
+// SignOut ends the session `tokens` belong to, at Supabase. Supabase takes
 // only a live access token for it, so an expired one is refreshed first.
 func (s *Service) SignOut(ctx context.Context, tokens Tokens) error {
 	_, renewed, err := s.Authenticate(ctx, tokens)

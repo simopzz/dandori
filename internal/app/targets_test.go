@@ -13,7 +13,8 @@ import (
 
 var targets = apptest.Targets{Kcal: "2200", Protein: "130", Fibre: "30", Sugar: "50", Tolerance: "8"}
 
-// profileOf signs up email, in English, on a Profile page, in an app started with opts.
+// profileOf signs up `email`, in English, on a Profile page, in an app started
+// with `opts`.
 func profileOf(t *testing.T, email string, opts ...apptest.Option) *apptest.Scenario {
 	s := apptest.NewScenario(t, opts...)
 	s.Invite(email)
@@ -23,7 +24,7 @@ func profileOf(t *testing.T, email string, opts ...apptest.Option) *apptest.Scen
 	return s
 }
 
-// shownTargets are the Targets the Targets form on page holds.
+// shownTargets are the Targets the Targets form on `page` holds.
 func shownTargets(t *testing.T, page string) apptest.Targets {
 	t.Helper()
 	f := apptest.Form(t, page, "profile-targets")

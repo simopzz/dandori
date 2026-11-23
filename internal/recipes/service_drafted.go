@@ -35,9 +35,9 @@ func (e *ClashError) Error() string {
 // DraftSchema is draft_recipe's input: a Recipe as submit_recipe takes it.
 var DraftSchema = submitRecipeSchema
 
-// ReadDraft reads input, a Recipe the planner drafts for a User speaking l, against their
-// Ingredients, known, and their Recipe Library, or is why it can't be drafted: what
-// submit_recipe says, and a name already in the Recipe Library.
+// ReadDraft reads `input`, a Recipe the planner drafts for a User speaking `l`, against
+// their Ingredients, `known`, and their Recipe Library, or is why it can't be drafted:
+// what submit_recipe says, and a name already in the Recipe Library.
 func ReadDraft(l domain.Language, known []domain.Ingredient, library []domain.Recipe, input json.RawMessage) (Drafted, error) {
 	var p parsedRecipe
 	if err := json.Unmarshal(input, &p); err != nil {
@@ -61,11 +61,11 @@ func ReadDraft(l domain.Language, known []domain.Ingredient, library []domain.Re
 	return Drafted{Recipe: rec, doc: doc}, err
 }
 
-// Document is d as stored, for ReadStored to read back.
+// Document is `d` as stored, for ReadStored to read back.
 func (d Drafted) Document() []byte { return d.doc }
 
-// ReadStored is the Recipe Draft id stored as doc, its Recipe read for a User speaking l,
-// each Ingredient resolved by name to theirs, known.
+// ReadStored is the Recipe Draft `id` stored as `doc`, its Recipe read for a User
+// speaking `l`, each Ingredient resolved by name to theirs, `known`.
 func ReadStored(l domain.Language, known []domain.Ingredient, id int64, doc []byte) (Drafted, error) {
 	d := Drafted{ID: id, doc: doc}
 	var p parsedRecipe
@@ -74,9 +74,9 @@ func ReadStored(l domain.Language, known []domain.Ingredient, id int64, doc []by
 	return d, err
 }
 
-// AcceptDrafted adds each of drafted, a Plan Proposal's Recipe Drafts for the signed-in
-// User, who speaks l, to their Recipe Library as drafted, with its new Ingredients, in
-// the caller's transaction; accepted maps each Recipe Draft's id to its Recipe's. One
+// AcceptDrafted adds each of `drafted`, a Plan Proposal's Recipe Drafts for the signed-in
+// User, who speaks `l`, to their Recipe Library as drafted, with its new Ingredients, in
+// the caller's transaction; `accepted` maps each Recipe Draft's id to its Recipe's. One
 // that no longer fits the Recipe Library is a *ClashError.
 func AcceptDrafted(ctx context.Context, q db.Querier, l domain.Language, drafted []Drafted) (accepted map[int64]int64, err error) {
 	accepted = map[int64]int64{}

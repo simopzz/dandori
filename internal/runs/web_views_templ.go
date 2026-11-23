@@ -47,10 +47,10 @@ type StoredTraceEvent struct {
 // result is the link to what a Run left the User.
 type result struct{ Text, Href string }
 
-// runURL is the page of the Run id.
+// runURL is the page of the Run `id`.
 func runURL(id int64) string { return fmt.Sprintf("/runs/%d", id) }
 
-// lastSeq is the place of the last Trace Event r's page shows, 0 for none.
+// lastSeq is the place of the last Trace Event `r`'s page shows, 0 for none.
 func (r Run) lastSeq() int {
 	if len(r.Trace) == 0 {
 		return 0
@@ -58,7 +58,7 @@ func (r Run) lastSeq() int {
 	return r.Trace[len(r.Trace)-1].Seq
 }
 
-// runsPage lists the User's Runs, newest first, kinds naming each kind.
+// runsPage lists the User's Runs, newest first, `kinds` naming each kind.
 func runsPage(now time.Time, list []Run, kinds map[Kind]web.Message) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -362,7 +362,7 @@ func statusTag(s Status) templ.Component {
 // headlineRunes is how much of what a Run was asked names it on the Runs page.
 const headlineRunes = 60
 
-// headline names a Run on the Runs page by line, the first of what it was asked: cut to
+// headline names a Run on the Runs page by `line`, the first of what it was asked: cut to
 // headlineRunes, with an ellipsis where it was cut.
 func headline(line string) string {
 	line = strings.TrimSpace(line)
@@ -372,12 +372,11 @@ func headline(line string) string {
 	return line
 }
 
-// runPage is a Run and its Trace, with what the User gave it, folded under askedName,
-// and a link to what it left, if anything, or a form posting what it was asked to again.
-// While the Run goes, the page offers to cancel
-// it and appends its Trace Events as they stream in; once it ends, it fetches itself
-// again into the body, which goes on to what the Run left. Without JavaScript, a link
-// opens it again further along.
+// runPage is a Run and its Trace, with what the User gave it, folded under askedName, and
+// a link to what it left, if anything, or a form posting what it was asked to `again`.
+// While the Run goes, the page offers to cancel it and appends its Trace Events as they
+// stream in; once it ends, it fetches itself again into the body, which goes on to what
+// the Run left. Without JavaScript, a link opens it again further along.
 func runPage(now time.Time, r Run, k KindPage, res result, again string, about templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -439,7 +438,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(" " + web.Tf(ctx, msgStarted, web.Time(ctx, r.StartedAt.In(now.Location()))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 125, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 124, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
@@ -453,7 +452,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(" · ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 127, Col: 13}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 126, Col: 13}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 					if templ_7745c5c3_Err != nil {
@@ -474,7 +473,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 						var templ_7745c5c3_Var24 string
 						templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgTryAgain))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 129, Col: 31}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 128, Col: 31}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 						if templ_7745c5c3_Err != nil {
@@ -521,7 +520,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 						var templ_7745c5c3_Var26 string
 						templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(res.Text)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 139, Col: 16}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 138, Col: 16}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 						if templ_7745c5c3_Err != nil {
@@ -550,7 +549,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 					var templ_7745c5c3_Var27 templ.SafeURL
 					templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(again))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 145, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 144, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 					if templ_7745c5c3_Err != nil {
@@ -563,7 +562,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Asked)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 146, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 145, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 					if templ_7745c5c3_Err != nil {
@@ -598,7 +597,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 						var templ_7745c5c3_Var30 string
 						templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgSeeFurther))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 153, Col: 34}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 152, Col: 34}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 						if templ_7745c5c3_Err != nil {
@@ -617,7 +616,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 					var templ_7745c5c3_Var31 templ.SafeURL
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(runURL(r.ID) + "/cancel"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 157, Col: 99}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 156, Col: 99}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
@@ -642,7 +641,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 						var templ_7745c5c3_Var33 string
 						templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgCancel))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 159, Col: 29}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 158, Col: 29}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 						if templ_7745c5c3_Err != nil {
@@ -725,7 +724,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(runURL(r.ID) + "?ended")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 174, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 173, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 					if templ_7745c5c3_Err != nil {
@@ -748,7 +747,7 @@ func runPage(now time.Time, r Run, k KindPage, res result, again string, about t
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%s/events?after=%d", runURL(r.ID), r.lastSeq()))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 182, Col: 83}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 181, Col: 83}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 					if templ_7745c5c3_Err != nil {
@@ -901,7 +900,7 @@ func traceLine(ev StoredTraceEvent, zone *time.Location, k KindPage) templ.Compo
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(ev.At.Format(time.RFC3339))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 213, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 212, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 		if templ_7745c5c3_Err != nil {
@@ -914,7 +913,7 @@ func traceLine(ev StoredTraceEvent, zone *time.Location, k KindPage) templ.Compo
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(web.Time(ctx, ev.At.In(zone)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 213, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 212, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -927,7 +926,7 @@ func traceLine(ev StoredTraceEvent, zone *time.Location, k KindPage) templ.Compo
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(line(ctx, ev.TraceEvent, k))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 214, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 213, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -969,7 +968,7 @@ func label(text string) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 218, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/runs/web_views.templ`, Line: 217, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 		if templ_7745c5c3_Err != nil {
@@ -983,7 +982,7 @@ func label(text string) templ.Component {
 	})
 }
 
-// detail is what ev's Fold holds, its data verbatim: the model's name, or a tool's over
+// detail is what `ev`'s Fold holds, its data verbatim: the model's name, or a tool's over
 // what it was sent, indented to read, or what it said; a retry's wait; a turn's tokens.
 func detail(ctx context.Context, ev agent.TraceEvent) string {
 	text := ev.Text
@@ -1007,7 +1006,7 @@ func detail(ctx context.Context, ev agent.TraceEvent) string {
 	return text
 }
 
-// line is ev's fixed line in the Language of ctx, in a Run of kind k.
+// line is `ev`'s fixed line in the Language of `ctx`, in a Run of kind `k`.
 func line(ctx context.Context, ev agent.TraceEvent, k KindPage) string {
 	switch ev.Kind {
 	case agent.Started:

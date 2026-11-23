@@ -34,7 +34,7 @@ const portionsSheetID = "portions"
 // contentsID is the id of the list every write to the Kitchen Ledger refreshes.
 const contentsID = "stock"
 
-// page is the Kitchen page at now: what the kitchen holds, the Count sheet its primary
+// page is the Kitchen page at `now`: what the kitchen holds, the Count sheet its primary
 // action opens, cleared each time it closes, the Add Portions sheet it can open instead,
 // and, in side sheets, each Stock Item's Movements and move, and the Ingredients.
 func page(now time.Time, contents Contents, f CountForm) templ.Component {
@@ -906,7 +906,7 @@ type locationGroup struct {
 	held     []Held
 }
 
-// byLocation splits contents into a group for each Storage Location holding anything,
+// byLocation splits `contents` into a group for each Storage Location holding anything,
 // in Storage Location order.
 func byLocation(contents Contents) []locationGroup {
 	var groups []locationGroup
@@ -929,7 +929,7 @@ func byLocation(contents Contents) []locationGroup {
 	return groups
 }
 
-// stockItemURL is path, asking for the Stock Item of the Ingredient id in location.
+// stockItemURL is `path`, asking for the Stock Item of the Ingredient `id` in `location`.
 func stockItemURL(path string, id int64, location domain.StorageLocation) templ.SafeURL {
 	query := url.Values{"ingredient": {strconv.FormatInt(id, 10)}, "location": {string(location)}}
 	return templ.SafeURL(path + "?" + query.Encode())
@@ -990,7 +990,7 @@ func movementsPage(now time.Time, item StockItemMovements) templ.Component {
 
 // movementsBody is a Stock Item's Movements, newest first, to read: a mistake in one is
 // corrected by another Count, never here. Above them each Storage Location is a link,
-// so a move can be followed from one side to the other, swapping the body when inSheet.
+// so a move can be followed from one side to the other, swapping the body when `inSheet`.
 func movementsBody(now time.Time, item StockItemMovements, inSheet bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1085,8 +1085,9 @@ func movementsBody(now time.Time, item StockItemMovements, inSheet bool) templ.C
 	})
 }
 
-// movementRows are Movements in location, newest first, or that there are none, each
-// with its cause, what it held before and after, in unit, when it happened and its note.
+// movementRows are Movements in `location`, newest first, or that there are none, each
+// with its cause, what it held before and after, in `unit`, when it happened and
+// its note.
 func movementRows(now time.Time, movements []domain.StockMovement, location domain.StorageLocation, unit domain.Unit) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1124,7 +1125,7 @@ func movementRows(now time.Time, movements []domain.StockMovement, location doma
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgNoMovements))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 225, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 226, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 				if templ_7745c5c3_Err != nil {
@@ -1169,7 +1170,7 @@ func movementRows(now time.Time, movements []domain.StockMovement, location doma
 						var templ_7745c5c3_Var57 string
 						templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(causeText(ctx, m, location))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 231, Col: 58}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 232, Col: 58}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 						if templ_7745c5c3_Err != nil {
@@ -1182,7 +1183,7 @@ func movementRows(now time.Time, movements []domain.StockMovement, location doma
 						var templ_7745c5c3_Var58 string
 						templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgBeforeAfter, web.Quantity(ctx, m.Before, unit), web.Quantity(ctx, m.After, unit)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 232, Col: 128}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 233, Col: 128}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 						if templ_7745c5c3_Err != nil {
@@ -1195,7 +1196,7 @@ func movementRows(now time.Time, movements []domain.StockMovement, location doma
 						var templ_7745c5c3_Var59 string
 						templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(web.DateTime(ctx, now, m.At.In(now.Location())))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 234, Col: 61}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 235, Col: 61}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 						if templ_7745c5c3_Err != nil {
@@ -1213,7 +1214,7 @@ func movementRows(now time.Time, movements []domain.StockMovement, location doma
 							var templ_7745c5c3_Var60 string
 							templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(m.Note)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 236, Col: 19}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 237, Col: 19}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 							if templ_7745c5c3_Err != nil {
@@ -1246,8 +1247,8 @@ func movementRows(now time.Time, movements []domain.StockMovement, location doma
 	})
 }
 
-// movementsLink opens the Movements in l of item's Ingredient: the page of them, or
-// inSheet the sheet's body, where the link to item takes the focus back from the link
+// movementsLink opens the Movements in `l` of `item`'s Ingredient: the page of them, or
+// `inSheet` the sheet's body, where the link to `item` takes the focus back from the link
 // the swap removed.
 func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bool) templ.Attributes {
 	link := templ.Attributes{"href": string(stockItemURL("/kitchen/movements", item.Ingredient.ID, l))}
@@ -1260,8 +1261,8 @@ func movementsLink(item StockItemMovements, l domain.StorageLocation, inSheet bo
 	return link
 }
 
-// countedText says when a Stock Item was last counted, told in now's zone, with its date
-// unless it was today.
+// countedText says when a Stock Item was last counted, told in `now`'s zone, with its
+// date unless it was today.
 func countedText(ctx context.Context, now, at time.Time) string {
 	if y, m, d := at.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
 		return web.Tf(ctx, msgCountedAt, web.Time(ctx, at))
@@ -1308,7 +1309,7 @@ func countBody(f CountForm) templ.Component {
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue("close from:#" + ingredients.SheetID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 277, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 278, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 			if templ_7745c5c3_Err != nil {
@@ -1374,7 +1375,7 @@ func countSearch(q string) templ.Component {
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(q)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 290, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 291, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 			if templ_7745c5c3_Err != nil {
@@ -1387,7 +1388,7 @@ func countSearch(q string) templ.Component {
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.T(ctx, msgSearch))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 290, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 291, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 			if templ_7745c5c3_Err != nil {
@@ -1407,7 +1408,7 @@ func countSearch(q string) templ.Component {
 	})
 }
 
-// foundList is the Ingredients a search for q found to count, each opening its form;
+// foundList is the Ingredients a search for `q` found to count, each opening its form;
 // or why the Staple it named isn't one of them; or the offer to add what nothing matched.
 func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -1446,7 +1447,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 				var templ_7745c5c3_Var69 string
 				templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgStaple, staple))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 299, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 300, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 				if templ_7745c5c3_Err != nil {
@@ -1475,7 +1476,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 					var templ_7745c5c3_Var71 string
 					templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgNothingToCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 304, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 305, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 					if templ_7745c5c3_Err != nil {
@@ -1485,7 +1486,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 					var templ_7745c5c3_Var72 string
 					templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgNoMatch, q))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 306, Col: 32}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 307, Col: 32}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 					if templ_7745c5c3_Err != nil {
@@ -1535,7 +1536,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var75 templ.SafeURL
 						templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinURLErrs(ingredientURL("/kitchen/count", ing))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 316, Col: 49}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 317, Col: 49}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 						if templ_7745c5c3_Err != nil {
@@ -1548,7 +1549,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var76 string
 						templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(ingredientURL("/kitchen/count/sheet", ing)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 317, Col: 65}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 318, Col: 65}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 						if templ_7745c5c3_Err != nil {
@@ -1561,7 +1562,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var77 string
 						templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(countSheetID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 318, Col: 55}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 319, Col: 55}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 						if templ_7745c5c3_Err != nil {
@@ -1574,7 +1575,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var78 string
 						templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(ing.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 320, Col: 16}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 321, Col: 16}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 						if templ_7745c5c3_Err != nil {
@@ -1587,7 +1588,7 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 						var templ_7745c5c3_Var79 string
 						templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, ingredients.StorageLocationNames[ing.Usual]))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 321, Col: 85}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 322, Col: 85}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 						if templ_7745c5c3_Err != nil {
@@ -1615,12 +1616,12 @@ func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 	})
 }
 
-// ingredientURL is path, asking for ing.
+// ingredientURL is `path`, asking for `ing`.
 func ingredientURL(path string, ing domain.Ingredient) templ.SafeURL {
 	return templ.SafeURL(path + "?ingredient=" + strconv.FormatInt(ing.ID, 10))
 }
 
-// countForm counts f's Ingredient, swapping the sheet's body when htmx posts it. Each
+// countForm counts `f`'s Ingredient, swapping the sheet's body when htmx posts it. Each
 // Storage Location shows what Dandori believes it holds, with no request to choose it.
 // Choose another changes what the legend names, so it stands beside it. Movements opens
 // the Storage Location chosen when it is followed, which htmx includes; without htmx, the
@@ -1653,7 +1654,7 @@ func countForm(f CountForm) templ.Component {
 		var templ_7745c5c3_Var81 string
 		templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(countSheetID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 345, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 346, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var81)
 		if templ_7745c5c3_Err != nil {
@@ -1666,7 +1667,7 @@ func countForm(f CountForm) templ.Component {
 		var templ_7745c5c3_Var82 string
 		templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(f.Ingredient.ID, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 348, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 349, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
 		if templ_7745c5c3_Err != nil {
@@ -1715,7 +1716,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var85 string
 				templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.ResolveAttributeValue(quantityStep(f.Ingredient.Unit))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 357, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 358, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var85)
 				if templ_7745c5c3_Err != nil {
@@ -1728,7 +1729,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var86 string
 				templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Stated)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 359, Col: 22}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 360, Col: 22}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var86)
 				if templ_7745c5c3_Err != nil {
@@ -1771,7 +1772,7 @@ func countForm(f CountForm) templ.Component {
 				var templ_7745c5c3_Var88 string
 				templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Note)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 367, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 368, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var88)
 				if templ_7745c5c3_Err != nil {
@@ -1814,7 +1815,7 @@ func countForm(f CountForm) templ.Component {
 					var templ_7745c5c3_Var91 string
 					templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 371, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 372, Col: 28}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 					if templ_7745c5c3_Err != nil {
@@ -1841,7 +1842,7 @@ func countForm(f CountForm) templ.Component {
 					var templ_7745c5c3_Var93 string
 					templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMovements))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 374, Col: 32}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 375, Col: 32}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 					if templ_7745c5c3_Err != nil {
@@ -1914,7 +1915,7 @@ func chooseAnother() templ.Component {
 			var templ_7745c5c3_Var96 string
 			templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAnother))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 385, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 386, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 			if templ_7745c5c3_Err != nil {
@@ -1942,7 +1943,7 @@ func anotherLink() templ.Attributes {
 }
 
 // locationChoices are the Storage Locations, each with what Dandori believes it holds of
-// f's Ingredient.
+// `f`'s Ingredient.
 func locationChoices(ctx context.Context, f CountForm) []web.Choice {
 	choices := make([]web.Choice, len(domain.StorageLocations))
 	for i, l := range domain.StorageLocations {
@@ -1954,7 +1955,7 @@ func locationChoices(ctx context.Context, f CountForm) []web.Choice {
 	return choices
 }
 
-// quantityStep is how finely a quantity of unit is stated.
+// quantityStep is how finely a quantity of `unit` is stated.
 func quantityStep(unit domain.Unit) string {
 	if unit == domain.Pieces {
 		return "0.1"
@@ -2012,7 +2013,7 @@ func portionsPage(now time.Time, f PortionsForm) templ.Component {
 			var templ_7745c5c3_Var99 string
 			templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.SideSheetBody(portionsSheetID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 427, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 428, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var99)
 			if templ_7745c5c3_Err != nil {
@@ -2043,7 +2044,7 @@ func portionsPage(now time.Time, f PortionsForm) templ.Component {
 // portionsForm adds Portions no Prep Session produced, in the sheet swapping its body;
 // on a page, boosted, a refusal comes back as the page, its error summary first. Its
 // Storage Location starts unchosen, so nothing lands in the wrong place by default.
-// inSheet focuses its name as the sheet opens; a page focuses nothing, so a phone's
+// `inSheet` focuses its name as the sheet opens; a page focuses nothing, so a phone's
 // keyboard doesn't cover it.
 func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -2078,7 +2079,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 			var templ_7745c5c3_Var101 string
 			templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(portionsSheetID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 446, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 447, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var101)
 			if templ_7745c5c3_Err != nil {
@@ -2112,7 +2113,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 			var templ_7745c5c3_Var103 string
 			templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 452, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 453, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var103)
 			if templ_7745c5c3_Err != nil {
@@ -2161,7 +2162,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 			var templ_7745c5c3_Var105 string
 			templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.HowMany)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 462, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 463, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var105)
 			if templ_7745c5c3_Err != nil {
@@ -2204,7 +2205,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 			var templ_7745c5c3_Var107 string
 			templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgPortionValuesHint))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 470, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 471, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 			if templ_7745c5c3_Err != nil {
@@ -2239,7 +2240,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 			var templ_7745c5c3_Var109 string
 			templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Note)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 474, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 475, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var109)
 			if templ_7745c5c3_Err != nil {
@@ -2282,7 +2283,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 				var templ_7745c5c3_Var112 string
 				templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAdd))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 478, Col: 25}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 479, Col: 25}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var112))
 				if templ_7745c5c3_Err != nil {
@@ -2308,7 +2309,7 @@ func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 	})
 }
 
-// portionLocations are the Storage Locations Portions can go to, all but except.
+// portionLocations are the Storage Locations Portions can go to, all but `except`.
 func portionLocations(ctx context.Context, except domain.StorageLocation) []web.Choice {
 	var choices []web.Choice
 	for _, l := range domain.StorageLocations {
@@ -2319,7 +2320,7 @@ func portionLocations(ctx context.Context, except domain.StorageLocation) []web.
 	return choices
 }
 
-// lotURL is path, asking for the Lot p by its oldest Portion.
+// lotURL is `path`, asking for the Lot `p` by its oldest Portion.
 func lotURL(path string, p domain.PortionLot) templ.SafeURL {
 	query := url.Values{"portion": {strconv.FormatInt(p.IDs[0], 10)}, "location": {string(p.Location)}}
 	return templ.SafeURL(path + "?" + query.Encode())
@@ -2473,7 +2474,7 @@ func portionCountPage(now time.Time, f PortionLotForm) templ.Component {
 			var templ_7745c5c3_Var119 string
 			templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.SideSheetBody(countSheetID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 524, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 525, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var119)
 			if templ_7745c5c3_Err != nil {
@@ -2501,7 +2502,7 @@ func portionCountPage(now time.Time, f PortionLotForm) templ.Component {
 	})
 }
 
-// portionCountForm counts f's Lot, swapping the sheet's body when htmx posts it.
+// portionCountForm counts `f`'s Lot, swapping the sheet's body when htmx posts it.
 func portionCountForm(f PortionLotForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2530,7 +2531,7 @@ func portionCountForm(f PortionLotForm) templ.Component {
 		var templ_7745c5c3_Var121 string
 		templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(countSheetID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 538, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 539, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var121)
 		if templ_7745c5c3_Err != nil {
@@ -2543,7 +2544,7 @@ func portionCountForm(f PortionLotForm) templ.Component {
 		var templ_7745c5c3_Var122 string
 		templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(f.Portion, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 541, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 542, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var122)
 		if templ_7745c5c3_Err != nil {
@@ -2556,7 +2557,7 @@ func portionCountForm(f PortionLotForm) templ.Component {
 		var templ_7745c5c3_Var123 string
 		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(f.Lot.Location))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 542, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 543, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var123)
 		if templ_7745c5c3_Err != nil {
@@ -2597,7 +2598,7 @@ func portionCountForm(f PortionLotForm) templ.Component {
 				var templ_7745c5c3_Var126 string
 				templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgLotHolds, f.Lot.Count()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 546, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 547, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var126))
 				if templ_7745c5c3_Err != nil {
@@ -2632,7 +2633,7 @@ func portionCountForm(f PortionLotForm) templ.Component {
 				var templ_7745c5c3_Var128 string
 				templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Note)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 550, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 551, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 				if templ_7745c5c3_Err != nil {
@@ -2675,7 +2676,7 @@ func portionCountForm(f PortionLotForm) templ.Component {
 					var templ_7745c5c3_Var131 string
 					templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 554, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 555, Col: 28}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var131))
 					if templ_7745c5c3_Err != nil {
@@ -2752,7 +2753,7 @@ func wholeNumberField(label, name, min, value, err string) templ.Component {
 			var templ_7745c5c3_Var134 string
 			templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.ResolveAttributeValue(min)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 568, Col: 12}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 569, Col: 12}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var134)
 			if templ_7745c5c3_Err != nil {
@@ -2765,7 +2766,7 @@ func wholeNumberField(label, name, min, value, err string) templ.Component {
 			var templ_7745c5c3_Var135 string
 			templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 570, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 571, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var135)
 			if templ_7745c5c3_Err != nil {
@@ -2778,7 +2779,7 @@ func wholeNumberField(label, name, min, value, err string) templ.Component {
 			var templ_7745c5c3_Var136 string
 			templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 571, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 572, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var136)
 			if templ_7745c5c3_Err != nil {
@@ -2852,7 +2853,7 @@ func portionMovePage(now time.Time, f PortionLotForm) templ.Component {
 			var templ_7745c5c3_Var139 string
 			templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.SideSheetBody(moveSheetID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 585, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 586, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var139)
 			if templ_7745c5c3_Err != nil {
@@ -2880,7 +2881,7 @@ func portionMovePage(now time.Time, f PortionLotForm) templ.Component {
 	})
 }
 
-// portionMoveForm moves some or all of f's Lot, swapping the sheet's body when htmx
+// portionMoveForm moves some or all of `f`'s Lot, swapping the sheet's body when htmx
 // posts it. Its target starts unchosen, so nothing goes to the wrong place by default.
 func portionMoveForm(f PortionLotForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -2910,7 +2911,7 @@ func portionMoveForm(f PortionLotForm) templ.Component {
 		var templ_7745c5c3_Var141 string
 		templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(moveSheetID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 600, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 601, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var141)
 		if templ_7745c5c3_Err != nil {
@@ -2923,7 +2924,7 @@ func portionMoveForm(f PortionLotForm) templ.Component {
 		var templ_7745c5c3_Var142 string
 		templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(f.Portion, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 603, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 604, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var142)
 		if templ_7745c5c3_Err != nil {
@@ -2936,7 +2937,7 @@ func portionMoveForm(f PortionLotForm) templ.Component {
 		var templ_7745c5c3_Var143 string
 		templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(f.Lot.Location))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 604, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 605, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var143)
 		if templ_7745c5c3_Err != nil {
@@ -2989,7 +2990,7 @@ func portionMoveForm(f PortionLotForm) templ.Component {
 				var templ_7745c5c3_Var146 string
 				templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Note)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 610, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 611, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var146)
 				if templ_7745c5c3_Err != nil {
@@ -3032,7 +3033,7 @@ func portionMoveForm(f PortionLotForm) templ.Component {
 					var templ_7745c5c3_Var149 string
 					templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMove))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 614, Col: 27}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 615, Col: 27}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var149))
 					if templ_7745c5c3_Err != nil {
@@ -3114,7 +3115,7 @@ func movePage(now time.Time, f MoveForm) templ.Component {
 			var templ_7745c5c3_Var152 string
 			templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.SideSheetBody(moveSheetID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 627, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 628, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var152)
 			if templ_7745c5c3_Err != nil {
@@ -3142,8 +3143,8 @@ func movePage(now time.Time, f MoveForm) templ.Component {
 	})
 }
 
-// moveForm moves f's Stock Item, swapping the sheet's body when htmx posts it. Its target
-// starts unchosen, so stock can't go to the wrong place by default.
+// moveForm moves `f`'s Stock Item, swapping the sheet's body when htmx posts it. Its
+// target starts unchosen, so stock can't go to the wrong place by default.
 func moveForm(f MoveForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -3172,7 +3173,7 @@ func moveForm(f MoveForm) templ.Component {
 		var templ_7745c5c3_Var154 string
 		templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + web.SideSheetBody(moveSheetID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 642, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 643, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var154)
 		if templ_7745c5c3_Err != nil {
@@ -3185,7 +3186,7 @@ func moveForm(f MoveForm) templ.Component {
 		var templ_7745c5c3_Var155 string
 		templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(f.Ingredient.ID, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 645, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 646, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var155)
 		if templ_7745c5c3_Err != nil {
@@ -3198,7 +3199,7 @@ func moveForm(f MoveForm) templ.Component {
 		var templ_7745c5c3_Var156 string
 		templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(f.From))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 646, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 647, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var156)
 		if templ_7745c5c3_Err != nil {
@@ -3243,7 +3244,7 @@ func moveForm(f MoveForm) templ.Component {
 				var templ_7745c5c3_Var159 string
 				templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.ResolveAttributeValue(quantityStep(f.Ingredient.Unit))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 654, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 655, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var159)
 				if templ_7745c5c3_Err != nil {
@@ -3256,7 +3257,7 @@ func moveForm(f MoveForm) templ.Component {
 				var templ_7745c5c3_Var160 string
 				templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Quantity)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 656, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 657, Col: 24}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var160)
 				if templ_7745c5c3_Err != nil {
@@ -3303,7 +3304,7 @@ func moveForm(f MoveForm) templ.Component {
 				var templ_7745c5c3_Var162 string
 				templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Note)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 665, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 666, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var162)
 				if templ_7745c5c3_Err != nil {
@@ -3346,7 +3347,7 @@ func moveForm(f MoveForm) templ.Component {
 					var templ_7745c5c3_Var165 string
 					templ_7745c5c3_Var165, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMove))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 669, Col: 27}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 670, Col: 27}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var165))
 					if templ_7745c5c3_Err != nil {
@@ -3382,7 +3383,7 @@ func moveForm(f MoveForm) templ.Component {
 	})
 }
 
-// targetChoices are the Storage Locations f's Stock Item can move to, each with what
+// targetChoices are the Storage Locations `f`'s Stock Item can move to, each with what
 // Dandori believes it holds of the Ingredient.
 func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
 	var choices []web.Choice
@@ -3397,9 +3398,9 @@ func targetChoices(ctx context.Context, f MoveForm) []web.Choice {
 	return choices
 }
 
-// Status says when the scheduler last brought the User's kitchen up to now, at, told in
-// now's zone, with its date unless it was today. Before its first beat, ok is false and
-// it says nothing.
+// Status says when the scheduler last brought the User's kitchen up to now, `at`, told in
+// `now`'s zone, with its date unless it was today. Before its first beat, `ok` is false
+// and it says nothing.
 func Status(now, at time.Time, ok bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -3437,7 +3438,7 @@ func Status(now, at time.Time, ok bool) templ.Component {
 				var templ_7745c5c3_Var168 string
 				templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.JoinStringErrs(statusText(ctx, now, at.In(now.Location())))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 698, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/kitchen/web_views.templ`, Line: 699, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var168))
 				if templ_7745c5c3_Err != nil {

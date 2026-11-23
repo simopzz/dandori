@@ -252,7 +252,7 @@ func clockSwitch(c *clock.Manual) http.HandlerFunc {
 	}
 }
 
-// Exec runs sql on the app's database, for fixtures of what the app can't
+// Exec runs `sql` on the app's database, for fixtures of what the app can't
 // create through its pages yet.
 func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
 	t.Helper()
@@ -267,8 +267,9 @@ func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
 	}
 }
 
-// Refuses checks the app's database refuses sql, a write no page makes, with the SQLSTATE
-// code, for a test of what the database itself holds to: a typo in sql fails it.
+// Refuses checks the app's database refuses `sql`, a write no page makes, with the
+// SQLSTATE `code`, for a test of what the database itself holds to: a typo in `sql`
+// fails it.
 func (h *Harness) Refuses(t testing.TB, code, sql string, args ...any) {
 	t.Helper()
 	ctx := context.Background()
@@ -283,8 +284,8 @@ func (h *Harness) Refuses(t testing.TB, code, sql string, args ...any) {
 	}
 }
 
-// Scan reads the one row sql gives into dest, as the admin role, for a test checking what
-// no page shows yet.
+// Scan reads the one row `sql` gives into `dest`, as the admin role, for a test checking
+// what no page shows yet.
 func (h *Harness) Scan(t testing.TB, dest any, sql string, args ...any) {
 	t.Helper()
 	ctx := context.Background()
@@ -309,7 +310,7 @@ type Response struct {
 	Path   string
 }
 
-// Get requests path from the app.
+// Get requests `path` from the app.
 func (h *Harness) Get(t testing.TB, path string) Response {
 	t.Helper()
 	res, err := h.Client.Get(h.URL + path)
@@ -324,7 +325,7 @@ func (h *Harness) Get(t testing.TB, path string) Response {
 	return Response{StatusCode: res.StatusCode, Header: res.Header, Body: string(body), Method: res.Request.Method, Path: res.Request.URL.Path}
 }
 
-// HTMXGet requests path from the app as HTMX does, marked with HX-Request.
+// HTMXGet requests `path` from the app as HTMX does, marked with HX-Request.
 func (h *Harness) HTMXGet(t testing.TB, path string) Response {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodGet, h.URL+path, nil)
@@ -335,14 +336,14 @@ func (h *Harness) HTMXGet(t testing.TB, path string) Response {
 	return h.do(t, req)
 }
 
-// PostForm submits form to path, as a browser does without HTMX, following
+// PostForm submits `form` to `path`, as a browser does without HTMX, following
 // any redirect.
 func (h *Harness) PostForm(t testing.TB, path string, form url.Values) Response {
 	t.Helper()
 	return h.postForm(t, path, form, false)
 }
 
-// HTMXPostForm submits form to path as HTMX does, marked with HX-Request.
+// HTMXPostForm submits `form` to `path` as HTMX does, marked with HX-Request.
 func (h *Harness) HTMXPostForm(t testing.TB, path string, form url.Values) Response {
 	t.Helper()
 	return h.postForm(t, path, form, true)

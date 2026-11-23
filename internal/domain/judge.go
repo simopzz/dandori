@@ -15,13 +15,13 @@ type Verdict struct {
 	MadeForAfter   []MadeForAfter
 }
 
-// Judge is the Verdict on plan, a draft of cycle's Slots by profile's Slot times from the
-// Slot from on, replacing current, the Cycle's Plan if it has one, at now: lots are the
-// Portion Lots the kitchen holds without a Slot, stock what it holds of each Stock Item,
-// and earlier what approved Plans put in Slots before. The Portions it may put in Slots
-// are those current.Replace frees, and the Prep Sessions it keeps count towards back to
-// back. On a current Cycle, no Delivery brings what the kitchen doesn't hold, and its
-// Delivery is put away, splitting nothing more.
+// Judge is the Verdict on `plan`, a draft of `cycle`'s Slots by `profile`'s Slot times
+// from the Slot `from` on, replacing `current`, the Cycle's Plan if it has one, at `now`:
+// `lots` are the Portion Lots the kitchen holds without a Slot, `stock` what it holds of
+// each Stock Item, and `earlier` what approved Plans put in Slots before. The Portions it
+// may put in Slots are those `current.Replace` frees, and the Prep Sessions it keeps
+// count towards back to back. On a current Cycle, no Delivery brings what the kitchen
+// doesn't hold, and its Delivery is put away, splitting nothing more.
 func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lots []PortionLot, stock map[StockKey]Quantity, earlier []Eaten, now time.Time) Verdict {
 	var slots []Slot
 	for _, s := range cycle.Slots(profile.SlotTimes) {
@@ -60,7 +60,7 @@ func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lot
 // is already put away.
 const RuleSplitAfterPutAway Rule = "split-after-put-away"
 
-// SplitsAfterPutAway are the violations of p's freezer splits, p being a Plan of the
+// SplitsAfterPutAway are the violations of `p`'s freezer splits, `p` being a Plan of the
 // current Cycle.
 func SplitsAfterPutAway(p Plan) []Violation {
 	var vs []Violation

@@ -61,7 +61,7 @@ func (h Handlers) RunPage() runs.KindPage {
 }
 
 // Arrived takes the signed-in User's Deliveries arrived by now as arrived, then serves
-// next. It runs after the kitchen is brought up to now.
+// `next`. It runs after the kitchen is brought up to now.
 func (h Handlers) Arrived(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Service.Arrive(r.Context(), h.Clock.Now()); err != nil {
@@ -72,7 +72,7 @@ func (h Handlers) Arrived(next http.Handler) http.Handler {
 	})
 }
 
-// resultURL is the Cycle page of the Cycle the planning Run runID planned, or the Cycle
+// resultURL is the Cycle page of the Cycle the planning Run `runID` planned, or the Cycle
 // page once that Cycle has closed or been dropped.
 func (h Handlers) resultURL(ctx context.Context, runID int64) (string, error) {
 	c, _, err := h.Service.CycleOfRun(ctx, runID, h.Clock.Now())
@@ -115,9 +115,9 @@ func (h Handlers) ShowCycle(w http.ResponseWriter, r *http.Request) {
 	h.cycle(w, r, http.StatusOK, id, nil)
 }
 
-// cycle answers with the Cycle page of the Cycle id, the current one, or the upcoming
-// one when none is, for 0, with status, saying why a decision or planning was refused, if
-// it was, with any Planning Note posted still typed. A Cycle id neither upcoming nor
+// cycle answers with the Cycle page of the Cycle `id`, the current one, or the upcoming
+// one when none is, for 0, with `status`, saying why a decision or planning was refused,
+// if it was, with any Planning Note posted still typed. A Cycle `id` neither upcoming nor
 // current redirects a GET to the Cycle page, and shows that page otherwise. With both a
 // current and an upcoming Cycle, it links the two.
 func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, id int64, refusal error) {
@@ -236,9 +236,9 @@ func (h Handlers) AskForChanges(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// refused answers a decision or a replan of the Cycle id that failed with err, doing
-// what: unknown when there's nothing to decide or plan, the Cycle's page saying why when
-// a rule refused it.
+// refused answers a decision or a replan of the Cycle `id` that failed with `err`, doing
+// `what`: unknown when there's nothing to decide or plan, the Cycle's page saying why
+// when a rule refused it.
 func (h Handlers) refused(w http.ResponseWriter, r *http.Request, id int64, what string, err error) {
 	var refusal httpx.Refusal
 	switch {
@@ -269,7 +269,7 @@ func (h Handlers) ShowDraft(w http.ResponseWriter, r *http.Request) { h.showDraf
 // ShowDraftSheet is ShowDraft as the body of the sheet over the Cycle page.
 func (h Handlers) ShowDraftSheet(w http.ResponseWriter, r *http.Request) { h.showDraft(w, r, true) }
 
-// showDraft answers with the Recipe Draft in the path: as its sheet's body when sheet,
+// showDraft answers with the Recipe Draft in the path: as its sheet's body when `sheet`,
 // else as a page. One the User's pending Plan Proposal doesn't prepare is unknown.
 func (h Handlers) showDraft(w http.ResponseWriter, r *http.Request, sheet bool) {
 	id, ok := httpx.PathID(w, r)
@@ -297,8 +297,8 @@ func (h Handlers) ShowCheck(w http.ResponseWriter, r *http.Request) {
 	h.check(w, r, http.StatusOK, nil)
 }
 
-// check answers with the Kitchen Check of the Cycle in the path, with status, saying why
-// planning is refused, if it is. A Cycle neither upcoming nor current is unknown.
+// check answers with the Kitchen Check of the Cycle in the path, with `status`, saying
+// why planning is refused, if it is. A Cycle neither upcoming nor current is unknown.
 func (h Handlers) check(w http.ResponseWriter, r *http.Request, status int, refusal error) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -359,7 +359,7 @@ func (h Handlers) ShowOpen(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, openPage(now, form))
 }
 
-// linkUpcoming gives f the upcoming Cycle at now, while it refuses opening for it.
+// linkUpcoming gives `f` the upcoming Cycle at `now`, while it refuses opening for it.
 func (h Handlers) linkUpcoming(ctx context.Context, now time.Time, f *OpenForm) (err error) {
 	if errors.Is(f.Refusal, ErrUpcoming) {
 		_, f.Upcoming, err = h.Service.Now(ctx, now)
@@ -408,7 +408,7 @@ func (h Handlers) ShowDrop(w http.ResponseWriter, r *http.Request) { h.showDrop(
 func (h Handlers) ShowDropSheet(w http.ResponseWriter, r *http.Request) { h.showDrop(w, r, true) }
 
 // showDrop answers with the step asking before dropping the Cycle in the path: as its
-// sheet's body when sheet, else as a page. A Cycle the User has none upcoming of
+// sheet's body when `sheet`, else as a page. A Cycle the User has none upcoming of
 // is unknown.
 func (h Handlers) showDrop(w http.ResponseWriter, r *http.Request, sheet bool) {
 	id, ok := httpx.PathID(w, r)

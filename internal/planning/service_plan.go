@@ -61,8 +61,8 @@ const lowCareBrief = "Low-care Recipes, about 15 active minutes."
 // languageNames name each Language for the model.
 var languageNames = map[domain.Language]string{domain.English: "English", domain.Italian: "Italian"}
 
-// StartPlanning starts a planning Run of the signed-in User's Cycle id, upcoming or
-// current at now, from its first Slot still to come, told what the kitchen holds now,
+// StartPlanning starts a planning Run of the signed-in User's Cycle `id`, upcoming or
+// current at `now`, from its first Slot still to come, told what the kitchen holds `now`,
 // and is the Run's id. It is ErrNoCycle for a Cycle neither, ErrPlanned for one with a
 // Plan, ErrNothingLeft when all its Slots have passed, and ErrBusy while another
 // planning Run is going or a Plan Proposal is pending.
@@ -74,15 +74,15 @@ func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (i
 	return s.start(ctx, c, firstSlot(c), now, "", firstPlan, nil)
 }
 
-// firstSlot is where planning c starts, the first Slot still to come from it on: its
+// firstSlot is where planning `c` starts, the first Slot still to come from it on: its
 // Delivery's day's breakfast, no later than its first Slot.
 func firstSlot(c Cycle) domain.Slot { return domain.Slot{On: c.Delivery.On, Kind: domain.Breakfast} }
 
-// start starts a planning Run of c at now from the Slot from, or the first still to come
-// once that has passed, asking wants of c's Plan, told every Planning Note of c, newest
-// first, note first if not "", and is the Run's id. It replaces c's Plan, if c has one,
-// from that Slot on. before, if set, runs in the transaction recording the Run, before
-// it is told whether it is c's turn: an error from it starts nothing.
+// start starts a planning Run of `c` at `now` from the Slot `from`, or the first still to
+// come once that has passed, asking `wants` of `c`'s Plan, told every Planning Note of
+// `c`, newest first, `note` first if not "", and is the Run's id. It replaces `c`'s Plan,
+// if `c` has one, from that Slot on. `before`, if set, runs in the transaction recording
+// the Run, before it is told whether it is `c`'s turn: an error from it starts nothing.
 func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time.Time, note string, wants plans, before func(tx pgx.Tx) error) (int64, error) {
 	p, err := s.profile.Profile(ctx)
 	if err != nil {
@@ -172,9 +172,9 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 	})
 }
 
-// approvedPlan is what approved, oldest first, plan together, their Recipes, Ingredients
-// and Portions found among those given: each approved replacing, from its first Slot to
-// its last, what those before it planned (domain.Plan.With).
+// approvedPlan is what `approved`, oldest first, plan together, their Recipes,
+// Ingredients and Portions found among those given: each `approved` replacing, from its
+// first Slot to its last, what those before it planned (domain.Plan.With).
 func approvedPlan(approved []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion) domain.Plan {
 	var plan domain.Plan
 	for _, sp := range approved {
@@ -183,10 +183,10 @@ func approvedPlan(approved []*storedProposal, library []domain.Recipe, known []d
 	return plan
 }
 
-// cyclePlan is c's Plan by times, what own, its approved Plan Proposals oldest first,
-// leave in place, as far as c lasts: Until the next Cycle's Delivery arrives. One
-// approved after c's Delivery arrives keeps the freezer splits before it: the Delivery
-// was put away by those.
+// cyclePlan is `c`'s Plan by `times`, what `own`, its approved Plan Proposals oldest
+// first, leave in place, as far as `c` lasts: Until the next Cycle's Delivery arrives.
+// One approved after `c`'s Delivery arrives keeps the freezer splits before it: the
+// Delivery was put away by those.
 func cyclePlan(c Cycle, own []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, times domain.SlotTimes) domain.Plan {
 	var plan domain.Plan
 	for _, sp := range own {
@@ -202,7 +202,7 @@ func cyclePlan(c Cycle, own []*storedProposal, library []domain.Recipe, known []
 	return plan
 }
 
-// stockOf is what held holds of each Stock Item.
+// stockOf is what `held` holds of each Stock Item.
 func stockOf(held []kitchen.Held) map[domain.StockKey]domain.Quantity {
 	stock := map[domain.StockKey]domain.Quantity{}
 	for _, h := range held {
@@ -235,7 +235,7 @@ Write every food term in the user's Language, named in the prompt.
 Call check_plan with a whole draft Plan: it stores nothing, gives the draft an id and lists every hard rule it breaks. You have a few calls; use them well. Then call submit_plan with the id of a draft that keeps every hard rule. A draft breaking one comes back with the rules it breaks; after %[1]d such submits the Run fails. Once a Plan Proposal is stored, end your turn with a summary of the Plan for the user, in their Language: two or three sentences on what it cooks and why. Give no nutrition figures and no day-by-day list: Dandori shows both.`, attempts, domain.MinSize, domain.MaxSize)
 
 // planStable is the planning Run's stable block, what varies per User but rarely per Run,
-// so it is cached: the Profile p, the Recipe Library and the known Ingredients.
+// so it is cached: the Profile `p`, the Recipe Library and the `known` Ingredients.
 func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingredient) string {
 	var b strings.Builder
 	t := p.Targets
@@ -282,14 +282,14 @@ func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 	return strings.TrimSpace(b.String())
 }
 
-// planPrompt is what a planning Run of c's Slots planned, from the first on, is told
+// planPrompt is what a planning Run of `c`'s Slots `planned`, from the first on, is told
 // after its stable block: the Cycle and its Slots, today, the User's Language, the
 // Planning Brief or its low-care default, the Planning Notes newest first, the kitchen
-// forecast f at the first of the Stock Items held at now, the Portions without a Slot
-// being those it may put in Slots, that a current Cycle gets no more, what current, the
-// Cycle's Plan, eats from then on, which it replaces, portions naming the Portions
-// without a Slot it puts in Slots, and what the trailing seven days before from eat as
-// approved Plans fill them.
+// forecast `f` at the first of the Stock Items `held` at `now`, the Portions without a
+// Slot being those it may put in Slots, that a current Cycle gets no more, what
+// `current`, the Cycle's Plan, eats from then on, which it replaces, `portions` naming
+// the Portions without a Slot it puts in Slots, and what the `trailing` seven days before
+// from eat as approved Plans fill them.
 func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, notes []string, now time.Time, held []kitchen.Held, f domain.Forecast, current domain.Plan, portions []domain.Portion, trailing []domain.Day) string {
 	slots, from := c.Slots(p.SlotTimes), planned[0]
 	var b strings.Builder
@@ -356,8 +356,8 @@ func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, 
 	return strings.TrimSpace(b.String())
 }
 
-// eatenFrom is what plan puts in each of slots, in order, as the planner reads it,
-// portions naming the Portions without a Slot it puts in them: none for a Slot it
+// eatenFrom is what `plan` puts in each of `slots`, in order, as the planner reads it,
+// `portions` naming the Portions without a Slot it puts in them: none for a Slot it
 // leaves empty.
 func eatenFrom(plan domain.Plan, slots []domain.Slot, portions []domain.Portion) []string {
 	var eats []string
@@ -386,8 +386,8 @@ func eatenFrom(plan domain.Plan, slots []domain.Slot, portions []domain.Portion)
 // longDate is how the planner is told a day in full.
 const longDate = "Monday 2 January 2006"
 
-// describeDay is n's values of what the Targets aim at, as the planner reads them, those
-// missed marked, if missed says.
+// describeDay is `n`'s values of what the Targets aim at, as the planner reads them,
+// those missed marked, if `missed` says.
 func describeDay(n domain.PortionNutrition, missed func(domain.Target) (missed, under bool)) string {
 	parts := make([]string, len(domain.Aimed))
 	for i, target := range domain.Aimed {
@@ -412,7 +412,8 @@ func describeDay(n domain.PortionNutrition, missed func(domain.Target) (missed, 
 	return strings.Join(parts, ", ")
 }
 
-// dayMissed reports which Targets the day d misses as a soft rule does: by more than 25%.
+// dayMissed reports which Targets the day `d` misses as a soft rule does: by more
+// than 25%.
 func dayMissed(t domain.Targets, d domain.Day) func(domain.Target) (missed, under bool) {
 	return func(target domain.Target) (bool, bool) {
 		m, off := t.DayOff(target, d)
@@ -420,7 +421,7 @@ func dayMissed(t domain.Targets, d domain.Day) func(domain.Target) (missed, unde
 	}
 }
 
-// averageMissed reports which Targets the average avg misses, and whether under them.
+// averageMissed reports which Targets the average `avg` misses, and whether under them.
 func averageMissed(t domain.Targets, avg domain.PortionNutrition) func(domain.Target) (missed, under bool) {
 	return func(target domain.Target) (bool, bool) {
 		a, _ := avg.Of(target)
@@ -429,8 +430,8 @@ func averageMissed(t domain.Targets, avg domain.PortionNutrition) func(domain.Ta
 	}
 }
 
-// missOf is whether missed says target is missed, and if so whether under it; nothing is
-// missed when missed is nil.
+// missOf is whether `missed` says `target` is missed, and if so whether `under` it;
+// nothing is missed when `missed` is nil.
 func missOf(missed func(domain.Target) (bool, bool), target domain.Target) (off, under bool) {
 	if missed == nil {
 		return false, false
@@ -438,7 +439,7 @@ func missOf(missed func(domain.Target) (bool, bool), target domain.Target) (off,
 	return missed(target)
 }
 
-// describeNutrition is n as the planner reads it, a floor said "at least".
+// describeNutrition is `n` as the planner reads it, a floor said "at least".
 func describeNutrition(n domain.Nutrition, fibreFloor, sugarFloor bool) string {
 	amount := func(a domain.Amount, unit, what string, floor bool) string {
 		switch {
@@ -456,7 +457,7 @@ func describeNutrition(n domain.Nutrition, fibreFloor, sugarFloor bool) string {
 	}, ", ")
 }
 
-// per is the quantity of unit an Ingredient's values are given for.
+// per is the quantity of `unit` an Ingredient's values are given for.
 func per(unit domain.Unit) string {
 	if unit == domain.Pieces {
 		return "piece:"
@@ -464,7 +465,7 @@ func per(unit domain.Unit) string {
 	return "100 " + string(unit) + ":"
 }
 
-// listOrNone is items joined, or "none".
+// listOrNone is `items` joined, or "none".
 func listOrNone(items []string) string {
 	if len(items) == 0 {
 		return "none"
@@ -472,7 +473,7 @@ func listOrNone(items []string) string {
 	return strings.Join(items, ", ")
 }
 
-// parenthesised is note in brackets, or "" for none.
+// parenthesised is `note` in brackets, or "" for none.
 func parenthesised(note string) string {
 	if note == "" {
 		return ""
@@ -510,7 +511,8 @@ type planBrief struct {
 	verdict domain.Verdict // the Verdict on chosen, stored with it
 }
 
-// brief is the planning Run's Brief, for a User speaking l, told stable then prompt.
+// brief is the planning Run's Brief, for a User speaking `l`, told `stable`
+// then `prompt`.
 func (pb *planBrief) brief(l domain.Language, stable, prompt string) agent.Brief {
 	return agent.Brief{
 		System: plannerSystem,
@@ -568,12 +570,12 @@ func (pb *planBrief) check(_ context.Context, input json.RawMessage) (string, er
 	return fmt.Sprintf("Draft %d breaks these hard rules:\n%s\n%s\n%s", id, listViolations(v.Broken), left, pb.results(v)), nil
 }
 
-// judge is the Verdict on plan now.
+// judge is the Verdict on `plan` now.
 func (pb *planBrief) judge(plan domain.Plan) domain.Verdict {
 	return domain.Judge(plan, pb.cycle, pb.from, pb.profile, pb.current, pb.lots, pb.stock, pb.earlier, pb.now())
 }
 
-// results are the Verdict v as the planner reads it: each day it plans, the Targets'
+// results are the Verdict `v` as the planner reads it: each day it plans, the Targets'
 // results over the days it fills whole, the soft rules it breaks and the Portions it
 // makes for after the Cycle.
 func (pb *planBrief) results(v domain.Verdict) string {
@@ -650,7 +652,7 @@ func (pb *planBrief) submit(_ context.Context, input json.RawMessage) (string, e
 	return "", fmt.Errorf("draft %d breaks these hard rules (submit %d of %d):\n%s", in.DraftID, len(pb.broken), attempts, listViolations(vs))
 }
 
-// draft reads input as a Recipe Draft for a User speaking l, replacing the one of the
+// draft reads `input` as a Recipe Draft for a User speaking `l`, replacing the one of the
 // same name if any, and gives its id, or says what to fix.
 func (pb *planBrief) draft(l domain.Language, input json.RawMessage) (string, error) {
 	d, err := recipes.ReadDraft(l, pb.known, pb.library, input)
@@ -667,11 +669,11 @@ func (pb *planBrief) draft(l domain.Language, input json.RawMessage) (string, er
 	return fmt.Sprintf("Drafted Recipe %d: %s. Prepare it in check_plan with recipe_id %d.", draftID(i), d.Recipe.Name, draftID(i)), nil
 }
 
-// draftID is the id the planner prepares the Recipe Draft drafted at i by: negative, so
+// draftID is the id the planner prepares the Recipe Draft drafted at `i` by: negative, so
 // it is never a Recipe's.
 func draftID(i int) int64 { return -int64(i + 1) }
 
-// listViolations is vs one a line, as the planner reads them.
+// listViolations is `vs` one a line, as the planner reads them.
 func listViolations(vs []domain.Violation) string {
 	lines := make([]string, len(vs))
 	for i, v := range vs {
@@ -741,7 +743,7 @@ var draftSchema = json.RawMessage(fmt.Sprintf(`{
   "required": ["prep_sessions"]
 }`, enumOf(domain.SlotKinds), domain.MinSize, domain.MaxSize))
 
-// enumOf is kinds as a JSON array of their codes, for a schema's enum.
+// enumOf is `kinds` as a JSON array of their codes, for a schema's enum.
 func enumOf[K ~string](kinds []K) []byte {
 	b, err := json.Marshal(kinds)
 	if err != nil {
@@ -776,7 +778,7 @@ type draft struct {
 	} `json:"freezer_splits"`
 }
 
-// read is the draft Plan input, its ids resolved, or why it can't be read: an id that
+// read is the draft Plan `input`, its ids resolved, or why it can't be read: an id that
 // names nothing, a Slot that isn't one, a Prep Session of both or neither a Recipe and an
 // Ingredient, a freezer split of nothing, and what domain.Plan.Unreadable finds.
 func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
@@ -893,8 +895,8 @@ type Planning struct {
 	Notes          []string
 }
 
-// PlanningOf is how planning the signed-in User's Cycle c stands, its days in zone: its
-// Plan as far as c lasts, Until the next Cycle's Delivery arrives.
+// PlanningOf is how planning the signed-in User's Cycle `c` stands, its days in `zone`:
+// its Plan as far as `c` lasts, Until the next Cycle's Delivery arrives.
 func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) (Planning, error) {
 	id := c.ID
 	var p Planning
@@ -993,9 +995,9 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 	return p, nil
 }
 
-// Drafted is the Recipe Draft id of the signed-in User's pending Plan Proposal, for them
-// speaking in their Language, with the id of the Cycle it plans, or ErrNoProposal when
-// that doesn't prepare it.
+// Drafted is the Recipe Draft `id` of the signed-in User's pending Plan Proposal, for
+// them speaking in their Language, with the id of the Cycle it plans, or ErrNoProposal
+// when that doesn't prepare it.
 func (s *Service) Drafted(ctx context.Context, id int64) (rec domain.Recipe, cycleID int64, err error) {
 	l, _, err := s.profile.Language(ctx)
 	if err != nil {
@@ -1028,8 +1030,8 @@ func (s *Service) Drafted(ctx context.Context, id int64) (rec domain.Recipe, cyc
 	return d.Recipe, cycleID, err
 }
 
-// readDrafts are the Recipe Drafts stored, read for a User speaking l against their
-// Ingredients, known.
+// readDrafts are the Recipe Drafts `stored`, read for a User speaking `l` against their
+// Ingredients, `known`.
 func readDrafts(l domain.Language, known []domain.Ingredient, stored []storedDraft) ([]recipes.Drafted, error) {
 	drafted := make([]recipes.Drafted, len(stored))
 	for i, d := range stored {
@@ -1041,7 +1043,8 @@ func readDrafts(l domain.Language, known []domain.Ingredient, stored []storedDra
 	return drafted, nil
 }
 
-// lastDay is the last day planned puts a Portion in a Slot on, first when none is later.
+// lastDay is the last day `planned` puts a Portion in a Slot on, `first` when none
+// is later.
 func lastDay(planned []domain.Eaten, first time.Time) time.Time {
 	last := first
 	for _, e := range planned {
@@ -1052,7 +1055,7 @@ func lastDay(planned []domain.Eaten, first time.Time) time.Time {
 	return last
 }
 
-// keptOf are the Portions of portions that kept puts in Slots, by id.
+// keptOf are the Portions of `portions` that `kept` puts in Slots, by id.
 func keptOf(kept []domain.Kept, portions []domain.Portion) map[int64]domain.Portion {
 	out := map[int64]domain.Portion{}
 	for _, portion := range portions {
@@ -1063,7 +1066,7 @@ func keptOf(kept []domain.Kept, portions []domain.Portion) map[int64]domain.Port
 	return out
 }
 
-// resolve is sp with its Recipes, Ingredients, Portions and Recipe Drafts found by id
+// resolve is `sp` with its Recipes, Ingredients, Portions and Recipe Drafts found by id
 // among those given.
 func (sp storedProposal) resolve(library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, drafted []recipes.Drafted) *Proposal {
 	recipes := map[int64]*domain.Recipe{}

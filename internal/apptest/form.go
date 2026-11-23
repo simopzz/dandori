@@ -17,10 +17,10 @@ type FormData struct {
 	Button, ButtonName string
 }
 
-// Get returns the first value of field.
+// Get returns the first value of `field`.
 func (f FormData) Get(field string) string { return f.Values.Get(field) }
 
-// Form reads the form with the given id from page: its action and the
+// Form reads the form with the given `id` from `page`: its action and the
 // values of its inputs, textareas and selects as they are shown.
 func Form(t testing.TB, page, id string) FormData {
 	t.Helper()
@@ -100,7 +100,7 @@ func Form(t testing.TB, page, id string) FormData {
 	return f
 }
 
-// inTemplate reports whether n is template content, which isn't submitted.
+// inTemplate reports whether `n` is template content, which isn't submitted.
 func inTemplate(n, form *html.Node) bool {
 	for p := n.Parent; p != form; p = p.Parent {
 		if p.Data == "template" {
@@ -139,8 +139,8 @@ func hasAttr(n *html.Node, key string) bool {
 	return false
 }
 
-// Choose reads the form with the given id from page as Form does, with the radio button
-// labelled label checked in place of its group's.
+// Choose reads the form with the given `id` from `page` as Form does, with the radio
+// button labelled `label` checked in place of its group's.
 func Choose(t testing.TB, page, id, label string) FormData {
 	t.Helper()
 	f := Form(t, page, id)
@@ -163,7 +163,7 @@ func Choose(t testing.TB, page, id, label string) FormData {
 	return f
 }
 
-// shownText is the text n shows, its whitespace collapsed.
+// shownText is the text `n` shows, its whitespace collapsed.
 func shownText(n *html.Node) string {
 	var b strings.Builder
 	for c := range n.Descendants() {
@@ -174,16 +174,16 @@ func shownText(n *html.Node) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
-// EditForm reads the form editing the Ingredient whose edit form holds the name name,
+// EditForm reads the form editing the Ingredient whose edit form holds the name `name`,
 // as Form does: the Ingredient so named, or the one just refused with that name typed.
 func EditForm(t testing.TB, page, name string) FormData {
 	t.Helper()
 	return Form(t, page, "ingredient-edit-"+editedID(t, page, name))
 }
 
-// DeleteLink is where the Delete of the Ingredient whose edit form holds the name name
-// leads: href, the step asking before deleting it as a page, and src, the same step as
-// the body of the sheet htmx opens.
+// DeleteLink is where the Delete of the Ingredient whose edit form holds the name `name`
+// leads: `href`, the step asking before deleting it as a page, and `src`, the same step
+// as the body of the sheet htmx opens.
 func DeleteLink(t testing.TB, page, name string) (href, src string) {
 	t.Helper()
 	doc, err := html.Parse(strings.NewReader(page))
@@ -200,7 +200,7 @@ func DeleteLink(t testing.TB, page, name string) (href, src string) {
 	return "", ""
 }
 
-// editedID is the id of the Ingredient whose edit form on page holds the name name.
+// editedID is the id of the Ingredient whose edit form on `page` holds the name `name`.
 func editedID(t testing.TB, page, name string) string {
 	t.Helper()
 	doc, err := html.Parse(strings.NewReader(page))

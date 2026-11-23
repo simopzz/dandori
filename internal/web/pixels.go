@@ -27,7 +27,7 @@ var (
 	fujiArt = pixelArt(fuji())
 )
 
-// pixelArt is rows, a bitmap in artColours' runes, as an aria-hidden SVG one unit per
+// pixelArt is `rows`, a bitmap in artColours' runes, as an aria-hidden SVG one unit per
 // pixel, sized by its class in app.css.
 func pixelArt(rows []string) string {
 	paths := pixelPaths(rows)
@@ -72,7 +72,7 @@ func pixelPaths(rows []string) map[rune]string {
 	return d
 }
 
-// ditherSteps are the classes of a ramp's steps down through colours, sky tokens named
+// ditherSteps are the classes of a ramp's steps down through `colours`, sky tokens named
 // without their prefix: each colour solid, then the next over it at 25, 50 and 75%, and
 // the last solid.
 func ditherSteps(colours []string) [][]string {
@@ -97,7 +97,7 @@ func newCanvas(w, h int) canvas {
 	return c
 }
 
-// fill colours the run of w pixels from x on row y, clipped to the canvas.
+// fill colours the run of `w` pixels from `x` on row `y`, clipped to the canvas.
 func (c canvas) fill(x, y, w int, r rune) {
 	for i := max(x, 0); i < min(x+w, len(c[y])); i++ {
 		c[y][i] = r

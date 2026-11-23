@@ -93,12 +93,13 @@ var (
 	eggFridge   = domain.StockKey{Ingredient: 2, Location: domain.Fridge}
 )
 
-// counted is a Count at hour of key, which believed it held believed and was told stated.
+// counted is a Count at `hour` of `key`, which believed it held `believed` and was
+// told `stated`.
 func counted(hour int, key domain.StockKey, believed, stated domain.Quantity) domain.Movement {
 	return domain.Movement{At: onMonday(hour), Key: key, Change: stated - believed, Cause: domain.Counted, Believed: believed, Stated: stated}
 }
 
-// moved is a move at hour of moved from key to another Storage Location.
+// moved is a move at `hour` of `moved` from `key` to another Storage Location.
 func moved(hour int, key domain.StockKey, to domain.StorageLocation, moved domain.Quantity) domain.Movement {
 	return domain.Movement{At: onMonday(hour), Key: key, To: to, Change: moved, Cause: domain.Moved}
 }

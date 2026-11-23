@@ -144,7 +144,7 @@ func (h Handlers) Add(w http.ResponseWriter, r *http.Request) {
 	h.answerWrite(w, r, web.Answer{Notice: web.Tf(r.Context(), msgAdded, ing.Name), RedirectTo: "/ingredients"}, sheetView{})
 }
 
-// refuseAdd answers an add refused, f as typed with why: as the sheet's body, or as the
+// refuseAdd answers an add refused, `f` as typed with why: as the sheet's body, or as the
 // add page.
 func (h Handlers) refuseAdd(w http.ResponseWriter, r *http.Request, f AddForm) {
 	if shown, ok := h.answer(w, r, sheetView{Add: f}); ok {
@@ -212,8 +212,9 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	h.answerWrite(w, r, web.Answer{Notice: notice, Trigger: Saved, RedirectTo: searched(view.Q)}, sheetView{Q: view.Q})
 }
 
-// stapleNotice confirms ing marked a Staple, with each of its Stock Items counted, in
-// counted, to nothing: one by its quantity alone, several each with its Storage Location.
+// stapleNotice confirms `ing` marked a Staple, with each of its Stock Items counted, in
+// `counted`, to nothing: one by its quantity alone, several each with its
+// Storage Location.
 func stapleNotice(ctx context.Context, ing domain.Ingredient, counted []domain.Movement) string {
 	first := web.Quantity(ctx, counted[0].Believed, ing.Unit)
 	if len(counted) == 1 {
@@ -235,7 +236,7 @@ func (h Handlers) ShowDelete(w http.ResponseWriter, r *http.Request) { h.showDel
 func (h Handlers) ShowDeleteSheet(w http.ResponseWriter, r *http.Request) { h.showDelete(w, r, true) }
 
 // showDelete answers with the step asking before deleting the Ingredient id: as its
-// sheet's body when sheet, else as a page.
+// sheet's body when `sheet`, else as a page.
 func (h Handlers) showDelete(w http.ResponseWriter, r *http.Request, sheet bool) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -298,7 +299,8 @@ func (h Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	h.answerWrite(w, r, web.Answer{Notice: web.Tf(ctx, msgDeleted, name), Trigger: web.CloseSheet, RedirectTo: searched(q)}, sheetView{Q: q})
 }
 
-// recipesNamed names the Recipes e says list an Ingredient: the first, and how many more.
+// recipesNamed names the Recipes `e` says list an Ingredient: the first, and how
+// many more.
 func recipesNamed(ctx context.Context, e *InRecipeError) string {
 	switch e.Others {
 	case 0:
@@ -309,7 +311,7 @@ func recipesNamed(ctx context.Context, e *InRecipeError) string {
 	return web.Tf(ctx, msgMoreRecipes, e.Recipe, e.Others)
 }
 
-// searched is the Ingredients page searched for q, where a plain post lands.
+// searched is the Ingredients page searched for `q`, where a plain post lands.
 func searched(q string) string {
 	if q == "" {
 		return "/ingredients"
@@ -327,8 +329,9 @@ type sheetView struct {
 	WithMovements map[int64]bool
 }
 
-// answerWrite answers a write with a, its page and sheet body view, which it lists only
-// when a doesn't redirect r: the write is done, and a failed listing mustn't hide it.
+// answerWrite answers a write with `a`, its page and sheet body `view`, which it lists
+// only when `a` doesn't redirect `r`: the write is done, and a failed listing mustn't
+// hide it.
 func (h Handlers) answerWrite(w http.ResponseWriter, r *http.Request, a web.Answer, view sheetView) {
 	if !a.Redirects(r) {
 		shown, ok := h.answer(w, r, view)
@@ -340,9 +343,9 @@ func (h Handlers) answerWrite(w http.ResponseWriter, r *http.Request, a web.Answ
 	a.Write(w, r, h.Log)
 }
 
-// answer is view, its list the User's Ingredients a search for its Q finds, as the
+// answer is `view`, its list the User's Ingredients a search for its Q finds, as the
 // Ingredients page and as the sheet's body, with the Notice confirming the Ingredient
-// picked, if any. On a failure it answers r itself and reports false.
+// picked, if any. On a failure it answers `r` itself and reports false.
 func (h Handlers) answer(w http.ResponseWriter, r *http.Request, view sheetView) (web.Answer, bool) {
 	ings, withMovements, err := h.Service.Listing(r.Context(), view.Q)
 	if err != nil {

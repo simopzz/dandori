@@ -11,7 +11,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// saveUpTo records the signed-in User's kitchen as brought up to now, unless it already
+// saveUpTo records the signed-in User's kitchen as brought up to `now`, unless it already
 // is: it never moves back, and a moment reached is not written again.
 func saveUpTo(ctx context.Context, q db.Querier, now time.Time) error {
 	_, err := q.Exec(ctx, `
@@ -22,8 +22,8 @@ func saveUpTo(ctx context.Context, q db.Querier, now time.Time) error {
 	return err
 }
 
-// saveBeat records the scheduler's beat at now for the signed-in User, whose kitchen row
-// saveUpTo has made, unless a beat as late is recorded.
+// saveBeat records the scheduler's beat at `now` for the signed-in User, whose kitchen
+// row saveUpTo has made, unless a beat as late is recorded.
 func saveBeat(ctx context.Context, q db.Querier, now time.Time) error {
 	_, err := q.Exec(ctx, `
 		UPDATE kitchen SET beaten_at = $1
@@ -46,7 +46,7 @@ func loadBeat(ctx context.Context, q db.Querier) (time.Time, bool, error) {
 	return *at, true, nil
 }
 
-// lock holds the signed-in User's kitchen until q's transaction ends, so what one Count
+// lock holds the signed-in User's kitchen until `q`'s transaction ends, so what one Count
 // or move read isn't changed by another before it writes. BringUpToNow made their row.
 func lock(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `SELECT 1 FROM kitchen FOR UPDATE`)
@@ -80,7 +80,7 @@ func LoadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 	})
 }
 
-// saveMovement appends m to the signed-in User's Kitchen Ledger, with the Portions it
+// saveMovement appends `m` to the signed-in User's Kitchen Ledger, with the Portions it
 // touches. Only a Count keeps what was believed and stated, and a blank Storage Location
 // to or note, or no Ingredient, is none.
 func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
@@ -103,7 +103,7 @@ func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 	return err
 }
 
-// savePortions saves how many Portions p says for the signed-in User, and is their ids.
+// savePortions saves how many Portions `p` says for the signed-in User, and is their ids.
 func savePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]int64, error) {
 	n := p.Nutrition
 	rows, err := q.Query(ctx, `
@@ -117,7 +117,7 @@ func savePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
-// known is a, or nil for an unknown value, which is never 0.
+// known is `a`, or nil for an unknown value, which is never 0.
 func known(a domain.Amount) *float64 {
 	if !a.Known {
 		return nil
@@ -125,7 +125,7 @@ func known(a domain.Amount) *float64 {
 	return &a.Value
 }
 
-// amount is the value v read, unknown if nil.
+// amount is the value `v` read, unknown if nil.
 func amount(v *float64) domain.Amount {
 	if v == nil {
 		return domain.Unknown
@@ -165,8 +165,9 @@ func CountPortions(ctx context.Context, q db.Querier) (int, error) {
 }
 
 // HasMovements says whether any Movement of the signed-in User's refers to the Ingredient
-// id, for the Ingredients, whose unit is then fixed. It holds the kitchen first, as a
-// Count or move does, so none of them writes a Movement of it until q's transaction ends.
+// `id`, for the Ingredients, whose unit is then fixed. It holds the kitchen first, as a
+// Count or move does, so none of them writes a Movement of it until `q`'s
+// transaction ends.
 func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
 	if err := lock(ctx, q); err != nil {
 		return false, err
@@ -177,7 +178,7 @@ func HasMovements(ctx context.Context, q db.Querier, id int64) (bool, error) {
 }
 
 // WithMovements is the ids of the signed-in User's Ingredients that some Movement refers
-// to, in q's transaction, for the Ingredients, whose rows link to their Movements.
+// to, in `q`'s transaction, for the Ingredients, whose rows link to their Movements.
 func WithMovements(ctx context.Context, q db.Querier) (map[int64]bool, error) {
 	rows, err := q.Query(ctx, `SELECT DISTINCT ingredient_id FROM movement WHERE ingredient_id IS NOT NULL`)
 	if err != nil {

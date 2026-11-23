@@ -23,10 +23,10 @@ type LLM struct {
 	asked    chan struct{} // closed once a request takes the last step scripted
 }
 
-// New returns a fake LLM that answers with steps.
+// New returns a fake LLM that answers with `steps`.
 func New(steps ...Step) *LLM { return &LLM{steps: steps} }
 
-// Script adds steps to the end of the script.
+// Script adds `steps` to the end of the script.
 func (f *LLM) Script(steps ...Step) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -69,7 +69,7 @@ type Step struct {
 	wait  time.Duration
 }
 
-// Reply ends the model's turn with text.
+// Reply ends the model's turn with `text`.
 func Reply(text string) Step {
 	return Step{turn: func(*LLM) agent.Response {
 		return agent.Response{
@@ -85,7 +85,7 @@ type Call struct {
 	Input any
 }
 
-// CallTools has the model call tools, saying text first if it isn't empty.
+// CallTools has the model call tools, saying `text` first if it isn't empty.
 func CallTools(text string, calls ...Call) Step {
 	return Step{turn: func(f *LLM) agent.Response {
 		var content []agent.Block
@@ -109,19 +109,19 @@ func CallTools(text string, calls ...Call) Step {
 	}}
 }
 
-// CallTool has the model call one tool.
+// CallTool has the model call one `tool`.
 func CallTool(tool string, input any) Step { return CallTools("", Call{tool, input}) }
 
-// Respond answers with resp as given, e.g. to script an unusual stop reason.
+// Respond answers with `resp` as given, e.g. to script an unusual stop reason.
 func Respond(resp agent.Response) Step {
 	return Step{turn: func(*LLM) agent.Response { return resp }}
 }
 
-// Then answers with the step next makes from the request, as a model
+// Then answers with the step `next` makes from the request, as a model
 // reads what its tools returned, such as the id of what one stored.
 func Then(next func(req agent.Request) Step) Step { return Step{then: next} }
 
-// Fail makes the request fail with err.
+// Fail makes the request fail with `err`.
 func Fail(err error) Step { return Step{err: err} }
 
 // Overloaded makes the request fail in a way worth retrying.
@@ -132,14 +132,14 @@ func Overloaded() Step {
 // Hang never answers: the request blocks until its context is cancelled.
 func Hang() Step { return Step{hang: true} }
 
-// After holds the answer back until ch is closed, so a test can act while
+// After holds the answer back until `ch` is closed, so a test can act while
 // the model is "thinking".
 func (s Step) After(ch <-chan struct{}) Step {
 	s.after = ch
 	return s
 }
 
-// Wait has the model take d to answer, as a real one does.
+// Wait has the model take `d` to answer, as a real one does.
 func (s Step) Wait(d time.Duration) Step {
 	s.wait = d
 	return s

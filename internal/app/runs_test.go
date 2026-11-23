@@ -13,8 +13,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// asksAgain is the model asked a second time, closing asked, then answered by next: by
-// then the Run's Trace holds what submit_recipe answered.
+// asksAgain is the model asked a second time, closing `asked`, then answered by `next`:
+// by then the Run's Trace holds what submit_recipe answered.
 func asksAgain(asked chan struct{}, next fakellm.Step) fakellm.Step {
 	return fakellm.Then(func(agent.Request) fakellm.Step {
 		close(asked)

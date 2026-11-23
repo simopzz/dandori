@@ -20,15 +20,15 @@ const tenths = 10
 // maxQuantity bounds a quantity the User states: no kitchen holds a tonne of anything.
 const maxQuantity = 1000000
 
-// Number is q in its Unit.
+// Number is `q` in its Unit.
 func (q Quantity) Number() float64 { return float64(q) / tenths }
 
-// QuantityOf is the Quantity of v in its Unit, as Number gives it.
+// QuantityOf is the Quantity of `v` in its Unit, as Number gives it.
 func QuantityOf(v float64) Quantity { return Quantity(math.Round(v * tenths)) }
 
-// ParseQuantity reads a quantity of unit as the User typed it, with a point or a comma:
-// grams and millilitres are whole numbers, pieces have one decimal place, and nothing
-// is negative.
+// ParseQuantity reads a quantity of `unit` as `typed`, with a point or a
+// comma: grams and millilitres are whole numbers, pieces have one decimal place, and
+// nothing is negative.
 func ParseQuantity(unit Unit, typed string) (Quantity, Problem) {
 	typed = strings.ReplaceAll(strings.TrimSpace(typed), ",", ".")
 	if typed == "" {
@@ -67,7 +67,7 @@ const (
 	Added Cause = "added"
 )
 
-// Sets says whether a Movement of cause c sets what its Stock Item holds to what was
+// Sets says whether a Movement of cause `c` sets what its Stock Item holds to what was
 // stated, keeping what Dandori believed before it, as a Count does.
 func (c Cause) Sets() bool { return c == Counted || c == MarkedStaple }
 
@@ -116,7 +116,8 @@ type StockItem struct {
 	Counted time.Time
 }
 
-// CheckMove says why a move of moved is refused from a Stock Item holding held, if it is.
+// CheckMove says why a move of `moved` is refused from a Stock Item holding `held`, if
+// it is.
 func CheckMove(held, moved Quantity) Problem {
 	switch {
 	case moved <= 0:
@@ -127,7 +128,7 @@ func CheckMove(held, moved Quantity) Problem {
 	return ""
 }
 
-// ParseCount reads a Count of unit as the User typed it: the Storage Location it is of
+// ParseCount reads a Count of `unit` as the User typed it: the Storage Location it is of
 // and the quantity they state is there, and problems, why each field is refused, by
 // field, if any is.
 func ParseCount(unit Unit, location StorageLocation, stated string) (Quantity, map[string]Problem) {
@@ -142,9 +143,9 @@ func ParseCount(unit Unit, location StorageLocation, stated string) (Quantity, m
 	return q, problems
 }
 
-// ParseMove reads a move of unit from one Storage Location as the User typed it: the
-// Storage Location it goes to, another, and the quantity to move, and problems, why each
-// field is refused, by field, if any is.
+// ParseMove reads `moved`, the quantity of `unit` to move from `from` to `to`, another
+// Storage Location: the quantity, and problems, why each field is refused, by field, if
+// any is.
 func ParseMove(unit Unit, from, to StorageLocation, moved string) (Quantity, map[string]Problem) {
 	problems := map[string]Problem{}
 	if to == from || !slices.Contains(StorageLocations, to) {
@@ -157,9 +158,9 @@ func ParseMove(unit Unit, from, to StorageLocation, moved string) (Quantity, map
 	return q, problems
 }
 
-// after is what the Stock Item key holds after m, from held before it; touches is false
-// if m leaves key alone. A move touches both of its Stock Items, and a Count stands: it
-// sets its Stock Item to what was stated, whatever came before it.
+// after is what the Stock Item `key` holds after `m`, from `held` before it; `touches` is
+// false if `m` leaves `key` alone. A move touches both of its Stock Items, and a Count
+// stands: it sets its Stock Item to what was stated, whatever came before it.
 func (m Movement) after(key StockKey, held Quantity) (_ Quantity, touches bool) {
 	switch {
 	case m.Key == key && m.Cause.Sets():
@@ -179,7 +180,7 @@ func (m Movement) after(key StockKey, held Quantity) (_ Quantity, touches bool) 
 // holds at a moment and a Stock Item's Movements agree.
 type Ledger struct{ movements []Movement }
 
-// NewLedger is the Ledger of movements, in the order they happened.
+// NewLedger is the Ledger of `movements`, in the order they happened.
 func NewLedger(movements []Movement) Ledger { return Ledger{movements: movements} }
 
 // At is what the kitchen holds at a moment, by Stock Item. One Movement at that very
@@ -220,7 +221,7 @@ func (l Ledger) PortionsAt(at time.Time) map[int64]StorageLocation {
 	return where
 }
 
-// placePortions updates where with what m does to the Portions it lists: a move takes
+// placePortions updates `where` with what `m` does to the Portions it lists: a move takes
 // them to To, a Count down removes them, and anything else puts them in Key's place.
 func (m Movement) placePortions(where map[int64]StorageLocation) {
 	for _, id := range m.Portions {
@@ -235,8 +236,8 @@ func (m Movement) placePortions(where map[int64]StorageLocation) {
 	}
 }
 
-// HeldAt is what each Storage Location holds of the Ingredient id at a moment. A Storage
-// Location no Movement of it has reached has no entry.
+// HeldAt is what each Storage Location holds of the Ingredient `id` at `at`. A
+// Storage Location no Movement of it has reached has no entry.
 func (l Ledger) HeldAt(at time.Time, id int64) map[StorageLocation]Quantity {
 	held := make(map[StorageLocation]Quantity, len(StorageLocations))
 	for key, item := range l.At(at) {
@@ -247,7 +248,7 @@ func (l Ledger) HeldAt(at time.Time, id int64) map[StorageLocation]Quantity {
 	return held
 }
 
-// Movements is every Movement that touched the Stock Item key, in the order they
+// Movements is every Movement that touched the Stock Item `key`, in the order they
 // happened, with what it held before and after each. A Count, and a Staple's Count to
 // nothing, shows what it believed before it.
 func (l Ledger) Movements(key StockKey) []StockMovement {
@@ -270,8 +271,8 @@ func (l Ledger) Movements(key StockKey) []StockMovement {
 	return touched
 }
 
-// WriteAt is when a Movement written at now, with the kitchen held, happens: now, or the
-// last Movement's time if that is later, as when one that overlapped it took hold of
+// WriteAt is when a Movement written at `now`, with the kitchen held, happens: `now`, or
+// the last Movement's time if that is later, as when one that overlapped it took hold of
 // the kitchen first with a clock ahead. So it is checked against all the Ledger holds,
 // and comes after it.
 func (l Ledger) WriteAt(now time.Time) time.Time {
@@ -281,17 +282,17 @@ func (l Ledger) WriteAt(now time.Time) time.Time {
 	return now
 }
 
-// Count is the Count, written at now, that the Stock Item key holds stated, with the
-// User's note: a Movement of the difference from what the Ledger believes, which keeps
-// both. One that changes nothing is a Count like any other.
+// Count is the Count, written at `now`, that the Stock Item `key` holds `stated`, with
+// the User's `note`: a Movement of the difference from what the Ledger believes, which
+// keeps both. One that changes nothing is a Count like any other.
 func (l Ledger) Count(now time.Time, key StockKey, stated Quantity, note string) Movement {
 	at := l.WriteAt(now)
 	believed := l.At(at)[key].Held
 	return Movement{At: at, Key: key, Change: stated - believed, Cause: Counted, Believed: believed, Stated: stated, Note: note}
 }
 
-// AddPortions is the one Movement, written at now, that adds the Portions ids to
-// location, with the User's note.
+// AddPortions is the one Movement, written at `now`, that adds the Portions `ids` to
+// `location`, with the User's `note`.
 func (l Ledger) AddPortions(now time.Time, location StorageLocation, ids []int64, note string) Movement {
 	return Movement{
 		At: l.WriteAt(now), Key: StockKey{Location: location}, Portions: ids,
@@ -299,10 +300,11 @@ func (l Ledger) AddPortions(now time.Time, location StorageLocation, ids []int64
 	}
 }
 
-// CountPortions is the one Movement, written at now, of a Count that g holds stated, with
-// the User's note, which keeps what was believed and stated. It lists the Portions added
-// if stated is more than g holds, which are added; those it takes if less, as g.takes
-// picks them from slots; and all of g if it is the same, so the Movement is still g's.
+// CountPortions is the one Movement, written at `now`, of a Count that `g` holds
+// `stated`, with the User's `note`, which keeps what was believed and stated. It lists
+// the Portions `added` if `stated` is more than `g` holds, which are added; those it
+// takes if less, as `g.takes` picks them from `slots`; and all of `g` if it is the same,
+// so the Movement is still `g`'s.
 func (l Ledger) CountPortions(now time.Time, g PortionLot, stated Quantity, added []int64, slots map[int64]time.Time, note string) Movement {
 	listed := g.IDs
 	switch change := stated - g.held(); {
@@ -317,10 +319,10 @@ func (l Ledger) CountPortions(now time.Time, g PortionLot, stated Quantity, adde
 	}
 }
 
-// MovePortions is the one Movement, written at now, that moves moved of the oldest
-// Portions of g to join the Portion Lot target, with the User's note. When CheckMove
-// refuses it against what g holds, or target can't fit them, problem says why and there
-// is no move.
+// MovePortions is the one Movement, written at `now`, that moves `moved` of the oldest
+// Portions of `g` to join the Portion Lot `target`, with the User's `note`. When
+// CheckMove refuses it against what `g` holds, or `target` can't fit them, `problem` says
+// why and there is no move.
 func (l Ledger) MovePortions(now time.Time, g, target PortionLot, moved Quantity, note string) (_ Movement, problem Problem) {
 	if problem = CheckMove(g.held(), moved); problem != "" {
 		return Movement{}, problem
@@ -335,9 +337,9 @@ func (l Ledger) MovePortions(now time.Time, g, target PortionLot, moved Quantity
 	}, ""
 }
 
-// LotMovements is the Movements of the Portion Lot key names, in the order they happened,
-// with what it held before and after each, from when the oldest Portion it holds now
-// arrived there.
+// LotMovements is the Movements of the Portion Lot `key` names, in the order they
+// happened, with what it held before and after each, from when the oldest Portion it
+// holds now arrived there.
 func (l Ledger) LotMovements(portions []Portion, key LotKey) []StockMovement {
 	alike := map[int64]bool{}
 	if i := slices.IndexFunc(portions, func(p Portion) bool { return p.ID == key.Portion }); i >= 0 {
@@ -380,9 +382,9 @@ func (l Ledger) LotMovements(portions []Portion, key LotKey) []StockMovement {
 	return touched[start:]
 }
 
-// Move is the move, written at now, of moved from the Stock Item key to the Storage
-// Location to, with the User's note. When CheckMove refuses it against what key holds
-// then, problem says why and there is no move.
+// Move is the move, written at `now`, of `moved` from the Stock Item `key` to the Storage
+// Location `to`, with the User's `note`. When CheckMove refuses it against what `key`
+// holds then, `problem` says why and there is no move.
 func (l Ledger) Move(now time.Time, key StockKey, to StorageLocation, moved Quantity, note string) (_ Movement, problem Problem) {
 	at := l.WriteAt(now)
 	if problem = CheckMove(l.At(at)[key].Held, moved); problem != "" {
@@ -391,9 +393,9 @@ func (l Ledger) Move(now time.Time, key StockKey, to StorageLocation, moved Quan
 	return Movement{At: at, Key: key, To: to, Change: moved, Cause: Moved, Note: note}, ""
 }
 
-// CountToNothing is the Count to nothing, written at now, that marking the Ingredient id
-// a Staple makes of each Stock Item holding some of it, in Storage Location order: each
-// keeps what it believed and states nothing.
+// CountToNothing is the Count to nothing, written at `now`, that marking the Ingredient
+// `id` a Staple makes of each Stock Item holding some of it, in Storage Location order:
+// each keeps what it believed and states nothing.
 func (l Ledger) CountToNothing(now time.Time, id int64) []Movement {
 	at := l.WriteAt(now)
 	items := l.At(at)

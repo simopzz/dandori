@@ -33,8 +33,8 @@ const (
 	tierStore   tier = "store"
 )
 
-// fileTier is the tier a file's name puts it in: web_*, service.go or service_*,
-// store.go or store_*. ok is false for any other name.
+// fileTier is the tier a file's `name` puts it in: web_*, service.go or service_*,
+// store.go or store_*. `ok` is false for any other `name`.
 func fileTier(name string) (t tier, ok bool) {
 	if strings.HasPrefix(name, string(tierWeb)) {
 		return tierWeb, true
@@ -71,7 +71,7 @@ func TestFeatureFilesKeepToTheirTier(t *testing.T) {
 	}
 }
 
-// checkTier reports where the file at path breaks its tier's rules.
+// checkTier reports where the file at `path` breaks its tier's rules.
 func checkTier(t *testing.T, path string) {
 	tier, ok := fileTier(filepath.Base(path))
 	if !ok {

@@ -36,8 +36,8 @@ const (
 	refusedMealOut       httpx.Refusal = "Meal Out estimate refused"
 )
 
-// LanguageChosen serves next in the signed-in User's Language, once they have chosen one;
-// until then every page asks for it first.
+// LanguageChosen serves `next` in the signed-in User's Language, once they have chosen
+// one; until then every page asks for it first.
 func (h Handlers) LanguageChosen(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l, ok, err := h.Service.Language(r.Context())
@@ -119,7 +119,7 @@ func (h Handlers) goneToTodayIfChosen(w http.ResponseWriter, r *http.Request) bo
 	return ok
 }
 
-// setLanguage sets the User's Language to l and remembers it in this browser, for the
+// setLanguage sets the User's Language to `l` and remembers it in this browser, for the
 // pages after signing out. When it can't, it answers and is false.
 func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.Language) bool {
 	err := h.Service.SetLanguage(r.Context(), l)
@@ -139,7 +139,7 @@ func (h Handlers) setLanguage(w http.ResponseWriter, r *http.Request, l domain.L
 	return true
 }
 
-// refuseLanguage refuses a change of Language, keeping the User's, and says why.
+// refuseLanguage refuses a change of Language, keeping the User's, and says `why`.
 func (h Handlers) refuseLanguage(w http.ResponseWriter, r *http.Request, why httpx.Refusal, msg web.Message) {
 	h.answerRefused(w, r, why, nil, func(f *profileForms) templ.Component {
 		f.Language.Err = msg
@@ -175,21 +175,21 @@ func (h Handlers) asSaved(ctx context.Context) (f profileForms, err error) {
 	return f, err
 }
 
-// page is the Profile page showing forms.
+// page is the Profile page showing `forms`.
 func (h Handlers) page(ctx context.Context, forms profileForms) (templ.Component, error) {
 	email, err := h.Email(ctx)
 	return profilePage(h.Clock.Now(), email, forms), err
 }
 
-// answerSaved answers a section saved, with a Notice: as htmx the section, shown as
+// answerSaved answers a `section` saved, with a Notice: as htmx the `section`, shown as
 // saved, and as a plain post the Profile page it lands on.
 func (h Handlers) answerSaved(w http.ResponseWriter, r *http.Request, section templ.Component) {
 	web.Answer{RedirectTo: "/profile", Notice: web.T(r.Context(), msgSaved), Fragment: section}.Write(w, r, h.Log)
 }
 
-// answerRefused answers a section refused, which saved nothing, with 422 and why, by
-// field in errs: the Profile page with each section as saved but the one show sets as
-// typed, or as htmx the section show returns. The Language has no section of its own to
+// answerRefused answers a section refused, which saved nothing, with 422 and `why`, by
+// field in `errs`: the Profile page with each section as saved but the one `show` sets as
+// typed, or as htmx the section `show` returns. The Language has no section of its own to
 // swap, so a refused one answers with the page.
 func (h Handlers) answerRefused(w http.ResponseWriter, r *http.Request, why httpx.Refusal, errs map[string]string, show func(*profileForms) templ.Component) {
 	httpx.Refused(r, why, errs)
@@ -207,7 +207,7 @@ func (h Handlers) answerRefused(w http.ResponseWriter, r *http.Request, why http
 	web.Answer{Status: http.StatusUnprocessableEntity, Page: page, Fragment: section}.Write(w, r, h.Log)
 }
 
-// shownTargets is t as the Targets form shows it, only its tolerance until it is set.
+// shownTargets is `t` as the Targets form shows it, only its tolerance until it is set.
 func shownTargets(t domain.Targets, set bool) TargetsForm {
 	f := TargetsForm{Set: set, Values: map[string]string{}}
 	for field, n := range t.ByField() {
@@ -245,7 +245,7 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// shownTimes is t as the times-of-day form shows it, as the Language writes a time.
+// shownTimes is `t` as the times-of-day form shows it, as the Language writes a time.
 func shownTimes(ctx context.Context, t domain.SlotTimes) TimesForm {
 	f := TimesForm{Values: map[string]string{}}
 	for k, at := range t {

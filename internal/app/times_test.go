@@ -15,7 +15,7 @@ var (
 	savedTimes   = apptest.TimesOfDay{Breakfast: "7:30 am", Lunch: "12:30 pm", Snack: "4:00 pm", Dinner: "7:30 pm"}
 )
 
-// timesOnForm are the times of day the times-of-day form on page holds.
+// timesOnForm are the times of day the times-of-day form on `page` holds.
 func timesOnForm(t *testing.T, page string) apptest.TimesOfDay {
 	t.Helper()
 	f := apptest.Form(t, page, "profile-times")

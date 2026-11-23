@@ -11,7 +11,7 @@ import (
 
 var defaultMealOut = apptest.MealOut{Kcal: "1000", Protein: "35", Carbs: "110", Fat: "45", Fibre: "6", Sugar: "12"}
 
-// mealOutOnForm is the Meal Out estimate the Meal Out form on page holds.
+// mealOutOnForm is the Meal Out estimate the Meal Out form on `page` holds.
 func mealOutOnForm(t *testing.T, page string) apptest.MealOut {
 	t.Helper()
 	f := apptest.Form(t, page, "profile-meal-out")

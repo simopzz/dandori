@@ -15,7 +15,8 @@ var (
 	peas   = domain.Ingredient{ID: 2, Name: "frozen peas", Unit: domain.Grams, Usual: domain.Freezer}
 )
 
-// setsOut is a Prep Session at dinner on day setting out quantity of ing for one Portion.
+// setsOut is a Prep Session at dinner on `day` setting out `quantity` of `ing` for
+// one Portion.
 func setsOut(day int, ing domain.Ingredient, quantity float64) domain.PrepSession {
 	return domain.PrepSession{At: slot(day, domain.Dinner), Ingredient: &ing, Quantity: grams(quantity), Portions: make([]domain.PlannedPortion, 1)}
 }

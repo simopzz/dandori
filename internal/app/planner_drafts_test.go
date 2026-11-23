@@ -31,7 +31,7 @@ func misoSalmon() map[string]any {
 	}
 }
 
-// draftedDinner is fridayDraft with Friday's dinner a Portion of the Recipe Draft id,
+// draftedDinner is fridayDraft with Friday's dinner a Portion of the Recipe Draft `id`,
 // prepared then, the Rice bowl yielding only lunch and the frozen Portion.
 func draftedDinner(t *testing.T, req agent.Request, id int64) map[string]any {
 	t.Helper()
