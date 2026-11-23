@@ -193,6 +193,11 @@ code { font-family: var(--font-mono); font-size: 0.875rem; }
 
 .icon { width: var(--icon); height: var(--icon); flex: none; }
 
+/* An icon before words sits on the middle of their lowercase letters. Its line aligns on
+   baselines, which puts the icon's bottom on theirs; it then moves down half its height
+   less half an x-height. */
+.row-static > .icon, a.btn-text > .icon { translate: 0 calc(var(--icon) / 2 - 0.5ex); }
+
 /* dithering: two colours in a stepped pattern of square pixels, at 25, 50 or
    75%, set by --dither-on over --dither-under. It may go only in the sky, the
    veil behind a sheet, a primary button's hover and a busy primary button. */
@@ -624,9 +629,7 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 
 /* A kind of line led by its icon: what it says under it lines up with its title. The
    icon rides the row's baseline, so it sits on the title's first line whether that is
-   text or a link centred in its tap target, wrapped or not; the nudge centres it there. */
-.row-static > .icon { translate: 0 var(--space-1); }
-
+   text or a link centred in its tap target, wrapped or not. */
 .row-static > .icon ~ .row-meta { padding-left: calc(var(--icon) + var(--space-4)); }
 
 /* Why a change to a row that can't open was refused, under it. */
@@ -756,11 +759,9 @@ legend.field-label { margin-bottom: var(--space-1); }
 
 .btn-text:has(+ .btn-text) { margin-right: 0; }
 
-a.btn-text { display: inline-flex; align-items: center; gap: var(--space-2); }
-
-/* An icon before a text link's words: one bitmap pixel down, onto the middle of their
-   lowercase letters, which sit below the middle of the font's box. */
-a.btn-text > .icon { translate: 0 calc(var(--icon) / 10); }
+/* Its line aligns on baselines, for an icon before its words, and is centred in its tap
+   target. */
+a.btn-text { display: inline-flex; flex-wrap: wrap; align-content: center; align-items: baseline; gap: var(--space-2); }
 
 /* TextButtonFold and ButtonFold: a TextButton or Button that opens in place onto a line
    of its own, its chevron turning */

@@ -134,6 +134,13 @@ Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
 and `aria-hidden`. One that must be smaller is drawn 10px square: any other
 size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
 
+**An icon before words sits on the middle of their lowercase letters**, not on
+the middle of their line nor of their capitals: most of what follows an icon is
+lowercase, and an icon centred higher reads as sitting high. One rule in
+`app.css` places it, for a `Row` led by its icon and a `TextLink` led by one:
+the line aligns on baselines and the icon moves down half its height less half
+an `ex`. An icon placed before words anywhere else joins that rule.
+
 **A kind of line has a fixed icon**, its meaning in words beside it or
 `sr-only`, the same on every page: `under` (▼), `over` (▲) and `changed` (•)
 for what is worth weighing, `repeat` for a Portion eaten back to back,
@@ -312,7 +319,7 @@ elements themselves.
 | `TextButton(attrs)` | A secondary action, underlined text. Its target is wider than its text, which, alone, still lines up with the column; beside another, the two keep their targets apart. |
 | `TextButtonFold(label, open)` | A secondary action that needs something first, opening in place with a chevron (Reject, opening to the earlier Planning Notes, a hint and the note, and its own button). In `Actions` beside a `Button`, it opens onto a line of its own. Closed unless it holds what the User is at, such as a refused form. |
 | `ButtonFold(label, open)` | A `TextButtonFold` that is the page's step forward, so a filled `Button` with its chevron (Plan again after a failed planning Run, opening to the hint, the Planning Note and its own button). |
-| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. |
+| `TextLink(attrs)` | A secondary action that writes nothing, looking like a `TextButton`. Unlike one in a form, it isn't what Enter presses. It may lead with an `Icon` when it is a page's way to a page of its own (the Cycle page's Grocery List), the icon on the middle of its words' lowercase letters. |
 | `DestructiveButton(attrs)` | Remove, delete, discard, cancel: vermilion text. Deleting or discarding what the User wrote asks once, naming what will go; nothing is removed by a single tap. Its Delete or Discard is a `RemoveLink` to a `RemoveStep`, whose own `DestructiveButton` does it. Cancelling a Run stays one tap: the User didn't write it. |
 | `RemoveLink(id, href, src)` | A `DestructiveButton`'s look on a `SideSheetLink`: opens the `SideSheet` `id` on the `RemoveStep` at `src`, or without htmx goes to `href`, the step as a page of its own. |
 | `RemoveStep(question, remove, action, back, attrs)` | The step that asks once: `question` names what will go ("Delete the Recipe Rice bowl?"), and its form posts to `action` with a `DestructiveButton` saying `remove`; children are its hidden fields, `attrs` the htmx swap of a sheet's body if any. In a sheet, the sheet's Close is the way back; as a page, `back` gives a `TextLink`. |
