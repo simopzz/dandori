@@ -7,6 +7,7 @@ import (
 
 	"github.com/mxschmitt/playwright-go"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
 )
@@ -181,4 +182,39 @@ func TestBrowserMarksTheDeliveryOrdered(t *testing.T) {
 	b.IsAt(t, "/plan/cycles/2/grocery-list")
 	b.SeesInTurn(t, "Ordered", "01 To buy", "rice (25 g)", "yogurt (250 g)", "Undo ordered")
 	b.ShotPage(t, "grocery-list-ordered")
+}
+
+// Once the Delivery is ordered, a replan makes do with what was ordered and what carries
+// over: Sunday at 1.25× needs no more rice than the 425 g Friday leaves, so only yogurt
+// is ordered, which the planner is told as stock arriving. check_plan reports a draft at
+// 1.5× needing 450 g of rice, which wasn't ordered, and one at 1.25× becomes a
+// Plan Proposal.
+func TestAReplanAfterOrderingMakesDoWithWhatWasOrdered(t *testing.T) {
+	s := sundayAfterFriday(t, 1.25)
+	s.Follows("Grocery List")
+	s.Sees("01 To buy yogurt (250 g)")
+	s.Submits("mark-ordered")
+
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", sundayDraft(t, req, 1.5)) }),
+		fakellm.Reply("More rice."),
+	)
+	s.Open("/plan/cycles/2")
+	s.AsksForChanges("Bigger Portions.")
+	s.Settle()
+	told(t, s, []string{
+		"Stock Items:\n- 425 g rice (Ingredient",
+		"Its Delivery is ordered, so it brings only these, put away where they go, besides the Stock Items above:\n- 250 g yogurt (Ingredient",
+	})
+	s.Open(s.Page().Path)
+	s.Sees("Draft 1 breaks these hard rules: - more-than-held: Oiled rice at lunch on Sun 8 Nov needs 450 g rice, and the kitchen will hold only 425 g")
+
+	plansSunday(t, s, 1.25)
+	s.Open("/plan/cycles/2")
+	s.Submits("plan-again")
+	s.Settle()
+	s.Open("/plan/cycles/2")
+	s.Sees("01 Plan Proposal")
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
 }

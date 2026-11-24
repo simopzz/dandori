@@ -27,9 +27,10 @@ var (
 	}
 )
 
-// judging is what Judge is given, all but the Cycle Friday's.
+// judging is what Judge is given.
 type judging struct {
 	plan    domain.Plan
+	cycle   domain.Cycle
 	from    domain.Slot
 	profile domain.Profile
 	current domain.Plan
@@ -48,6 +49,7 @@ type judging struct {
 // of lasagne.
 func friday() judging {
 	return judging{
+		cycle: fridayCycle,
 		plan: domain.Plan{
 			PrepSessions: []domain.PrepSession{
 				{At: slot(6, domain.Breakfast), Ingredient: &plainYogurt, Quantity: grams(150), Portions: []domain.PlannedPortion{
@@ -73,7 +75,7 @@ func friday() judging {
 }
 
 func (j judging) judge() domain.Verdict {
-	return domain.Judge(j.plan, fridayCycle, j.from, j.profile, j.current, kitchenLots, j.stock, j.earlier, j.now)
+	return domain.Judge(j.plan, j.cycle, j.from, j.profile, j.current, kitchenLots, j.stock, j.earlier, j.now)
 }
 
 // held is what the kitchen holds of `rice` in the pantry and of `yogurt` in the fridge.
@@ -159,6 +161,19 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 			j.now = at(5, "19:00")
 			j.stock = nil
 			j.plan.FreezerSplits = []domain.RecipeIngredient{{Ingredient: plainYogurt, Quantity: grams(200)}}
+		}, nil},
+		{"on the upcoming Cycle, whose Delivery is ordered, more than carry-over and the order", func(j *judging) {
+			j.now = at(5, "19:00")
+			j.cycle.Delivery.State = domain.Ordered
+			j.stock = held(200, 100)
+			j.plan.FreezerSplits = []domain.RecipeIngredient{{Ingredient: plainYogurt, Quantity: grams(50)}}
+		}, []string{
+			"more-than-held: yogurt at breakfast on Fri 6 Nov needs 150 g yogurt, and the kitchen will hold only 100 g",
+			"more-than-held: Rice bowl at lunch on Fri 6 Nov needs 375 g rice, and the kitchen will hold only 200 g",
+		}},
+		{"on the upcoming Cycle, whose Delivery is ordered, within carry-over and the order", func(j *judging) {
+			j.now = at(5, "19:00")
+			j.cycle.Delivery.State = domain.Ordered
 		}, nil},
 		{"a first Slot already passed", func(j *judging) {
 			j.now = at(6, "08:00")
