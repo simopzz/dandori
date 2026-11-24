@@ -692,8 +692,8 @@ func hasAttrs(t *testing.T, what string, s tracetest.SpanStub, want map[attribut
 	}
 }
 
-// A signed-in request's transaction is set up, as the User, in one statement: a round
-// trip to Supabase each, before its first query.
+// A signed-in request's transaction is set up, as the User, in one statement before its
+// first query: one round trip to Supabase per transaction.
 func TestActingAsTheUserTakesOneStatement(t *testing.T) {
 	h, spans := startWithSpans(t)
 	h.Invite("ada@example.com")
