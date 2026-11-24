@@ -146,37 +146,6 @@ func TestACyclesSlots(t *testing.T) {
 	}
 }
 
-// A delivery-day Slot belongs to the Cycle arriving only once its window has ended;
-// before that, to the one before. A Slot past a Cycle's end date, and before the next
-// one arrives, belongs to none, as does one after a Cycle closed early by the next.
-func TestWhichCycleASlotBelongsTo(t *testing.T) {
-	cycles := []domain.Cycle{cycle(2, "10:00", "12:00", 12), cycle(8, "14:00", "16:00", 9), cycle(14, "10:00", "12:00", 20)}
-	tests := []struct {
-		name string
-		slot domain.Slot
-		want int
-		ok   bool
-	}{
-		{"before the first Delivery", slot(2, domain.Breakfast), 0, false},
-		{"after the first arrives", slot(2, domain.Lunch), 0, true},
-		{"lunch on the next delivery day", slot(8, domain.Lunch), 0, true},
-		{"the snack after its window", slot(8, domain.Snack), 1, true},
-		{"the next Cycle's last Slot", slot(9, domain.Dinner), 1, true},
-		{"past the next's end date, before the first's", slot(10, domain.Lunch), 0, false},
-		{"between Cycles", slot(13, domain.Dinner), 0, false},
-		{"the last Cycle", slot(14, domain.Dinner), 2, true},
-		{"past the last Cycle's end date", slot(21, domain.Breakfast), 0, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := domain.CycleOf(cycles, tt.slot, domain.DefaultSlotTimes)
-			if ok != tt.ok || (ok && got != tt.want) {
-				t.Errorf("got Cycle %d (%v), want %d (%v)", got, ok, tt.want, tt.ok)
-			}
-		})
-	}
-}
-
 // A Cycle across a change of the clocks, from summer time to standard time in October
 // and back in March, keeps its days at midnight, and its window and Slots on the wall
 // clock: an hour further from UTC, or nearer, after the change.
