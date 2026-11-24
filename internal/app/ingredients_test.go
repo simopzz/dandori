@@ -9,6 +9,8 @@ import (
 
 	"github.com/mxschmitt/playwright-go"
 
+	"github.com/simopzz/dandori/internal/agent"
+	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -564,6 +566,153 @@ func TestDeletingAnIngredientAnApprovedPlansFreezerSplitUsesIsRefused(t *testing
 	s.Sees("It's in a Plan or a Plan Proposal, so it can't be deleted.")
 
 	s.Refuses(t, foreignKeyViolation, `DELETE FROM ingredient WHERE name = 'chicken breast'`)
+}
+
+// withUnit is `ing` counted in `unit`.
+func withUnit(ing apptest.Ingredient, unit string) apptest.Ingredient {
+	ing.Unit = unit
+	return ing
+}
+
+// An Ingredient an approved Plan sets out in a Prep Session of its own, with no Movement
+// and no Recipe, keeps its unit: the change is refused on the unit, saying why in the
+// User's Language and on the span, and the Plan and its Grocery List read as they did.
+func TestTheUnitOfAnIngredientAPlanSetsOutIsFixed(t *testing.T) {
+	opt, spans := withSpans(t)
+	s := plannerWithKitchen(t, "ada@example.com", opt)
+	plansFriday(t, s, "Rice bowls for Friday.")
+	s.Open("/plan")
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
+
+	s.Open("/ingredients")
+	spans.Reset()
+	s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
+	s.IsRefused()
+	s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
+	if got := apptest.EditForm(t, s.Page().Body, "yogurt").Get("unit"); got != "piece" {
+		t.Errorf("the refused edit form holds unit %q, want what was chosen", got)
+	}
+	if got, _ := attr(requestSpan(t, spans), "dandori.refusal"); got.AsString() != "Ingredient's unit fixed by a Plan or a Plan Proposal" {
+		t.Errorf("dandori.refusal = %q, want the unit fixed by a Plan", got.AsString())
+	}
+
+	s.Open("/plan")
+	s.Sees("yogurt 90 kcal · 15 g protein Breakfast in the fridge")
+	s.Open("/plan/cycles/1/grocery-list")
+	s.Sees("01 To buy yogurt (150 g)")
+}
+
+// An Ingredient only a pending Plan Proposal's freezer split uses keeps its unit too,
+// and the Plan Proposal reads as it did. One nothing uses still changes unit.
+func TestTheUnitOfAnIngredientOnlyAFreezerSplitUsesIsFixed(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.AddsIngredient(egg)
+	plansFridayWithFreezerSplit(t, s)
+
+	s.Open("/ingredients")
+	s.EditsIngredient("chicken breast", withUnit(chicken, "piece"))
+	s.IsRefused()
+	s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
+	s.Open("/plan")
+	s.Sees("To the freezer at put-away chicken breast 400 g")
+
+	s.Open("/ingredients")
+	s.EditsIngredient("egg", withUnit(egg, "g"))
+	s.IsConfirmed("Saved egg.")
+}
+
+// An Ingredient only a fixed Grocery List buys keeps its unit: olive oil, ordered for
+// Oiled rice, then dropped from the Recipe, is still bought as it was ordered.
+func TestTheUnitOfAnIngredientOnlyAFixedGroceryListBuysIsFixed(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	s.AddsIngredient(oil)
+	s.WritesRecipe(oiledRice())
+	plansFriday(t, s, "Rice bowls for Friday.")
+	s.Open("/plan")
+	s.Submits("approve")
+	s.At("Thu 20:00")
+	plansSunday(t, s, 1.5)
+	s.OpensCycle(sunday)
+	s.PlansCycle()
+	s.Follows("Plan Proposal")
+	s.Submits("approve")
+	s.Follows("Grocery List")
+	s.Submits("mark-ordered")
+	s.IsConfirmed("Delivery marked ordered.")
+	s.Sees("olive oil (23 ml)")
+
+	s.Open("/recipes")
+	s.Follows("Oiled rice")
+	s.Open(s.Page().Path + "/edit")
+	unoiled := riceBowl()
+	unoiled.Name = "Oiled rice"
+	s.PostsRecipeForm(unoiled)
+	s.Sees("Oiled rice")
+	s.DoesNotSee("olive oil")
+	s.Open("/ingredients")
+
+	s.EditsIngredient("olive oil", withUnit(oil, "piece"))
+	s.IsRefused()
+	s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
+	s.Open("/plan/cycles/2/grocery-list")
+	s.Sees("olive oil (23 ml)")
+}
+
+// The refusal holds for a Plan Proposal the User rejected, and for one a Delivery
+// closing its Cycle rejected: friday's, left pending past its Delivery, which brought
+// nothing, so yogurt has no Movement.
+func TestTheUnitOfAnIngredientARejectedPlanProposalUsesIsFixed(t *testing.T) {
+	t.Run("rejected by the User", func(t *testing.T) {
+		s := plannerWithKitchen(t, "ada@example.com")
+		plansFriday(t, s, "Rice bowls for Friday.")
+		s.Open("/plan")
+		s.Rejects("")
+		s.IsConfirmed("Plan Proposal rejected.")
+
+		s.Open("/ingredients")
+		s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
+		s.IsRefused()
+		s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
+	})
+	t.Run("its Cycle closed", func(t *testing.T) {
+		s := plannerWithKitchen(t, "ada@example.com")
+		plansFriday(t, s, "Rice bowls for Friday.")
+		s.At("Thu 20:00")
+		s.OpensCycle(saturday)
+		s.At("Fri 12:00")
+		var status string
+		s.Scan(t, &status, `SELECT status FROM plan_proposal`)
+		if status != "rejected" {
+			t.Fatalf("friday's Plan Proposal is %s, want rejected by the Delivery closing its Cycle", status)
+		}
+
+		s.Open("/ingredients")
+		s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
+		s.IsRefused()
+		s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
+	})
+}
+
+// The refusal says why in Italian to a User who writes in Italian.
+func TestTheUnitOfAnIngredientAPlanUsesIsFixedInItalian(t *testing.T) {
+	s := plannerOf(t, "ada@example.com")
+	s.Open("/profile")
+	s.ChangesLanguage("Italiano")
+	stockKitchen(s)
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("Riso per venerdì."),
+	)
+	s.OpensCycle(apptest.Cycle{Delivery: "05/11/2026", From: "18:00", To: "20:00", Ends: "06/11/2026"}) // friday, as Italian is written
+	s.PlansCycle()
+	s.Settle()
+
+	s.Open("/ingredients")
+	s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
+	s.IsRefused()
+	s.Sees("È in un Piano o in una Proposta di Piano, quindi l'unità non può cambiare.")
 }
 
 // Posted from the side sheet by htmx, editing and deleting answer with the sheet's body

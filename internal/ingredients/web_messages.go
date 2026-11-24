@@ -64,6 +64,7 @@ var (
 		It: "I suoi Movimenti sono registrati in %s, quindi l'unità resta, anche contato a zero.",
 	}
 	msgUnitInRecipe   = web.Message{En: "Used by %s, so its unit stays.", It: "In uso in %s, quindi l'unità resta."}
+	msgUnitInPlan     = web.Message{En: "It's in a Plan or a Plan Proposal, so its unit can't change.", It: "È in un Piano o in una Proposta di Piano, quindi l'unità non può cambiare."}
 	msgDeleteInRecipe = web.Message{En: "Used by %s, so it can't be deleted.", It: "In uso in %s, quindi non si può eliminare."}
 	msgDeleteInPlan   = web.Message{En: "It's in a Plan or a Plan Proposal, so it can't be deleted.", It: "È in un Piano o in una Proposta di Piano, quindi non si può eliminare."}
 	msgOneMoreRecipe  = web.Message{En: "%s and one more Recipe", It: "%s e un'altra Ricetta"}

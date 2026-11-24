@@ -59,7 +59,8 @@ func (e *InRecipeError) Error() string {
 // would take part of the Kitchen Ledger's history with it.
 var ErrHasMovements = errors.New("movements refer to the Ingredient")
 
-// ErrInPlan is an Ingredient not deleted because a Plan or a Plan Proposal uses it.
+// ErrInPlan is an Ingredient not deleted, or whose unit stays, because a Plan or a Plan
+// Proposal uses it.
 var ErrInPlan = errors.New("a Plan or a Plan Proposal uses the Ingredient")
 
 // ErrNoIngredient is an Ingredient the signed-in User hasn't got.
@@ -85,6 +86,15 @@ type Service struct {
 // New creates the Service.
 func New(pool *pgxpool.Pool, recipesUsing RecipesUsing, usesIngredient UsesIngredient) *Service {
 	return &Service{pool: pool, recipesUsing: recipesUsing, usesIngredient: usesIngredient}
+}
+
+// notInPlan is ErrInPlan if a Plan or a Plan Proposal uses the Ingredient `id`.
+func (s *Service) notInPlan(ctx context.Context, q db.Querier, id int64) error {
+	planned, err := s.usesIngredient(ctx, q, id)
+	if err == nil && planned {
+		return ErrInPlan
+	}
+	return err
 }
 
 // notInRecipe is an *InRecipeError if a Recipe lists the Ingredient `id`.
@@ -142,8 +152,8 @@ func AddIn(ctx context.Context, q db.Querier, l domain.Language, ing domain.Ingr
 // it starts it from nothing. A name that normalises as another's is a *NameTakenError. A
 // new name only close to another's is a *SuggestedError, unless `confirmed` says the User
 // meant the name typed. A unit changed once Movements refer to the Ingredient is a
-// *UnitFixedError, or an *InRecipeError once a Recipe lists it, and one they haven't got
-// is ErrNoIngredient.
+// *UnitFixedError, an *InRecipeError once a Recipe lists it, or ErrInPlan once a Plan or
+// a Plan Proposal uses it, and one they haven't got is ErrNoIngredient.
 func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id int64, ing domain.Ingredient, confirmed bool) (counted []domain.Movement, err error) {
 	normalised := domain.NormaliseIngredientName(l, ing.Name)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
@@ -180,6 +190,9 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 				return &UnitFixedError{Unit: current.Unit}
 			}
 			if err := s.notInRecipe(ctx, tx, id); err != nil {
+				return err
+			}
+			if err := s.notInPlan(ctx, tx, id); err != nil {
 				return err
 			}
 		}
@@ -229,12 +242,8 @@ func (s *Service) delete(ctx context.Context, id int64) (name string, err error)
 		if err := s.notInRecipe(ctx, tx, id); err != nil {
 			return err
 		}
-		planned, err := s.usesIngredient(ctx, tx, id)
-		if err != nil {
+		if err := s.notInPlan(ctx, tx, id); err != nil {
 			return err
-		}
-		if planned {
-			return ErrInPlan
 		}
 		name = ing.Name
 		return deleteIngredient(ctx, tx, id)
