@@ -175,17 +175,3 @@ func (c Cycle) Slots(times SlotTimes) []Slot {
 	}
 	return slots
 }
-
-// CycleOf is the index of the one of `cycles`, in the order of their Deliveries, that `s`
-// belongs to by `times`: the one whose Delivery arrived before `s`, unless the next one's
-// did too, and whose end date `s` isn't past. `ok` is false when `s` belongs to none.
-func CycleOf(cycles []Cycle, s Slot, times SlotTimes) (i int, ok bool) {
-	at := s.At(times)
-	for i, c := range cycles {
-		next := i+1 < len(cycles) && at.After(cycles[i+1].Delivery.Arrives())
-		if at.After(c.Delivery.Arrives()) && !next && !s.On.After(c.Ends) {
-			return i, true
-		}
-	}
-	return 0, false
-}
