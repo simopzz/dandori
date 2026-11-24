@@ -241,13 +241,20 @@ func (s *supabase) fetchKeys(ctx context.Context) (map[string]any, error) {
 	if err := json.NewDecoder(res.Body).Decode(&set); err != nil {
 		return nil, fmt.Errorf("read the JWKS: %w", err)
 	}
+	// Supabase lists every key not revoked, standby and past ones too: one
+	// of a kind the app can't read is skipped, so it can't fail the others.
 	keys := map[string]any{}
+	var unread []error
 	for _, k := range set.Keys {
 		pub, err := k.publicKey()
 		if err != nil {
-			return nil, err
+			unread = append(unread, err)
+			continue
 		}
 		keys[k.Kid] = pub
+	}
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("no usable key among the JWKS's %d: %v", len(set.Keys), unread)
 	}
 	return keys, nil
 }

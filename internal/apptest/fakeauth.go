@@ -46,6 +46,8 @@ type FakeAuth struct {
 	revoked   map[string]bool        // the signed-out session ids
 	mail      map[string][]string
 	traced    []string // the traceparent headers the app sent, which it shouldn't
+
+	signingKeyDropped bool
 }
 
 type link struct{ email, kind string }
@@ -252,16 +254,36 @@ func (f *FakeAuth) newSession(sess fakeSession) map[string]any {
 	}
 }
 
+// DropSigningKey takes the key FakeAuth signs with out of its JWKS, which
+// then lists only its Ed25519 standby key: one the app can't read.
+func (f *FakeAuth) DropSigningKey() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signingKeyDropped = true
+}
+
+// jwks lists a standby key beside the signing key: an Ed25519 one, a kind
+// the app can't read.
 func (f *FakeAuth) jwks(w http.ResponseWriter, r *http.Request) {
-	pub, err := f.key.PublicKey.Bytes() // 0x04, then x and y
-	if err != nil {
-		panic(err)
+	keys := []map[string]string{{
+		"kid": "standby", "kty": "OKP", "crv": "Ed25519", "alg": "EdDSA", "use": "sig",
+		"x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo", // RFC 8037's example key: the app never reads it
+	}}
+	f.mu.Lock()
+	dropped := f.signingKeyDropped
+	f.mu.Unlock()
+	if !dropped {
+		pub, err := f.key.PublicKey.Bytes() // 0x04, then x and y
+		if err != nil {
+			panic(err)
+		}
+		keys = append(keys, map[string]string{
+			"kid": "fake", "kty": "EC", "crv": "P-256", "alg": "ES256", "use": "sig",
+			"x": base64.RawURLEncoding.EncodeToString(pub[1:33]),
+			"y": base64.RawURLEncoding.EncodeToString(pub[33:]),
+		})
 	}
-	writeJSON(w, map[string]any{"keys": []map[string]string{{
-		"kid": "fake", "kty": "EC", "crv": "P-256", "alg": "ES256", "use": "sig",
-		"x": base64.RawURLEncoding.EncodeToString(pub[1:33]),
-		"y": base64.RawURLEncoding.EncodeToString(pub[33:]),
-	}}})
+	writeJSON(w, map[string]any{"keys": keys})
 }
 
 func apiError(w http.ResponseWriter, status int, code string) {

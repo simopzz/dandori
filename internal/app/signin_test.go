@@ -169,3 +169,28 @@ func mustParse(t *testing.T, raw string) *url.URL {
 	}
 	return u
 }
+
+// A key in the JWKS the app can't read, the fake's Ed25519 standby key,
+// doesn't stop a User signing in: the app skips it.
+func TestSigningInPastAKeyTheAppCantRead(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.IsAt("/")
+	s.Sees("Monday, November 2")
+}
+
+// A JWKS with no key the app can read is Supabase failing, not the User's
+// session ending: the page fails instead of sending them to sign in.
+func TestAJWKSWithNoUsableKeyFails(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	h.Auth.DropSigningKey()
+	if page := h.SignIn(t, "ada@example.com"); page.StatusCode != http.StatusInternalServerError {
+		t.Errorf("signing in with no usable key in the JWKS landed on %s with status %d, want 500", page.Path, page.StatusCode)
+	}
+	if logged := h.Logged(); !strings.Contains(logged, "signing keys unavailable") {
+		t.Errorf("the app logged no unavailable signing keys:\n%s", logged)
+	}
+}
