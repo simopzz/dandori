@@ -1,6 +1,7 @@
 [tools]
 go = "1.27.3"
 "go:github.com/a-h/templ/cmd/templ" = "0.3.1070"
+"go:golang.org/x/tools/cmd/deadcode" = "0.53.0"
 golangci-lint = "2.15.0"
 
 # mise install turns on the repo's git hooks: the pre-commit hook runs mise run guardrails.
