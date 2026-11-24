@@ -35,6 +35,7 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 		switch status {
 		case domain.Current:
 			current = &cycles[i]
+			current.Delivery.State = domain.Arrived
 		case domain.Upcoming:
 			upcoming = &cycles[i]
 		}
@@ -50,15 +51,19 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 // row-level security leaves only their rows.
 func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle, error) {
 	rows, err := q.Query(ctx, `
-		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on
+		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on, ordered_at IS NOT NULL
 		FROM cycle ORDER BY delivery_on, window_to`)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
 		var c Cycle
-		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends)
-		c.Delivery.On, c.Ends = inZone(c.Delivery.On, zone), inZone(c.Ends, zone)
+		var ordered bool
+		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered)
+		c.Delivery.On, c.Ends, c.Delivery.State = inZone(c.Delivery.On, zone), inZone(c.Ends, zone), domain.Tentative
+		if ordered {
+			c.Delivery.State = domain.Ordered
+		}
 		return c, err
 	})
 }
@@ -83,6 +88,47 @@ func saveCycle(ctx context.Context, q db.Querier, c domain.Cycle) (id int64, err
 func deleteCycle(ctx context.Context, q db.Querier, id int64) error {
 	_, err := q.Exec(ctx, `DELETE FROM cycle WHERE id = $1`, id)
 	return err
+}
+
+// markOrdered marks the Delivery of the signed-in User's Cycle `id` ordered at `at`,
+// fixing its Grocery List as `lines`, unless it is marked already.
+func markOrdered(ctx context.Context, q db.Querier, id int64, at time.Time, lines []domain.GroceryLine) error {
+	tag, err := q.Exec(ctx, `UPDATE cycle SET ordered_at = $2 WHERE id = $1 AND ordered_at IS NULL`, id, at)
+	if err != nil || tag.RowsAffected() == 0 {
+		return err
+	}
+	for _, l := range lines {
+		_, err := q.Exec(ctx, `INSERT INTO grocery_line (cycle_id, ingredient_id, quantity) VALUES ($1, $2, $3)`,
+			id, l.Ingredient.ID, l.Quantity.Number())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// undoOrdered makes the Delivery of the signed-in User's Cycle `id` tentative again,
+// deleting its fixed Grocery List.
+func undoOrdered(ctx context.Context, q db.Querier, id int64) error {
+	if _, err := q.Exec(ctx, `DELETE FROM grocery_line WHERE cycle_id = $1`, id); err != nil {
+		return err
+	}
+	_, err := q.Exec(ctx, `UPDATE cycle SET ordered_at = NULL WHERE id = $1`, id)
+	return err
+}
+
+// loadGroceryLines is the fixed Grocery List of the signed-in User's Cycle `id`: how
+// much it buys of each Ingredient, by its id.
+func loadGroceryLines(ctx context.Context, q db.Querier, id int64) (map[int64]domain.Quantity, error) {
+	var ingredientID int64
+	var quantity float64
+	lines := map[int64]domain.Quantity{}
+	rows, _ := q.Query(ctx, `SELECT ingredient_id, quantity::float8 FROM grocery_line WHERE cycle_id = $1`, id)
+	_, err := pgx.ForEachRow(rows, []any{&ingredientID, &quantity}, func() error {
+		lines[ingredientID] = domain.QuantityOf(quantity)
+		return nil
+	})
+	return lines, err
 }
 
 // planningBusy reports whether the signed-in User has a planning Run going other than
@@ -428,11 +474,13 @@ func Prepares(ctx context.Context, q db.Querier, id int64) (prepared bool, err e
 }
 
 // UsesIngredient reports whether a Plan Proposal of the signed-in User's, whatever its
-// status, uses the Ingredient `id`, which its Prep Sessions and freezer splits keep. The
-// ingredients feature, which this one depends on, reads it, and app wires it.
+// status, uses the Ingredient `id`, which its Prep Sessions and freezer splits keep, or
+// a fixed Grocery List buys it. The ingredients feature, which this one depends on,
+// reads it, and app wires it.
 func UsesIngredient(ctx context.Context, q db.Querier, id int64) (used bool, err error) {
 	err = q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM prep_session WHERE ingredient_id = $1)
-		OR EXISTS (SELECT 1 FROM freezer_split WHERE ingredient_id = $1)`, id).Scan(&used)
+		OR EXISTS (SELECT 1 FROM freezer_split WHERE ingredient_id = $1)
+		OR EXISTS (SELECT 1 FROM grocery_line WHERE ingredient_id = $1)`, id).Scan(&used)
 	return used, err
 }
 

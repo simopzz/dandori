@@ -37,6 +37,7 @@ var owners = map[string]string{
 	"planning_note":         "planning",
 	"freezer_split":         "planning",
 	"proposal_recipe_draft": "planning",
+	"grocery_line":          "planning",
 }
 
 // storeCrossing is a store's function, as feature.function, writing or locking a table

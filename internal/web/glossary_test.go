@@ -17,8 +17,9 @@ import (
 // ordinarySense are avoided words a page uses in their ordinary sense,
 // not as the term the glossary avoids them for.
 var ordinarySense = map[string]string{
-	"log":  `"the server log", not a Trace`,
-	"step": `a Recipe's steps, which the glossary names so, not a Trace Event`,
+	"log":   `"the server log", not a Trace`,
+	"step":  `a Recipe's steps, which the glossary names so, not a Trace Event`,
+	"order": `the verb, as Today says "Order the next Delivery", not a Delivery`,
 }
 
 // nameSense are names that use an avoided word in its ordinary sense, not as the term

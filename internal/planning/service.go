@@ -29,6 +29,8 @@ var (
 	ErrNoTargets = errors.New("the Targets aren't set")
 	// ErrNoCycle is dropping a Cycle the User has none upcoming of.
 	ErrNoCycle = errors.New("no such upcoming Cycle")
+	// ErrOrdered is dropping a Cycle whose Delivery is marked ordered.
+	ErrOrdered = errors.New("the Delivery is marked ordered")
 )
 
 // Cycle is one of the User's Cycles, by its id.
@@ -159,8 +161,10 @@ func (s *Service) Open(ctx context.Context, l domain.Language, typed map[string]
 	})
 }
 
-// Drop deletes the signed-in User's Cycle `id` while it is upcoming at `now`, with its
-// Plan Proposals, its planning Run going cancelled, and is ErrNoCycle otherwise.
+// Drop deletes the signed-in User's Cycle `id` while it is upcoming at `now` and its
+// Delivery tentative, with its Plan Proposals, its planning Run going cancelled. It is
+// ErrNoCycle when `id` isn't upcoming, and ErrOrdered while its Delivery is
+// marked ordered.
 func (s *Service) Drop(ctx context.Context, id int64, now time.Time) error {
 	var stop func(context.Context)
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
@@ -168,8 +172,12 @@ func (s *Service) Drop(ctx context.Context, id int64, now time.Time) error {
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}
-		if _, err := findUpcoming(ctx, tx, id, now); err != nil {
+		c, err := findUpcoming(ctx, tx, id, now)
+		if err != nil {
 			return err
+		}
+		if c.Delivery.State == domain.Ordered {
+			return ErrOrdered
 		}
 		if stop, err = s.end(ctx, tx, id, cause{Dropped: true}); err != nil {
 			return err

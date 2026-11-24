@@ -33,9 +33,9 @@ templ proposalPage(now time.Time, v cycleView) {
 				}
 			}
 		}
-		@dropSection(c, v.Upcoming)
+		@dropSection(c, v.droppable())
 	}
-	if v.Upcoming {
+	if v.droppable() {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 	}
 	@web.SideSheet(draftSheetID, web.T(ctx, msgNewRecipe))
@@ -46,7 +46,7 @@ templ proposalPage(now time.Time, v cycleView) {
 // has one.
 templ cycleHeader(now time.Time, v cycleView, ds []proposalDay) {
 	@web.PageHeaderBeside("献立", web.T(ctx, msgCycle), dates(ctx, *v.Cycle), now) {
-		@deliveryLine(*v.Cycle, v.Upcoming, ds)
+		@deliveryLine(*v.Cycle, ds)
 		if v.listed() {
 			<p class="lede">
 				@web.TextLink(templ.Attributes{"href": string(groceryURL(v.Cycle.ID))}) {
@@ -59,9 +59,9 @@ templ cycleHeader(now time.Time, v cycleView, ds []proposalDay) {
 }
 
 // dropSection is Section 03, dropping the Cycle `c`, apart at the end, only
-// while `upcoming`.
-templ dropSection(c Cycle, upcoming bool) {
-	if upcoming {
+// while `droppable`.
+templ dropSection(c Cycle, droppable bool) {
+	if droppable {
 		@web.Section(3, web.T(ctx, msgUpcomingCycle)) {
 			@web.Actions() {
 				@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
@@ -73,16 +73,18 @@ templ dropSection(c Cycle, upcoming bool) {
 }
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
-// Tentative while `upcoming`, and the Slot the first day is planned from when it is
-// planned only partly.
-templ deliveryLine(c Cycle, upcoming bool, ds []proposalDay) {
+// Ordered or Tentative until it arrives, and the Slot the first day is planned from when
+// it is planned only partly.
+templ deliveryLine(c Cycle, ds []proposalDay) {
 	<p class="lede">
 		{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
-		if upcoming {
+		if tag, ok := deliveryTags[c.Delivery.State]; ok {
 			{ " " }
 			@web.Tag(false, "") {
-				{ web.T(ctx, msgTentative) }
+				{ web.T(ctx, tag) }
 			}
+		}
+		if c.Delivery.State == domain.Tentative {
 			{ " " }
 			// A span: web.Hint is a <p>, which can't sit in the lede.
 			<span class="hint">{ web.T(ctx, msgTentativeHint) }</span>

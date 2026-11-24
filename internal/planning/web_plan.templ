@@ -32,7 +32,7 @@ templ planPage(now time.Time, v cycleView) {
 		}
 		@planActions(v)
 	}
-	if v.Upcoming {
+	if v.droppable() {
 		@web.SideSheet(dropSheetID, web.T(ctx, msgDropCycle))
 	}
 }
@@ -40,13 +40,13 @@ templ planPage(now time.Time, v cycleView) {
 // planActions is Section 03, the Plan's actions apart at the end: while the Cycle is
 // planned again, saying so with a link to the Run; once that Run failed, why, with its
 // Trace, and Plan again; otherwise asking for changes, while no planning Run is going nor
-// Plan Proposal pending for any Cycle. Dropping the Cycle sits beside them, while
-// upcoming; nothing when it has none of them.
+// Plan Proposal pending for any Cycle. Dropping the Cycle sits beside them, while it can
+// be dropped; nothing when it has none of them.
 templ planActions(v cycleView) {
 	{{ c, p := *v.Cycle, v.Planning }}
 	{{ ask := !p.Busy && p.Failed == nil }}
-	if p.Going != 0 || p.Failed != nil || ask || v.Upcoming {
-		@web.Section(3, sectionTitle(ctx, v.Upcoming)) {
+	if p.Going != 0 || p.Failed != nil || ask || v.droppable() {
+		@web.Section(3, sectionTitle(ctx, v.upcoming())) {
 			if p.Failed != nil {
 				@failedAlert(p.Failed.ID, v.Failure)
 			}
@@ -60,7 +60,7 @@ templ planActions(v cycleView) {
 				} else if ask {
 					@askForChanges(c.ID, p.Notes, v.Note, noteError(ctx, v.Refusal), v.Note != "" || v.Refusal != nil)
 				}
-				if v.Upcoming {
+				if v.droppable() {
 					@web.RemoveLink(dropSheetID, dropURL(c.ID), dropURL(c.ID)+"/sheet") {
 						{ web.T(ctx, msgDropCycle) }
 					}
