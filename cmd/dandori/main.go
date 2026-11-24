@@ -14,6 +14,11 @@
 // DANDORI_DEMO_LLM, which set to true answers every Run with recipes.DemoLLM instead,
 // asking no real model and costing nothing, and DANDORI_FARO_URL, the Faro collector the
 // pages send the browser's telemetry to (unset, they load no Faro).
+//
+// DANDORI_DEV_NOW runs the app on a manual clock at that time, with a fake Supabase Auth
+// and the /_test/ routes a driver needs, instead of on the machine's time and the real
+// Supabase Auth: DANDORI_DEV_USERS invites the emails it lists, each an email or an
+// email and the User's id, as "ada@example.com" or "ada@example.com:<uuid>".
 package main
 
 import (
@@ -31,6 +36,8 @@ import (
 	"github.com/simopzz/dandori/internal/app"
 	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
+	"github.com/simopzz/dandori/internal/devmode"
+	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/telemetry"
@@ -74,11 +81,24 @@ func run(log *slog.Logger, args []string) error {
 		case os.Getenv("ANTHROPIC_API_KEY") != "":
 			cfg.Runs = runs.Config{LLM: anthropic.New(), Model: os.Getenv("DANDORI_MODEL")}
 		}
-		for name, value := range map[string]string{
-			"DANDORI_DATABASE_URL":             cfg.DatabaseURL,
-			"DANDORI_SUPABASE_URL":             cfg.Auth.SupabaseURL,
-			"DANDORI_SUPABASE_PUBLISHABLE_KEY": cfg.Auth.PublishableKey,
-		} {
+		var dev *devmode.Dev
+		if raw := os.Getenv("DANDORI_DEV_NOW"); raw != "" {
+			at, err := devmode.Parse(raw, loc)
+			if err != nil {
+				return fmt.Errorf("DANDORI_DEV_NOW: %w", err)
+			}
+			dev, err = devmode.New(at, ledger.BeatEvery, os.Getenv("DANDORI_DEV_USERS"))
+			if err != nil {
+				return err
+			}
+		}
+		required := map[string]string{"DANDORI_DATABASE_URL": cfg.DatabaseURL}
+		if dev == nil {
+			// The fake Supabase Auth stands in for the real one in dev mode.
+			required["DANDORI_SUPABASE_URL"] = cfg.Auth.SupabaseURL
+			required["DANDORI_SUPABASE_PUBLISHABLE_KEY"] = cfg.Auth.PublishableKey
+		}
+		for name, value := range required {
 			if value == "" {
 				return fmt.Errorf("%s is not set", name)
 			}
@@ -96,7 +116,7 @@ func run(log *slog.Logger, args []string) error {
 			}
 		}()
 		cfg.Spans = tel.Spans
-		return serve(ctx, telemetry.Logger(os.Stderr, tel.Logs), cfg, addr)
+		return serve(ctx, telemetry.Logger(os.Stderr, tel.Logs), cfg, addr, dev)
 	case "healthcheck":
 		return healthcheck(ctx, addr)
 	default:
@@ -104,20 +124,33 @@ func run(log *slog.Logger, args []string) error {
 	}
 }
 
-func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string) error {
+// serve runs the app on `addr`, on the machine's time and the real Supabase Auth, or, in
+// dev mode, on a manual clock and a fake Supabase Auth.
+func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string, devMode *devmode.Dev) error {
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+	if devMode != nil {
+		// The fake Supabase Auth is the app's own, under /_test/supabase.
+		devMode.Listening(baseURL(ln.Addr()))
+		cfg.Clock = devMode.Clock
+		cfg.Auth = devMode.Auth.AuthConfig()
+	}
 	a, err := app.New(ctx, cfg, log)
 	if err != nil {
 		return err
 	}
 	defer a.Close()
 	a.Schedule(ctx)
-
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
+	if devMode != nil {
+		// The app wakes up at the dev time: what it assumed up to then is
+		// recorded before the first request.
+		devMode.Wake()
 	}
 	srv := &http.Server{
-		Handler:           a.Handler(),
+		Handler:           handler(a.Handler(), devMode),
 		ReadHeaderTimeout: 10 * time.Second,
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
@@ -167,4 +200,27 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// handler is the app's handler, with the dev routes mounted when the dev mode is on:
+// production has none.
+func handler(next http.Handler, devMode *devmode.Dev) http.Handler {
+	if devMode == nil {
+		return next
+	}
+	return devMode.Handler(next)
+}
+
+// baseURL is the address the app serves on, as a browser reaches it: the
+// listener's, with a wildcard host turned into the loopback one.
+func baseURL(addr net.Addr) string {
+	host, port, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return "http://" + addr.String()
+	}
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, port)
 }

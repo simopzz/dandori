@@ -1,8 +1,8 @@
-// Package apptest starts Dandori in-process over HTTP against a real,
-// freshly migrated Postgres + pgvector database of its own, for tests at
-// the app seam. The app runs on a Manual clock the test sets and steps,
-// directly or through POST /_test/clock: a switch only this package
-// serves, so the production binary, which never imports it, has none.
+// Package apptest starts Dandori in-process over HTTP against a real, freshly migrated
+// Postgres + pgvector database of its own, for tests at the app seam. The app runs on a
+// Manual clock the test sets and steps, directly or through POST /_test/clock: a switch
+// the dev mode serves too, on the same paths, so the production binary, which never
+// mounts it, has none.
 //
 // DANDORI_TEST_DATABASE_URL must point at a disposable Postgres server with
 // pgvector, as a superuser (`mise run testdb`). pgtestdb migrates a template
@@ -33,9 +33,9 @@ import (
 
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/app"
-	"github.com/simopzz/dandori/internal/auth"
 	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
+	"github.com/simopzz/dandori/internal/devmode"
 	"github.com/simopzz/dandori/internal/runs"
 	"github.com/simopzz/dandori/internal/telemetry"
 )
@@ -147,7 +147,7 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	cfg := app.Config{
 		DatabaseURL: instance.URL(),
 		Clock:       manual,
-		Auth:        auth.Config{SupabaseURL: fake.URL, PublishableKey: fakeAPIKey},
+		Auth:        fake.AuthConfig(),
 		// A retry waits next to nothing.
 		Runs: runs.Config{LLM: model, Backoff: time.Millisecond},
 	}
@@ -175,7 +175,7 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		boot(t)
 	}
 	// Not a ServeMux: the pattern it matched would name every request's span "GET /".
-	setClock := clockSwitch(manual)
+	setClock := devmode.ClockSwitch(manual)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && r.URL.Path == "/_test/clock" {
 			setClock(w, r)
@@ -238,18 +238,18 @@ func zone(t testing.TB) *time.Location {
 	return loc
 }
 
-// clockSwitch sets the clock to the RFC 3339 time posted as now, for
-// tests that can't reach the Harness, such as a browser's.
-func clockSwitch(c *clock.Manual) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		now, err := time.Parse(time.RFC3339, r.FormValue("now"))
-		if err != nil {
-			http.Error(w, "now must be an RFC 3339 time: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		c.Set(now.In(c.Now().Location()))
-		w.WriteHeader(http.StatusNoContent)
+// startFakeAuth starts a fake Supabase Auth beside the app, on a server of
+// its own, which the app signs Users in through.
+func startFakeAuth(t testing.TB, c clock.Clock) *FakeAuth {
+	t.Helper()
+	f, err := devmode.NewFakeAuth(c)
+	if err != nil {
+		t.Fatal(err)
 	}
+	srv := httptest.NewServer(f.Handler())
+	t.Cleanup(srv.Close)
+	f.URL = srv.URL
+	return &FakeAuth{f}
 }
 
 // Exec runs `sql` on the app's database, for fixtures of what the app can't
