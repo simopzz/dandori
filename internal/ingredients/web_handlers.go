@@ -22,7 +22,7 @@ const (
 	refusedCloseName    httpx.Refusal = "Ingredient name close to another's"
 	refusedUnitFixed    httpx.Refusal = "Ingredient's unit fixed by its Movements"
 	refusedUnitInRecipe httpx.Refusal = "Ingredient's unit fixed by a Recipe"
-	refusedUnitInPlan   httpx.Refusal = "Ingredient's unit fixed by a Plan"
+	refusedUnitInPlan   httpx.Refusal = "Ingredient's unit fixed by a Plan or a Plan Proposal"
 	refusedHasMovements httpx.Refusal = "Ingredient has Movements"
 	refusedInRecipe     httpx.Refusal = "Ingredient in a Recipe"
 	refusedInPlan       httpx.Refusal = "Ingredient in a Plan or a Plan Proposal"

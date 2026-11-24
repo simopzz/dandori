@@ -568,9 +568,9 @@ func TestDeletingAnIngredientAnApprovedPlansFreezerSplitUsesIsRefused(t *testing
 	s.Refuses(t, foreignKeyViolation, `DELETE FROM ingredient WHERE name = 'chicken breast'`)
 }
 
-// inPieces is `ing` counted in pieces.
-func inPieces(ing apptest.Ingredient) apptest.Ingredient {
-	ing.Unit = "piece"
+// withUnit is `ing` counted in `unit`.
+func withUnit(ing apptest.Ingredient, unit string) apptest.Ingredient {
+	ing.Unit = unit
 	return ing
 }
 
@@ -587,13 +587,13 @@ func TestTheUnitOfAnIngredientAPlanSetsOutIsFixed(t *testing.T) {
 
 	s.Open("/ingredients")
 	spans.Reset()
-	s.EditsIngredient("yogurt", inPieces(yogurt))
+	s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
 	s.IsRefused()
 	s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
 	if got := apptest.EditForm(t, s.Page().Body, "yogurt").Get("unit"); got != "piece" {
 		t.Errorf("the refused edit form holds unit %q, want what was chosen", got)
 	}
-	if got, _ := attr(requestSpan(t, spans), "dandori.refusal"); got.AsString() != "Ingredient's unit fixed by a Plan" {
+	if got, _ := attr(requestSpan(t, spans), "dandori.refusal"); got.AsString() != "Ingredient's unit fixed by a Plan or a Plan Proposal" {
 		t.Errorf("dandori.refusal = %q, want the unit fixed by a Plan", got.AsString())
 	}
 
@@ -611,16 +611,14 @@ func TestTheUnitOfAnIngredientOnlyAFreezerSplitUsesIsFixed(t *testing.T) {
 	plansFridayWithFreezerSplit(t, s)
 
 	s.Open("/ingredients")
-	s.EditsIngredient("chicken breast", inPieces(chicken))
+	s.EditsIngredient("chicken breast", withUnit(chicken, "piece"))
 	s.IsRefused()
 	s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
 	s.Open("/plan")
 	s.Sees("To the freezer at put-away chicken breast 400 g")
 
-	inGrams := egg
-	inGrams.Unit = "g"
 	s.Open("/ingredients")
-	s.EditsIngredient("egg", inGrams)
+	s.EditsIngredient("egg", withUnit(egg, "g"))
 	s.IsConfirmed("Saved egg.")
 }
 
@@ -654,7 +652,7 @@ func TestTheUnitOfAnIngredientOnlyAFixedGroceryListBuysIsFixed(t *testing.T) {
 	s.DoesNotSee("olive oil")
 	s.Open("/ingredients")
 
-	s.EditsIngredient("olive oil", inPieces(oil))
+	s.EditsIngredient("olive oil", withUnit(oil, "piece"))
 	s.IsRefused()
 	s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
 	s.Open("/plan/cycles/2/grocery-list")
@@ -673,7 +671,7 @@ func TestTheUnitOfAnIngredientARejectedPlanProposalUsesIsFixed(t *testing.T) {
 		s.IsConfirmed("Plan Proposal rejected.")
 
 		s.Open("/ingredients")
-		s.EditsIngredient("yogurt", inPieces(yogurt))
+		s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
 		s.IsRefused()
 		s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
 	})
@@ -683,11 +681,14 @@ func TestTheUnitOfAnIngredientARejectedPlanProposalUsesIsFixed(t *testing.T) {
 		s.At("Thu 20:00")
 		s.OpensCycle(saturday)
 		s.At("Fri 12:00")
-		s.Open("/plan")
-		s.Sees("Cycle · Fri, Nov 6 – Sat, Nov 7")
+		var status string
+		s.Scan(t, &status, `SELECT status FROM plan_proposal`)
+		if status != "rejected" {
+			t.Fatalf("friday's Plan Proposal is %s, want rejected by the Delivery closing its Cycle", status)
+		}
 
 		s.Open("/ingredients")
-		s.EditsIngredient("yogurt", inPieces(yogurt))
+		s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
 		s.IsRefused()
 		s.Sees("It's in a Plan or a Plan Proposal, so its unit can't change.")
 	})
@@ -709,7 +710,7 @@ func TestTheUnitOfAnIngredientAPlanUsesIsFixedInItalian(t *testing.T) {
 	s.Settle()
 
 	s.Open("/ingredients")
-	s.EditsIngredient("yogurt", inPieces(yogurt))
+	s.EditsIngredient("yogurt", withUnit(yogurt, "piece"))
 	s.IsRefused()
 	s.Sees("È in un Piano o in una Proposta di Piano, quindi l'unità non può cambiare.")
 }

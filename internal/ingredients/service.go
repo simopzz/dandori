@@ -88,6 +88,15 @@ func New(pool *pgxpool.Pool, recipesUsing RecipesUsing, usesIngredient UsesIngre
 	return &Service{pool: pool, recipesUsing: recipesUsing, usesIngredient: usesIngredient}
 }
 
+// notInPlan is ErrInPlan if a Plan or a Plan Proposal uses the Ingredient `id`.
+func (s *Service) notInPlan(ctx context.Context, q db.Querier, id int64) error {
+	planned, err := s.usesIngredient(ctx, q, id)
+	if err == nil && planned {
+		return ErrInPlan
+	}
+	return err
+}
+
 // notInRecipe is an *InRecipeError if a Recipe lists the Ingredient `id`.
 func (s *Service) notInRecipe(ctx context.Context, q db.Querier, id int64) error {
 	first, others, err := s.recipesUsing(ctx, q, id)
@@ -183,12 +192,8 @@ func (s *Service) Edit(ctx context.Context, l domain.Language, at time.Time, id 
 			if err := s.notInRecipe(ctx, tx, id); err != nil {
 				return err
 			}
-			planned, err := s.usesIngredient(ctx, tx, id)
-			if err != nil {
+			if err := s.notInPlan(ctx, tx, id); err != nil {
 				return err
-			}
-			if planned {
-				return ErrInPlan
 			}
 		}
 		if ing.Staple && !current.Staple {
@@ -237,12 +242,8 @@ func (s *Service) delete(ctx context.Context, id int64) (name string, err error)
 		if err := s.notInRecipe(ctx, tx, id); err != nil {
 			return err
 		}
-		planned, err := s.usesIngredient(ctx, tx, id)
-		if err != nil {
+		if err := s.notInPlan(ctx, tx, id); err != nil {
 			return err
-		}
-		if planned {
-			return ErrInPlan
 		}
 		name = ing.Name
 		return deleteIngredient(ctx, tx, id)
