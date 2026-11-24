@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/agent"
@@ -36,8 +37,9 @@ func plansFridaySplitting(t *testing.T, s *apptest.Scenario) {
 // At the end of the Delivery's window its Grocery List becomes Stock Items: yogurt in
 // the fridge but for the 100 g its freezer split sends to the freezer, and no chicken,
 // which the list doesn't buy. Their Movements say delivered. The current Cycle's list
-// stays as it arrived, saying "Delivered on" its day, offering neither marking ordered
-// nor undoing it, which are refused, saying why.
+// stays as it arrived, saying "Delivered on" its day, with neither the hint to fill the
+// cart nor checkboxes, offering neither marking ordered nor undoing it, which are
+// refused, saying why.
 func TestTheDeliveryIsPutAwayWhenItArrives(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridaySplitting(t, s)
@@ -60,7 +62,11 @@ func TestTheDeliveryIsPutAwayWhenItArrives(t *testing.T) {
 	s.DoesNotSee("Never marked ordered")
 	s.Follows("Grocery List")
 	s.Sees("Delivered on Thu, Nov 5")
-	s.Sees("01 To buy yogurt (150 g)")
+	s.Sees("01 To buy yogurt 150 g")
+	s.DoesNotSee("Tick each line as you fill the cart.")
+	if strings.Contains(s.Page().Body, `type="checkbox"`) {
+		t.Error("the Grocery List of a Delivery put away has a checkbox")
+	}
 	s.DoesNotSee("Mark ordered")
 	s.DoesNotSee("Undo ordered")
 	const arrived = "The Delivery has arrived: its Grocery List stays as it came."
@@ -80,7 +86,7 @@ func TestTheDeliveryIsPutAwayWhenItArrives(t *testing.T) {
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")
 	s.Follows("Grocery List")
-	s.Sees("01 To buy yogurt (150 g)")
+	s.Sees("01 To buy yogurt 150 g")
 }
 
 // A Delivery is put away once, however many beats and requests pass its window's end.
@@ -113,7 +119,7 @@ func TestADeliveryNeverMarkedOrderedIsPutAwayAllTheSame(t *testing.T) {
 	s.Sees("Delivered on Thu, Nov 5 Never marked ordered")
 	s.Follows("Grocery List")
 	s.Sees("Delivered on Thu, Nov 5 Never marked ordered")
-	s.Sees("01 To buy yogurt (150 g)")
+	s.Sees("01 To buy yogurt 150 g")
 }
 
 // A Cycle whose Delivery arrives without a Plan delivers nothing.

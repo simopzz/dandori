@@ -24,16 +24,19 @@ func tentativeURL(id int64) templ.SafeURL {
 }
 
 // groceryPage is the Grocery List of the upcoming or current Cycle `c`, the Cycle's dates
-// beside the title, its Delivery, tentative, ordered or delivered, and a link back to the
-// Cycle under it; why marking it ordered was refused, if it was: 01 each line to buy, a
-// checkbox kept only in the page before its name and quantity, 02 the Staples to check
-// the kitchen still holds, then, until the Delivery arrives, marking it ordered or, once
-// it is, undoing that. While `c` has no Plan, `list` nil, it says to plan it first.
+// beside the title, its Delivery, tentative, ordered or delivered, until it arrives the
+// hint to fill the cart, and a link back to the Cycle under it; why marking it ordered
+// was refused, if it was: 01 each line to buy, its name and quantity, until the Delivery
+// arrives after a checkbox kept only in the page, 02 the Staples to check the kitchen
+// still holds, then, until the Delivery arrives, marking it ordered or, once it is,
+// undoing that. While `c` has no Plan, `list` nil, it says to plan it first.
 templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal error) {
 	@web.Layout(web.T(ctx, msgGroceryListTitle), web.PlanTab) {
 		@web.PageHeaderBeside("献立", web.T(ctx, msgGroceryList), dates(ctx, c), now) {
 			@deliveryLine(c, nil)
-			<p class="lede">{ web.T(ctx, msgGroceryHint) }</p>
+			if c.Delivery.State != domain.Arrived {
+				<p class="lede">{ web.T(ctx, msgGroceryHint) }</p>
+			}
 			<p class="lede">
 				@web.TextLink(templ.Attributes{"href": string(cycleURL(c.ID))}) {
 					{ web.T(ctx, msgBackToTheCycle) }
@@ -57,8 +60,13 @@ templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal erro
 					@web.Rows() {
 						for _, line := range list.Lines {
 							@web.Row() {
-								@web.Check(line.Ingredient.Name, web.Quantity(ctx, line.Quantity, line.Ingredient.Unit)) {
-									<input type="checkbox"/>
+								if c.Delivery.State == domain.Arrived {
+									@web.RowTitle(line.Ingredient.Name, false, "", false)
+									<span class="row-figure">{ web.Quantity(ctx, line.Quantity, line.Ingredient.Unit) }</span>
+								} else {
+									@web.Check(line.Ingredient.Name, web.Quantity(ctx, line.Quantity, line.Ingredient.Unit)) {
+										<input type="checkbox"/>
+									}
 								}
 							}
 						}
