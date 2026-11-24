@@ -7,11 +7,6 @@ on:
   # Deploys v2 whatever changed, e.g. after a secret or variable changes.
   workflow_dispatch:
 
-env:
-  # What a deploy ships: the image's sources as .dockerignore lets them in (tests
-  # aside), the server's files in deploy/, and this workflow.
-  SHIPPED_PATHS: '^(go\.(mod|sum)|Dockerfile|\.dockerignore|cmd/|internal/|deploy/|\.github/workflows/ci\.yml$)'
-
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -53,7 +48,7 @@ jobs:
           go test -count=1 -v -run '^TestBrowser' ./internal/app | tee browser.log
           grep -q -- '--- PASS: TestBrowser' browser.log
 
-  # Whether a push to v2 changes what a deploy ships ($SHIPPED_PATHS). Docs alone
+  # Whether a push to v2 changes what a deploy ships (scripts/ships.sh). Docs alone
   # deploy nothing. A push whose base isn't in the history, such as a force push,
   # deploys, as does a run started by hand.
   changes:
@@ -71,10 +66,7 @@ jobs:
         run: |
           deploy=true
           if [ "$GITHUB_EVENT_NAME" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            git diff --name-only "$BEFORE" "$GITHUB_SHA" | tee changed.txt
-            grep -v '_test\.go$' changed.txt > shipped.txt || true
-            grep -Eq "$SHIPPED_PATHS" shipped.txt ||
-              deploy=false
+            scripts/ships.sh "$BEFORE" "$GITHUB_SHA" || deploy=false
           fi
           echo "deploy=$deploy" | tee -a "$GITHUB_OUTPUT"
 
@@ -97,28 +89,24 @@ jobs:
       IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
-      # Skips the rest unless this commit ships what v2's tip does: a later commit
-      # that changes what ships deploys it in its own run, after this one.
+      # Skips the rest when a later commit on v2 changes what ships: that commit
+      # deploys it in its own run, after this one.
       - id: tip
         run: |
           git fetch -q origin refs/heads/v2
-          tip=$(git rev-parse FETCH_HEAD)
-          deploy=true
-          if [ "$tip" != "$GITHUB_SHA" ] &&
-            git diff --name-only "$GITHUB_SHA" "$tip" | grep -v '_test\.go$' | grep -Eq "$SHIPPED_PATHS"; then
-            deploy=false
-            echo "Skipped deploying $GITHUB_SHA: v2's tip, $tip, ships changes after it and deploys them in its own run." >> "$GITHUB_STEP_SUMMARY"
+          if scripts/ships.sh "$GITHUB_SHA" FETCH_HEAD; then
+            echo "Skipped deploying $GITHUB_SHA: v2's tip, $(git rev-parse FETCH_HEAD), ships changes after it and deploys them in its own run." >> "$GITHUB_STEP_SUMMARY"
+            echo skip=true >> "$GITHUB_OUTPUT"
           fi
-          echo "deploy=$deploy" | tee -a "$GITHUB_OUTPUT"
-      - if: steps.tip.outputs.deploy == 'true'
+      - if: steps.tip.outputs.skip != 'true'
         uses: docker/setup-buildx-action@v4
-      - if: steps.tip.outputs.deploy == 'true'
+      - if: steps.tip.outputs.skip != 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - if: steps.tip.outputs.deploy == 'true'
+      - if: steps.tip.outputs.skip != 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -130,7 +118,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: SSH to the server
-        if: steps.tip.outputs.deploy == 'true'
+        if: steps.tip.outputs.skip != 'true'
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -140,7 +128,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519
       - name: Deploy
-        if: steps.tip.outputs.deploy == 'true'
+        if: steps.tip.outputs.skip != 'true'
         env:
           HOST: deploy@${{ secrets.DEPLOY_HOST }}
           DANDORI_DOMAIN: ${{ vars.DANDORI_DOMAIN }}
@@ -165,5 +153,5 @@ jobs:
           ssh "$HOST" 'cd /srv/dandori && docker compose pull && docker compose up -d --wait --wait-timeout 120 --remove-orphans'
           ssh "$HOST" 'docker logout ghcr.io; docker image prune -af'
       - name: The page is served over TLS
-        if: steps.tip.outputs.deploy == 'true'
+        if: steps.tip.outputs.skip != 'true'
         run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "https://${{ vars.DANDORI_DOMAIN }}/healthz"
