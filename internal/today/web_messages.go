@@ -28,7 +28,7 @@ var (
 	msgPutAway      = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
 	msgPutAwayLater = web.Message{
 		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
-		It: "Conta e Sposta si aprono quando arriva la Consegna, per correggere ciò che è arrivato diverso.",
+		It: "Conta e Sposta si aprono quando arriva la spesa, per correggere ciò che è arrivato diverso.",
 	}
 )
 
