@@ -77,8 +77,8 @@ templ putAwayList(p *PutAway) {
 			@web.Rows() {
 				for _, l := range p.Lines {
 					@web.Row() {
-						<span class="row-title">{ l.Ingredient.Name }</span>
-						<span class="row-figure">{ web.Quantity(ctx, l.Quantity, l.Ingredient.Unit) }</span>
+						@web.RowTitle(l.Ingredient.Name, false, "", false)
+						@web.QuantityFigure(l.Quantity, l.Ingredient.Unit)
 						<span class="row-meta">{ web.T(ctx, web.InLocations[l.Location]) }</span>
 						@kitchen.StockItemActions(l.Ingredient, l.Location, kitchen.BackToToday, p.Arrived, p.Kitchen.Holds(l.Key()))
 					}

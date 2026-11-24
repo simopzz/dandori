@@ -325,6 +325,14 @@ templ RowTitle(name string, tagged bool, tag string, changed bool) {
 	</span>
 }
 
+// QuantityFigure is a Row's row-figure: the quantity `q` in `unit`, as an Ingredient's
+// is written. The space before it keeps it apart from the title in the row's text,
+// which a screen reader reads; the Row's grid lays it out without it.
+templ QuantityFigure(q domain.Quantity, unit domain.Unit) {
+	{ " " }
+	<span class="row-figure">{ Quantity(ctx, q, unit) }</span>
+}
+
 // IngredientRowsWith is IngredientRows with each of `ingredients` at an index of
 // `changed` marked Changed, and what `meta`, unless nil, gives of each Ingredient, unless
 // nil, as its row's details: a new one's proposed values.
@@ -333,7 +341,7 @@ templ IngredientRowsWith(ingredients []domain.RecipeIngredient, changed []int, m
 		for i, ri := range ingredients {
 			@Row() {
 				@RowTitle(ri.Ingredient.Name, ri.Ingredient.IsNew(), T(ctx, msgNew), slices.Contains(changed, i))
-				<span class="row-figure">{ Quantity(ctx, ri.Quantity, ri.Ingredient.Unit) }</span>
+				@QuantityFigure(ri.Quantity, ri.Ingredient.Unit)
 				if meta != nil {
 					if c := meta(ri.Ingredient); c != nil {
 						<span class="row-meta">

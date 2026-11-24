@@ -62,7 +62,7 @@ templ groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal erro
 							@web.Row() {
 								if c.Delivery.State == domain.Arrived {
 									@web.RowTitle(line.Ingredient.Name, false, "", false)
-									<span class="row-figure">{ web.Quantity(ctx, line.Quantity, line.Ingredient.Unit) }</span>
+									@web.QuantityFigure(line.Quantity, line.Ingredient.Unit)
 								} else {
 									@web.Check(line.Ingredient.Name, web.Quantity(ctx, line.Quantity, line.Ingredient.Unit)) {
 										<input type="checkbox"/>

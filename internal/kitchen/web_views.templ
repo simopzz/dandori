@@ -187,7 +187,7 @@ templ contentsList(now time.Time, contents Contents) {
 								{ h.Ingredient.Name }
 							}
 						</span>
-						<span class="row-figure">{ web.Quantity(ctx, h.Item.Held, h.Ingredient.Unit) }</span>
+						@web.QuantityFigure(h.Item.Held, h.Ingredient.Unit)
 						if !h.Item.Counted.IsZero() {
 							<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
 						}
