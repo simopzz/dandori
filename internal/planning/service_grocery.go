@@ -151,7 +151,7 @@ func (s *Service) PutAwayAt(ctx context.Context, now time.Time) (*PutAway, error
 		return nil, err
 	}
 	for _, c := range []*Cycle{upcoming, current} {
-		if c == nil || now.Before(c.Delivery.Starts()) || !now.Before(c.Delivery.On.AddDate(0, 0, 2)) {
+		if c == nil || now.Before(c.Delivery.Starts()) || !now.Before(c.Delivery.PutAwayEnds()) {
 			continue
 		}
 		list, plan, err := s.groceryList(ctx, *c, now)

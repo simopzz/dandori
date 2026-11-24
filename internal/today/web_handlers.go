@@ -25,3 +25,14 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.Render(w, r, h.Log, http.StatusOK, page(now, day))
 }
+
+// ShowPutAway is Today's put-away list alone, which Today swaps in after each write to
+// the Kitchen Ledger: nothing once Today shows none.
+func (h Handlers) ShowPutAway(w http.ResponseWriter, r *http.Request) {
+	p, err := h.Service.PutAwayAt(r.Context(), h.Clock.Now())
+	if err != nil {
+		httpx.ServerError(w, r, h.Log, "load Today's put-away list", err)
+		return
+	}
+	httpx.Render(w, r, h.Log, http.StatusOK, putAwayList(p))
+}

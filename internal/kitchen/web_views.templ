@@ -67,7 +67,7 @@ templ page(now time.Time, contents Contents, f CountForm) {
 // liveContents is what the kitchen holds, listed again after each write to the Kitchen
 // Ledger or the Ingredients.
 templ liveContents(now time.Time, contents Contents) {
-	<div id={ contentsID } hx-get="/kitchen/stock" hx-trigger={ movementSaved + " from:body, " + ingredients.Saved + " from:body" }>
+	<div id={ contentsID } hx-get="/kitchen/stock" hx-trigger={ MovementSaved + " from:body, " + ingredients.Saved + " from:body" }>
 		@contentsList(now, contents)
 	</div>
 }
@@ -88,14 +88,13 @@ templ StockItemSheets() {
 }
 
 // StockItemActions are a row-action with the Count and the move of the Stock Item of
-// `ing` in `location`, each opening its sheet. Posted without htmx, they land on `back`
-// when it is Today, "/", and else on the Kitchen page. One `count` or `move` leaves out
-// is shown unavailable.
-templ StockItemActions(ing domain.Ingredient, location domain.StorageLocation, back string, count, move bool) {
+// `ing` in `location`, each opening its sheet, and landing on `back` once posted without
+// htmx. Each is a link while `count` or `move` allows it, and shown unavailable when not.
+templ StockItemActions(ing domain.Ingredient, location domain.StorageLocation, back Back, count, move bool) {
 	<span class="row-action">
 		@stockItemAction(countSheetID, "/kitchen/count", ing, location, back, count) {
 			{ web.T(ctx, msgCount) }
-			<span class="sr-only">{ ing.Name }</span>
+			<span class="sr-only">{ ing.Name } { web.T(ctx, web.InLocations[location]) }</span>
 		}
 		@stockItemAction(moveSheetID, "/kitchen/move", ing, location, back, move) {
 			{ web.T(ctx, msgMove) }
@@ -106,7 +105,7 @@ templ StockItemActions(ing domain.Ingredient, location domain.StorageLocation, b
 
 // stockItemAction opens the sheet `id` on `path`'s form for the Stock Item of `ing` in
 // `location`, or is the children unavailable unless `ok`.
-templ stockItemAction(id, path string, ing domain.Ingredient, location domain.StorageLocation, back string, ok bool) {
+templ stockItemAction(id, path string, ing domain.Ingredient, location domain.StorageLocation, back Back, ok bool) {
 	if ok {
 		@web.SideSheetLink(id, backURL(stockItemURL(path, ing.ID, location), back), backURL(stockItemURL(path+"/sheet", ing.ID, location), back)) {
 			{ children... }
@@ -118,18 +117,19 @@ templ stockItemAction(id, path string, ing domain.Ingredient, location domain.St
 	}
 }
 
-// backURL is `u` asking its form to land on `back`, when set.
-func backURL(u templ.SafeURL, back string) templ.SafeURL {
-	if back == "" {
+// backURL is `u` asking its form to land on `back`, unless that is the Kitchen page.
+func backURL(u templ.SafeURL, back Back) templ.SafeURL {
+	if back == BackToKitchen {
 		return u
 	}
-	return templ.SafeURL(string(u) + "&" + url.Values{"back": {back}}.Encode())
+	return templ.SafeURL(string(u) + "&" + url.Values{"back": {string(back)}}.Encode())
 }
 
-// backField is the hidden field that sends a form's `back` on, when set.
-templ backField(back string) {
-	if back != "" {
-		<input type="hidden" name="back" value={ back }/>
+// backField is the hidden field that sends a form's `back` on, unless that is the
+// Kitchen page.
+templ backField(back Back) {
+	if back != BackToKitchen {
+		<input type="hidden" name="back" value={ string(back) }/>
 	}
 }
 
@@ -191,7 +191,7 @@ templ contentsList(now time.Time, contents Contents) {
 						if !h.Item.Counted.IsZero() {
 							<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
 						}
-						@StockItemActions(h.Ingredient, h.Location, "", true, true)
+						@StockItemActions(h.Ingredient, h.Location, BackToKitchen, true, true)
 					}
 				}
 			}

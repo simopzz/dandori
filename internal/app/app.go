@@ -172,6 +172,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /language", choosing(prof.ShowChoice))
 	mux.Handle("POST /language", choosing(prof.Choose))
 	mux.Handle("GET /{$}", signedIn(day.Show))
+	mux.Handle("GET /today/put-away", signedIn(day.ShowPutAway))
 	mux.Handle("GET /plan", signedIn(plan.Show))
 	mux.Handle("POST /plan", signedIn(plan.Open))
 	mux.Handle("GET /plan/open", signedIn(plan.ShowOpen))

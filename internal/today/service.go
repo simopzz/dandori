@@ -46,10 +46,28 @@ type Day struct {
 	OrderNext int64
 	// Offer is what Today offers about opening a Cycle.
 	Offer Offer
-	// PutAway is where a Delivery's lines go, while Today shows them, and nil otherwise;
-	// Held is which Stock Items hold anything, once it has arrived, so can be moved.
-	PutAway *planning.PutAway
-	Held    map[domain.StockKey]bool
+	// PutAway is where a Delivery's lines go, while Today shows them, and nil otherwise.
+	PutAway *PutAway
+}
+
+// PutAway is where a Delivery's lines go, and, once it has arrived, what the kitchen
+// holds: a line's Stock Item holding nothing can't be moved.
+type PutAway struct {
+	planning.PutAway
+	Kitchen kitchen.Contents
+}
+
+// PutAwayAt is the PutAway Today shows at `now`, nil while it shows none.
+func (s *Service) PutAwayAt(ctx context.Context, now time.Time) (*PutAway, error) {
+	p, err := s.planning.PutAwayAt(ctx, now)
+	if err != nil || p == nil {
+		return nil, err
+	}
+	shown := &PutAway{PutAway: *p}
+	if p.Arrived {
+		shown.Kitchen, err = s.kitchen.Contents(ctx, now)
+	}
+	return shown, err
 }
 
 // Reminder is a Cycle Today reminds the User of planning: its id, whether it is the
@@ -122,18 +140,8 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 			d.Offer = TargetsFirst
 		}
 	}
-	if d.PutAway, err = s.planning.PutAwayAt(ctx, now); err != nil {
+	if d.PutAway, err = s.PutAwayAt(ctx, now); err != nil {
 		return Day{}, err
-	}
-	if d.PutAway != nil && d.PutAway.Arrived {
-		contents, err := s.kitchen.Contents(ctx, now)
-		if err != nil {
-			return Day{}, err
-		}
-		d.Held = map[domain.StockKey]bool{}
-		for _, h := range contents.Held {
-			d.Held[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}] = true
-		}
 	}
 	for _, c := range []*planning.Cycle{current, upcoming} {
 		if c == nil {

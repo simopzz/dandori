@@ -51,8 +51,8 @@ func TestTheDeliveryIsPutAwayWhenItArrives(t *testing.T) {
 
 	s.At("Thu 20:00")
 	s.Open("/kitchen")
-	s.Sees("Fridge yogurt 50 g Count yogurt Move yogurt in the fridge")
-	s.Sees("Move lasagne in the freezer yogurt 100 g Count yogurt Move yogurt in the freezer")
+	s.Sees("Fridge yogurt 50 g Count yogurt in the fridge Move yogurt in the fridge")
+	s.Sees("Move lasagne in the freezer yogurt 100 g Count yogurt in the freezer Move yogurt in the freezer")
 	s.DoesNotSee("Count chicken breast")
 	s.Open("/kitchen/movements?location=freezer&ingredient=" + ingredientID(t, s, "yogurt"))
 	s.Sees("Delivered 0 g → 100 g Thu, Nov 5 · 8:00 pm")

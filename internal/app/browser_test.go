@@ -469,7 +469,7 @@ func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
 	}
 
 	b.Open(t, "/kitchen")
-	count := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice", Exact: playwright.Bool(true)})
+	count := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count rice in the pantry", Exact: playwright.Bool(true)})
 	move := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move rice in the pantry", Exact: playwright.Bool(true)})
 	tall("Count", count)
 	tall("Move", move)

@@ -61,6 +61,10 @@ func (d Delivery) Starts() time.Time { return d.at(d.From) }
 // Arrives is when `d` is taken to have arrived: the end of its window.
 func (d Delivery) Arrives() time.Time { return d.at(d.To) }
 
+// PutAwayEnds is when Today stops showing where `d`'s lines go: the end of the day after
+// its day, so a Delivery unpacked the next morning still has them.
+func (d Delivery) PutAwayEnds() time.Time { return d.On.AddDate(0, 0, 2) }
+
 // at is `t` on `d`'s day.
 func (d Delivery) at(t TimeOfDay) time.Time {
 	y, m, day := d.On.Date()

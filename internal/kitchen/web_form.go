@@ -27,8 +27,8 @@ type CountForm struct {
 	Stated     string
 	Note       string
 	Errs       map[string]string
-	// Back is where it lands a browser without htmx, as backOf reads it.
-	Back string
+	// Back is where it lands a browser without htmx.
+	Back Back
 }
 
 // postedCountForm is the Count form posted in `r` for `ing`, as typed, with why each
@@ -49,13 +49,23 @@ func postedCountForm(r *http.Request, ing domain.Ingredient, problems map[string
 	return f
 }
 
-// backOf is where the form `values` came with lands a browser without htmx once
-// saved: Today, "/", the only page other than the Kitchen's to ask, or else none.
-func backOf(values url.Values) string {
-	if values.Get("back") == "/" {
-		return "/"
+// Back is where a Stock Item's Count or move lands a browser without htmx once saved.
+type Back string
+
+const (
+	// BackToKitchen lands it where the Kitchen page's own Count and move do.
+	BackToKitchen Back = ""
+	// BackToToday lands it on Today.
+	BackToToday Back = "/"
+)
+
+// backOf is the Back the form `values` came with: BackToToday when they ask for it, and
+// BackToKitchen whatever else they say, so no other page can be landed on.
+func backOf(values url.Values) Back {
+	if Back(values.Get("back")) == BackToToday {
+		return BackToToday
 	}
-	return ""
+	return BackToKitchen
 }
 
 // MoveForm is the form that moves a Stock Item, as shown.
@@ -70,8 +80,8 @@ type MoveForm struct {
 	Quantity string
 	Note     string
 	Errs     map[string]string
-	// Back is where it lands a browser without htmx, as backOf reads it.
-	Back string
+	// Back is where it lands a browser without htmx.
+	Back Back
 }
 
 // postedMoveForm is the form posted in `r` that moves `ing` from a Storage Location,

@@ -47,6 +47,13 @@ type Contents struct {
 	Portions []domain.PortionLot
 }
 
+// Holds reports whether `c` holds anything of the Stock Item `key`.
+func (c Contents) Holds(key domain.StockKey) bool {
+	return slices.ContainsFunc(c.Held, func(h Held) bool {
+		return h.Ingredient.ID == key.Ingredient && h.Location == key.Location
+	})
+}
+
 // Contents is what the signed-in User's Kitchen Ledger adds up to at `now`.
 func (s *Service) Contents(ctx context.Context, now time.Time) (Contents, error) {
 	var c Contents

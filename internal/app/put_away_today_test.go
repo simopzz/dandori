@@ -24,8 +24,8 @@ func TestTodayListsThePutAwayFromTheWindowsStart(t *testing.T) {
 	s.At("Thu 18:00")
 	s.Open("/")
 	s.Sees("Put the Delivery away")
-	s.Sees("yogurt 50 g in the fridge Count yogurt Move yogurt in the fridge")
-	s.Sees("yogurt 100 g in the freezer Count yogurt Move yogurt in the freezer")
+	s.Sees("yogurt 50 g in the fridge Count yogurt in the fridge Move yogurt in the fridge")
+	s.Sees("yogurt 100 g in the freezer Count yogurt in the freezer Move yogurt in the freezer")
 	s.DoesNotSee("chicken breast")
 	for _, path := range []string{"/kitchen/count", "/kitchen/move"} {
 		if strings.Contains(s.Page().Body, `href="`+path+"?") {
@@ -35,33 +35,44 @@ func TestTodayListsThePutAwayFromTheWindowsStart(t *testing.T) {
 }
 
 // From arrival a put-away line's Count and move fix what came otherwise, reaching the
-// Kitchen page, and land back on Today without htmx. A Stock Item holding nothing any
-// more can't be moved.
+// Kitchen page, and leave the User on Today: with htmx in their sheets, and landing back
+// on it without. A Stock Item holding nothing any more can't be moved.
 func TestAPutAwayLineIsCountedAndMovedFromToday(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridaySplitting(t, s)
 	s.At("Thu 20:00")
 	s.Open("/")
-	s.Follows("Count yogurt") // the fridge's line, the first
+	s.Follows("Count yogurt in the fridge")
 	s.SubmitsWith("count-form", map[string]string{"stated": "200"})
 	s.IsAt("/")
 	s.IsConfirmed("Counted yogurt: 200 g in the fridge.")
 
+	sheet := s.HTMXGet(t, apptest.SheetSource(t, s.Page().Body, "Move yogurt in the freezer"))
+	move := apptest.Form(t, sheet.Body, "move-form")
+	move.Values.Set("quantity", "40")
+	move.Values.Set("to", "fridge")
+	moved := s.HTMXPostForm(t, move.Action, move.Values)
+	if moved.StatusCode != http.StatusOK || !strings.Contains(apptest.Text(moved.Body), "Moved 40 g of yogurt to the fridge.") {
+		t.Fatalf("move from Today's sheet: %d %s", moved.StatusCode, apptest.Text(moved.Body))
+	}
+	if trigger := moved.Header.Get("HX-Trigger"); !strings.Contains(trigger, "movement-saved") {
+		t.Errorf("a move from Today's sheet triggers %q, want Today's list refreshed", trigger)
+	}
+
 	s.Follows("Move yogurt in the freezer")
 	s.SubmitsWith("move-form", map[string]string{"to": "fridge"})
 	s.IsAt("/")
-	s.IsConfirmed("Moved 100 g of yogurt to the fridge.")
+	s.IsConfirmed("Moved 60 g of yogurt to the fridge.")
 	s.Open("/kitchen")
 	s.Sees("Fridge yogurt 300 g")
 	s.DoesNotSee("Move yogurt in the freezer")
 	s.Open("/")
-	s.Sees("yogurt 100 g in the freezer Count yogurt Move yogurt in the freezer")
+	s.Sees("yogurt 100 g in the freezer Count yogurt in the freezer Move yogurt in the freezer")
 	if regexp.MustCompile(`href="/kitchen/move\?[^"]*location=freezer`).MatchString(s.Page().Body) {
 		t.Error("Today moves a Stock Item that holds nothing")
 	}
 
-	// With htmx, the Count sheet answers in place, on Today.
-	sheet := s.HTMXGet(t, apptest.SheetSource(t, s.Page().Body, "Count yogurt"))
+	sheet = s.HTMXGet(t, apptest.SheetSource(t, s.Page().Body, "Count yogurt in the fridge"))
 	count := apptest.Form(t, sheet.Body, "count-form")
 	count.Values.Set("stated", "250")
 	if got := s.HTMXPostForm(t, count.Action, count.Values); got.StatusCode != http.StatusOK || !strings.Contains(apptest.Text(got.Body), "Counted yogurt: 250 g in the fridge.") {
@@ -85,8 +96,8 @@ func TestThePutAwayListGoesAfterTheDayAfterTheDelivery(t *testing.T) {
 }
 
 // Today's put-away list shows its Counts unavailable until the Delivery arrives; then it
-// opens a line's Count in its sheet, over Today, and keeps the
-// User there once it is saved.
+// opens a line's Count in its sheet, over Today, and keeps the User there once it is
+// saved. A move in its sheet lists it again, its line's Stock Item emptied.
 func TestBrowserCountsAPutAwayLineOnToday(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridaySplitting(t, s)
@@ -103,7 +114,7 @@ func TestBrowserCountsAPutAwayLineOnToday(t *testing.T) {
 	b.Shot(t, "today-put-away")
 
 	expect := playwright.NewPlaywrightAssertions()
-	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count yogurt"}).First().Click(); err != nil {
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Count yogurt in the fridge"}).Click(); err != nil {
 		t.Fatalf("open the fridge line's Count: %v", err)
 	}
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Count"})
@@ -117,6 +128,28 @@ func TestBrowserCountsAPutAwayLineOnToday(t *testing.T) {
 	b.IsConfirmed(t, "Counted yogurt: 200 g in the fridge.")
 	if err := expect.Locator(sheet).ToBeVisible(); err != nil {
 		t.Errorf("the Count sheet closed: %v", err)
+	}
+	b.IsAt(t, "/")
+	if err := sheet.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Close", Exact: playwright.Bool(true)}).Click(); err != nil {
+		t.Fatalf("close the Count sheet: %v", err)
+	}
+
+	// Moving all the freezer's yogurt out leaves that line nothing to move, without
+	// a reload.
+	if err := b.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Move yogurt in the freezer"}).Click(); err != nil {
+		t.Fatalf("open the freezer line's move: %v", err)
+	}
+	moving := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Move"})
+	if err := moving.GetByRole("radio", playwright.LocatorGetByRoleOptions{Name: "Fridge 200 g"}).Check(); err != nil {
+		t.Fatalf("choose the fridge: %v", err)
+	}
+	if err := moving.GetByRole("button", playwright.LocatorGetByRoleOptions{Name: "Move"}).Click(); err != nil {
+		t.Fatalf("save the move: %v", err)
+	}
+	b.IsConfirmed(t, "Moved 100 g of yogurt to the fridge.")
+	unavailable := b.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Move yogurt in the freezer"})
+	if err := expect.Locator(unavailable).ToBeDisabled(); err != nil {
+		t.Errorf("the freezer line's move is still offered: %v", err)
 	}
 	b.IsAt(t, "/")
 }

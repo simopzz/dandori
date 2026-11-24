@@ -19,8 +19,9 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// movementSaved is the event that tells the Kitchen page to list its stock again.
-const movementSaved = "movement-saved"
+// MovementSaved is the event that tells a page listing stock to list it again: the
+// Kitchen page, and Today's put-away list.
+const MovementSaved = "movement-saved"
 
 // Why a write to the kitchen is refused; the fields refused follow.
 const (
@@ -180,7 +181,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := web.Answer{
-		Trigger: movementSaved, RedirectTo: cmp.Or(f.Back, "/kitchen/count"),
+		Trigger: MovementSaved, RedirectTo: cmp.Or(string(f.Back), "/kitchen/count"),
 		Notice: web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location])),
 	}
 	if !a.Redirects(r) {
@@ -223,7 +224,7 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
 		Notice: web.Tf(ctx, msgAddedPortions, p.Name, p.HowMany, web.T(ctx, toLocations[p.Location])),
 	}.Write(w, r, h.Log)
 }
@@ -338,7 +339,7 @@ func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
 	if len(rec.Movement.Portions) > 0 {
 		notice = web.Tf(ctx, msgCounted, rec.Lot.Name, web.Quantity(ctx, rec.Movement.Stated, domain.PortionUnit), web.T(ctx, web.InLocations[key.Location]))
 	}
-	web.Answer{Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
+	web.Answer{Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
 }
 
 // startLotMove is the form that moves the Portion Lot `r`'s query asks for, all of it to
@@ -394,7 +395,7 @@ func (h Handlers) MovePortions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
 		Notice: web.Tf(ctx, msgMovedPortions, rec.Lot.Name, len(rec.Movement.Portions), web.T(ctx, toLocations[rec.Movement.To])),
 	}.Write(w, r, h.Log)
 }
@@ -472,7 +473,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: cmp.Or(backOf(r.PostForm), "/kitchen"),
+		Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: cmp.Or(string(backOf(r.PostForm)), "/kitchen"),
 		Notice: web.Tf(ctx, msgMoved, web.Quantity(ctx, rec.Movement.Change, ing.Unit), ing.Name, web.T(ctx, toLocations[rec.Movement.To])),
 	}.Write(w, r, h.Log)
 }
