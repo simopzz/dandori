@@ -25,6 +25,11 @@ var (
 	msgOrderingNext = web.Message{En: "Order the next Delivery", It: "Ordina la prossima Consegna"}
 	msgNeedsTargets = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
 	msgFailed       = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
+	msgPutAway      = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
+	msgPutAwayLater = web.Message{
+		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
+		It: "Conta e Sposta si aprono quando arriva la spesa, per correggere ciò che è arrivato diverso.",
+	}
 )
 
 // How planning a Cycle stands, of the current Cycle and of the next.

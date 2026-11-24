@@ -1,6 +1,7 @@
 package kitchen
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -18,8 +19,9 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// movementSaved is the event that tells the Kitchen page to list its stock again.
-const movementSaved = "movement-saved"
+// MovementSaved is the event that tells a page listing stock to list it again: the
+// Kitchen page, and Today's put-away list.
+const MovementSaved = "movement-saved"
 
 // Why a write to the kitchen is refused; the fields refused follow.
 const (
@@ -179,7 +181,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := web.Answer{
-		Trigger: movementSaved, RedirectTo: "/kitchen/count",
+		Trigger: MovementSaved, RedirectTo: cmp.Or(string(f.Back), "/kitchen/count"),
 		Notice: web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location])),
 	}
 	if !a.Redirects(r) {
@@ -222,7 +224,7 @@ func (h Handlers) AddPortions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
 		Notice: web.Tf(ctx, msgAddedPortions, p.Name, p.HowMany, web.T(ctx, toLocations[p.Location])),
 	}.Write(w, r, h.Log)
 }
@@ -337,7 +339,7 @@ func (h Handlers) CountPortions(w http.ResponseWriter, r *http.Request) {
 	if len(rec.Movement.Portions) > 0 {
 		notice = web.Tf(ctx, msgCounted, rec.Lot.Name, web.Quantity(ctx, rec.Movement.Stated, domain.PortionUnit), web.T(ctx, web.InLocations[key.Location]))
 	}
-	web.Answer{Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
+	web.Answer{Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen", Notice: notice}.Write(w, r, h.Log)
 }
 
 // startLotMove is the form that moves the Portion Lot `r`'s query asks for, all of it to
@@ -393,7 +395,7 @@ func (h Handlers) MovePortions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
 		Notice: web.Tf(ctx, msgMovedPortions, rec.Lot.Name, len(rec.Movement.Portions), web.T(ctx, toLocations[rec.Movement.To])),
 	}.Write(w, r, h.Log)
 }
@@ -434,7 +436,7 @@ func (h Handlers) startMove(w http.ResponseWriter, r *http.Request) *MoveForm {
 	}
 	return &MoveForm{
 		Ingredient: holding.Ingredient, From: from, Believed: holding.Held,
-		Quantity: strconv.FormatFloat(holding.Held[from].Number(), 'f', -1, 64),
+		Quantity: strconv.FormatFloat(holding.Held[from].Number(), 'f', -1, 64), Back: backOf(r.URL.Query()),
 	}
 }
 
@@ -471,7 +473,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Trigger: MovementSaved + ", " + web.CloseSheet, RedirectTo: cmp.Or(string(backOf(r.PostForm)), "/kitchen"),
 		Notice: web.Tf(ctx, msgMoved, web.Quantity(ctx, rec.Movement.Change, ing.Unit), ing.Name, web.T(ctx, toLocations[rec.Movement.To])),
 	}.Write(w, r, h.Log)
 }
@@ -499,7 +501,7 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 // if the signed-in User has it and it is no Staple, in its Storage Location location or
 // else its usual one; or else the search for q.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
-	f := CountForm{Query: strings.TrimSpace(query.Get("q"))}
+	f := CountForm{Query: strings.TrimSpace(query.Get("q")), Back: backOf(query)}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {
 		holding, err := h.Service.Holding(ctx, now, id)
 		if err != nil {

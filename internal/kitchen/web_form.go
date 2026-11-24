@@ -3,6 +3,7 @@ package kitchen
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -26,6 +27,8 @@ type CountForm struct {
 	Stated     string
 	Note       string
 	Errs       map[string]string
+	// Back is where it lands a browser without htmx.
+	Back Back
 }
 
 // postedCountForm is the Count form posted in `r` for `ing`, as typed, with why each
@@ -35,7 +38,7 @@ func postedCountForm(r *http.Request, ing domain.Ingredient, problems map[string
 	f := CountForm{
 		Ingredient: &ing, Location: domain.StorageLocation(r.PostFormValue("location")),
 		Stated: strings.TrimSpace(r.PostFormValue("stated")), Note: r.PostFormValue("note"),
-		Errs: map[string]string{},
+		Errs: map[string]string{}, Back: backOf(r.PostForm),
 	}
 	if _, refused := problems["location"]; refused {
 		f.Errs["location"], f.Location = web.T(ctx, msgChooseWhere), ing.Usual
@@ -44,6 +47,25 @@ func postedCountForm(r *http.Request, ing domain.Ingredient, problems map[string
 		f.Errs["stated"] = web.T(ctx, web.ProblemMessage(problem, problemMessages))
 	}
 	return f
+}
+
+// Back is where a Stock Item's Count or move lands a browser without htmx once saved.
+type Back string
+
+const (
+	// BackToKitchen lands it where the Kitchen page's own Count and move do.
+	BackToKitchen Back = ""
+	// BackToToday lands it on Today.
+	BackToToday Back = "/"
+)
+
+// backOf is the Back the form `values` came with: BackToToday when they ask for it, and
+// BackToKitchen whatever else they say, so no other page can be landed on.
+func backOf(values url.Values) Back {
+	if Back(values.Get("back")) == BackToToday {
+		return BackToToday
+	}
+	return BackToKitchen
 }
 
 // MoveForm is the form that moves a Stock Item, as shown.
@@ -58,6 +80,8 @@ type MoveForm struct {
 	Quantity string
 	Note     string
 	Errs     map[string]string
+	// Back is where it lands a browser without htmx.
+	Back Back
 }
 
 // postedMoveForm is the form posted in `r` that moves `ing` from a Storage Location,
@@ -67,7 +91,7 @@ func postedMoveForm(r *http.Request, ing domain.Ingredient, from domain.StorageL
 	f := MoveForm{
 		Ingredient: ing, From: from, Believed: held, To: domain.StorageLocation(r.PostFormValue("to")),
 		Quantity: strings.TrimSpace(r.PostFormValue("quantity")), Note: r.PostFormValue("note"),
-		Errs: map[string]string{},
+		Back: backOf(r.PostForm),
 	}
 	f.Errs = moveErrs(ctx, problems, web.Tf(ctx, msgMoreThanHeld, web.Quantity(ctx, held[from], ing.Unit)), moveProblemMessages)
 	if f.Errs["to"] != "" {

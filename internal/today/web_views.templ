@@ -29,6 +29,9 @@ templ page(now time.Time, d Day) {
 				}
 			}
 		}
+		if d.PutAway != nil {
+			@putAway(d.PutAway)
+		}
 		@reminders(d)
 		<div class="section">
 			@web.Empty() {
@@ -43,6 +46,45 @@ templ page(now time.Time, d Day) {
 			}
 		</div>
 		@kitchen.Status(now, d.Beat, d.Beaten)
+	}
+}
+
+// putAwayID is the id of Today's put-away list, which every write to the Kitchen
+// Ledger refreshes.
+const putAwayID = "put-away"
+
+// putAway is Today's put-away list, listed again after each write to the Kitchen Ledger,
+// and the sheets its Counts and moves open, outside it so a swap leaves an open one be.
+templ putAway(p *PutAway) {
+	<div id={ putAwayID } hx-get="/today/put-away" hx-trigger={ kitchen.MovementSaved + " from:body" }>
+		@putAwayList(p)
+	</div>
+	@kitchen.StockItemSheets()
+}
+
+// putAwayList is where each line of `p`'s Delivery goes, a freezer split as two, each
+// with the Count and move of its Stock Item, which land back on Today: unavailable until
+// the Delivery arrives, and a move while the Stock Item holds nothing. With no `p`, it
+// is nothing.
+templ putAwayList(p *PutAway) {
+	if p != nil {
+		@web.Section(2, web.T(ctx, msgPutAway)) {
+			if !p.Arrived {
+				@web.Hint() {
+					{ web.T(ctx, msgPutAwayLater) }
+				}
+			}
+			@web.Rows() {
+				for _, l := range p.Lines {
+					@web.Row() {
+						@web.RowTitle(l.Ingredient.Name, false, "", false)
+						@web.QuantityFigure(l.Quantity, l.Ingredient.Unit)
+						<span class="row-meta">{ web.T(ctx, web.InLocations[l.Location]) }</span>
+						@kitchen.StockItemActions(l.Ingredient, l.Location, kitchen.BackToToday, p.Arrived, p.Kitchen.Holds(l.Key()))
+					}
+				}
+			}
+		}
 	}
 }
 

@@ -134,3 +134,38 @@ func (s *Service) UndoOrdered(ctx context.Context, id int64, now time.Time) erro
 		return undoOrdered(ctx, tx, id)
 	})
 }
+
+// PutAway is where a Delivery puts its Grocery List, as Today shows it: its lines
+// (domain.PutAway), and whether it has arrived.
+type PutAway struct {
+	Lines   []domain.PutAwayLine
+	Arrived bool
+}
+
+// PutAwayAt is the PutAway Today shows the signed-in User at `now`: the upcoming Cycle's
+// once its Delivery's window has started, or else the current one's until the end of the
+// day after its Delivery's day. It is nil when neither is shown or brings nothing.
+func (s *Service) PutAwayAt(ctx context.Context, now time.Time) (*PutAway, error) {
+	current, upcoming, err := s.Now(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range []*Cycle{upcoming, current} {
+		if c == nil || now.Before(c.Delivery.Starts()) || !now.Before(c.Delivery.PutAwayEnds()) {
+			continue
+		}
+		list, plan, err := s.groceryList(ctx, *c, now)
+		switch {
+		case errors.Is(err, ErrNoPlan):
+			return nil, nil
+		case err != nil:
+			return nil, err
+		}
+		lines := domain.PutAway(list.Lines, plan.FreezerSplits)
+		if len(lines) == 0 {
+			return nil, nil
+		}
+		return &PutAway{Lines: lines, Arrived: c.Delivery.State == domain.Arrived}, nil
+	}
+	return nil, nil
+}

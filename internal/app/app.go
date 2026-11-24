@@ -94,7 +94,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	a.recipes = recipes.New(pool, a.ingredients, a.runs, planning.Prepares)
 	a.kitchen = kitchen.New(pool, a.ingredients)
 	a.planning = planning.New(pool, a.clock, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
-	a.today = today.New(a.profile, a.ledger, a.planning)
+	a.today = today.New(a.profile, a.ledger, a.planning, a.kitchen)
 	if err := a.ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -172,6 +172,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /language", choosing(prof.ShowChoice))
 	mux.Handle("POST /language", choosing(prof.Choose))
 	mux.Handle("GET /{$}", signedIn(day.Show))
+	mux.Handle("GET /today/put-away", signedIn(day.ShowPutAway))
 	mux.Handle("GET /plan", signedIn(plan.Show))
 	mux.Handle("POST /plan", signedIn(plan.Open))
 	mux.Handle("GET /plan/open", signedIn(plan.ShowOpen))

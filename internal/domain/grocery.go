@@ -58,6 +58,11 @@ type PutAwayLine struct {
 	Location StorageLocation
 }
 
+// Key is the Stock Item `l` goes to.
+func (l PutAwayLine) Key() StockKey {
+	return StockKey{Ingredient: l.Ingredient.ID, Location: l.Location}
+}
+
 // PutAway is where the Delivery bringing `lines` puts them, by the Plan's freezer
 // `splits`: each line in its Ingredient's usual Storage Location, but for what a split
 // sends to the freezer, never more than the line brings. A split of an Ingredient no

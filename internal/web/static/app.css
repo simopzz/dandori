@@ -640,13 +640,18 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 @media (min-width: 600px) {
   .row-static .row-action { flex-basis: auto; margin-left: auto; }
 
-  /* With an action, the details are a second line under the name, so the
-     action keeps its place however long they are. */
-  .row-static:has(> .row-action) { display: grid; grid-template-columns: 1fr auto; }
+  /* With an action, the figure follows the name and the action ends their line; the
+     details are a second line under both, so the action keeps its place however long
+     they are. */
+  .row-static:has(> .row-action) { display: grid; grid-template-columns: auto 1fr auto; }
 
-  .row-static:has(> .row-action) .row-meta { grid-column: 1; }
+  .row-static:has(> .row-action) .row-title { grid-column: 1; grid-row: 1; }
 
-  .row-static:has(> .row-action) .row-action { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .row-static:has(> .row-action) .row-figure { grid-column: 2; grid-row: 1; }
+
+  .row-static:has(> .row-action) .row-meta { grid-column: 1 / span 2; }
+
+  .row-static:has(> .row-action) .row-action { grid-column: 3; grid-row: 1; }
 }
 
 /* forms: boxed fields, square buttons */
@@ -753,6 +758,11 @@ legend.field-label { margin-bottom: var(--space-1); }
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+
+/* Unavailable for now, as Today's put-away Count before the Delivery arrives: soft ink, no
+   underline, and no target to widen, so it stands where its link will. aria-disabled marks
+   it apart from a button hx-disable holds for a request. */
+.btn-text[aria-disabled="true"] { padding: 0; margin: 0; color: var(--color-text-soft); text-decoration: none; cursor: default; }
 
 /* Beside another, it keeps the padding between them, so their targets stay apart. */
 .btn-text + .btn-text { margin-left: 0; }
