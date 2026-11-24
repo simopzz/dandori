@@ -76,9 +76,61 @@ templ liveContents(now time.Time, contents Contents) {
 // the Kitchen Check, with the sheets its links open.
 templ Check(now time.Time, contents Contents) {
 	@liveContents(now, contents)
+	@StockItemSheets()
+}
+
+// StockItemSheets are the sheets StockItemActions open, for a page other than the
+// Kitchen page.
+templ StockItemSheets() {
 	@web.SideSheet(countSheetID, web.T(ctx, msgCount))
 	@web.SideSheet(movementsSheetID, web.T(ctx, msgMovements))
 	@web.SideSheet(moveSheetID, web.T(ctx, msgMove))
+}
+
+// StockItemActions are a row-action with the Count and the move of the Stock Item of
+// `ing` in `location`, each opening its sheet. Posted without htmx, they land on `back`
+// when it is Today, "/", and else on the Kitchen page. One `count` or `move` leaves out
+// is shown unavailable.
+templ StockItemActions(ing domain.Ingredient, location domain.StorageLocation, back string, count, move bool) {
+	<span class="row-action">
+		@stockItemAction(countSheetID, "/kitchen/count", ing, location, back, count) {
+			{ web.T(ctx, msgCount) }
+			<span class="sr-only">{ ing.Name }</span>
+		}
+		@stockItemAction(moveSheetID, "/kitchen/move", ing, location, back, move) {
+			{ web.T(ctx, msgMove) }
+			<span class="sr-only">{ ing.Name } { web.T(ctx, web.InLocations[location]) }</span>
+		}
+	</span>
+}
+
+// stockItemAction opens the sheet `id` on `path`'s form for the Stock Item of `ing` in
+// `location`, or is the children unavailable unless `ok`.
+templ stockItemAction(id, path string, ing domain.Ingredient, location domain.StorageLocation, back string, ok bool) {
+	if ok {
+		@web.SideSheetLink(id, backURL(stockItemURL(path, ing.ID, location), back), backURL(stockItemURL(path+"/sheet", ing.ID, location), back)) {
+			{ children... }
+		}
+	} else {
+		@web.TextButton(templ.Attributes{"type": "button", "disabled": true, "aria-disabled": "true"}) {
+			{ children... }
+		}
+	}
+}
+
+// backURL is `u` asking its form to land on `back`, when set.
+func backURL(u templ.SafeURL, back string) templ.SafeURL {
+	if back == "" {
+		return u
+	}
+	return templ.SafeURL(string(u) + "&" + url.Values{"back": {back}}.Encode())
+}
+
+// backField is the hidden field that sends a form's `back` on, when set.
+templ backField(back string) {
+	if back != "" {
+		<input type="hidden" name="back" value={ back }/>
+	}
 }
 
 // countPage is the Count form as a page of its own, for a browser without htmx: the
@@ -139,16 +191,7 @@ templ contentsList(now time.Time, contents Contents) {
 						if !h.Item.Counted.IsZero() {
 							<span class="row-meta">{ countedText(ctx, now, h.Item.Counted.In(now.Location())) }</span>
 						}
-						<span class="row-action">
-							@web.SideSheetLink(countSheetID, stockItemURL("/kitchen/count", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/count/sheet", h.Ingredient.ID, h.Location)) {
-								{ web.T(ctx, msgCount) }
-								<span class="sr-only">{ h.Ingredient.Name }</span>
-							}
-							@web.SideSheetLink(moveSheetID, stockItemURL("/kitchen/move", h.Ingredient.ID, h.Location), stockItemURL("/kitchen/move/sheet", h.Ingredient.ID, h.Location)) {
-								{ web.T(ctx, msgMove) }
-								<span class="sr-only">{ h.Ingredient.Name } { web.T(ctx, web.InLocations[h.Location]) }</span>
-							}
-						</span>
+						@StockItemActions(h.Ingredient, h.Location, "", true, true)
 					}
 				}
 			}
@@ -347,6 +390,7 @@ templ countForm(f CountForm) {
 		hx-swap="innerHTML"
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
+		@backField(f.Back)
 		@web.FieldGroupAction("count-ingredient", 0, web.Data(f.Ingredient.Name), chooseAnother()) {
 			<div class="stack">
 				@web.Segmented(web.T(ctx, msgWhere), "location", locationChoices(ctx, f), string(f.Location), f.Errs["location"])
@@ -645,6 +689,7 @@ templ moveForm(f MoveForm) {
 	>
 		<input type="hidden" name="ingredient" value={ strconv.FormatInt(f.Ingredient.ID, 10) }/>
 		<input type="hidden" name="location" value={ string(f.From) }/>
+		@backField(f.Back)
 		@web.FieldGroup(0, web.Tf(ctx, msgHeldIn, web.Data(f.Ingredient.Name), web.T(ctx, ingredients.StorageLocationNames[f.From])), "") {
 			<div class="stack">
 				@web.Field(web.T(ctx, msgMoveQuantity), "", f.Errs["quantity"]) {

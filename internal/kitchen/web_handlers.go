@@ -1,6 +1,7 @@
 package kitchen
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -179,7 +180,7 @@ func (h Handlers) Count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := web.Answer{
-		Trigger: movementSaved, RedirectTo: "/kitchen/count",
+		Trigger: movementSaved, RedirectTo: cmp.Or(f.Back, "/kitchen/count"),
 		Notice: web.Tf(ctx, msgCounted, ing.Name, web.Quantity(ctx, rec.Movement.Stated, ing.Unit), web.T(ctx, web.InLocations[rec.Movement.Key.Location])),
 	}
 	if !a.Redirects(r) {
@@ -434,7 +435,7 @@ func (h Handlers) startMove(w http.ResponseWriter, r *http.Request) *MoveForm {
 	}
 	return &MoveForm{
 		Ingredient: holding.Ingredient, From: from, Believed: holding.Held,
-		Quantity: strconv.FormatFloat(holding.Held[from].Number(), 'f', -1, 64),
+		Quantity: strconv.FormatFloat(holding.Held[from].Number(), 'f', -1, 64), Back: backOf(r.URL.Query()),
 	}
 }
 
@@ -471,7 +472,7 @@ func (h Handlers) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Answer{
-		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: "/kitchen",
+		Trigger: movementSaved + ", " + web.CloseSheet, RedirectTo: cmp.Or(backOf(r.PostForm), "/kitchen"),
 		Notice: web.Tf(ctx, msgMoved, web.Quantity(ctx, rec.Movement.Change, ing.Unit), ing.Name, web.T(ctx, toLocations[rec.Movement.To])),
 	}.Write(w, r, h.Log)
 }
@@ -499,7 +500,7 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 // if the signed-in User has it and it is no Staple, in its Storage Location location or
 // else its usual one; or else the search for q.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
-	f := CountForm{Query: strings.TrimSpace(query.Get("q"))}
+	f := CountForm{Query: strings.TrimSpace(query.Get("q")), Back: backOf(query)}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {
 		holding, err := h.Service.Holding(ctx, now, id)
 		if err != nil {

@@ -302,6 +302,18 @@ func (s *Scenario) Submits(id string) {
 	s.record(fmt.Sprintf("submits %s: %d %s", id, s.page.StatusCode, s.page.Path))
 }
 
+// SubmitsWith submits the form `id` on the page last opened, as a browser without htmx,
+// with each of its fields in `set` set to its value.
+func (s *Scenario) SubmitsWith(id string, set map[string]string) {
+	s.t.Helper()
+	form := Form(s.t, s.page.Body, id)
+	for name, v := range set {
+		form.Values.Set(name, v)
+	}
+	s.page = s.PostForm(s.t, form.Action, form.Values)
+	s.record(fmt.Sprintf("submits %s with %v: %d %s", id, set, s.page.StatusCode, s.page.Path))
+}
+
 // SearchesIngredients searches the Ingredients for `query` with the page's search form,
 // as a browser without htmx.
 func (s *Scenario) SearchesIngredients(query string) {

@@ -55,10 +55,16 @@ const (
 	Arrived   DeliveryState = "arrived"
 )
 
+// Starts is when `d`'s window starts.
+func (d Delivery) Starts() time.Time { return d.at(d.From) }
+
 // Arrives is when `d` is taken to have arrived: the end of its window.
-func (d Delivery) Arrives() time.Time {
+func (d Delivery) Arrives() time.Time { return d.at(d.To) }
+
+// at is `t` on `d`'s day.
+func (d Delivery) at(t TimeOfDay) time.Time {
 	y, m, day := d.On.Date()
-	return time.Date(y, m, day, int(d.To/60), int(d.To%60), 0, 0, d.On.Location())
+	return time.Date(y, m, day, int(t/60), int(t%60), 0, 0, d.On.Location())
 }
 
 // Cycle is the stretch one Delivery has to last, to its end date: a day at midnight in

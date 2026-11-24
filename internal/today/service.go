@@ -1,6 +1,7 @@
 // Package today is Today, the page a User opens Dandori on: for now, the day's Slot now
-// or next by the Profile's times of day, the day's later ones, how up to date the kitchen
-// is, and an offer to open a Cycle while there's none. Later slices fill each Slot in.
+// or next by the Profile's times of day, the day's later ones, where a Delivery's lines
+// go, how up to date the kitchen is, and an offer to open a Cycle while there's none.
+// Later slices fill each Slot in.
 package today
 
 import (
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/profile"
@@ -18,11 +20,12 @@ type Service struct {
 	profile  *profile.Service
 	ledger   *ledger.Service
 	planning *planning.Service
+	kitchen  *kitchen.Service
 }
 
 // New creates the Service.
-func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Service) *Service {
-	return &Service{profile: profile, ledger: ledger, planning: planning}
+func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Service, kitchen *kitchen.Service) *Service {
+	return &Service{profile: profile, ledger: ledger, planning: planning, kitchen: kitchen}
 }
 
 // Day is what Today shows at a moment.
@@ -43,6 +46,10 @@ type Day struct {
 	OrderNext int64
 	// Offer is what Today offers about opening a Cycle.
 	Offer Offer
+	// PutAway is where a Delivery's lines go, while Today shows them, and nil otherwise;
+	// Held is which Stock Items hold anything, once it has arrived, so can be moved.
+	PutAway *planning.PutAway
+	Held    map[domain.StockKey]bool
 }
 
 // Reminder is a Cycle Today reminds the User of planning: its id, whether it is the
@@ -113,6 +120,19 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		}
 		if !set {
 			d.Offer = TargetsFirst
+		}
+	}
+	if d.PutAway, err = s.planning.PutAwayAt(ctx, now); err != nil {
+		return Day{}, err
+	}
+	if d.PutAway != nil && d.PutAway.Arrived {
+		contents, err := s.kitchen.Contents(ctx, now)
+		if err != nil {
+			return Day{}, err
+		}
+		d.Held = map[domain.StockKey]bool{}
+		for _, h := range contents.Held {
+			d.Held[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}] = true
 		}
 	}
 	for _, c := range []*planning.Cycle{current, upcoming} {

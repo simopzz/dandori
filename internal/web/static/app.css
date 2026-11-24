@@ -754,6 +754,11 @@ legend.field-label { margin-bottom: var(--space-1); }
   text-underline-offset: 4px;
 }
 
+/* Unavailable for now, as Today's put-away Count before the Delivery arrives: soft ink, no
+   underline, and no target to widen, so it stands where its link will. aria-disabled marks
+   it apart from a button hx-disable holds for a request. */
+.btn-text[aria-disabled="true"] { padding: 0; margin: 0; color: var(--color-text-soft); text-decoration: none; cursor: default; }
+
 /* Beside another, it keeps the padding between them, so their targets stay apart. */
 .btn-text + .btn-text { margin-left: 0; }
 
