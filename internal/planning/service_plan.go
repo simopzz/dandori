@@ -169,7 +169,8 @@ type cycleKitchen struct {
 
 // kitchenAt is the cycleKitchen of the signed-in User's Cycle `c` at `now` by `times`,
 // its forecast at the Slot `first`, once the approved Prep Sessions before it have used
-// up theirs and an ordered Delivery of `c`'s has brought its fixed lines.
+// up theirs and an ordered Delivery of `c`'s has brought its fixed lines: `c` is Arrived
+// once put away, as loadNow has it, or the Ledger holds those lines twice.
 func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, times domain.SlotTimes, now time.Time) (k cycleKitchen, err error) {
 	if k.library, err = s.recipes.Search(ctx, ""); err != nil {
 		return k, err
@@ -181,7 +182,7 @@ func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, tim
 		return k, err
 	}
 	var approved, own []*storedProposal
-	var fixed map[int64]domain.Quantity
+	var lines map[int64]domain.Quantity
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		if approved, err = loadApproved(ctx, tx, first.On.AddDate(0, 0, -7), now.Location()); err != nil {
 			return err
@@ -189,7 +190,7 @@ func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, tim
 		if own, err = loadPlanOf(ctx, tx, c.ID, now.Location()); err != nil {
 			return err
 		}
-		if fixed, err = loadGroceryLines(ctx, tx, c.ID); err != nil {
+		if lines, err = loadGroceryLines(ctx, tx, c.ID); err != nil {
 			return err
 		}
 		k.portions, err = ledger.LoadPortions(ctx, tx)
@@ -199,7 +200,7 @@ func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, tim
 		return k, err
 	}
 	for _, ing := range k.known { // in name order
-		if q, ok := fixed[ing.ID]; ok {
+		if q, ok := lines[ing.ID]; ok {
 			k.fixed = append(k.fixed, domain.GroceryLine{Ingredient: ing, Quantity: q})
 		}
 	}
@@ -325,10 +326,9 @@ func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 // Planning Brief or its low-care default, the Planning Notes newest first, the kitchen
 // forecast `f` at the first of the Stock Items `held` at `now`, the Portions without a
 // Slot being those it may put in Slots, what an ordered Delivery brings, that a current
-// Cycle gets no more, what
-// `current`, the Cycle's Plan, eats from then on, which it replaces, `portions` naming
-// the Portions without a Slot it puts in Slots, and what the `trailing` seven days before
-// from eat as approved Plans fill them.
+// Cycle gets no more, what `current`, the Cycle's Plan, eats from then on, which it
+// replaces, `portions` naming the Portions without a Slot it puts in Slots, and what the
+// `trailing` seven days before from eat as approved Plans fill them.
 func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, notes []string, now time.Time, held []kitchen.Held, f domain.Forecast, current domain.Plan, portions []domain.Portion, trailing []domain.Day) string {
 	slots, from := c.Slots(p.SlotTimes), planned[0]
 	var b strings.Builder

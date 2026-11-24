@@ -162,7 +162,7 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 			j.stock = nil
 			j.plan.FreezerSplits = []domain.RecipeIngredient{{Ingredient: plainYogurt, Quantity: grams(200)}}
 		}, nil},
-		{"on the upcoming Cycle, whose Delivery is ordered, more than carry-over and the order", func(j *judging) {
+		{"on the upcoming Cycle, whose Delivery is ordered, more than carry-over and the fixed Grocery List", func(j *judging) {
 			j.now = at(5, "19:00")
 			j.cycle.Delivery.State = domain.Ordered
 			j.stock = held(200, 100)
@@ -171,7 +171,7 @@ func TestJudgeGivesTheHardRulesADraftBreaks(t *testing.T) {
 			"more-than-held: yogurt at breakfast on Fri 6 Nov needs 150 g yogurt, and the kitchen will hold only 100 g",
 			"more-than-held: Rice bowl at lunch on Fri 6 Nov needs 375 g rice, and the kitchen will hold only 200 g",
 		}},
-		{"on the upcoming Cycle, whose Delivery is ordered, within carry-over and the order", func(j *judging) {
+		{"on the upcoming Cycle, whose Delivery is ordered, within carry-over and the fixed Grocery List", func(j *judging) {
 			j.now = at(5, "19:00")
 			j.cycle.Delivery.State = domain.Ordered
 		}, nil},
