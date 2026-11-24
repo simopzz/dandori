@@ -18,32 +18,40 @@ var (
 	// ErrBeingPlanned is marking ordered the Delivery of a Cycle with a planning
 	// Run going.
 	ErrBeingPlanned = errors.New("a planning Run of the Cycle is going")
+	// ErrArrived is marking ordered, or undoing that, a Delivery that has arrived.
+	ErrArrived = errors.New("the Delivery has arrived")
 )
 
 // GroceryListOf is the Grocery List of the signed-in User's Cycle `c` at `now`: once its
-// Delivery is marked ordered, the lines fixed then; until it is, its Plan against the
-// kitchen forecast at its first Slot, once the approved Prep Sessions before it have
-// used up theirs. The Staples to check are always those its Plan uses. It is ErrNoPlan
-// while `c` has no Plan, as a Cycle with no Slot never does.
+// Delivery is marked ordered, or has arrived, the lines fixed then; until then, its Plan
+// against the kitchen forecast at its first Slot, once the approved Prep Sessions before
+// it have used up theirs. The Staples to check are always those its Plan uses. It is
+// ErrNoPlan while `c` has no Plan, as a Cycle with no Slot never does.
 func (s *Service) GroceryListOf(ctx context.Context, c Cycle, now time.Time) (domain.GroceryList, error) {
+	list, _, err := s.groceryList(ctx, c, now)
+	return list, err
+}
+
+// groceryList is GroceryListOf `c` at `now`, with the Plan it follows.
+func (s *Service) groceryList(ctx context.Context, c Cycle, now time.Time) (domain.GroceryList, domain.Plan, error) {
 	times, err := s.profile.SlotTimes(ctx)
 	if err != nil {
-		return domain.GroceryList{}, err
+		return domain.GroceryList{}, domain.Plan{}, err
 	}
 	slots := c.Slots(times)
 	if len(slots) == 0 {
-		return domain.GroceryList{}, ErrNoPlan
+		return domain.GroceryList{}, domain.Plan{}, ErrNoPlan
 	}
 	k, err := s.kitchenAt(ctx, c, slots[0], times, now)
 	if err != nil {
-		return domain.GroceryList{}, err
+		return domain.GroceryList{}, domain.Plan{}, err
 	}
 	if !k.planned {
-		return domain.GroceryList{}, ErrNoPlan
+		return domain.GroceryList{}, domain.Plan{}, ErrNoPlan
 	}
 	list := k.plan.GroceryList(k.forecast.Stock)
-	if c.Delivery.State != domain.Ordered {
-		return list, nil
+	if c.Delivery.State == domain.Tentative {
+		return list, k.plan, nil
 	}
 	var fixed map[int64]domain.Quantity
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
@@ -56,16 +64,31 @@ func (s *Service) GroceryListOf(ctx context.Context, c Cycle, now time.Time) (do
 			list.Lines = append(list.Lines, domain.GroceryLine{Ingredient: ing, Quantity: q})
 		}
 	}
-	return list, err
+	return list, k.plan, err
+}
+
+// findOrderable is the Cycle `id` while its Delivery can be marked ordered, or that
+// undone, at `now`: ErrArrived once it has arrived, and ErrNoCycle unless it is upcoming
+// or current.
+func findOrderable(ctx context.Context, tx pgx.Tx, id int64, now time.Time) (Cycle, error) {
+	c, err := findOpen(ctx, tx, id, now)
+	if err == nil && c.Delivery.State == domain.Arrived {
+		return c, ErrArrived
+	}
+	return c, err
 }
 
 // MarkOrdered marks the Delivery of the signed-in User's upcoming Cycle `id` ordered at
 // `now`, fixing its Grocery List as it stands. It is ErrNoCycle when `id` isn't
-// upcoming, ErrProposalPending or ErrBeingPlanned while a Plan Proposal of it is pending
-// or a planning Run of it going, and ErrNoPlan while it has no Plan. Once marked, it
-// changes nothing.
+// upcoming, ErrArrived once it has arrived, ErrProposalPending or ErrBeingPlanned while a
+// Plan Proposal of it is pending or a planning Run of it going, and ErrNoPlan while it
+// has no Plan. Once marked, it changes nothing.
 func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) error {
-	c, err := s.Upcoming(ctx, id, now)
+	var c Cycle
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		c, err = findOrderable(ctx, tx, id, now)
+		return err
+	})
 	if err != nil || c.Delivery.State == domain.Ordered {
 		return err
 	}
@@ -89,7 +112,7 @@ func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) erro
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}
-		if _, err := findUpcoming(ctx, tx, id, now); err != nil {
+		if _, err := findOrderable(ctx, tx, id, now); err != nil {
 			return err
 		}
 		return markOrdered(ctx, tx, id, now, list.Lines)
@@ -98,10 +121,14 @@ func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) erro
 
 // UndoOrdered makes the Delivery of the signed-in User's upcoming Cycle `id` tentative
 // again at `now`: its Grocery List follows its Plan again, and it can be dropped. It is
-// ErrNoCycle when `id` isn't upcoming.
+// ErrNoCycle when `id` isn't upcoming, and ErrArrived once its Delivery has arrived.
 func (s *Service) UndoOrdered(ctx context.Context, id int64, now time.Time) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := findUpcoming(ctx, tx, id, now); err != nil {
+		// Arrive's lock: a Delivery being put away keeps the list it is put away with.
+		if err := lockPlanning(ctx, tx); err != nil {
+			return err
+		}
+		if _, err := findOrderable(ctx, tx, id, now); err != nil {
 			return err
 		}
 		return undoOrdered(ctx, tx, id)

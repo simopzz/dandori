@@ -68,6 +68,8 @@ const (
 	MarkedStaple Cause = "staple"
 	// Added is the Cause of Portions no Prep Session produced, which the User adds.
 	Added Cause = "added"
+	// Delivered is the Cause of what a Delivery put away adds to a Stock Item.
+	Delivered Cause = "delivered"
 )
 
 // Sets says whether a Movement of cause `c` sets what its Stock Item holds to what was
@@ -292,6 +294,17 @@ func (l Ledger) Count(now time.Time, key StockKey, stated Quantity, note string)
 	at := l.WriteAt(now)
 	believed := l.At(at)[key].Held
 	return Movement{At: at, Key: key, Change: stated - believed, Cause: Counted, Believed: believed, Stated: stated, Note: note}
+}
+
+// Deliver is the Movements, written at `now`, of putting a Delivery away as `put`: each
+// adds its line to its Stock Item.
+func (l Ledger) Deliver(now time.Time, put []PutAwayLine) []Movement {
+	at := l.WriteAt(now)
+	delivered := make([]Movement, len(put))
+	for i, p := range put {
+		delivered[i] = Movement{At: at, Key: StockKey{Ingredient: p.Ingredient.ID, Location: p.Location}, Change: p.Quantity, Cause: Delivered}
+	}
+	return delivered
 }
 
 // AddPortions is the one Movement, written at `now`, that adds the Portions `ids` to

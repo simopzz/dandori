@@ -252,6 +252,12 @@ var (
 		En: "Wait for the Cycle to be planned first: its Plan Proposal could change the list.",
 		It: "Prima aspetta che il Ciclo sia pianificato: la sua Proposta di Piano potrebbe cambiare la lista.",
 	}
+	msgOrderedArrived = web.Message{
+		En: "The Delivery has arrived: its Grocery List stays as it came.",
+		It: "La Consegna è arrivata: la sua Lista della spesa resta com'è arrivata.",
+	}
+	msgDeliveredOn      = web.Message{En: "Delivered on %s", It: "Consegnata il %s"}
+	msgNeverOrderedTag  = web.Message{En: "Never marked ordered", It: "Mai segnata come ordinata"}
 	msgUndoOrderedFirst = web.Message{
 		En: "The Cycle's Delivery is marked ordered: undo that on its Grocery List to drop the Cycle.",
 		It: "La Consegna del Ciclo è segnata come ordinata: annullalo nella sua Lista della spesa per annullare il Ciclo.",

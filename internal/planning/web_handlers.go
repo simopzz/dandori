@@ -36,6 +36,7 @@ const (
 	refusedPending  httpx.Refusal = "a Plan Proposal of the Cycle is pending"
 	refusedGoing    httpx.Refusal = "a planning Run of the Cycle is going"
 	refusedOrdered  httpx.Refusal = "the Delivery is marked ordered"
+	refusedArrived  httpx.Refusal = "the Delivery has arrived"
 )
 
 // cycleFields are the fields of opening a Cycle, in the form's order.
@@ -459,8 +460,9 @@ func (h Handlers) Drop(w http.ResponseWriter, r *http.Request) {
 	web.Answer{Notice: web.T(r.Context(), msgDropped), RedirectTo: "/plan"}.Write(w, r, h.Log)
 }
 
-// ShowGroceryList is the Grocery List of the upcoming Cycle in the path. Any other Cycle,
-// or none of the User's, redirects to the Cycle page, as ShowCycle does once one closes.
+// ShowGroceryList is the Grocery List of the upcoming or current Cycle in the path. Any
+// other Cycle, or none of the User's, redirects to the Cycle page, as ShowCycle does once
+// one closes.
 func (h Handlers) ShowGroceryList(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -469,12 +471,12 @@ func (h Handlers) ShowGroceryList(w http.ResponseWriter, r *http.Request) {
 	h.groceryList(w, r, http.StatusOK, id, nil)
 }
 
-// groceryList answers with the Grocery List of the upcoming Cycle `id`, with `status`,
-// saying why marking its Delivery ordered was refused, if it was. Any other Cycle
-// redirects to the Cycle page.
+// groceryList answers with the Grocery List of the upcoming or current Cycle `id`, with
+// `status`, saying why marking its Delivery ordered was refused, if it was. Any other
+// Cycle redirects to the Cycle page.
 func (h Handlers) groceryList(w http.ResponseWriter, r *http.Request, status int, id int64, refusal error) {
 	ctx, now := r.Context(), h.Clock.Now()
-	c, err := h.Service.Upcoming(ctx, id, now)
+	c, err := h.Service.Find(ctx, id, now)
 	if errors.Is(err, ErrNoCycle) {
 		http.Redirect(w, r, "/plan", http.StatusSeeOther)
 		return
@@ -524,6 +526,8 @@ func (h Handlers) ordering(w http.ResponseWriter, r *http.Request, do func(conte
 		refusal = refusedPending
 	case errors.Is(err, ErrBeingPlanned):
 		refusal = refusedGoing
+	case errors.Is(err, ErrArrived):
+		refusal = refusedArrived
 	}
 	switch {
 	case errors.Is(err, ErrNoCycle):

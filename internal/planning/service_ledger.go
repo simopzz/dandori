@@ -14,6 +14,7 @@ import (
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
+	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
@@ -103,14 +104,20 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop
 
 // Arrive takes every Delivery of the signed-in User's whose window has ended by `now` as
 // arrived: a Cycle it closes has its pending Plan Proposal rejected and its planning Run
-// cancelled, naming the Delivery. Run again for a moment it has reached, it changes
-// nothing. Every request runs it, after bringing the kitchen up to `now`, as the
-// beat does.
+// cancelled, naming the Delivery, and each Delivery is put away, its Grocery List, fixed
+// then if it wasn't ordered, becoming Stock Items where the Plan's freezer splits say
+// (domain.PutAway). A Cycle with no Plan brings nothing. Run again for a moment it has
+// reached, it changes nothing. Every request runs it, after bringing the kitchen up to
+// `now`, as the beat does.
 func (s *Service) Arrive(ctx context.Context, now time.Time) error {
+	due, err := s.dueAt(ctx, now)
+	if err != nil {
+		return err
+	}
 	var stops []func(context.Context)
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		busy, err := busyCycles(ctx, tx)
-		if err != nil || len(busy) == 0 {
+		if err != nil || (len(busy) == 0 && len(due) == 0) {
 			return err
 		}
 		// turn's lock, then busy read again: a planning Run that started meanwhile
@@ -125,16 +132,20 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 		if err != nil {
 			return err
 		}
+		if err := putAwayDue(ctx, tx, cycles, due, now); err != nil {
+			return err
+		}
 		for i, status := range domain.CycleStatuses(plain(cycles), now) {
-			if status != domain.Closed || !slices.Contains(busy, cycles[i].ID) {
+			c := cycles[i]
+			if status != domain.Closed || !slices.Contains(busy, c.ID) {
 				continue
 			}
 			next := cycles[i+1].Delivery // closed: the next Cycle's Delivery has arrived
 			why := cause{ClosedBy: &next}
-			if err := endPending(ctx, tx, cycles[i].ID, why, now); err != nil {
+			if err := endPending(ctx, tx, c.ID, why, now); err != nil {
 				return err
 			}
-			stop, err := s.end(ctx, tx, cycles[i].ID, why)
+			stop, err := s.end(ctx, tx, c.ID, why)
 			if err != nil {
 				return err
 			}
@@ -149,6 +160,92 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 		stop(ctx)
 	}
 	return nil
+}
+
+// putAwayDue puts away at `now`, in `tx`, each of `cycles`' Deliveries `due` says
+// arrived and isn't put away yet, writing what they bring through the Ledger. One whose
+// state or fixed list changed since `due` was worked out, before the lock, waits for the
+// next request.
+func putAwayDue(ctx context.Context, tx pgx.Tx, cycles []Cycle, due map[int64]arrival, now time.Time) error {
+	var put []domain.PutAwayLine
+	for _, c := range cycles {
+		a, ok := due[c.ID]
+		if !ok || a.state != c.Delivery.State {
+			continue
+		}
+		same, err := fixedAs(ctx, tx, c, a.list.Lines)
+		if err != nil {
+			return err
+		}
+		if !same {
+			continue
+		}
+		done, err := putAway(ctx, tx, c.ID, now, a.list.Lines)
+		if err != nil {
+			return err
+		}
+		if done {
+			put = append(put, domain.PutAway(a.list.Lines, a.splits)...)
+		}
+	}
+	if len(put) == 0 {
+		return nil
+	}
+	return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) { return l.Deliver(now, put), nil })
+}
+
+// fixedAs reports whether the Grocery List of `c`, read in `tx`, is still fixed as
+// `lines` once its Delivery is ordered: undone and marked again, it may not be.
+func fixedAs(ctx context.Context, tx pgx.Tx, c Cycle, lines []domain.GroceryLine) (bool, error) {
+	if c.Delivery.State != domain.Ordered {
+		return true, nil
+	}
+	fixed, err := loadGroceryLines(ctx, tx, c.ID)
+	if err != nil || len(fixed) != len(lines) {
+		return false, err
+	}
+	for _, l := range lines {
+		if fixed[l.Ingredient.ID] != l.Quantity {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// arrival is what a Delivery due to be put away brings: its Grocery List, as it was
+// read in `state`, and its Plan's freezer splits.
+type arrival struct {
+	state  domain.DeliveryState
+	list   domain.GroceryList
+	splits []domain.RecipeIngredient
+}
+
+// dueAt is what each of the signed-in User's Deliveries arrived by `now` and not put
+// away yet brings, by its Cycle's id: nothing for a Cycle without a Plan.
+func (s *Service) dueAt(ctx context.Context, now time.Time) (map[int64]arrival, error) {
+	var cycles []Cycle
+	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		cycles, err = loadCycles(ctx, tx, now.Location())
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	due := map[int64]arrival{}
+	for i, c := range cycles {
+		if c.putAway || c.Delivery.Arrives().After(now) {
+			continue
+		}
+		if i+1 < len(cycles) {
+			c.Until = cycles[i+1].Delivery.Arrives()
+		}
+		list, plan, err := s.groceryList(ctx, c, now)
+		if err != nil && !errors.Is(err, ErrNoPlan) {
+			return nil, err
+		}
+		due[c.ID] = arrival{state: c.Delivery.State, list: list, splits: plan.FreezerSplits}
+	}
+	return due, nil
 }
 
 // Beat takes the Deliveries arrived by `at` as arrived for every User, the scheduler's

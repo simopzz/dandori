@@ -56,3 +56,43 @@ func TestTheGroceryListOfAPlan(t *testing.T) {
 		})
 	}
 }
+
+// Putting a Delivery away places each Grocery List line in its Ingredient's usual
+// Storage Location; a freezer split sends that much of it to the freezer and the rest to
+// the usual place, never more than the line brings; a split of an Ingredient the list
+// doesn't buy puts nothing away.
+func TestPuttingADeliveryAway(t *testing.T) {
+	line := func(ing domain.Ingredient, v float64) domain.GroceryLine {
+		return domain.GroceryLine{Ingredient: ing, Quantity: domain.QuantityOf(v)}
+	}
+	split := func(ing domain.Ingredient, v float64) domain.RecipeIngredient {
+		return domain.RecipeIngredient{Ingredient: ing, Quantity: domain.QuantityOf(v)}
+	}
+	put := func(ing domain.Ingredient, loc domain.StorageLocation, v float64) domain.PutAwayLine {
+		return domain.PutAwayLine{GroceryLine: line(ing, v), Location: loc}
+	}
+	tests := []struct {
+		name   string
+		lines  []domain.GroceryLine
+		splits []domain.RecipeIngredient
+		want   []domain.PutAwayLine
+	}{
+		{"each line in its usual Storage Location", []domain.GroceryLine{line(breast, 800), line(onion, 2)}, nil,
+			[]domain.PutAwayLine{put(breast, domain.Fridge, 800), put(onion, domain.Pantry, 2)}},
+		{"a split to the freezer, the rest in the usual place", []domain.GroceryLine{line(breast, 800)}, []domain.RecipeIngredient{split(breast, 400)},
+			[]domain.PutAwayLine{put(breast, domain.Fridge, 400), put(breast, domain.Freezer, 400)}},
+		{"a split capped at what the line brings", []domain.GroceryLine{line(breast, 300)}, []domain.RecipeIngredient{split(breast, 400)},
+			[]domain.PutAwayLine{put(breast, domain.Freezer, 300)}},
+		{"a split of an Ingredient not on the list puts nothing away", []domain.GroceryLine{line(onion, 2)}, []domain.RecipeIngredient{split(breast, 400)},
+			[]domain.PutAwayLine{put(onion, domain.Pantry, 2)}},
+		{"an Ingredient usually kept in the freezer", []domain.GroceryLine{line(peas, 500)}, []domain.RecipeIngredient{split(peas, 200)},
+			[]domain.PutAwayLine{put(peas, domain.Freezer, 500)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := domain.PutAway(tt.lines, tt.splits); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PutAway = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}

@@ -50,3 +50,37 @@ func (p Plan) GroceryList(stock map[StockKey]Quantity) GroceryList {
 	}
 	return list
 }
+
+// PutAwayLine is how much of a Grocery List line goes in one Storage Location when its
+// Delivery is put away.
+type PutAwayLine struct {
+	GroceryLine
+	Location StorageLocation
+}
+
+// PutAway is where the Delivery bringing `lines` puts them, by the Plan's freezer
+// `splits`: each line in its Ingredient's usual Storage Location, but for what a split
+// sends to the freezer, never more than the line brings. A split of an Ingredient no
+// line buys puts nothing away: stock already in the kitchen stays where it is.
+func PutAway(lines []GroceryLine, splits []RecipeIngredient) []PutAwayLine {
+	var put []PutAwayLine
+	for _, l := range lines {
+		var frozen Quantity
+		for _, s := range splits {
+			if s.Ingredient.ID == l.Ingredient.ID {
+				frozen += s.Quantity
+			}
+		}
+		if l.Ingredient.Usual == Freezer {
+			frozen = l.Quantity
+		}
+		frozen = min(frozen, l.Quantity)
+		if rest := l.Quantity - frozen; rest > 0 {
+			put = append(put, PutAwayLine{GroceryLine{l.Ingredient, rest}, l.Ingredient.Usual})
+		}
+		if frozen > 0 {
+			put = append(put, PutAwayLine{GroceryLine{l.Ingredient, frozen}, Freezer})
+		}
+	}
+	return put
+}

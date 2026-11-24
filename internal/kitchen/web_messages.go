@@ -147,6 +147,7 @@ var causeNames = map[domain.Cause]web.Message{
 	domain.Counted:      {En: "Counted", It: "Contato"},
 	domain.MarkedStaple: {En: "Marked a Staple", It: "Segnato come Base"},
 	domain.Added:        {En: "Added", It: "Aggiunte"},
+	domain.Delivered:    {En: "Delivered", It: "Consegnato"},
 }
 
 // causeText tells the cause of `m` as a Movement of the Stock Item in `location`.

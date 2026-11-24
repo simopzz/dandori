@@ -37,6 +37,8 @@ var (
 type Cycle struct {
 	ID int64
 	domain.Cycle
+	// putAway is whether its Delivery has been put away.
+	putAway bool
 }
 
 // Service is the signed-in User's Cycles and planning them. It reads the Profile, the

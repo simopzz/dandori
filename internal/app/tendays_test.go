@@ -343,7 +343,7 @@ func TestBrowserShowsAnApprovedTenDayPlanFromToday(t *testing.T) {
 	b.Open(t, "/plan")
 	b.SeesInTurn(t,
 		"Cycle · Thu, Nov 5 – Sat, Nov 14",
-		"Delivery Thu, Nov 5, 10:00 am to 12:00 pm",
+		"Delivered on Thu, Nov 5 Never marked ordered",
 		"01 Plan",
 		"Average Calories, kcal 2024–2376 Protein, g ≥ at least 130 Fibre, g ≥ at least 30 Sugar, g ≤ at most 50",
 		"calories 1826 under protein 99 under fibre at least 36+ sugar at least 52+ over",
