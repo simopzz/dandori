@@ -691,3 +691,32 @@ func hasAttrs(t *testing.T, what string, s tracetest.SpanStub, want map[attribut
 		}
 	}
 }
+
+// A signed-in request's transaction is set up, as the User, in one statement before its
+// first query: one round trip to Supabase per transaction.
+func TestActingAsTheUserTakesOneStatement(t *testing.T) {
+	h, spans := startWithSpans(t)
+	h.Invite("ada@example.com")
+	h.SignUp(t, "ada@example.com")
+	spans.Reset()
+
+	h.Get(t, "/profile")
+
+	request := requestSpan(t, spans)
+	var begun, setUp int
+	for _, s := range spans.GetSpans() {
+		if s.Parent.SpanID() != request.SpanContext.SpanID() {
+			continue
+		}
+		text, _ := attr(s, "db.query.text")
+		switch q := strings.ToLower(text.AsString()); {
+		case q == "begin":
+			begun++
+		case strings.Contains(q, "set local role") || strings.Contains(q, "set_config("):
+			setUp++
+		}
+	}
+	if begun == 0 || setUp != begun {
+		t.Errorf("%d setup statements over %d transactions, want one each; spans: %s", setUp, begun, names(spans.GetSpans()))
+	}
+}
