@@ -73,8 +73,9 @@ templ dropSection(c Cycle, droppable bool) {
 }
 
 // deliveryLine is the soft line under the Cycle's title: its Delivery's day and window,
-// Ordered or Tentative until it arrives, and the Slot the first day is planned from when
-// it is planned only partly.
+// Ordered or Tentative until it arrives, then the day it was delivered on, Never marked
+// ordered when so, and the Slot the first day is planned from when it is planned
+// only partly.
 templ deliveryLine(c Cycle, ds []proposalDay) {
 	<p class="lede">
 		if c.Delivery.State == domain.Arrived {

@@ -117,7 +117,7 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 	var stops []func(context.Context)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		busy, err := busyCycles(ctx, tx)
-		if err != nil || len(busy) == 0 && len(due) == 0 {
+		if err != nil || (len(busy) == 0 && len(due) == 0) {
 			return err
 		}
 		// turn's lock, then busy read again: a planning Run that started meanwhile
@@ -132,20 +132,11 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		var put []domain.PutAwayLine
+		if err := putAwayDue(ctx, tx, cycles, due, now); err != nil {
+			return err
+		}
 		for i, status := range domain.CycleStatuses(plain(cycles), now) {
 			c := cycles[i]
-			// Worked out before the lock: one marked ordered or undone since waits for
-			// the next request.
-			if a, ok := due[c.ID]; ok && a.state == c.Delivery.State {
-				done, err := putAway(ctx, tx, c.ID, now, a.list.Lines)
-				if err != nil {
-					return err
-				}
-				if done {
-					put = append(put, domain.PutAway(a.list.Lines, a.splits)...)
-				}
-			}
 			if status != domain.Closed || !slices.Contains(busy, c.ID) {
 				continue
 			}
@@ -160,10 +151,7 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 			}
 			stops = append(stops, stop)
 		}
-		if len(put) == 0 {
-			return nil
-		}
-		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) { return l.Deliver(now, put), nil })
+		return nil
 	})
 	if err != nil {
 		return err
@@ -172,6 +160,56 @@ func (s *Service) Arrive(ctx context.Context, now time.Time) error {
 		stop(ctx)
 	}
 	return nil
+}
+
+// putAwayDue puts away at `now`, in `tx`, each of `cycles`' Deliveries `due` says
+// arrived and isn't put away yet, writing what they bring through the Ledger. One whose
+// state or fixed list changed since `due` was worked out, before the lock, waits for the
+// next request.
+func putAwayDue(ctx context.Context, tx pgx.Tx, cycles []Cycle, due map[int64]arrival, now time.Time) error {
+	var put []domain.PutAwayLine
+	for _, c := range cycles {
+		a, ok := due[c.ID]
+		if !ok || a.state != c.Delivery.State {
+			continue
+		}
+		same, err := fixedAs(ctx, tx, c, a.list.Lines)
+		if err != nil {
+			return err
+		}
+		if !same {
+			continue
+		}
+		done, err := putAway(ctx, tx, c.ID, now, a.list.Lines)
+		if err != nil {
+			return err
+		}
+		if done {
+			put = append(put, domain.PutAway(a.list.Lines, a.splits)...)
+		}
+	}
+	if len(put) == 0 {
+		return nil
+	}
+	return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) { return l.Deliver(now, put), nil })
+}
+
+// fixedAs reports whether the Grocery List of `c`, read in `tx`, is still fixed as
+// `lines` once its Delivery is ordered: undone and marked again, it may not be.
+func fixedAs(ctx context.Context, tx pgx.Tx, c Cycle, lines []domain.GroceryLine) (bool, error) {
+	if c.Delivery.State != domain.Ordered {
+		return true, nil
+	}
+	fixed, err := loadGroceryLines(ctx, tx, c.ID)
+	if err != nil || len(fixed) != len(lines) {
+		return false, err
+	}
+	for _, l := range lines {
+		if fixed[l.Ingredient.ID] != l.Quantity {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // arrival is what a Delivery due to be put away brings: its Grocery List, as it was

@@ -111,8 +111,10 @@ func putAway(ctx context.Context, q db.Querier, id int64, at time.Time, lines []
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return false, nil
-	case err != nil || ordered:
-		return err == nil, err
+	case err != nil:
+		return false, err
+	case ordered:
+		return true, nil
 	}
 	return true, saveGroceryLines(ctx, q, id, lines)
 }
