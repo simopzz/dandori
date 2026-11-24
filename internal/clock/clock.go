@@ -16,9 +16,9 @@ const DefaultZone = "Europe/Rome"
 // Clock tells the time in the installation's zone, and beats on it.
 type Clock interface {
 	Now() time.Time
-	// Every calls beat each time the clock passes a multiple of d (14:00, 14:05 for five
-	// minutes), with that multiple, until ctx ends; it returns at once. A clock passing
-	// several at once, as a machine waking up does, beats once, with the latest.
+	// Every calls `beat` each time the clock passes a multiple of `d` (14:00, 14:05 for
+	// five minutes), with that multiple, until `ctx` ends; it returns at once. A clock
+	// passing several at once, as a machine waking up does, beats once, with the latest.
 	Every(ctx context.Context, d time.Duration, beat func(at time.Time))
 }
 
