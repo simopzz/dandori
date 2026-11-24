@@ -388,7 +388,7 @@ func deliveryLine(c Cycle, ds []proposalDay) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if c.Delivery.NeverOrdered {
+		if c.Delivery.NeverOrdered() {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 			if templ_7745c5c3_Err != nil {

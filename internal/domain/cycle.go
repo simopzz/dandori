@@ -37,10 +37,13 @@ type Delivery struct {
 	From, To TimeOfDay
 	// State is never stored with the Delivery a planning Run names: it had arrived.
 	State DeliveryState `json:"-"`
-	// NeverOrdered is an arrived Delivery the User never marked ordered: its Grocery List
-	// was fixed at arrival.
-	NeverOrdered bool `json:"-"`
+	// OrderedAt is when the User marked it ordered: zero while it never was.
+	OrderedAt time.Time `json:"-"`
 }
+
+// NeverOrdered reports whether `d` arrived without the User marking it ordered: its
+// Grocery List was fixed at arrival.
+func (d Delivery) NeverOrdered() bool { return d.State == Arrived && d.OrderedAt.IsZero() }
 
 // DeliveryState is where a Delivery is: tentative until the User marks it ordered, which
 // they can undo, and arrived, neither, once its Cycle is current.

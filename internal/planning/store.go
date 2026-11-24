@@ -35,7 +35,6 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 		switch status {
 		case domain.Current:
 			current = &cycles[i]
-			current.Delivery.NeverOrdered = current.Delivery.State == domain.Tentative
 			current.Delivery.State = domain.Arrived
 		case domain.Upcoming:
 			upcoming = &cycles[i]
@@ -52,7 +51,7 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 // row-level security leaves only their rows.
 func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle, error) {
 	rows, err := q.Query(ctx, `
-		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on, ordered_at IS NOT NULL,
+		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on, ordered_at,
 			put_away_at IS NOT NULL
 		FROM cycle ORDER BY delivery_on, window_to`)
 	if err != nil {
@@ -60,11 +59,11 @@ func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
 		var c Cycle
-		var ordered bool
+		var ordered *time.Time
 		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered, &c.putAway)
 		c.Delivery.On, c.Ends, c.Delivery.State = inZone(c.Delivery.On, zone), inZone(c.Ends, zone), domain.Tentative
-		if ordered {
-			c.Delivery.State = domain.Ordered
+		if ordered != nil {
+			c.Delivery.OrderedAt, c.Delivery.State = *ordered, domain.Ordered
 		}
 		return c, err
 	})

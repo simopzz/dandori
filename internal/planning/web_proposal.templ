@@ -83,7 +83,7 @@ templ deliveryLine(c Cycle, ds []proposalDay) {
 		} else {
 			{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
 		}
-		if c.Delivery.NeverOrdered {
+		if c.Delivery.NeverOrdered() {
 			{ " " }
 			@web.Tag(false, "") {
 				{ web.T(ctx, msgNeverOrderedTag) }
