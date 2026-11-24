@@ -223,26 +223,49 @@ func (f *FakeAuth) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// newSession issues `sess` a new access token, for an hour, and a refresh
-// token that renews it once.
-func (f *FakeAuth) newSession(sess fakeSession) map[string]any {
-	userID, email := f.users[sess.email], sess.email
+// Forge mints an access token for a new session of `email`, as FakeAuth
+// would, with `change` made to its claims, and signs it with `method` and
+// `key`, FakeAuth's own when nil, under FakeAuth's kid.
+func (f *FakeAuth) Forge(email string, method jwt.SigningMethod, key any, change func(jwt.MapClaims)) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if key == nil {
+		key = f.key
+	}
+	return f.accessToken(fakeSession{email: email, id: randomUUID()}, method, key, change)
+}
+
+// accessToken is `sess`'s access token, for an hour, with `change` made to
+// its claims, signed with `method` and `key`.
+func (f *FakeAuth) accessToken(sess fakeSession, method jwt.SigningMethod, key any, change func(jwt.MapClaims)) string {
 	now := f.clock.Now()
-	tok := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+	claims := jwt.MapClaims{
 		"iss":        f.URL + "/auth/v1",
 		"aud":        "authenticated",
-		"sub":        userID,
-		"email":      email,
+		"sub":        f.users[sess.email],
+		"email":      sess.email,
 		"role":       "authenticated",
 		"session_id": sess.id,
 		"iat":        now.Unix(),
 		"exp":        now.Add(time.Hour).Unix(),
-	})
+	}
+	if change != nil {
+		change(claims)
+	}
+	tok := jwt.NewWithClaims(method, claims)
 	tok.Header["kid"] = "fake"
-	access, err := tok.SignedString(f.key)
+	signed, err := tok.SignedString(key)
 	if err != nil {
 		panic(err)
 	}
+	return signed
+}
+
+// newSession issues `sess` a new access token and a refresh token that
+// renews it once.
+func (f *FakeAuth) newSession(sess fakeSession) map[string]any {
+	userID, email := f.users[sess.email], sess.email
+	access := f.accessToken(sess, jwt.SigningMethodES256, f.key, nil)
 	refresh := randomToken()
 	f.sessions[refresh] = sess
 	return map[string]any{

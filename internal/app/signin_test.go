@@ -1,11 +1,17 @@
 package app_test
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/simopzz/dandori/internal/apptest"
 )
@@ -158,6 +164,46 @@ func TestSigningOutEndsTheSession(t *testing.T) {
 	h.Client.Jar.SetCookies(mustParse(t, h.URL), signedIn)
 	if page := h.Get(t, "/"); page.Path != "/sign-in" {
 		t.Errorf("the session's cookies still open %s after signing out", page.Path)
+	}
+}
+
+// An access token the project didn't sign as it should signs no one in,
+// though it names a User who signed up: it lands on sign-in, and its
+// cookies are cleared.
+func TestAForgedSessionTokenIsRefused(t *testing.T) {
+	h := apptest.Start(t)
+	h.Invite("ada@example.com")
+	h.SignUp(t, "ada@example.com")
+	other, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := func(claim string, v any) func(jwt.MapClaims) { return func(c jwt.MapClaims) { c[claim] = v } }
+
+	for _, tc := range []struct {
+		name   string
+		method jwt.SigningMethod
+		key    any
+		change func(jwt.MapClaims)
+	}{
+		{"signed by another key", jwt.SigningMethodES256, other, nil},
+		{"a wrong issuer", jwt.SigningMethodES256, nil, set("iss", "https://elsewhere.supabase.co/auth/v1")},
+		{"a wrong audience", jwt.SigningMethodES256, nil, set("aud", "elsewhere")},
+		{"a role other than authenticated", jwt.SigningMethodES256, nil, set("role", "service_role")},
+		{"alg none", jwt.SigningMethodNone, jwt.UnsafeAllowNoneSignatureType, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := mustParse(t, h.URL)
+			h.Client.Jar, _ = cookiejar.New(nil)
+			h.Client.Jar.SetCookies(u, []*http.Cookie{{Name: "dandori_access", Value: h.Auth.Forge("ada@example.com", tc.method, tc.key, tc.change)}})
+
+			if page := h.Get(t, "/"); page.Path != "/sign-in" {
+				t.Errorf("the token opened %s, want /sign-in", page.Path)
+			}
+			if kept := h.Client.Jar.Cookies(u); len(kept) > 0 {
+				t.Errorf("the session's cookies were kept: %v", kept)
+			}
+		})
 	}
 }
 
