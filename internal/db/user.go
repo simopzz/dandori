@@ -38,11 +38,10 @@ func AsUser(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) e
 		return err
 	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, "SET LOCAL ROLE authenticated"); err != nil {
-			return fmt.Errorf("switch to the authenticated role: %w", err)
-		}
-		if _, err := tx.Exec(ctx, "SELECT set_config('request.jwt.claims', $1, true)", string(claims)); err != nil {
-			return fmt.Errorf("set the User's claims: %w", err)
+		// One round trip, as PostgREST does: set_config('role', …, true) is SET
+		// LOCAL ROLE.
+		if _, err := tx.Exec(ctx, "SELECT set_config('role', 'authenticated', true), set_config('request.jwt.claims', $1, true)", string(claims)); err != nil {
+			return fmt.Errorf("act as the User: %w", err)
 		}
 		return fn(tx)
 	})
