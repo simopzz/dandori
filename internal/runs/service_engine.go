@@ -139,7 +139,7 @@ func (e *Engine) Start(ctx context.Context, kind Kind, asked string, b agent.Bri
 		telemetry.RunID.Int64(id), telemetry.RunKind.String(string(kind)), telemetry.UserID.String(userID)))
 	runCtx := oteltrace.ContextWithSpan(context.WithValue(db.WithUser(e.ctx, userID), idKey{}, id), span)
 	runCtx, cancelRun := context.WithCancel(runCtx)
-	tr := &trace{e: e, userID: userID, runID: id, cancel: cancelRun, subs: map[chan StoredTraceEvent]struct{}{}, done: make(chan struct{})}
+	tr := &trace{e: e, userID: userID, runID: id, cancel: cancelRun, spanCtx: runCtx, subs: map[chan StoredTraceEvent]struct{}{}, done: make(chan struct{})}
 	e.live[id] = tr
 	e.wg.Add(1)
 	go e.execute(runCtx, tr, b)
@@ -188,7 +188,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 		})
 	}
 	if err != nil {
-		e.log.Error("store the Run's status", "run", tr.runID, "err", err)
+		e.log.ErrorContext(ctx, "store the Run's status", "run", tr.runID, "err", err)
 	} else if !stored { // the User cancelled it as it ended, and that was stored first
 		status = Cancelled
 	}
@@ -308,7 +308,7 @@ func (e *Engine) liveRun(id int64) *trace {
 func (e *Engine) carryOut(ctx context.Context, tr agent.Trace, b agent.Brief) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			e.log.Error("a Run panicked", "panic", p, "stack", string(debug.Stack()))
+			e.log.ErrorContext(ctx, "a Run panicked", "panic", p, "stack", string(debug.Stack()))
 			err = &agent.Failure{Reason: agent.Crashed, Detail: fmt.Sprint(p)}
 		}
 	}()
@@ -355,6 +355,9 @@ type trace struct {
 	userID string
 	runID  int64
 	cancel context.CancelFunc
+	// spanCtx holds the Run's span, for logs whose ctx storeContext leaves none; it may
+	// be cancelled, but the span it carries is still readable.
+	spanCtx context.Context
 	// leaves stores what the Run leaves as it is stored succeeded; see Engine.Leaves.
 	leaves func(ctx context.Context, tx pgx.Tx) error
 
@@ -376,7 +379,7 @@ func (t *trace) Emit(ev agent.TraceEvent) {
 		return insertTraceEvent(ctx, tx, t.runID, stored)
 	})
 	if err != nil {
-		t.e.log.Error("store a Trace Event", "run", t.runID, "seq", t.seq, "err", err)
+		t.e.log.ErrorContext(t.spanCtx, "store a Trace Event", "run", t.runID, "seq", t.seq, "err", err)
 	}
 	for ch := range t.subs {
 		select {

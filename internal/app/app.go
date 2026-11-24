@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -256,7 +258,7 @@ func (a *App) Handler() http.Handler {
 	mux.Handle("GET /ingredients/{id}/delete", signedIn(ings.ShowDelete))
 	mux.Handle("GET /ingredients/{id}/delete/sheet", signedIn(ings.ShowDeleteSheet))
 	mux.Handle("POST /ingredients/{id}/delete", signedIn(ings.Delete))
-	return otelhttp.NewHandler(described(web.Faro(a.faroURL, web.Languages(web.Notices(named(mux))))), "request",
+	return otelhttp.NewHandler(described(web.Faro(a.faroURL, web.Languages(web.Notices(named(recovered(a.log, mux)))))), "request",
 		otelhttp.WithTracerProvider(a.spans),
 		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()),
 		otelhttp.WithFilter(traced))
@@ -293,9 +295,25 @@ func described(next http.Handler) http.Handler {
 	})
 }
 
+// recovered answers a handler's panic as a server error: one logged line with the stack,
+// the span marked, a 500 quoting the trace id. Otherwise the panic goes to the std `log`
+// package and Grafana holds no trace of it.
+// shortcut: a panic after the response began writing garbles it; no handler streams yet.
+func recovered(log *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if v := recover(); v != nil {
+				trace.SpanFromContext(r.Context()).SetStatus(codes.Error, "panic")
+				httpx.ServerError(w, r, log, "a handler panicked", fmt.Errorf("%v\n%s", v, debug.Stack()))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
 // named names the request's span after the route `mux` matched. otelhttp would, but it
 // sees only the request web.Languages copies before `mux` routes it.
-func named(mux *http.ServeMux) http.Handler {
+func named(mux http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
 		if r.Pattern != "" {
