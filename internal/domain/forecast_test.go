@@ -71,3 +71,36 @@ func TestTheKitchenForecastAtASlot(t *testing.T) {
 		})
 	}
 }
+
+// The kitchen forecast at an upcoming Cycle's first Slot adds its fixed Grocery List,
+// put away, once its Delivery is ordered: 400 g of chicken breast, 300 g of it split to
+// the freezer, and 200 g of frozen peas. While it is tentative it adds nothing: what's
+// missing is what the list buys.
+func TestTheKitchenForecastWithAnOrderedDelivery(t *testing.T) {
+	lines := []domain.GroceryLine{{Ingredient: breast, Quantity: grams(400)}, {Ingredient: peas, Quantity: grams(200)}}
+	splits := []domain.RecipeIngredient{{Ingredient: breast, Quantity: grams(300)}}
+	f := domain.Forecast{Stock: stock(100, 0, 50)}
+	tests := []struct {
+		name  string
+		state domain.DeliveryState
+		want  domain.Forecast
+	}{
+		{"tentative: nothing arrives yet", domain.Tentative, domain.Forecast{Stock: stock(100, 0, 50)}},
+		{"ordered: the fixed lines, put away", domain.Ordered, domain.Forecast{Stock: stock(200, 300, 250), Arriving: []domain.PutAwayLine{
+			{GroceryLine: domain.GroceryLine{Ingredient: breast, Quantity: grams(100)}, Location: domain.Fridge},
+			{GroceryLine: domain.GroceryLine{Ingredient: breast, Quantity: grams(300)}, Location: domain.Freezer},
+			{GroceryLine: domain.GroceryLine{Ingredient: peas, Quantity: grams(200)}, Location: domain.Freezer},
+		}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := f.WithOrdered(domain.Delivery{State: tt.state}, lines, splits)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("WithOrdered() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+	if want := stock(100, 0, 50); !reflect.DeepEqual(f.Stock, want) {
+		t.Errorf("WithOrdered() changed the forecast it was given: %+v, want %+v", f.Stock, want)
+	}
+}

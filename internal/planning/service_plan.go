@@ -154,7 +154,8 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 // cycleKitchen is what planning a Cycle, or shopping for it, reads of the kitchen at a
 // Slot: the Recipe Library, the known Ingredients, what the kitchen holds and its
 // Portions, what every approved Plan Proposal plans together, the Cycle's own Plan,
-// whether it has one, and the kitchen forecast at that Slot.
+// whether it has one, its Grocery List's lines once fixed, in name order, and the
+// kitchen forecast at that Slot.
 type cycleKitchen struct {
 	library        []domain.Recipe
 	known          []domain.Ingredient
@@ -162,12 +163,14 @@ type cycleKitchen struct {
 	portions       []domain.Portion
 	standing, plan domain.Plan
 	planned        bool
+	fixed          []domain.GroceryLine
 	forecast       domain.Forecast
 }
 
 // kitchenAt is the cycleKitchen of the signed-in User's Cycle `c` at `now` by `times`,
 // its forecast at the Slot `first`, once the approved Prep Sessions before it have used
-// up theirs.
+// up theirs and an ordered Delivery of `c`'s has brought its fixed lines: `c` is Arrived
+// once put away, as loadNow has it, or the Ledger holds those lines twice.
 func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, times domain.SlotTimes, now time.Time) (k cycleKitchen, err error) {
 	if k.library, err = s.recipes.Search(ctx, ""); err != nil {
 		return k, err
@@ -179,11 +182,15 @@ func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, tim
 		return k, err
 	}
 	var approved, own []*storedProposal
+	var lines map[int64]domain.Quantity
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		if approved, err = loadApproved(ctx, tx, first.On.AddDate(0, 0, -7), now.Location()); err != nil {
 			return err
 		}
 		if own, err = loadPlanOf(ctx, tx, c.ID, now.Location()); err != nil {
+			return err
+		}
+		if lines, err = loadGroceryLines(ctx, tx, c.ID); err != nil {
 			return err
 		}
 		k.portions, err = ledger.LoadPortions(ctx, tx)
@@ -192,9 +199,14 @@ func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, tim
 	if err != nil {
 		return k, err
 	}
+	for _, ing := range k.known { // in name order
+		if q, ok := lines[ing.ID]; ok {
+			k.fixed = append(k.fixed, domain.GroceryLine{Ingredient: ing, Quantity: q})
+		}
+	}
 	k.standing = approvedPlan(approved, k.library, k.known, k.portions)
 	k.plan, k.planned = cyclePlan(c, own, k.library, k.known, k.portions, times), len(own) > 0
-	k.forecast = k.standing.Forecast(stockOf(k.held.Held), k.held.Portions, times, now, first)
+	k.forecast = k.standing.Forecast(stockOf(k.held.Held), k.held.Portions, times, now, first).WithOrdered(c.Delivery, k.fixed, k.plan.FreezerSplits)
 	return k, nil
 }
 
@@ -251,6 +263,7 @@ A Plan is Prep Sessions, each preparing food at one Slot (an eating occasion: br
 - Eat a Recipe's Portions only at the kinds of Slot it is for, and prepare only Recipes whose appliances the user owns.
 - Frozen food is thawed the evening before the Slot or Prep Session that needs it, after the previous day's dinner: use a frozen Portion, or stock in the freezer of an Ingredient not usually kept there, only where that evening is still to come, and eat a Portion you freeze on a later day than it is prepared. An Ingredient usually kept in the freezer (frozen peas) is used from frozen, with no thaw. A Prep Session uses the stock outside the freezer first, and what it still needs is thawed from the freezer.
 - When a fresh Ingredient the Delivery brings is used late in the Cycle, name a freezer split: how much of it goes in the freezer when the Delivery is put away (of 800 g chicken breast, 400 g).
+- Until the user marks the Delivery ordered, it brings whatever the Plan needs. Once the prompt says it is ordered, it brings only what the prompt lists: no Prep Session may need more of an Ingredient than the kitchen will hold with it, Staples aside, which it always holds. Its freezer splits may still change until it is put away.
 - Put the Portions without a Slot in Slots before scheduling new Prep Sessions, and use first the Stock Items that would spoil first, judged from the Ingredient and its Storage Location.
 - Prefer Recipes with few active minutes: the user spends little time cooking.
 - Draft new Recipes with draft_recipe as the Planning Brief wishes, about one a Cycle when it doesn't say: dishes the Recipe Library lacks, reusing the known Ingredients where they fit. Each gets a negative id, which a Prep Session prepares as its recipe_id. Approving the Plan adds the drafts it prepares to the user's Recipe Library.
@@ -312,10 +325,10 @@ func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 // after its stable block: the Cycle and its Slots, today, the User's Language, the
 // Planning Brief or its low-care default, the Planning Notes newest first, the kitchen
 // forecast `f` at the first of the Stock Items `held` at `now`, the Portions without a
-// Slot being those it may put in Slots, that a current Cycle gets no more, what
-// `current`, the Cycle's Plan, eats from then on, which it replaces, `portions` naming
-// the Portions without a Slot it puts in Slots, and what the `trailing` seven days before
-// from eat as approved Plans fill them.
+// Slot being those it may put in Slots, what an ordered Delivery brings, that a current
+// Cycle gets no more, what `current`, the Cycle's Plan, eats from then on, which it
+// replaces, `portions` naming the Portions without a Slot it puts in Slots, and what the
+// `trailing` seven days before from eat as approved Plans fill them.
 func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, notes []string, now time.Time, held []kitchen.Held, f domain.Forecast, current domain.Plan, portions []domain.Portion, trailing []domain.Day) string {
 	slots, from := c.Slots(p.SlotTimes), planned[0]
 	var b strings.Builder
@@ -349,9 +362,14 @@ func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, 
 		}
 	}
 	b.WriteString("Stock Items:\n")
+	arriving := map[domain.StockKey]domain.Quantity{}
+	for _, l := range f.Arriving {
+		arriving[l.Key()] += l.Quantity
+	}
 	told := 0
 	for _, h := range held {
-		left := f.Stock[domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}]
+		key := domain.StockKey{Ingredient: h.Ingredient.ID, Location: h.Location}
+		left := f.Stock[key] - arriving[key]
 		if left <= 0 {
 			continue
 		}
@@ -360,6 +378,15 @@ func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, 
 	}
 	if told == 0 {
 		b.WriteString("(none)\n")
+	}
+	if c.Delivery.State == domain.Ordered {
+		b.WriteString("Its Delivery is ordered, so it brings only these, put away where they go, besides the Stock Items above:\n")
+		if len(f.Arriving) == 0 {
+			b.WriteString("(nothing)\n")
+		}
+		for _, l := range f.Arriving {
+			fmt.Fprintf(&b, "- %g %s %s (Ingredient %d), %s\n", l.Quantity.Number(), l.Ingredient.Unit, l.Ingredient.Name, l.Ingredient.ID, l.Location)
+		}
 	}
 	if !c.Delivery.Arrives().After(now) {
 		b.WriteString("This Cycle is current: its Delivery has arrived and none comes before it ends, so no Prep Session may need more of an Ingredient than the kitchen will hold then, Staples aside, which it always holds. Its Delivery is put away too, so name no freezer split.\n")

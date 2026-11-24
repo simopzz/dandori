@@ -50,21 +50,10 @@ func (s *Service) groceryList(ctx context.Context, c Cycle, now time.Time) (doma
 		return domain.GroceryList{}, domain.Plan{}, ErrNoPlan
 	}
 	list := k.plan.GroceryList(k.forecast.Stock)
-	if c.Delivery.State == domain.Tentative {
-		return list, k.plan, nil
+	if c.Delivery.State != domain.Tentative {
+		list.Lines = k.fixed
 	}
-	var fixed map[int64]domain.Quantity
-	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
-		fixed, err = loadGroceryLines(ctx, tx, c.ID)
-		return err
-	})
-	list.Lines = nil
-	for _, ing := range k.known { // in name order
-		if q, ok := fixed[ing.ID]; ok {
-			list.Lines = append(list.Lines, domain.GroceryLine{Ingredient: ing, Quantity: q})
-		}
-	}
-	return list, k.plan, err
+	return list, k.plan, nil
 }
 
 // findOrderable is the Cycle `id` while its Delivery can be marked ordered, or that

@@ -21,7 +21,9 @@ type Verdict struct {
 // each Stock Item, and `earlier` what approved Plans put in Slots before. The Portions it
 // may put in Slots are those `current.Replace` frees, and the Prep Sessions it keeps
 // count towards back to back. On a current Cycle, no Delivery brings what the kitchen
-// doesn't hold, and its Delivery is put away, splitting nothing more.
+// doesn't hold, and its Delivery is put away, splitting nothing more. On an upcoming
+// Cycle whose Delivery is ordered, it brings only what `stock` holds already, but its
+// freezer splits may still change.
 func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lots []PortionLot, stock map[StockKey]Quantity, earlier []Eaten, now time.Time) Verdict {
 	var slots []Slot
 	for _, s := range cycle.Slots(profile.SlotTimes) {
@@ -45,8 +47,11 @@ func Judge(plan Plan, cycle Cycle, from Slot, profile Profile, current Plan, lot
 	var v Verdict
 	v.Broken = append(HardRules(plan, slots, unslotted), RecipesUnfit(plan, profile.Appliances)...)
 	v.Broken = append(v.Broken, NoEveningToThaw(plan, frozen, stock, now, cycle.Delivery.Arrives())...)
-	if !cycle.Delivery.Arrives().After(now) {
+	arrived := !cycle.Delivery.Arrives().After(now)
+	if arrived || cycle.Delivery.State == Ordered {
 		v.Broken = append(v.Broken, NeedsMoreThanHeld(plan, stock)...)
+	}
+	if arrived {
 		v.Broken = append(v.Broken, SplitsAfterPutAway(plan)...)
 	}
 	v.Broken = append(v.Broken, StartsInThePast(from, profile.SlotTimes, now)...)

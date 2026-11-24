@@ -7,12 +7,32 @@ import (
 )
 
 // Forecast is the kitchen forecast at a Slot: what it will hold of each Stock Item, the
-// Portion Lots it will hold without a Slot, and the Portions a Plan will have Made by
-// then and left without one, which have no id until they are prepared.
+// Portion Lots it will hold without a Slot, the Portions a Plan will have Made by then
+// and left without one, which have no id until they are prepared, and what an ordered
+// Delivery is Arriving with by then, put away, which Stock holds already.
 type Forecast struct {
-	Stock map[StockKey]Quantity
-	Lots  []PortionLot
-	Made  []MadeForAfter
+	Stock    map[StockKey]Quantity
+	Lots     []PortionLot
+	Made     []MadeForAfter
+	Arriving []PutAwayLine
+}
+
+// WithOrdered is `f` once Delivery `d` has arrived, if it is ordered: `lines`, its fixed
+// Grocery List, put away by the Plan's freezer `splits` (PutAway). A tentative Delivery
+// adds nothing: what's missing is what its Grocery List buys.
+func (f Forecast) WithOrdered(d Delivery, lines []GroceryLine, splits []RecipeIngredient) Forecast {
+	if d.State != Ordered {
+		return f
+	}
+	stock := maps.Clone(f.Stock)
+	if stock == nil {
+		stock = map[StockKey]Quantity{}
+	}
+	f.Stock, f.Arriving = stock, PutAway(lines, splits)
+	for _, l := range f.Arriving {
+		stock[l.Key()] += l.Quantity
+	}
+	return f
 }
 
 // Forecast is the kitchen forecast at the Slot `at`, by `times`, of the kitchen holding

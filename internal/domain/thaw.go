@@ -52,8 +52,9 @@ func (p Plan) bySlot() []PrepSession {
 	return sessions
 }
 
-// RuleMoreThanHeld is a Prep Session of the current Cycle needing more of an Ingredient
-// than the kitchen will hold: no Delivery will bring the rest.
+// RuleMoreThanHeld is a Prep Session of the current Cycle, or of one whose Delivery is
+// ordered, needing more of an Ingredient than the kitchen will hold: no Delivery will
+// bring the rest.
 const RuleMoreThanHeld Rule = "more-than-held"
 
 // NeedsMoreThanHeld are the violations of `p`'s Prep Sessions, in the order of their
