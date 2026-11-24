@@ -303,11 +303,14 @@ func TestAReplanAfterTheDeliveryKeepsThePlansFreezerSplits(t *testing.T) {
 }
 
 // On the current Cycle check_plan reports a Prep Session needing more of an Ingredient
-// than the kitchen will hold: no Delivery brings the rest.
+// than the kitchen will hold: no Delivery brings the rest. The yogurt delivered is
+// counted eaten, which the Ledger doesn't assume yet.
 func TestCheckPlanReportsMoreThanTheKitchenHoldsOnTheCurrentCycle(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	planned(t, s)
 	s.At("Fri 14:00")
+	s.Counts("yogurt", "", "0", "eaten at breakfast")
+	s.Open("/plan")
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", snackChanged(t, req)) }),
 		fakellm.Reply("No yogurt."),

@@ -127,13 +127,14 @@ func TestTheGroceryListOfACycleWithoutAPlan(t *testing.T) {
 	s.IsAt("/plan/cycles/1")
 }
 
-// Only the upcoming Cycle of its own User has a Grocery List: another User's, and a
-// current Cycle's, lead to the Cycle page.
-func TestOnlyTheUsersUpcomingCycleHasAGroceryList(t *testing.T) {
+// Only the upcoming and current Cycles of its own User have a Grocery List: another
+// User's, and a closed Cycle's, lead to the Cycle page.
+func TestOnlyTheUsersOpenCyclesHaveAGroceryList(t *testing.T) {
 	s := sundayAfterFriday(t, 1.5)
+	s.At("Sat 20:00")
 	s.Open("/plan/cycles/1/grocery-list")
 	s.IsAt("/plan")
-	s.Sees("Cycle · Thu, Nov 5 – Fri, Nov 6")
+	s.Sees("Cycle · Sat, Nov 7 – Sun, Nov 8")
 
 	s.Invite("bob@example.com")
 	s.SwitchesTo("bob@example.com")

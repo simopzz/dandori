@@ -47,9 +47,8 @@ type cycleView struct {
 	Links    *cycleLinks
 }
 
-// listed reports whether the Cycle of `v` has a Grocery List: only an upcoming one with
-// a Plan does.
-func (v cycleView) listed() bool { return v.upcoming() && v.Planning.Plan != nil }
+// listed reports whether the Cycle of `v` has a Grocery List: one with a Plan does.
+func (v cycleView) listed() bool { return v.Cycle != nil && v.Planning.Plan != nil }
 
 // upcoming reports whether the Cycle of `v` is upcoming: its Delivery hasn't arrived.
 func (v cycleView) upcoming() bool { return v.Cycle != nil && v.Cycle.Delivery.State != domain.Arrived }
@@ -275,6 +274,8 @@ func refusalOf(err error) (msg web.Message, ok bool) {
 		return msgOrderedPending, true
 	case errors.Is(err, ErrBeingPlanned):
 		return msgOrderedGoing, true
+	case errors.Is(err, ErrArrived):
+		return msgOrderedArrived, true
 	}
 	return web.Message{}, false
 }

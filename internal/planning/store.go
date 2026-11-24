@@ -35,6 +35,7 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 		switch status {
 		case domain.Current:
 			current = &cycles[i]
+			current.Delivery.NeverOrdered = current.Delivery.State == domain.Tentative
 			current.Delivery.State = domain.Arrived
 		case domain.Upcoming:
 			upcoming = &cycles[i]
@@ -51,7 +52,8 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 // row-level security leaves only their rows.
 func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle, error) {
 	rows, err := q.Query(ctx, `
-		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on, ordered_at IS NOT NULL
+		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on, ordered_at IS NOT NULL,
+			put_away_at IS NOT NULL
 		FROM cycle ORDER BY delivery_on, window_to`)
 	if err != nil {
 		return nil, err
@@ -59,7 +61,7 @@ func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
 		var c Cycle
 		var ordered bool
-		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered)
+		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered, &c.putAway)
 		c.Delivery.On, c.Ends, c.Delivery.State = inZone(c.Delivery.On, zone), inZone(c.Ends, zone), domain.Tentative
 		if ordered {
 			c.Delivery.State = domain.Ordered
@@ -97,6 +99,26 @@ func markOrdered(ctx context.Context, q db.Querier, id int64, at time.Time, line
 	if err != nil || tag.RowsAffected() == 0 {
 		return err
 	}
+	return saveGroceryLines(ctx, q, id, lines)
+}
+
+// putAway records the Delivery of the signed-in User's Cycle `id` put away at `at`,
+// fixing its Grocery List as `lines` unless it was marked ordered, and is false, writing
+// nothing, if it was put away already.
+func putAway(ctx context.Context, q db.Querier, id int64, at time.Time, lines []domain.GroceryLine) (bool, error) {
+	var ordered bool
+	err := q.QueryRow(ctx, `UPDATE cycle SET put_away_at = $2 WHERE id = $1 AND put_away_at IS NULL RETURNING ordered_at IS NOT NULL`, id, at).Scan(&ordered)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return false, nil
+	case err != nil || ordered:
+		return err == nil, err
+	}
+	return true, saveGroceryLines(ctx, q, id, lines)
+}
+
+// saveGroceryLines fixes the Grocery List of the signed-in User's Cycle `id` as `lines`.
+func saveGroceryLines(ctx context.Context, q db.Querier, id int64, lines []domain.GroceryLine) error {
 	for _, l := range lines {
 		_, err := q.Exec(ctx, `INSERT INTO grocery_line (cycle_id, ingredient_id, quantity) VALUES ($1, $2, $3)`,
 			id, l.Ingredient.ID, l.Quantity.Number())

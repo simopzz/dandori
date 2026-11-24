@@ -31,12 +31,12 @@ func tentativeURL(id int64) templ.SafeURL {
 	return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/tentative", id))
 }
 
-// groceryPage is the Grocery List of the upcoming Cycle `c`, the Cycle's dates beside the
-// title, its Delivery, tentative or ordered, and a link back to the Cycle under it; why
-// marking it ordered was refused, if it was: 01 each line to buy, a checkbox kept only in
-// the page before its name and quantity, 02 the Staples to check the kitchen still
-// holds, then marking the Delivery ordered or, once it is, undoing that. While `c` has
-// no Plan, `list` nil, it says to plan it first.
+// groceryPage is the Grocery List of the upcoming or current Cycle `c`, the Cycle's dates
+// beside the title, its Delivery, tentative, ordered or delivered, and a link back to the
+// Cycle under it; why marking it ordered was refused, if it was: 01 each line to buy, a
+// checkbox kept only in the page before its name and quantity, 02 the Staples to check
+// the kitchen still holds, then, until the Delivery arrives, marking it ordered or, once
+// it is, undoing that. While `c` has no Plan, `list` nil, it says to plan it first.
 func groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal error) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -355,9 +355,11 @@ func groceryPage(now time.Time, c Cycle, list *domain.GroceryList, refusal error
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = orderForm(c).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
+				if c.Delivery.State != domain.Arrived {
+					templ_7745c5c3_Err = orderForm(c).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				}
 			}
 			return nil
@@ -405,7 +407,7 @@ func orderForm(c Cycle) templ.Component {
 			var templ_7745c5c3_Var19 templ.SafeURL
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(tentativeURL(c.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 89, Col: 93}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 91, Col: 93}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -430,7 +432,7 @@ func orderForm(c Cycle) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgUndoOrderedHint))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 91, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 93, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
@@ -469,7 +471,7 @@ func orderForm(c Cycle) templ.Component {
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgUndoOrdered))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 95, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 97, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -499,7 +501,7 @@ func orderForm(c Cycle) templ.Component {
 			var templ_7745c5c3_Var25 templ.SafeURL
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(orderedURL(c.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 100, Col: 91}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 102, Col: 91}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -524,7 +526,7 @@ func orderForm(c Cycle) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMarkOrderedHint))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 102, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 104, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -563,7 +565,7 @@ func orderForm(c Cycle) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMarkOrdered))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 106, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/planning/web_grocery.templ`, Line: 108, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {

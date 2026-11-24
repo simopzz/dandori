@@ -37,6 +37,9 @@ type Delivery struct {
 	From, To TimeOfDay
 	// State is never stored with the Delivery a planning Run names: it had arrived.
 	State DeliveryState `json:"-"`
+	// NeverOrdered is an arrived Delivery the User never marked ordered: its Grocery List
+	// was fixed at arrival.
+	NeverOrdered bool `json:"-"`
 }
 
 // DeliveryState is where a Delivery is: tentative until the User marks it ordered, which

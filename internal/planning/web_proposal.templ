@@ -77,7 +77,17 @@ templ dropSection(c Cycle, droppable bool) {
 // it is planned only partly.
 templ deliveryLine(c Cycle, ds []proposalDay) {
 	<p class="lede">
-		{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
+		if c.Delivery.State == domain.Arrived {
+			{ web.Tf(ctx, msgDeliveredOn, web.ShortDate(ctx, c.Delivery.On)) }
+		} else {
+			{ web.T(ctx, msgDelivery) + " " + web.Tf(ctx, msgWindow, web.ShortDate(ctx, c.Delivery.On), web.TimeOfDay(ctx, c.Delivery.From), web.TimeOfDay(ctx, c.Delivery.To)) }
+		}
+		if c.Delivery.NeverOrdered {
+			{ " " }
+			@web.Tag(false, "") {
+				{ web.T(ctx, msgNeverOrderedTag) }
+			}
+		}
 		if tag, ok := deliveryTags[c.Delivery.State]; ok {
 			{ " " }
 			@web.Tag(false, "") {
