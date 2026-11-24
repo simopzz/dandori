@@ -497,9 +497,9 @@ func (h Handlers) CountNew(w http.ResponseWriter, r *http.Request, id int64) {
 	web.Answer{Fragment: countBody(f)}.Write(w, r, h.Log)
 }
 
-// startCount is the Count form as `query` asks for it: its Ingredient ingredient chosen,
-// if the signed-in User has it and it is no Staple, in its Storage Location location or
-// else its usual one; or else the search for q.
+// startCount is the Count form as `query` asks for it: its Ingredient `ingredient`
+// chosen, if the signed-in User has it and it is no Staple, in its Storage Location
+// `location` or else its usual one; or else the search for `q`.
 func (h Handlers) startCount(ctx context.Context, now time.Time, query url.Values) (CountForm, error) {
 	f := CountForm{Query: strings.TrimSpace(query.Get("q")), Back: backOf(query)}
 	if id, err := strconv.ParseInt(query.Get("ingredient"), 10, 64); err == nil {
