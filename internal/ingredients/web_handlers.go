@@ -22,6 +22,7 @@ const (
 	refusedCloseName    httpx.Refusal = "Ingredient name close to another's"
 	refusedUnitFixed    httpx.Refusal = "Ingredient's unit fixed by its Movements"
 	refusedUnitInRecipe httpx.Refusal = "Ingredient's unit fixed by a Recipe"
+	refusedUnitInPlan   httpx.Refusal = "Ingredient's unit fixed by a Plan"
 	refusedHasMovements httpx.Refusal = "Ingredient has Movements"
 	refusedInRecipe     httpx.Refusal = "Ingredient in a Recipe"
 	refusedInPlan       httpx.Refusal = "Ingredient in a Plan or a Plan Proposal"
@@ -194,6 +195,12 @@ func (h Handlers) Edit(w http.ResponseWriter, r *http.Request) {
 	if inRecipe, ok := errors.AsType[*InRecipeError](err); ok {
 		view.Edit.Errs["unit"] = web.Tf(ctx, msgUnitInRecipe, recipesNamed(ctx, inRecipe))
 		httpx.Refused(r, refusedUnitInRecipe, nil)
+		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
+		return
+	}
+	if errors.Is(err, ErrInPlan) {
+		view.Edit.Errs["unit"] = web.T(ctx, msgUnitInPlan)
+		httpx.Refused(r, refusedUnitInPlan, nil)
 		h.answerWrite(w, r, web.Answer{Status: http.StatusUnprocessableEntity}, view)
 		return
 	}
