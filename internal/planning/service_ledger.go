@@ -224,7 +224,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 	return nil
 }
 
-// plansBetween is the Plans of `cycles`, read in `tx`, that may have a Slot after `from`
+// plansBetween is the Plans of `cycles`, read in `q`, that may have a Slot after `from`
 // and by `to`, by `times`, together: each Cycle's as its approved Plan Proposals leave
 // it, Until the next Cycle's Delivery arrives, its Recipes and Ingredients found among
 // `library` and `known`. Days between Cycles are in none.

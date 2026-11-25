@@ -331,9 +331,9 @@ func (s *Service) writeLot(ctx context.Context, now time.Time, key domain.LotKey
 
 // CountPortions records at `now` the Count of the Portion Lot `key` names, stating what
 // the User typed is there, as domain.ParsePortionCount reads it, once the kitchen is
-// held. Counting up saves the Portions it adds; counting down keeps those filling a Slot
-// of a Plan the longest. A Count of nothing where nothing is held,
-// as from a form another write has overtaken, lists no Portion, so records nothing.
+// held. Counting up saves the Portions it adds; counting down takes those without a Slot
+// first, then the one with the latest Slot. A Count of nothing where nothing is held, as
+// from a form another write has overtaken, lists no Portion, so records nothing.
 func (s *Service) CountPortions(ctx context.Context, now time.Time, key domain.LotKey, stated, note string) (*RecordedPortions, error) {
 	return s.writeLot(ctx, now, key, func(tx pgx.Tx, l domain.Ledger, _ []domain.Portion, rec *RecordedPortions) (err error) {
 		q, problems := domain.ParsePortionCount(key.Location, stated)

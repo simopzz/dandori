@@ -509,9 +509,9 @@ func UsesIngredient(ctx context.Context, q db.Querier, id int64) (used bool, err
 	return used, err
 }
 
-// PortionSlots is the time of the Slot each Portion the signed-in User's kitchen may
-// hold fills, by its id, in the approved Plans of their Cycles with a Slot after `now`:
-// the earliest, for one filling more than one (domain.Plan.Filled). The kitchen feature,
+// PortionSlots is the time of the Slot after `now` each Portion the signed-in User's
+// kitchen may hold fills, by its id, in the approved Plans of their Cycles: the earliest,
+// for one filling more than one (domain.Plan.Filled). The kitchen feature,
 // which this one depends on, reads it, and app wires it.
 func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]time.Time, error) {
 	cycles, err := loadCycles(ctx, q, now.Location())
@@ -532,7 +532,9 @@ func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]t
 	}
 	slots := map[int64]time.Time{}
 	for id, s := range plan.Filled(madeFrom) {
-		slots[id] = s.At(times)
+		if at := s.At(times); at.After(now) {
+			slots[id] = at
+		}
 	}
 	return slots, nil
 }
