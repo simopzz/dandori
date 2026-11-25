@@ -193,6 +193,7 @@ func (e *Engine) execute(ctx context.Context, tr *trace, b agent.Brief) {
 		status = Cancelled
 	}
 	tr.Emit(agent.TraceEvent{Kind: agent.Ended, Status: string(status)})
+	e.log.InfoContext(ctx, "a Run ended", "run", tr.runID, "status", status) // what a driver of the dev server waits for
 	span := oteltrace.SpanFromContext(ctx)
 	span.SetAttributes(telemetry.RunStatus.String(string(status)))
 	if status == Failed {
