@@ -57,11 +57,35 @@ func lock(ctx context.Context, q db.Querier) error {
 // one moment in the order they were written. It has no WHERE on purpose: run in
 // db.AsUser, row-level security leaves only their rows.
 func LoadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error) {
+	return loadMovements(ctx, q, `TRUE`)
+}
+
+// LoadIngredientLedger is the Ledger of the signed-in User's Movements of the Ingredient
+// `id`, with the time of their latest Movement of any Ingredient, for a reader or a write
+// that needs only `id`. Its max has no WHERE on purpose, as LoadMovements.
+func LoadIngredientLedger(ctx context.Context, q db.Querier, id int64) (domain.Ledger, error) {
+	movements, err := loadMovements(ctx, q, `ingredient_id = $1`, id)
+	if err != nil {
+		return domain.Ledger{}, err
+	}
+	var latest *time.Time
+	if err := q.QueryRow(ctx, `SELECT max(happened_at) FROM movement`).Scan(&latest); err != nil {
+		return domain.Ledger{}, err
+	}
+	if latest == nil {
+		return domain.IngredientLedger(movements, time.Time{}), nil
+	}
+	return domain.IngredientLedger(movements, *latest), nil
+}
+
+// loadMovements is the signed-in User's Movements that `where` keeps, with `args`, in the
+// order LoadMovements gives them.
+func loadMovements(ctx context.Context, q db.Querier, where string, args ...any) ([]domain.Movement, error) {
 	rows, err := q.Query(ctx, `
 		SELECT happened_at, coalesce(ingredient_id, 0), storage_location, coalesce(moved_to, ''), change,
 			cause_kind, coalesce(believed, 0), coalesce(stated, 0), coalesce(note, ''),
 			ARRAY(SELECT portion_id FROM movement_portion WHERE movement_id = movement.id ORDER BY portion_id)
-		FROM movement ORDER BY happened_at, id`)
+		FROM movement WHERE `+where+` ORDER BY happened_at, id`, args...)
 	if err != nil {
 		return nil, err
 	}

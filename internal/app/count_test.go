@@ -830,6 +830,18 @@ func TestACountHappensAfterTheMovementItWaitedBehind(t *testing.T) {
 		"Counted 0 g → 100 g Mon, Nov 2 · 10:00 am")
 }
 
+// A Count reads only its Ingredient's Movements, but still happens after a later Movement
+// of another Ingredient it waited behind.
+func TestACountHappensAfterAnotherIngredientsMovementItWaitedBehind(t *testing.T) {
+	salmon := apptest.Ingredient{Name: "salmon", Unit: "g", Usual: "fridge", Kcal: "208", Protein: "20", Carbs: "0", Fat: "13"}
+	s := kitchenWith(t, rice, salmon)
+	s.At("Mon 10:00")
+	s.Counts("salmon", "", "300", "")
+	s.CountsAgainASecondAhead()
+	s.Counts("rice", "", "100", "")
+	recordedAtTheLatest(t, s, 2)
+}
+
 // recordedAtTheLatest checks the last `want` Movements share the ledger's latest time,
 // which no page shows to the second.
 func recordedAtTheLatest(t *testing.T, s *apptest.Scenario, want int) {

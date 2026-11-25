@@ -31,17 +31,33 @@ func New(pool *pgxpool.Pool) *Service {
 
 // Write holds the signed-in User's kitchen until `q`'s transaction ends, hands `write`
 // the Kitchen Ledger as it then stands, and saves the Movements `write` makes of it,
-// unless it fails. Every write of Movements goes through it, so none is checked against a
-// Ledger another write has since changed.
+// unless it fails. Every write of Movements goes through it or WriteIngredient, so none
+// is checked against a Ledger another write has since changed.
 func Write(ctx context.Context, q db.Querier, write func(domain.Ledger) ([]domain.Movement, error)) error {
+	return writeWith(ctx, q, func() (domain.Ledger, error) {
+		movements, err := LoadMovements(ctx, q)
+		return domain.NewLedger(movements), err
+	}, write)
+}
+
+// WriteIngredient is Write for `write`s that read and write only the Ingredient `id`'s
+// Stock Items: it hands `write` the Ledger of that Ingredient's Movements alone, with the
+// latest Movement's time, and holds the kitchen the same way.
+func WriteIngredient(ctx context.Context, q db.Querier, id int64, write func(domain.Ledger) ([]domain.Movement, error)) error {
+	return writeWith(ctx, q, func() (domain.Ledger, error) { return LoadIngredientLedger(ctx, q, id) }, write)
+}
+
+// writeWith holds the kitchen, hands `write` the Ledger `load` reads, and saves what
+// `write` makes of it.
+func writeWith(ctx context.Context, q db.Querier, load func() (domain.Ledger, error), write func(domain.Ledger) ([]domain.Movement, error)) error {
 	if err := lock(ctx, q); err != nil {
 		return err
 	}
-	movements, err := LoadMovements(ctx, q)
+	l, err := load()
 	if err != nil {
 		return err
 	}
-	written, err := write(domain.NewLedger(movements))
+	written, err := write(l)
 	if err != nil {
 		return err
 	}
@@ -59,7 +75,7 @@ func Write(ctx context.Context, q db.Querier, write func(domain.Ledger) ([]domai
 // held. It holds the kitchen, as a Count does, so no Count or move of it slips in before
 // `q`'s transaction ends.
 func CountToNothing(ctx context.Context, q db.Querier, now time.Time, id int64) (counted []domain.Movement, err error) {
-	err = Write(ctx, q, func(l domain.Ledger) ([]domain.Movement, error) {
+	err = WriteIngredient(ctx, q, id, func(l domain.Ledger) ([]domain.Movement, error) {
 		counted = l.CountToNothing(now, id)
 		return counted, nil
 	})

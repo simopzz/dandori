@@ -182,11 +182,28 @@ func (m Movement) after(key StockKey, held Quantity) (_ Quantity, touches bool) 
 
 // Ledger is the Kitchen Ledger: its Movements in the order they happened, those of one
 // moment in the order they were recorded. It adds them up one way, so what the kitchen
-// holds at a moment and a Stock Item's Movements agree.
-type Ledger struct{ movements []Movement }
+// holds at a moment and a Stock Item's Movements agree. It knows the latest Movement's
+// time, which a Ledger of one Ingredient's Movements may not hold.
+type Ledger struct {
+	movements []Movement
+	latest    time.Time
+}
 
 // NewLedger is the Ledger of `movements`, in the order they happened.
-func NewLedger(movements []Movement) Ledger { return Ledger{movements: movements} }
+func NewLedger(movements []Movement) Ledger {
+	l := Ledger{movements: movements}
+	if n := len(movements); n > 0 {
+		l.latest = movements[n-1].At
+	}
+	return l
+}
+
+// IngredientLedger is the Ledger of one Ingredient's `movements`, in the order they
+// happened, where the latest Movement of any happened at `latest`. It adds up and writes
+// only that Ingredient's Stock Items, and writes after `latest` as a whole Ledger would.
+func IngredientLedger(movements []Movement, latest time.Time) Ledger {
+	return Ledger{movements: movements, latest: latest}
+}
 
 // At is what the kitchen holds at a moment, by Stock Item. One Movement at that very
 // moment counts.
@@ -278,11 +295,11 @@ func (l Ledger) Movements(key StockKey) []StockMovement {
 
 // WriteAt is when a Movement written at `now`, with the kitchen held, happens: `now`, or
 // the last Movement's time if that is later, as when one that overlapped it took hold of
-// the kitchen first with a clock ahead. So it is checked against all the Ledger holds,
-// and comes after it.
+// the kitchen first with a clock ahead. So it is checked against the whole Kitchen
+// Ledger, and comes after it.
 func (l Ledger) WriteAt(now time.Time) time.Time {
-	if n := len(l.movements); n > 0 && l.movements[n-1].At.After(now) {
-		return l.movements[n-1].At
+	if l.latest.After(now) {
+		return l.latest
 	}
 	return now
 }
