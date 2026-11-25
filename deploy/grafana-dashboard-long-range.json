@@ -1,0 +1,522 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Dandori production & dev overview backed by Prometheus span-metrics, Synthetic Monitoring, and Loki (supports 14d+ windows on Grafana Cloud Free tier).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Availability & Synthetic Monitoring (prod)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Overall uptime percentage from Frankfurt and Paris probes over the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99 },
+              { "color": "green", "value": 99.9 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "avg(probe_success{job=\"dandori-healthz\"}) * 100",
+          "legendFormat": "Uptime",
+          "refId": "A"
+        }
+      ],
+      "title": "Healthz uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Days remaining until the TLS certificate on dandori.simopzz.com expires.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 14 },
+              { "color": "green", "value": 30 }
+            ]
+          },
+          "unit": "d"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "(min(probe_ssl_earliest_cert_expiry{job=\"dandori-healthz\"}) - time()) / 86400",
+          "legendFormat": "Cert expiry",
+          "refId": "A"
+        }
+      ],
+      "title": "TLS cert expiry",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Synthetic Monitoring probe latency to https://dandori.simopzz.com/healthz by probe location.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 1 },
+      "id": 3,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "probe_duration_seconds{job=\"dandori-healthz\"}",
+          "legendFormat": "{{probe}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Healthz probe latency",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "HTTP Traffic & Latency",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Server spans per interval by route (derived from Tempo spanmetrics; /healthz, /static/*, /sw.js, and manifest are untraced).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 4,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum by (span_name) (increase(traces_spanmetrics_calls_total{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests per route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "p95 server latency per route from Tempo spanmetrics native histograms.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 5,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "histogram_quantile(0.95, sum by (span_name) (rate(traces_spanmetrics_latency{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+          "legendFormat": "{{span_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "p95 latency per route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Server spans with error status (5xx) per route.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "id": 6,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum by (span_name) (increase(traces_spanmetrics_calls_total{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "5xx errors per route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Total server requests by route over the selected window.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "id": 7,
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Value" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum by (span_name) (increase(traces_spanmetrics_calls_total{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_SERVER\"}[$__range])) > 0",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Top routes (total requests in range)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "Requests", "span_name": "Route" }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "id": 102,
+      "title": "Dependencies: Postgres, Supabase Auth & Anthropic",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Postgres query rate by SQL operation (otelpgx).",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 22 },
+      "id": 8,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|SET\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Postgres operations/s",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "p95 latency of Postgres operations.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 22 },
+      "id": 9,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "histogram_quantile(0.95, sum by (span_name) (rate(traces_spanmetrics_latency{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|SET\"}[$__rate_interval])))",
+          "legendFormat": "{{span_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Postgres p95 latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Supabase Auth client calls and errors (4xx/5xx/network).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*STATUS_CODE_ERROR.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 29 },
+      "id": 10,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum by (span_name, status_code) (increase(traces_spanmetrics_calls_total{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"supabase .*\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}} ({{status_code}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Supabase Auth calls & failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "description": "Anthropic model calls and p95 latency.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "A" },
+            "properties": [
+              { "id": "custom.drawStyle", "value": "bars" },
+              { "id": "unit", "value": "short" },
+              { "id": "custom.axisPlacement", "value": "right" }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 29 },
+      "id": 11,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum by (span_name, status_code) (increase(traces_spanmetrics_calls_total{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"chat .*\"}[$__rate_interval]))",
+          "legendFormat": "calls: {{span_name}} ({{status_code}})",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "histogram_quantile(0.95, sum by (span_name) (rate(traces_spanmetrics_latency{service=\"dandori\", deployment_environment_name=\"$env\", span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"chat .*\"}[$__rate_interval])))",
+          "legendFormat": "p95: {{span_name}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Anthropic model calls & p95 latency",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
+      "id": 103,
+      "title": "Logs, Beat & Browser Telemetry (Loki, up to 14d retention)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "description": "Server log volume by detected_level and kitchen beat error count.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "kitchen beat errors" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 37 },
+      "id": 12,
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (detected_level) (count_over_time({service_name=\"dandori\", deployment_environment_name=\"$env\"}[$__auto]))",
+          "legendFormat": "{{detected_level}}",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum(count_over_time({service_name=\"dandori\", deployment_environment_name=\"$env\"} | detected_level=\"error\" |= \"kitchen beat\" [$__auto]))",
+          "legendFormat": "kitchen beat errors",
+          "queryType": "range",
+          "refId": "B"
+        }
+      ],
+      "title": "Server logs & beat errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "description": "Browser telemetry from Faro (prod only, app_id=8291): events, measurements, and JS exceptions.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "exception" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 37 },
+      "id": 13,
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (kind) (count_over_time({service_name=\"dandori\", app_id=\"8291\"}[$__auto]))",
+          "legendFormat": "{{kind}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Browser telemetry (Faro)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "description": "Server error log lines. Open a line's trace_id in Tempo to inspect the full request/run spans.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "id": 14,
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "{service_name=\"dandori\", deployment_environment_name=\"$env\"} | detected_level=\"error\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Server error lines",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "description": "Uncaught browser JavaScript exceptions and unhandled promise rejections reported by Faro.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "id": 15,
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "{service_name=\"dandori\", app_id=\"8291\", kind=\"exception\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Browser JS exceptions",
+      "type": "logs"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": ["dandori"],
+  "templating": {
+    "list": [
+      {
+        "current": { "text": "prod", "value": "prod" },
+        "label": "Environment",
+        "name": "env",
+        "options": [
+          { "selected": true, "text": "prod", "value": "prod" },
+          { "selected": false, "text": "dev", "value": "dev" }
+        ],
+        "query": "prod,dev",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": { "from": "now-14d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Dandori (Long Range)",
+  "uid": "dandori-long-range",
+  "version": 1,
+  "weekStart": ""
+}
