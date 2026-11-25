@@ -1,14 +1,12 @@
 // Package ledger is the Kitchen Ledger (ADR-0013, ADR-0019): the Movements of each User's
-// kitchen, the kitchen lock every write of them takes, and the step that brings a kitchen
-// up to now, run first on every request and by the scheduler's beat. That step will write
-// the assumed Movements whose time has passed; until a Plan gives it any, it only records
-// how far it has reached. It sits below every feature that writes Movements, so it
-// imports none of them.
+// kitchen, the kitchen lock every write of them takes, and the `kitchen` row with how far
+// the kitchen is brought up to now and the beat, which `planning`'s step writes
+// (ADR-0021). It sits below every feature that writes Movements, so it imports none
+// of them.
 package ledger
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -21,15 +19,14 @@ import (
 // BeatEvery is how often the scheduler beats, on the clock.
 const BeatEvery = 5 * time.Minute
 
-// Service brings kitchens up to now, on every request and the scheduler's beat.
+// Service tells when the scheduler last beat.
 type Service struct {
 	pool *pgxpool.Pool
-	log  *slog.Logger
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool, log *slog.Logger) *Service {
-	return &Service{pool: pool, log: log}
+func New(pool *pgxpool.Pool) *Service {
+	return &Service{pool: pool}
 }
 
 // Write holds the signed-in User's kitchen until `q`'s transaction ends, hands `write`
@@ -80,31 +77,18 @@ func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 	return savePortions(ctx, q, p)
 }
 
-// BringUpToNow brings the signed-in User's kitchen up to `now`. Run again for a moment it
-// has reached, it changes nothing.
-func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
-	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveUpTo(ctx, tx, now) })
-}
-
-// Beat brings every User's kitchen up to `at`, the scheduler's beat, and records the beat
-// for each. One User's failure is logged and doesn't stop the others.
-func (s *Service) Beat(ctx context.Context, at time.Time) {
-	users, err := db.UserIDs(ctx, s.pool)
-	if err != nil {
-		s.log.ErrorContext(ctx, "kitchen beat: list the Users", "err", err)
-		return
+// SaveUpTo records, in `q`'s transaction, the signed-in User's kitchen as brought up to
+// `now`, and the scheduler's beat at `now` too when `beat`, for `planning`'s step
+// (ADR-0021). It makes their `kitchen` row and holds it, as Write does, until `q`'s
+// transaction ends. Neither moves back, and a moment reached is not written again.
+func SaveUpTo(ctx context.Context, q db.Querier, now time.Time, beat bool) error {
+	if err := saveUpTo(ctx, q, now); err != nil {
+		return err
 	}
-	for _, id := range users {
-		err := db.AsUser(db.WithUser(ctx, id), s.pool, func(tx pgx.Tx) error {
-			if err := saveUpTo(ctx, tx, at); err != nil {
-				return err
-			}
-			return saveBeat(ctx, tx, at)
-		})
-		if err != nil {
-			s.log.ErrorContext(ctx, "kitchen beat", "user", id, "err", err)
-		}
+	if err := lock(ctx, q); err != nil || !beat {
+		return err
 	}
+	return saveBeat(ctx, q, now)
 }
 
 // LastBeat is when the scheduler last brought the signed-in User's kitchen up to now;

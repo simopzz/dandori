@@ -113,7 +113,8 @@ func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) erro
 // ErrNoCycle when `id` isn't upcoming, and ErrArrived once its Delivery has arrived.
 func (s *Service) UndoOrdered(ctx context.Context, id int64, now time.Time) error {
 	return db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		// Arrive's lock: a Delivery being put away keeps the list it is put away with.
+		// BringUpToNow's lock: a Delivery being put away keeps the list it is put
+		// away with.
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}

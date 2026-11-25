@@ -102,30 +102,34 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop
 	return s.runs.CancelIn(ctx, tx, runID, doc)
 }
 
-// Arrive takes every Delivery of the signed-in User's whose window has ended by `now` as
-// arrived: a Cycle it closes has its pending Plan Proposal rejected and its planning Run
-// cancelled, naming the Delivery, and each Delivery is put away, its Grocery List, fixed
-// then if it wasn't ordered, becoming Stock Items where the Plan's freezer splits say
-// (domain.PutAway). A Cycle with no Plan brings nothing. Run again for a moment it has
-// reached, it changes nothing. Every request runs it, after bringing the kitchen up to
-// `now`, as the beat does.
-func (s *Service) Arrive(ctx context.Context, now time.Time) error {
+// BringUpToNow is the step that brings the signed-in User's kitchen up to `now`
+// (ADR-0021): it records how far the kitchen has reached and takes every Delivery whose
+// window has ended by `now` as arrived, in one transaction, under the planning lock and
+// then the kitchen lock. A Cycle a Delivery closes has its pending Plan Proposal rejected
+// and its planning Run cancelled, naming the Delivery, and each Delivery is put away, its
+// Grocery List, fixed then if it wasn't ordered, becoming Stock Items where the Plan's
+// freezer splits say (domain.PutAway). A Cycle with no Plan brings nothing. Run again for
+// a moment it has reached, it changes nothing. Every request runs it, as the beat does.
+func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
+	return s.upToNow(ctx, now, false)
+}
+
+// upToNow is BringUpToNow, which records the scheduler's beat at `now` too when `beat`.
+func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 	due, err := s.dueAt(ctx, now)
 	if err != nil {
 		return err
 	}
 	var stops []func(context.Context)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		busy, err := busyCycles(ctx, tx)
-		if err != nil || (len(busy) == 0 && len(due) == 0) {
-			return err
-		}
-		// turn's lock, then busy read again: a planning Run that started meanwhile
-		// is seen.
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}
-		if busy, err = busyCycles(ctx, tx); err != nil {
+		if err := ledger.SaveUpTo(ctx, tx, now, beat); err != nil {
+			return err
+		}
+		busy, err := busyCycles(ctx, tx)
+		if err != nil || (len(busy) == 0 && len(due) == 0) {
 			return err
 		}
 		cycles, err := loadCycles(ctx, tx, now.Location())
@@ -248,17 +252,17 @@ func (s *Service) dueAt(ctx context.Context, now time.Time) (map[int64]arrival, 
 	return due, nil
 }
 
-// Beat takes the Deliveries arrived by `at` as arrived for every User, the scheduler's
-// beat. One User's failure is logged and doesn't stop the others.
+// Beat brings every User's kitchen up to `at`, the scheduler's beat, and records the beat
+// for each. One User's failure is logged and doesn't stop the others.
 func (s *Service) Beat(ctx context.Context, at time.Time, log *slog.Logger) {
 	users, err := db.UserIDs(ctx, s.pool)
 	if err != nil {
-		log.ErrorContext(ctx, "arrival beat: list the Users", "err", err)
+		log.ErrorContext(ctx, "kitchen beat: list the Users", "err", err)
 		return
 	}
 	for _, id := range users {
-		if err := s.Arrive(db.WithUser(ctx, id), at); err != nil {
-			log.ErrorContext(ctx, "arrival beat", "user", id, "err", err)
+		if err := s.upToNow(db.WithUser(ctx, id), at, true); err != nil {
+			log.ErrorContext(ctx, "kitchen beat", "user", id, "err", err)
 		}
 	}
 }

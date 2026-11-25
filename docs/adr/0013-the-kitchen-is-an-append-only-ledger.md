@@ -10,5 +10,5 @@ What the kitchen holds is never stored as such. Every change is an append-only M
 
 ## Consequences
 
-- One step, "bring the kitchen up to now", writes the assumed Movements whose time has passed. It is idempotent: the scheduler runs it every few minutes and every read runs it first, so a page is never wrong because a job ran late, and the scenario harness drives time through it.
+- One step, "bring the kitchen up to now", writes the assumed Movements whose time has passed. It is idempotent: the scheduler runs it every few minutes and every read runs it first, so a page is never wrong because a job ran late, and the scenario harness drives time through it. ADR-0021 amends it: the step lives in `planning` and also takes Deliveries as arrived.
 - No snapshots: at one User's volume (some 7k Movements a year) adding up from the start costs milliseconds. If it ever doesn't, each Cycle's closing balance is a natural checkpoint to start from, added without touching a Movement.
