@@ -74,7 +74,9 @@ func (d *Dev) Handler(next http.Handler) http.Handler {
 }
 
 // ClockSwitch sets the clock to the time posted as now, for a driver that
-// can't reach the app's clock, such as a browser's.
+// can't reach the app's clock, such as a browser's. Posted with beat=false,
+// it moves the clock without beating, so the next request is the first to
+// bring the kitchen up to now.
 func ClockSwitch(c *clock.Manual) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		now, err := Parse(r.FormValue("now"), c.Now().Location())
@@ -82,7 +84,11 @@ func ClockSwitch(c *clock.Manual) http.HandlerFunc {
 			http.Error(w, "now: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		c.Set(now)
+		if r.FormValue("beat") == "false" {
+			c.Move(now)
+		} else {
+			c.Set(now)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

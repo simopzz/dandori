@@ -18,7 +18,7 @@ DANDORI_DEV_NOW=2026-11-25T08:00 DANDORI_DEV_USERS=ada@example.com mise run dev
 
 | Route | What it does |
 |---|---|
-| `POST /_test/clock` | Moves the clock: `now=<RFC 3339>`. Answers 204 when the beat is done. |
+| `POST /_test/clock` | Moves the clock: `now=<RFC 3339>`. Answers 204 when the beat is done; with `beat=false`, moves it without beating. |
 | `GET /_test/mail?email=<email>` | The fake mailbox: a JSON array of the links sent to that email, oldest first. The last one is the newest. |
 | `/_test/supabase/auth/v1/...` | The fake Supabase Auth the app itself signs Users in through. |
 
@@ -42,6 +42,7 @@ curl -X POST --data-urlencode "now=2026-12-01T10:00:00+01:00" http://127.0.0.1:8
 
 - **Encode the form value**: a `+` in the offset becomes a space in a form body and the switch answers 400. Use `Z` (`2026-12-01T09:00:00Z`) or `--data-urlencode`.
 - **The clock stands still between jumps**, and each jump past a multiple of five minutes fires the scheduler's beat once, with the latest. The POST answers when the beat is done, so a jump that crosses a Delivery's arrival has already written its Movements.
+- **`beat=false` leaves the step to the next request**: the clock moves and the beat it passed is skipped, so opening a page is what brings the kitchen up to now, as when the scheduler is late. The next beat is at the next multiple.
 - **The app's ledger never moves back**: `kitchen.up_to` only moves forward, so a jump backwards leaves the kitchen ahead of the clock. Jump forward.
 - **The app's days and Slots follow the clock**: Today shows the day, the Slot now or next, the later ones a click away, and "Kitchen up to date as of <time>".
 
