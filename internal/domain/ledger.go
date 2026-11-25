@@ -182,8 +182,8 @@ func (m Movement) after(key StockKey, held Quantity) (_ Quantity, touches bool) 
 
 // Ledger is the Kitchen Ledger: its Movements in the order they happened, those of one
 // moment in the order they were recorded. It adds them up one way, so what the kitchen
-// holds at a moment and a Stock Item's Movements agree. `latest` is the latest
-// Movement's time, which a Ledger of one Ingredient's Movements may not hold.
+// holds at a moment and a Stock Item's Movements agree. It knows the latest Movement's
+// time, which a Ledger of one Ingredient's Movements may not hold.
 type Ledger struct {
 	movements []Movement
 	latest    time.Time
@@ -295,8 +295,8 @@ func (l Ledger) Movements(key StockKey) []StockMovement {
 
 // WriteAt is when a Movement written at `now`, with the kitchen held, happens: `now`, or
 // the last Movement's time if that is later, as when one that overlapped it took hold of
-// the kitchen first with a clock ahead. So it is checked against all the Ledger holds,
-// and comes after it.
+// the kitchen first with a clock ahead. So it is checked against the whole Kitchen
+// Ledger, and comes after it.
 func (l Ledger) WriteAt(now time.Time) time.Time {
 	if l.latest.After(now) {
 		return l.latest

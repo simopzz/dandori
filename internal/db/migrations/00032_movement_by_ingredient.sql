@@ -1,5 +1,5 @@
 -- +goose Up
--- A Count, a move and a Stock Item page read one Ingredient's Movements (#340).
+-- A Count, a move and a Stock Item page read one Ingredient's Movements.
 CREATE INDEX ON movement (user_id, ingredient_id, happened_at, id);
 
 -- +goose Down

@@ -61,15 +61,19 @@ func LoadMovements(ctx context.Context, q db.Querier) ([]domain.Movement, error)
 }
 
 // LoadIngredientLedger is the Ledger of the signed-in User's Movements of the Ingredient
-// `id`, with the latest Movement's time, for a reader or a write that needs only it.
+// `id`, with the time of their latest Movement of any Ingredient, for a reader or a write
+// that needs only `id`. Its max has no WHERE on purpose, as LoadMovements.
 func LoadIngredientLedger(ctx context.Context, q db.Querier, id int64) (domain.Ledger, error) {
 	movements, err := loadMovements(ctx, q, `ingredient_id = $1`, id)
 	if err != nil {
 		return domain.Ledger{}, err
 	}
 	var latest *time.Time
-	if err := q.QueryRow(ctx, `SELECT max(happened_at) FROM movement`).Scan(&latest); err != nil || latest == nil {
-		return domain.IngredientLedger(movements, time.Time{}), err
+	if err := q.QueryRow(ctx, `SELECT max(happened_at) FROM movement`).Scan(&latest); err != nil {
+		return domain.Ledger{}, err
+	}
+	if latest == nil {
+		return domain.IngredientLedger(movements, time.Time{}), nil
 	}
 	return domain.IngredientLedger(movements, *latest), nil
 }

@@ -31,8 +31,8 @@ func New(pool *pgxpool.Pool) *Service {
 
 // Write holds the signed-in User's kitchen until `q`'s transaction ends, hands `write`
 // the Kitchen Ledger as it then stands, and saves the Movements `write` makes of it,
-// unless it fails. Every write of Movements goes through it, so none is checked against a
-// Ledger another write has since changed.
+// unless it fails. Every write of Movements goes through it or WriteIngredient, so none
+// is checked against a Ledger another write has since changed.
 func Write(ctx context.Context, q db.Querier, write func(domain.Ledger) ([]domain.Movement, error)) error {
 	return writeWith(ctx, q, func() (domain.Ledger, error) {
 		movements, err := LoadMovements(ctx, q)
