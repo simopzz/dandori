@@ -70,6 +70,13 @@ const (
 	Added Cause = "added"
 	// Delivered is the Cause of what a Delivery put away adds to a Stock Item.
 	Delivered Cause = "delivered"
+	// UsedUp is the Cause of what a Prep Session takes from a Stock Item.
+	UsedUp Cause = "used_up"
+	// Prepared is the Cause of the Portions a Prep Session prepares in one
+	// Storage Location.
+	Prepared Cause = "prepared"
+	// PortionEaten is the Cause of the Portion filling a Slot leaving the kitchen.
+	PortionEaten Cause = "eaten"
 )
 
 // Sets says whether a Movement of cause `c` sets what its Stock Item holds to what was
@@ -106,6 +113,10 @@ type Movement struct {
 	Believed, Stated Quantity
 	// Note is the User's, if any.
 	Note string
+	// PrepSession is the Prep Session an assumed Movement comes from, 0 for none, and
+	// Slot the Slot it is assumed at, zero for none: its time may be later (WriteAt).
+	PrepSession int64
+	Slot        Slot
 }
 
 // StockMovement is a Movement of one Stock Item with what it held before and after.
@@ -244,13 +255,14 @@ func (l Ledger) PortionsAt(at time.Time) map[int64]StorageLocation {
 }
 
 // placePortions updates `where` with what `m` does to the Portions it lists: a move takes
-// them to To, a Count down removes them, and anything else puts them in Key's place.
+// them to To, a Count down or eating removes them, and anything else puts them in
+// Key's place.
 func (m Movement) placePortions(where map[int64]StorageLocation) {
 	for _, id := range m.Portions {
 		switch {
 		case m.Cause == Moved:
 			where[id] = m.To
-		case m.Cause == Counted && m.Change < 0:
+		case m.Change < 0:
 			delete(where, id)
 		default:
 			where[id] = m.Key.Location

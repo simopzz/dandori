@@ -86,15 +86,38 @@ func NeedsMoreThanHeld(p Plan, stock map[StockKey]Quantity) []Violation {
 // needs from the freezer, and is how much of that it thaws.
 func useUp(stock map[StockKey]Quantity, ri RecipeIngredient) (thawed Quantity) {
 	need := ri.Quantity
+	for _, took := range usesFrom(stock, ri) {
+		need -= took.Quantity
+	}
+	return take(stock, StockKey{Ingredient: ri.Ingredient.ID, Location: Freezer}, need)
+}
+
+// took is how much of a Stock Item a Prep Session took.
+type took struct {
+	Key      StockKey
+	Quantity Quantity
+}
+
+// usesFrom takes `ri` from `stock` as a Prep Session uses it up without thawing: the
+// `stock` outside the freezer, and the frozen `stock` of an Ingredient usually kept
+// there, as far as it goes. It is what it took of each Stock Item, in Storage
+// Location order.
+func usesFrom(stock map[StockKey]Quantity, ri RecipeIngredient) []took {
+	need := ri.Quantity
+	var taken []took
 	// shortcut: a Stock Item is one per Storage Location, so "oldest first" is the order
 	// of StorageLocations; it changes nothing `thawed`.
 	for _, loc := range StorageLocations {
 		if loc == Freezer && ri.Ingredient.Usual != Freezer {
 			continue
 		}
-		need -= take(stock, StockKey{Ingredient: ri.Ingredient.ID, Location: loc}, need)
+		key := StockKey{Ingredient: ri.Ingredient.ID, Location: loc}
+		if q := take(stock, key, need); q > 0 {
+			need -= q
+			taken = append(taken, took{key, q})
+		}
 	}
-	return take(stock, StockKey{Ingredient: ri.Ingredient.ID, Location: Freezer}, need)
+	return taken
 }
 
 // take takes up to `need` from what `stock` holds at `key`, and is how much it took.
