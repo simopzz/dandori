@@ -1,5 +1,5 @@
-// Package app wires Dandori together: the database and the HTTP handlers.
-// Tests start it in-process through internal/apptest.
+// Package app wires Dandori together: the database and the HTTP handlers. Tests start it
+// in-process through internal/apptest.
 package app
 
 import (
@@ -40,8 +40,8 @@ import (
 // Config is what the app needs from its environment.
 type Config struct {
 	DatabaseURL string
-	// Clock is the only time the app reads: the real one in production,
-	// one a test sets and steps in apptest.
+	// Clock is the only time the app reads: the real one in production, one a test sets
+	// and steps in apptest.
 	Clock clock.Clock
 	// Auth is the Supabase Auth Users sign in through.
 	Auth auth.Config
@@ -76,9 +76,9 @@ type App struct {
 	runs        *runs.Engine
 }
 
-// New creates the app once its database is reachable and migrated. It
-// fails rather than serve on a database it can't use: Docker Compose
-// restarts it, and a deploy that never comes up healthy fails.
+// New creates the app once its database is reachable and migrated. It fails rather than
+// serve on a database it can't use: Docker Compose restarts it, and a deploy that never
+// comes up healthy fails.
 func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if cfg.Clock == nil {
 		return nil, errors.New("app.Config has no Clock")
@@ -296,8 +296,8 @@ func described(next http.Handler) http.Handler {
 
 // recovered answers a handler's panic as a server error: one logged line with the stack,
 // the span marked, a 500 quoting the trace id. Otherwise the panic goes to the std `log`
-// package and Grafana holds no trace of it.
-// shortcut: a panic after the response began writing garbles it; no handler streams yet.
+// package and Grafana holds no trace of it. shortcut: a panic after the response began
+// writing garbles it; no handler streams yet.
 func recovered(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -334,8 +334,8 @@ func (a *App) ping(ctx context.Context) error {
 	return nil
 }
 
-// health answers whether the app can reach its database, for the
-// container's health check.
+// health answers whether the app can reach its database, for the container's
+// health check.
 func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	status, code := "ok", http.StatusOK
 	if err := a.ping(r.Context()); err != nil {

@@ -117,9 +117,9 @@ func moveErrs(ctx context.Context, problems map[string]domain.Problem, moreThanH
 	return errs
 }
 
-// PortionLotForm is the form that counts or moves a Portion Lot, as shown:
-// Portion is one of them, which names the Lot, and Typed, To and Note are as typed,
-// with Errs why each field was refused, in the User's Language.
+// PortionLotForm is the form that counts or moves a Portion Lot, as shown: Portion is one
+// of them, which names the Lot, and Typed, To and Note are as typed, with Errs why each
+// field was refused, in the User's Language.
 type PortionLotForm struct {
 	Portion         int64
 	Lot             domain.PortionLot

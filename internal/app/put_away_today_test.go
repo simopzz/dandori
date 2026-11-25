@@ -11,9 +11,9 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// From the start of the Delivery's window Today lists where each line of its Grocery
-// List goes, a freezer split as two lines, each with its Count and move shown but
-// unavailable until the Delivery arrives.
+// From the start of the Delivery's window Today lists where each line of its Grocery List
+// goes, a freezer split as two lines, each with its Count and move shown but unavailable
+// until the Delivery arrives.
 func TestTodayListsThePutAwayFromTheWindowsStart(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridaySplitting(t, s)
@@ -82,8 +82,8 @@ func TestAPutAwayLineIsCountedAndMovedFromToday(t *testing.T) {
 	s.Sees("Fridge yogurt 250 g")
 }
 
-// The put-away list stays on Today until the end of the day after the Delivery's day,
-// for a Delivery unpacked the next morning; after that, the Kitchen page corrects it.
+// The put-away list stays on Today until the end of the day after the Delivery's day, for
+// a Delivery unpacked the next morning; after that, the Kitchen page corrects it.
 func TestThePutAwayListGoesAfterTheDayAfterTheDelivery(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridaySplitting(t, s)

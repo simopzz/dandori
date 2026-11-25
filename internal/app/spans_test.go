@@ -347,8 +347,8 @@ func TestABeatIsASpanWithItsQueriesUnderIt(t *testing.T) {
 	}
 }
 
-// A signed-in request whose session has expired renews it with Supabase Auth: a
-// client span under the request's.
+// A signed-in request whose session has expired renews it with Supabase Auth: a client
+// span under the request's.
 func TestRenewingASessionIsASpanUnderTheRequest(t *testing.T) {
 	h, spans := startWithSpans(t)
 	h.Invite("ada@example.com")
@@ -388,8 +388,8 @@ func TestFetchingTheJWKSIsASpanUnderTheFirstCheckedRequest(t *testing.T) {
 	}
 }
 
-// No span of a call to Supabase Auth holds a secret: the access or refresh
-// tokens, the API key, or the User's email.
+// No span of a call to Supabase Auth holds a secret: the access or refresh tokens, the
+// API key, or the User's email.
 func TestSupabaseSpansHoldNoSecret(t *testing.T) {
 	h, spans := startWithSpans(t)
 	h.Invite("ada@example.com")
@@ -438,8 +438,8 @@ func TestSupabaseSpansHoldNoSecret(t *testing.T) {
 	}
 }
 
-// Supabase Auth is not told the spans' ids: no call to it sends a traceparent
-// header, even with a propagator set for the whole process.
+// Supabase Auth is not told the spans' ids: no call to it sends a traceparent header,
+// even with a propagator set for the whole process.
 func TestSupabaseIsSentNoTraceparent(t *testing.T) {
 	was := otel.GetTextMapPropagator()
 	otel.SetTextMapPropagator(propagation.TraceContext{})
@@ -471,8 +471,8 @@ func onlySpan(t *testing.T, spans tracetest.SpanStubs, what string, match func(t
 	return found[0]
 }
 
-// hasQueryUnder reports whether a child of `parent` is a query's span: a client's,
-// but not a call to Supabase Auth.
+// hasQueryUnder reports whether a child of `parent` is a query's span: a client's, but
+// not a call to Supabase Auth.
 func hasQueryUnder(spans tracetest.SpanStubs, parent tracetest.SpanStub) bool {
 	for _, s := range spans {
 		if s.Parent.SpanID() == parent.SpanContext.SpanID() && s.SpanKind == trace.SpanKindClient && !strings.HasPrefix(s.Name, "supabase ") {

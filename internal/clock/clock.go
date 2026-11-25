@@ -1,5 +1,5 @@
-// Package clock is the one place Dandori reads the time (ADR-0014): every
-// other package is given a Clock, so tests can set the time and step it.
+// Package clock is the one place Dandori reads the time (ADR-0014): every other package
+// is given a Clock, so tests can set the time and step it.
 package clock
 
 import (
@@ -9,8 +9,7 @@ import (
 	_ "time/tzdata" // DefaultZone loads without a zone database, as on distroless
 )
 
-// DefaultZone is the zone a day starts and ends in unless
-// DANDORI_TIMEZONE names another.
+// DefaultZone is the zone a day starts and ends in unless DANDORI_TIMEZONE names another.
 const DefaultZone = "Europe/Rome"
 
 // Clock tells the time in the installation's zone, and beats on it.

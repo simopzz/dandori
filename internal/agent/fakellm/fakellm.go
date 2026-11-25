@@ -13,8 +13,8 @@ import (
 	"github.com/simopzz/dandori/internal/agent"
 )
 
-// LLM answers requests from its script, in order. It is safe to script more
-// steps while a Run is using it.
+// LLM answers requests from its script, in order. It is safe to script more steps while a
+// Run is using it.
 type LLM struct {
 	mu       sync.Mutex
 	steps    []Step
@@ -117,8 +117,8 @@ func Respond(resp agent.Response) Step {
 	return Step{turn: func(*LLM) agent.Response { return resp }}
 }
 
-// Then answers with the step `next` makes from the request, as a model
-// reads what its tools returned, such as the id of what one stored.
+// Then answers with the step `next` makes from the request, as a model reads what its
+// tools returned, such as the id of what one stored.
 func Then(next func(req agent.Request) Step) Step { return Step{then: next} }
 
 // Fail makes the request fail with `err`.
@@ -132,8 +132,8 @@ func Overloaded() Step {
 // Hang never answers: the request blocks until its context is cancelled.
 func Hang() Step { return Step{hang: true} }
 
-// After holds the answer back until `ch` is closed, so a test can act while
-// the model is "thinking".
+// After holds the answer back until `ch` is closed, so a test can act while the model
+// is "thinking".
 func (s Step) After(ch <-chan struct{}) Step {
 	s.after = ch
 	return s

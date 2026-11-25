@@ -105,14 +105,14 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop
 
 // BringUpToNow is the step that brings the signed-in User's kitchen up to `now`
 // (ADR-0021): in one transaction, under the planning lock and then the kitchen lock, it
-// records how far the kitchen has reached, takes every Delivery whose window has ended
-// by `now` as arrived, and records what the Plan assumed happened since the kitchen was
-// last brought up to now. A Cycle a Delivery closes has its pending Plan Proposal
-// rejected and its planning Run cancelled, naming the Delivery, and each Delivery is put
-// away at its arrival, its Grocery List, fixed then if it wasn't ordered, becoming Stock
-// Items where the Plan's freezer splits say (domain.PutAway). Each Cycle's Plan, as far
-// as it lasts, has its Prep Sessions use up stock and prepare their Portions, and the
-// Portion filling each Slot eaten, at their Slots' times, interleaved with the arrivals
+// records how far the kitchen has reached, takes every Delivery whose window has ended by
+// `now` as arrived, and records what the Plan assumed happened since the kitchen was last
+// brought up to now. A Cycle a Delivery closes has its pending Plan Proposal rejected and
+// its planning Run cancelled, naming the Delivery, and each Delivery is put away at its
+// arrival, its Grocery List, fixed then if it wasn't ordered, becoming Stock Items where
+// the Plan's freezer splits say (domain.PutAway). Each Cycle's Plan, as far as it lasts,
+// has its Prep Sessions use up stock and prepare their Portions, and the Portion filling
+// each Slot eaten, at their Slots' times, interleaved with the arrivals
 // (domain.Ledger.UpToNow). A Cycle with no Plan brings nothing. Run again for a moment it
 // has reached, it changes nothing. Every request runs it, as the beat does.
 func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
@@ -251,8 +251,8 @@ func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []d
 
 // PortionSlots is the time of the Slot after `now` each Portion the signed-in User's
 // kitchen may hold fills, by its id, in the approved Plans of their Cycles: the earliest,
-// for one filling more than one (domain.Plan.Filled). The kitchen feature, which this
-// one depends on, reads it in its own transaction, and app wires it: a read, made only of
+// for one filling more than one (domain.Plan.Filled). The kitchen feature, which this one
+// depends on, reads it in its own transaction, and app wires it: a read, made only of
 // store reads.
 func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]time.Time, error) {
 	cycles, err := loadCycles(ctx, q, now.Location())
@@ -326,16 +326,16 @@ func fixedAs(ctx context.Context, tx pgx.Tx, c Cycle, lines []domain.GroceryLine
 	return true, nil
 }
 
-// arrival is what a Delivery due to be put away brings: its Grocery List, as it was
-// read in `state`, and its Plan's freezer splits.
+// arrival is what a Delivery due to be put away brings: its Grocery List, as it was read
+// in `state`, and its Plan's freezer splits.
 type arrival struct {
 	state  domain.DeliveryState
 	list   domain.GroceryList
 	splits []domain.RecipeIngredient
 }
 
-// dueAt is what each of the signed-in User's Deliveries arrived by `now` and not put
-// away yet brings, by its Cycle's id, nothing for a Cycle without a Plan, how far their
+// dueAt is what each of the signed-in User's Deliveries arrived by `now` and not put away
+// yet brings, by its Cycle's id, nothing for a Cycle without a Plan, how far their
 // kitchen has been brought up to now (ledger.SaveUpTo), and whether they have any Cycle.
 func (s *Service) dueAt(ctx context.Context, now time.Time) (_ map[int64]arrival, upTo time.Time, cycled bool, err error) {
 	var cycles []Cycle
@@ -459,8 +459,8 @@ func (s *Service) Reject(ctx context.Context, id int64, note string, now time.Ti
 
 // PlanAgain starts a planning Run of the signed-in User's Cycle `id` at `now`, with no
 // Kitchen Check, from the first Slot its last planning Run planned from, or the first
-// still to come once that has passed, and is the Run's id. A Planning Note is kept on
-// the Cycle and told to the Run; a blank one is none. It is ErrNoFailure unless that Run
+// still to come once that has passed, and is the Run's id. A Planning Note is kept on the
+// Cycle and told to the Run; a blank one is none. It is ErrNoFailure unless that Run
 // failed: after any other, planning goes through the Kitchen Check.
 func (s *Service) PlanAgain(ctx context.Context, id int64, note string, now time.Time) (int64, error) {
 	note = strings.TrimSpace(note)

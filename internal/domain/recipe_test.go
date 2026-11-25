@@ -28,9 +28,9 @@ var (
 func grams(v float64) domain.Quantity { return domain.QuantityOf(v) }
 
 func TestRecipeNutritionPerPortionIsDerivedFromItsIngredients(t *testing.T) {
-	// 600 g chicken + 30 ml oil + 3 eggs + 240 g rice, over three Portions:
-	// kcal 660+246+210+840 = 1956 → 652; protein 138+0+18.9+18 = 174.9 → 58;
-	// carbs 0+0+1.2+187.2 = 188.4 → 63; fat 9+27.3+14.4+2.16 = 52.86 → 18.
+	// 600 g chicken + 30 ml oil + 3 eggs + 240 g rice, over three Portions: kcal
+	// 660+246+210+840 = 1956 → 652; protein 138+0+18.9+18 = 174.9 → 58; carbs
+	// 0+0+1.2+187.2 = 188.4 → 63; fat 9+27.3+14.4+2.16 = 52.86 → 18.
 	r := domain.Recipe{Portions: 3, Ingredients: []domain.RecipeIngredient{
 		{Ingredient: chicken, Quantity: grams(600)},
 		{Ingredient: oil, Quantity: grams(30)},

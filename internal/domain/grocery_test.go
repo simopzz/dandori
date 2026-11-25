@@ -57,10 +57,10 @@ func TestTheGroceryListOfAPlan(t *testing.T) {
 	}
 }
 
-// Putting a Delivery away places each Grocery List line in its Ingredient's usual
-// Storage Location; a freezer split sends that much of it to the freezer and the rest to
-// the usual place, never more than the line brings; a split of an Ingredient the list
-// doesn't buy puts nothing away.
+// Putting a Delivery away places each Grocery List line in its Ingredient's usual Storage
+// Location; a freezer split sends that much of it to the freezer and the rest to the
+// usual place, never more than the line brings; a split of an Ingredient the list doesn't
+// buy puts nothing away.
 func TestPuttingADeliveryAway(t *testing.T) {
 	line := func(ing domain.Ingredient, v float64) domain.GroceryLine {
 		return domain.GroceryLine{Ingredient: ing, Quantity: domain.QuantityOf(v)}

@@ -72,9 +72,9 @@ func TestTheKitchenForecastAtASlot(t *testing.T) {
 	}
 }
 
-// The kitchen forecast at an upcoming Cycle's first Slot adds its fixed Grocery List,
-// put away, once its Delivery is ordered: 400 g of chicken breast, 300 g of it split to
-// the freezer, and 200 g of frozen peas. While it is tentative it adds nothing: what's
+// The kitchen forecast at an upcoming Cycle's first Slot adds its fixed Grocery List, put
+// away, once its Delivery is ordered: 400 g of chicken breast, 300 g of it split to the
+// freezer, and 200 g of frozen peas. While it is tentative it adds nothing: what's
 // missing is what the list buys.
 func TestTheKitchenForecastWithAnOrderedDelivery(t *testing.T) {
 	lines := []domain.GroceryLine{{Ingredient: breast, Quantity: grams(400)}, {Ingredient: peas, Quantity: grams(200)}}

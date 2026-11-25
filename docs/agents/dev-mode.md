@@ -11,7 +11,7 @@ DANDORI_DEV_NOW=2026-11-25T08:00 DANDORI_DEV_USERS=ada@example.com mise run dev
 - **The time**: an RFC 3339 time (`2026-11-25T08:00:00+01:00`) or a local one (`2026-11-25T08:00`), read in the installation's zone (`DANDORI_TIMEZONE`, Europe/Rome) when it carries none.
 - **The users**: `DANDORI_DEV_USERS` is a comma list of `email` or `email:<uuid>`. The uuid pins the User: the session is then that User of the dev database, with the data built under real Supabase. Without it the email gets a fresh User with an empty kitchen: `POST /_test/seed` fills it.
 - **The auth**: the fake Supabase Auth replaces the real one, so `DANDORI_SUPABASE_URL` and `DANDORI_SUPABASE_PUBLISHABLE_KEY` are not needed, and the app's auth code is untouched.
-- **The model**: `DANDORI_DEMO_LLM=false` (as `.env` has it) asks Claude; the demo model only parses Recipes. A planning Run takes a minute and several turns: watch it on `/runs/<id>`.
+- **The model**: `DANDORI_DEMO_LLM=false` (as `.env` has it) asks Claude; the demo model only parses Recipes. A planning Run takes a minute and several turns: watch it on `/runs/<id>`. The server logs `msg="a Run ended" run=<id> status=<status>` as one ends, so with its output sent to a file, `until grep -q 'a Run ended" run=<id> ' <file>; do sleep 2; done` waits for it.
 - **The database**: `dandori_travel_<port>` on the dev server, dropped and made again each start, so every traveled run starts empty and leaves the dev database as it was. A pinned User runs on the dev database itself: a traveled run writes Movements and Runs of the fake future into it, so back it up first and restore it when the session is over (`browser-tools.md` has the `pg_dump` and `pg_restore` commands).
 
 ## The routes under /_test/
@@ -34,6 +34,21 @@ The fake Auth emails magic links to invited Users only, into the fake mailbox.
 3. The first sign-in lands on the Language choice; later ones land on Today.
 
 The mailbox's links lead to the app as the mailbox was reached, so a browser on `localhost` gets a `localhost` link and keeps its session cookie on that host.
+
+When the sign-in pages aren't what you are testing, one `browser_evaluate` from any page of the dev server signs a fresh User in, chooses English and seeds the kitchen, leaving the tab signed in:
+
+```js
+async () => {
+  const email = "ada@example.com";
+  const post = (path, fields) => fetch(path, {method: "POST", body: new URLSearchParams(fields)});
+  await post("/sign-in", {email});
+  const link = new URL((await (await fetch(`/_test/mail?email=${encodeURIComponent(email)}`)).json()).at(-1));
+  await post("/auth/confirm", {token_hash: link.searchParams.get("token_hash"), type: link.searchParams.get("type")});
+  const language = await post("/language", {language: "en"});
+  const seed = await post("/_test/seed", {});
+  return {landed: new URL(language.url).pathname, seed: seed.status}; // {landed: "/", seed: 204}
+}
+```
 
 ## Moving time
 

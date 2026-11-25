@@ -309,8 +309,8 @@ var icons = map[string][]string{
 		"#........#",
 		"##########",
 	},
-	// The kinds of appliance (domain.ApplianceKinds), each named by its code.
-	// An oven: knobs over its door's window.
+	// The kinds of appliance (domain.ApplianceKinds), each named by its code. An oven:
+	// knobs over its door's window.
 	"oven": {
 		"##########",
 		"#.#.#....#",
@@ -466,8 +466,8 @@ var icons = map[string][]string{
 		"#........#",
 		"##########",
 	},
-	// The kinds of Slot (domain.SlotKinds), each named by its code.
-	// A cup of coffee, steaming.
+	// The kinds of Slot (domain.SlotKinds), each named by its code. A cup of
+	// coffee, steaming.
 	"breakfast": {
 		"...#..#...",
 		"..#..#....",

@@ -195,8 +195,8 @@ func TestARecipeFixesTheLanguage(t *testing.T) {
 	s.IsRefused()
 }
 
-// A Recipe's kinds of appliance are shown in the User's Language, on its page and on
-// its edit form, ticked.
+// A Recipe's kinds of appliance are shown in the User's Language, on its page and on its
+// edit form, ticked.
 func TestARecipesKindsOfApplianceAreShownInTheUsersLanguage(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("bea@example.com")
@@ -341,8 +341,8 @@ func TestABlankRowIsNumberedAfterTheFormsRows(t *testing.T) {
 	}
 }
 
-// Without htmx, the add buttons post the form back with one more row, saving
-// nothing and refusing nothing.
+// Without htmx, the add buttons post the form back with one more row, saving nothing and
+// refusing nothing.
 func TestAddingARowWithoutHTMXKeepsWhatWasTyped(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Open("/recipes/new")
@@ -406,8 +406,8 @@ func TestRemovingARowKeepsTheRestAsTyped(t *testing.T) {
 	s.Sees("No Recipes yet.")
 }
 
-// A Recipe Draft's row is removed as a Recipe form's is, a new Ingredient's values
-// moving up with its row.
+// A Recipe Draft's row is removed as a Recipe form's is, a new Ingredient's values moving
+// up with its row.
 func TestRemovingARecipeDraftsRowKeepsTheRestAsTyped(t *testing.T) {
 	s := draftedLasagne(t)
 	s.Follows("Recipe Draft")
@@ -548,8 +548,8 @@ func TestTheRecipeFormSaysWhatIsOptional(t *testing.T) {
 	}
 }
 
-// In a browser, a rejected Recipe form opens on its error summary, whose first link
-// takes focus to its field, the first refused.
+// In a browser, a rejected Recipe form opens on its error summary, whose first link takes
+// focus to its field, the first refused.
 func TestBrowserARejectedRecipeOpensOnItsErrorSummary(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")

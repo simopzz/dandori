@@ -215,10 +215,9 @@ func (s *Service) Count(ctx context.Context, now time.Time, id int64, location d
 	return rec, err
 }
 
-// AddPortions adds at `now` the Portions in `typed`, as domain.ParsePortions reads
-// them: each Portion a row of its own and one Movement that lists them. Refused, as
-// also when the Portion Lot they join can't fit them, it writes nothing and says why,
-// by field.
+// AddPortions adds at `now` the Portions in `typed`, as domain.ParsePortions reads them:
+// each Portion a row of its own and one Movement that lists them. Refused, as also when
+// the Portion Lot they join can't fit them, it writes nothing and says why, by field.
 func (s *Service) AddPortions(ctx context.Context, now time.Time, typed domain.TypedPortions) (domain.NewPortions, map[string]domain.Problem, error) {
 	p, problems := domain.ParsePortions(typed)
 	if len(problems) > 0 {

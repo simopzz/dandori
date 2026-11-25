@@ -10,8 +10,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// sunday is a Cycle whose Delivery comes on Saturday 7 November between 6 and 8 pm,
-// after friday's ends, its Slots all of Sunday 8.
+// sunday is a Cycle whose Delivery comes on Saturday 7 November between 6 and 8 pm, after
+// friday's ends, its Slots all of Sunday 8.
 var sunday = apptest.Cycle{Delivery: "11/07/2026", From: "6pm", To: "8pm", Ends: "11/08/2026"}
 
 // stapleOil is olive oil marked a Staple, which no Grocery List buys.

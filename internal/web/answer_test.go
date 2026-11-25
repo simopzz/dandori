@@ -23,10 +23,10 @@ func shows(text string) templ.Component {
 	})
 }
 
-// An Answer gives htmx the fragment with its Notice and Trigger, and a plain browser
-// the redirect, or else the page with its Notice; one with no fragment and no Trigger
-// answers htmx as it does a plain browser, as a boosted form expects, and so does a form
-// boosted to swap the whole body, as a sheet's form on a page of its own is.
+// An Answer gives htmx the fragment with its Notice and Trigger, and a plain browser the
+// redirect, or else the page with its Notice; one with no fragment and no Trigger answers
+// htmx as it does a plain browser, as a boosted form expects, and so does a form boosted
+// to swap the whole body, as a sheet's form on a page of its own is.
 func TestAnswerToHTMXAndAPlainBrowser(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

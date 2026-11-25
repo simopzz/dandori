@@ -92,8 +92,8 @@ func kindChoices[K ~string](ctx context.Context, all []K, names map[K]Message) [
 	return choices
 }
 
-// InLocations say where in each Storage Location, as Italian takes each Storage
-// Location with its own preposition.
+// InLocations say where in each Storage Location, as Italian takes each Storage Location
+// with its own preposition.
 var InLocations = map[domain.StorageLocation]Message{
 	domain.Pantry:  {En: "in the pantry", It: "in dispensa"},
 	domain.Fridge:  {En: "in the fridge", It: "in frigo"},

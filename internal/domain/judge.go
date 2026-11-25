@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// Verdict is what a draft Plan breaks and misses against the rules of the model: the
-// hard rules it Broke, the seven days before its first Slot and the days it plans, the
-// Targets and soft rules it Misses, and the Portions it makes for after the Cycle.
+// Verdict is what a draft Plan breaks and misses against the rules of the model: the hard
+// rules it Broke, the seven days before its first Slot and the days it plans, the Targets
+// and soft rules it Misses, and the Portions it makes for after the Cycle.
 type Verdict struct {
 	Broken         []Violation
 	Trailing, Days []Day

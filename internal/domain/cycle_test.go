@@ -146,9 +146,9 @@ func TestACyclesSlots(t *testing.T) {
 	}
 }
 
-// A Cycle across a change of the clocks, from summer time to standard time in October
-// and back in March, keeps its days at midnight, and its window and Slots on the wall
-// clock: an hour further from UTC, or nearer, after the change.
+// A Cycle across a change of the clocks, from summer time to standard time in October and
+// back in March, keeps its days at midnight, and its window and Slots on the wall clock:
+// an hour further from UTC, or nearer, after the change.
 func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 	utc := func(y int, m time.Month, d, h int) time.Time { return time.Date(y, m, d, h, 0, 0, 0, time.UTC) }
 	tests := []struct {

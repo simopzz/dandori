@@ -42,8 +42,8 @@ const (
 // cycleFields are the fields of opening a Cycle, in the form's order.
 var cycleFields = []string{domain.CycleDelivery, domain.CycleFrom, domain.CycleTo, domain.CycleEnds}
 
-// Handlers serve the Cycle page, opening a Cycle, dropping it, and the Kitchen Check
-// that starts planning it.
+// Handlers serve the Cycle page, opening a Cycle, dropping it, and the Kitchen Check that
+// starts planning it.
 type Handlers struct {
 	Service *Service
 	Kitchen *kitchen.Service
@@ -164,8 +164,8 @@ func (h Handlers) cycle(w http.ResponseWriter, r *http.Request, status int, id i
 	httpx.Render(w, r, h.Log, status, cyclePage(now, v))
 }
 
-// Approve approves the Plan Proposal in the path, landing on the Cycle page and its
-// Plan, or answers with the Cycle page saying why it can't be.
+// Approve approves the Plan Proposal in the path, landing on the Cycle page and its Plan,
+// or answers with the Cycle page saying why it can't be.
 func (h Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {
@@ -326,9 +326,9 @@ func (h Handlers) check(w http.ResponseWriter, r *http.Request, status int, refu
 	httpx.Render(w, r, h.Log, status, checkPage(now, c, contents, refusal))
 }
 
-// Plan confirms the Kitchen Check of the Cycle in the path and starts its
-// planning Run, landing on the Run's page and its live Trace, or answers with the
-// Kitchen Check saying why it can't.
+// Plan confirms the Kitchen Check of the Cycle in the path and starts its planning Run,
+// landing on the Run's page and its live Trace, or answers with the Kitchen Check saying
+// why it can't.
 func (h Handlers) Plan(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {

@@ -14,10 +14,9 @@ import (
 	"github.com/mxschmitt/playwright-go"
 )
 
-// Browser is a real, headless Chromium on the app, for the few tests of
-// each page's main path that need the UI as the User gets it: htmx, CSS,
-// scripts. It sets the clock only through POST /_test/clock, as a browser
-// test against a separately started server would.
+// Browser is a real, headless Chromium on the app, for the few tests of each page's main
+// path that need the UI as the User gets it: htmx, CSS, scripts. It sets the clock only
+// through POST /_test/clock, as a browser test against a separately started server would.
 type Browser struct {
 	playwright.Page
 	url    string
@@ -25,8 +24,8 @@ type Browser struct {
 	settle func()
 }
 
-// Browser opens a browser page on the app. Without Playwright's Chromium
-// (`mise run browsers`) the test is skipped, except in CI, where it fails.
+// Browser opens a browser page on the app. Without Playwright's Chromium (`mise run
+// browsers`) the test is skipped, except in CI, where it fails.
 func (h *Harness) Browser(t testing.TB) *Browser {
 	t.Helper()
 	return h.browser(t, playwright.BrowserNewPageOptions{})
@@ -84,8 +83,8 @@ func failOnPageErrors(t testing.TB, page playwright.Page) {
 	})
 }
 
-// notInstalled skips the test when `what` failed is likely a browser not
-// installed here, and fails it in CI, which installs one.
+// notInstalled skips the test when `what` failed is likely a browser not installed here,
+// and fails it in CI, which installs one.
 func notInstalled(t testing.TB, what string, err error) {
 	t.Helper()
 	if os.Getenv("CI") == "" {

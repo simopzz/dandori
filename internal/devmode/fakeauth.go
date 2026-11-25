@@ -19,20 +19,19 @@ import (
 	"github.com/simopzz/dandori/internal/clock"
 )
 
-// apiKey is the publishable key the app is given for the fake Auth, which
-// it checks it sends.
+// apiKey is the publishable key the app is given for the fake Auth, which it checks
+// it sends.
 const apiKey = "sb_publishable_test"
 
-// FakeAuth stands in for Supabase Auth, over HTTP as the app reaches it:
-// it emails magic links only to invited Users, into a mailbox the driver
-// reads, redeems them for sessions it signs with its own key, and refreshes
-// and revokes them. Its tokens expire an hour after they are issued by the
-// app's clock, which a dev server's clock stands where the driver puts it.
+// FakeAuth stands in for Supabase Auth, over HTTP as the app reaches it: it emails magic
+// links only to invited Users, into a mailbox the driver reads, redeems them for sessions
+// it signs with its own key, and refreshes and revokes them. Its tokens expire an hour
+// after they are issued by the app's clock, which a dev server's clock stands where the
+// driver puts it.
 type FakeAuth struct {
 	// URL is where the app reaches it, which its tokens name as their issuer.
 	URL string
-	// SiteURL is the app's address, which an invitation links to, as
-	// Supabase's Site URL.
+	// SiteURL is the app's address, which an invitation links to, as Supabase's Site URL.
 	SiteURL string
 
 	clock clock.Clock
@@ -54,8 +53,8 @@ type link struct{ email, kind string }
 
 type fakeSession struct{ email, id string }
 
-// NewFakeAuth makes a fake Supabase Auth, which signs with a key of its own
-// and tells the time by `c`.
+// NewFakeAuth makes a fake Supabase Auth, which signs with a key of its own and tells the
+// time by `c`.
 func NewFakeAuth(c clock.Clock) (*FakeAuth, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -68,14 +67,14 @@ func NewFakeAuth(c clock.Clock) (*FakeAuth, error) {
 	}, nil
 }
 
-// AuthConfig is where the app finds the fake Supabase Auth: at its URL, with
-// its publishable key.
+// AuthConfig is where the app finds the fake Supabase Auth: at its URL, with its
+// publishable key.
 func (f *FakeAuth) AuthConfig() auth.Config {
 	return auth.Config{SupabaseURL: f.URL, PublishableKey: apiKey}
 }
 
-// Handler serves the fake Auth's API, as Supabase's is reached: under the
-// /auth/v1 prefix the app's URL ends with.
+// Handler serves the fake Auth's API, as Supabase's is reached: under the /auth/v1 prefix
+// the app's URL ends with.
 func (f *FakeAuth) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /auth/v1/.well-known/jwks.json", f.jwks)
@@ -93,12 +92,12 @@ func (f *FakeAuth) Handler() http.Handler {
 	})
 }
 
-// Invite invites `email`, as from Supabase's dashboard: it can sign in from
-// then on, and its mailbox gets an invitation linking to the app.
+// Invite invites `email`, as from Supabase's dashboard: it can sign in from then on, and
+// its mailbox gets an invitation linking to the app.
 func (f *FakeAuth) Invite(email string) { f.invite(email, "") }
 
-// InviteAs invites `email` as the User `id`, which the app signs in as: the
-// User of a database built under real Supabase.
+// InviteAs invites `email` as the User `id`, which the app signs in as: the User of a
+// database built under real Supabase.
 func (f *FakeAuth) InviteAs(email, id string) { f.invite(email, id) }
 
 // invite invites `email`, as the User `id`, or as one of its own when `id` is empty.
@@ -139,8 +138,8 @@ func (f *FakeAuth) Traceparents() []string {
 	return append([]string(nil), f.traced...)
 }
 
-// sendLink emails a link to `to` with a new token hash, as Supabase's
-// email templates for Dandori write it.
+// sendLink emails a link to `to` with a new token hash, as Supabase's email templates for
+// Dandori write it.
 func (f *FakeAuth) sendLink(email, to, kind string) {
 	hash := randomToken()
 	f.links[hash] = link{email: email, kind: kind}
@@ -175,8 +174,8 @@ func (f *FakeAuth) otp(w http.ResponseWriter, r *http.Request) {
 	}
 	kind := "email"
 	if !f.confirmed[body.Email] {
-		// Supabase confirms an invited User's email at the first link they
-		// redeem; until then it sends the signup confirmation.
+		// Supabase confirms an invited User's email at the first link they redeem; until
+		// then it sends the signup confirmation.
 		kind = "signup"
 	}
 	f.sendLink(body.Email, r.URL.Query().Get("redirect_to"), kind)
@@ -241,9 +240,9 @@ func (f *FakeAuth) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Forge mints an access token for a new session of `email`, as the fake
-// Auth would, with `change` made to its claims, and signs it with `method`
-// and `key`, the fake Auth's own when nil, under its kid.
+// Forge mints an access token for a new session of `email`, as the fake Auth would, with
+// `change` made to its claims, and signs it with `method` and `key`, the fake Auth's own
+// when nil, under its kid.
 func (f *FakeAuth) Forge(email string, method jwt.SigningMethod, key any, change func(jwt.MapClaims)) string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -253,8 +252,8 @@ func (f *FakeAuth) Forge(email string, method jwt.SigningMethod, key any, change
 	return f.accessToken(fakeSession{email: email, id: randomUUID()}, method, key, change)
 }
 
-// accessToken is `sess`'s access token, for an hour, with `change` made to
-// its claims, signed with `method` and `key`.
+// accessToken is `sess`'s access token, for an hour, with `change` made to its claims,
+// signed with `method` and `key`.
 func (f *FakeAuth) accessToken(sess fakeSession, method jwt.SigningMethod, key any, change func(jwt.MapClaims)) string {
 	now := f.clock.Now()
 	claims := jwt.MapClaims{
@@ -279,8 +278,7 @@ func (f *FakeAuth) accessToken(sess fakeSession, method jwt.SigningMethod, key a
 	return signed
 }
 
-// newSession issues `sess` a new access token and a refresh token that
-// renews it once.
+// newSession issues `sess` a new access token and a refresh token that renews it once.
 func (f *FakeAuth) newSession(sess fakeSession) map[string]any {
 	userID, email := f.users[sess.email], sess.email
 	access := f.accessToken(sess, jwt.SigningMethodES256, f.key, nil)
@@ -295,16 +293,16 @@ func (f *FakeAuth) newSession(sess fakeSession) map[string]any {
 	}
 }
 
-// DropSigningKey takes the key the fake Auth signs with out of its JWKS,
-// which then lists only its Ed25519 standby key: one the app can't read.
+// DropSigningKey takes the key the fake Auth signs with out of its JWKS, which then lists
+// only its Ed25519 standby key: one the app can't read.
 func (f *FakeAuth) DropSigningKey() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.signingKeyDropped = true
 }
 
-// jwks lists a standby key beside the signing key: an Ed25519 one, a kind
-// the app can't read.
+// jwks lists a standby key beside the signing key: an Ed25519 one, a kind the app
+// can't read.
 func (f *FakeAuth) jwks(w http.ResponseWriter, r *http.Request) {
 	keys := []map[string]string{{
 		"kid": "standby", "kty": "OKP", "crv": "Ed25519", "alg": "EdDSA", "use": "sig",

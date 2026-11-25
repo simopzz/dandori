@@ -33,8 +33,8 @@ type KindPage struct {
 	// such as "Recipe Draft".
 	ResultLabel web.Message
 	// ResultURL is where what the Run runID left is, or "" if it left nothing: the
-	// ResultLabel link goes there, and so does the page of a Run that has just
-	// succeeded. Without one, a Run's page links to nothing.
+	// ResultLabel link goes there, and so does the page of a Run that has just succeeded.
+	// Without one, a Run's page links to nothing.
 	ResultURL func(ctx context.Context, runID int64) (string, error)
 	// TryAgainURL is where a failed Run's "Try again" button posts what the Run was
 	// asked, as the form field text, to start another. Without one, there is no button.
@@ -150,8 +150,8 @@ func (h Handlers) Cancel(w http.ResponseWriter, r *http.Request) {
 
 // Stream sends the signed-in User's Run's Trace Events as server-sent events: the stored
 // ones after the last the browser has (Last-Event-ID, else ?after=), then each as it
-// happens until the Run ends, then an "end" event. Trace Events are unnamed messages,
-// the only ones htmx's hx-sse swaps in.
+// happens until the Run ends, then an "end" event. Trace Events are unnamed messages, the
+// only ones htmx's hx-sse swaps in.
 func (h Handlers) Stream(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.PathID(w, r)
 	if !ok {

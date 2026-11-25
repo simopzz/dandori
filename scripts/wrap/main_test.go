@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Go comments wrap at width, and none leaves a lone word on its last line
+// Go comments fill each line to width, and none leaves a lone word on its last line
 // (docs/agents/coding-standards.md); mise run wrap rewraps them. Generated files and
 // directives are not comments anyone wrapped.
 func TestCommentsWrap(t *testing.T) {
@@ -21,8 +21,12 @@ func TestCommentsWrap(t *testing.T) {
 	}
 }
 
-// long is a comment of 18 words, two columns too long.
-var long = "// " + strings.TrimSpace(strings.Repeat("word ", 18))
+// long is a comment of 18 words, two columns too long, and full one of 17, with no room
+// for another.
+var (
+	long = "// " + strings.TrimSpace(strings.Repeat("word ", 18))
+	full = long[:87]
+)
 
 // The check itself: what it finds, and what it leaves alone.
 func TestCommentProblems(t *testing.T) {
@@ -30,8 +34,12 @@ func TestCommentProblems(t *testing.T) {
 		name, src string
 		want      []string
 	}{
-		{"fits", "// one line\n// and another line\n", nil},
-		{"a lone word", "// one line\n// word\n", []string{"2: leaves a lone word on its last line"}},
+		{"fits", full + "\n// and another line\n", nil},
+		{"stops early", "// one line\n// and another line\n", []string{`1: stops before the next line's "and", which fits`}},
+		{"stops early for the last two words", "// one line\n// two words\n", nil},
+		{"a list stops where it likes", "// - one\n// - two\n", nil},
+		{"a paragraph ends where it likes", "// one line\n//\n// and another line\n", nil},
+		{"a lone word", "// one line\n// word\n", []string{"2: leaves a lone word on its last line", `1: stops before the next line's "word", which fits`}},
 		{"one word alone is no wrap", "// word\n", nil},
 		{"too long", long + "\n", []string{"1: runs to column 92"}},
 		{"a tab counts as four", "\t" + long + "\n", []string{"1: runs to column 96"}},
@@ -61,7 +69,8 @@ func TestWrap(t *testing.T) {
 		{"too long, at its indent", "\t" + long + "\ncode\n", "\t// " + sixteen + "\n\t// word word\ncode\n", nil},
 		{"the last line takes a word", long + "\n", "// " + sixteen + "\n// word word\n", nil},
 		{"a lone word joins the line before", "// one line\n// word\n", "// one line word\n", nil},
-		{"one that fits is left alone", "// one line\n// and another\n", "// one line\n// and another\n", nil},
+		{"one that stops early is filled", "// one line\n// and one more\n", "// one line and one more\n", nil},
+		{"one that fits is left alone", full + "\n// and another\n", full + "\n// and another\n", nil},
 		{"a list is named, not filled", list, list, []int{1}},
 	}
 	for _, c := range cases {

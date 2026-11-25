@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// The harness that starts the app for tests lives in apptest, which the
-// production binary must never link: it brings the test database with it.
+// The harness that starts the app for tests lives in apptest, which the production binary
+// must never link: it brings the test database with it.
 func TestTheBinaryDoesNotLinkTheTestHarness(t *testing.T) {
 	out, err := exec.Command("go", "list", "-deps", ".").Output()
 	if err != nil {
@@ -22,8 +22,8 @@ func TestTheBinaryDoesNotLinkTheTestHarness(t *testing.T) {
 	}
 }
 
-// The dev routes are mounted only in dev mode: without it, a request for
-// one reaches the app, which has no such route.
+// The dev routes are mounted only in dev mode: without it, a request for one reaches the
+// app, which has no such route.
 func TestTheDevRoutesAreMountedOnlyInDevMode(t *testing.T) {
 	asked := ""
 	app := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { asked = r.URL.Path })

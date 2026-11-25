@@ -12,8 +12,8 @@ import (
 type Loop struct {
 	LLM   LLM
 	Model string
-	// Retries is how many times a failed request to the model is retried when the
-	// failure is worth retrying; Backoff is the first wait, doubled on every retry.
+	// Retries is how many times a failed request to the model is retried when the failure
+	// is worth retrying; Backoff is the first wait, doubled on every retry.
 	Retries int
 	Backoff time.Duration
 	// MaxTurns bounds the requests to the model in one Run, so a model that keeps calling

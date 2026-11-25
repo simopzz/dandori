@@ -87,8 +87,8 @@ func TestMovingPartOfAPiece(t *testing.T) {
 	s.Sees("Freezer egg 0.5 pieces")
 }
 
-// A move is refused on the field, keeping what was typed and leaving the
-// kitchen as it was.
+// A move is refused on the field, keeping what was typed and leaving the kitchen as
+// it was.
 func TestARefusedMove(t *testing.T) {
 	cases := []struct {
 		name, quantity, why string
@@ -120,8 +120,8 @@ func TestARefusedMove(t *testing.T) {
 	}
 }
 
-// When Dandori holds too little, the User counts first and the same move
-// then goes through.
+// When Dandori holds too little, the User counts first and the same move then
+// goes through.
 func TestCountingFirstLetsAMoveThrough(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.Counts("rice", "", "800", "")

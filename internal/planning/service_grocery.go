@@ -68,10 +68,10 @@ func findOrderable(ctx context.Context, tx pgx.Tx, id int64, now time.Time) (Cyc
 }
 
 // MarkOrdered marks the Delivery of the signed-in User's upcoming Cycle `id` ordered at
-// `now`, fixing its Grocery List as it stands. It is ErrNoCycle when `id` isn't
-// upcoming, ErrArrived once it has arrived, ErrProposalPending or ErrBeingPlanned while a
-// Plan Proposal of it is pending or a planning Run of it going, and ErrNoPlan while it
-// has no Plan. Once marked, it changes nothing.
+// `now`, fixing its Grocery List as it stands. It is ErrNoCycle when `id` isn't upcoming,
+// ErrArrived once it has arrived, ErrProposalPending or ErrBeingPlanned while a Plan
+// Proposal of it is pending or a planning Run of it going, and ErrNoPlan while it has no
+// Plan. Once marked, it changes nothing.
 func (s *Service) MarkOrdered(ctx context.Context, id int64, now time.Time) error {
 	var c Cycle
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {

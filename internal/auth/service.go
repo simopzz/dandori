@@ -1,7 +1,7 @@
-// Package auth signs Users in and out: by magic link through Supabase
-// Auth, for the few Users invited from its dashboard (ADR-0015). It keeps
-// Supabase's session in cookies and puts the signed-in User on each
-// request's context, which db.AsUser runs their queries as.
+// Package auth signs Users in and out: by magic link through Supabase Auth, for the few
+// Users invited from its dashboard (ADR-0015). It keeps Supabase's session in cookies and
+// puts the signed-in User on each request's context, which db.AsUser runs their
+// queries as.
 package auth
 
 import (
@@ -50,10 +50,9 @@ func New(pool *pgxpool.Pool, cfg Config, c clock.Clock, tp trace.TracerProvider)
 	return &Service{pool: pool, supabase: newSupabase(cfg, c, tp), clock: c}
 }
 
-// SendMagicLink emails a magic link leading to `redirectTo`, if `email` was
-// invited. Whether it was is never told: Supabase refusing an email is no
-// error, even a rate limit, which it applies only to invited emails. Only
-// failing to reach Supabase is.
+// SendMagicLink emails a magic link leading to `redirectTo`, if `email` was invited.
+// Whether it was is never told: Supabase refusing an email is no error, even a rate
+// limit, which it applies only to invited emails. Only failing to reach Supabase is.
 func (s *Service) SendMagicLink(ctx context.Context, email, redirectTo string) error {
 	if err := s.supabase.sendMagicLink(ctx, email, redirectTo); !refused(err) {
 		return err
@@ -61,8 +60,8 @@ func (s *Service) SendMagicLink(ctx context.Context, email, redirectTo string) e
 	return nil
 }
 
-// Redeem signs in with a magic link's token hash, `kind` being the link's
-// type, and creates the User at their first sign-in.
+// Redeem signs in with a magic link's token hash, `kind` being the link's type, and
+// creates the User at their first sign-in.
 func (s *Service) Redeem(ctx context.Context, tokenHash, kind string) (Tokens, error) {
 	sess, err := s.supabase.verify(ctx, tokenHash, kind)
 	if refused(err) {
@@ -81,10 +80,10 @@ func (s *Service) Redeem(ctx context.Context, tokenHash, kind string) (Tokens, e
 	return Tokens{Access: sess.AccessToken, Refresh: sess.RefreshToken}, nil
 }
 
-// Authenticate tells who `tokens` sign in. When the access token has
-// expired, it refreshes the session: `renewed` are the Tokens to keep in
-// its place. It is ErrSignedOut when they sign no one in any more; failing
-// to reach Supabase is another error, which signs no one out.
+// Authenticate tells who `tokens` sign in. When the access token has expired, it
+// refreshes the session: `renewed` are the Tokens to keep in its place. It is
+// ErrSignedOut when they sign no one in any more; failing to reach Supabase is another
+// error, which signs no one out.
 func (s *Service) Authenticate(ctx context.Context, tokens Tokens) (userID string, renewed *Tokens, err error) {
 	userID, err = s.supabase.check(ctx, tokens.Access)
 	switch {
@@ -109,8 +108,8 @@ func (s *Service) Authenticate(ctx context.Context, tokens Tokens) (userID strin
 	return userID, &Tokens{Access: sess.AccessToken, Refresh: sess.RefreshToken}, nil
 }
 
-// SignOut ends the session `tokens` belong to, at Supabase. Supabase takes
-// only a live access token for it, so an expired one is refreshed first.
+// SignOut ends the session `tokens` belong to, at Supabase. Supabase takes only a live
+// access token for it, so an expired one is refreshed first.
 func (s *Service) SignOut(ctx context.Context, tokens Tokens) error {
 	_, renewed, err := s.Authenticate(ctx, tokens)
 	if errors.Is(err, ErrSignedOut) {

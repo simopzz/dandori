@@ -54,8 +54,8 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, page(now, contents, f))
 }
 
-// ShowContents is what the Kitchen page lists alone, which it swaps in after each
-// write to the Kitchen Ledger.
+// ShowContents is what the Kitchen page lists alone, which it swaps in after each write
+// to the Kitchen Ledger.
 func (h Handlers) ShowContents(w http.ResponseWriter, r *http.Request) {
 	now := h.Clock.Now()
 	contents, err := h.Service.Contents(r.Context(), now)
@@ -66,8 +66,8 @@ func (h Handlers) ShowContents(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, contentsList(now, contents))
 }
 
-// ShowMovements is a Stock Item's Movements as a page of their own, for a
-// browser without htmx.
+// ShowMovements is a Stock Item's Movements as a page of their own, for a browser
+// without htmx.
 func (h Handlers) ShowMovements(w http.ResponseWriter, r *http.Request) {
 	if item := h.stockItem(w, r); item != nil {
 		httpx.Render(w, r, h.Log, http.StatusOK, movementsPage(h.Clock.Now(), *item))

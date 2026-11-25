@@ -20,8 +20,8 @@ var egg = apptest.Ingredient{
 }
 
 // An Ingredient is added with its unit, its nutritional values per that unit and its
-// usual Storage Location. Fibre and sugar left blank show as unknown, never 0, which is
-// a value like any other; Staples are marked.
+// usual Storage Location. Fibre and sugar left blank show as unknown, never 0, which is a
+// value like any other; Staples are marked.
 func TestAddingIngredients(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -101,8 +101,8 @@ func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {
 	s.Sees("Give it a name.")
 }
 
-// One food is one Ingredient: a name that normalises as an existing one's, with a size
-// or grade word, is refused on the name, naming the one the User has. A plural, which no
+// One food is one Ingredient: a name that normalises as an existing one's, with a size or
+// grade word, is refused on the name, naming the one the User has. A plural, which no
 // rule tells from another food, is added.
 func TestAnIngredientOfAFoodTheUserHasIsRefused(t *testing.T) {
 	s := apptest.NewScenario(t)
@@ -127,8 +127,8 @@ func TestAnIngredientOfAFoodTheUserHasIsRefused(t *testing.T) {
 	s.IsConfirmed("Added egg white.")
 }
 
-// Italian names are normalised as Italian, and values shown with a decimal comma. Fish
-// is not peach, though only a letter tells them apart.
+// Italian names are normalised as Italian, and values shown with a decimal comma. Fish is
+// not peach, though only a letter tells them apart.
 func TestIngredientsInItalian(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -603,8 +603,8 @@ func TestTheUnitOfAnIngredientAPlanSetsOutIsFixed(t *testing.T) {
 	s.Sees("01 To buy yogurt (150 g)")
 }
 
-// An Ingredient only a pending Plan Proposal's freezer split uses keeps its unit too,
-// and the Plan Proposal reads as it did. One nothing uses still changes unit.
+// An Ingredient only a pending Plan Proposal's freezer split uses keeps its unit too, and
+// the Plan Proposal reads as it did. One nothing uses still changes unit.
 func TestTheUnitOfAnIngredientOnlyAFreezerSplitUsesIsFixed(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	s.AddsIngredient(egg)
@@ -659,9 +659,9 @@ func TestTheUnitOfAnIngredientOnlyAFixedGroceryListBuysIsFixed(t *testing.T) {
 	s.Sees("olive oil (23 ml)")
 }
 
-// The refusal holds for a Plan Proposal the User rejected, and for one a Delivery
-// closing its Cycle rejected: friday's, left pending past its Delivery, which brought
-// nothing, so yogurt has no Movement.
+// The refusal holds for a Plan Proposal the User rejected, and for one a Delivery closing
+// its Cycle rejected: friday's, left pending past its Delivery, which brought nothing, so
+// yogurt has no Movement.
 func TestTheUnitOfAnIngredientARejectedPlanProposalUsesIsFixed(t *testing.T) {
 	t.Run("rejected by the User", func(t *testing.T) {
 		s := plannerWithKitchen(t, "ada@example.com")

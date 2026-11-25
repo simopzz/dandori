@@ -70,8 +70,8 @@ func (s *Service) PutAwayAt(ctx context.Context, now time.Time) (*PutAway, error
 	return shown, err
 }
 
-// Reminder is a Cycle Today reminds the User of planning: its id, whether it is the
-// next Cycle, upcoming, or the current one, and how planning it stands.
+// Reminder is a Cycle Today reminds the User of planning: its id, whether it is the next
+// Cycle, upcoming, or the current one, and how planning it stands.
 type Reminder struct {
 	CycleID  int64
 	Next     bool

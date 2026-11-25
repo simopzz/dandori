@@ -49,8 +49,8 @@ func submittedLasagne() map[string]any {
 	}
 }
 
-// A pasted recipe is read by a parse Run, whose page shows its Trace, into a Recipe
-// Draft showing what the model submitted: the known rice in its own unit, and each new
+// A pasted recipe is read by a parse Run, whose page shows its Trace, into a Recipe Draft
+// showing what the model submitted: the known rice in its own unit, and each new
 // Ingredient's proposed values, fibre and sugar unknown where the model couldn't tell.
 func TestAPastedRecipeBecomesARecipeDraftThroughARun(t *testing.T) {
 	s := kitchenWith(t, rice)
@@ -597,8 +597,8 @@ func demoKitchen(t *testing.T, language string) *apptest.Scenario {
 	return s
 }
 
-// The demo model makes a Recipe Draft of any paste without a real model: named after
-// its first line, and taking an Ingredient the User knows in the unit they know it in.
+// The demo model makes a Recipe Draft of any paste without a real model: named after its
+// first line, and taking an Ingredient the User knows in the unit they know it in.
 func TestTheDemoLLMReadsAnyPasteIntoARecipeDraft(t *testing.T) {
 	s := demoKitchen(t, "English")
 	s.Open("/ingredients")

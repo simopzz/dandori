@@ -219,8 +219,8 @@ func TestTwoUsersNeverSeeEachOthersCycles(t *testing.T) {
 }
 
 // A Cycle across a change of the clocks, to summer time in March and back to standard
-// time in October, ends ten days after its Delivery's date, and arrives at the end of
-// its window on the wall clock, not an hour early or late.
+// time in October, ends ten days after its Delivery's date, and arrives at the end of its
+// window on the wall clock, not an hour early or late.
 func TestACycleAcrossAChangeOfTheClocks(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	for _, c := range []struct {

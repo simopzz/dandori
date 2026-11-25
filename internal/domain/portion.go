@@ -34,9 +34,8 @@ type TypedPortions struct {
 	Nutrition           map[string]string
 }
 
-// ParsePortions reads Portions as `typed`, with why each field is refused,
-// by field, if any is: they need a name, how many, a Storage Location and the values
-// every food has.
+// ParsePortions reads Portions as `typed`, with why each field is refused, by field, if
+// any is: they need a name, how many, a Storage Location and the values every food has.
 func ParsePortions(typed TypedPortions) (NewPortions, map[string]Problem) {
 	nutrition, problems := ParseNutrition(typed.Nutrition)
 	name := strings.TrimSpace(typed.Name)
@@ -55,8 +54,8 @@ func ParsePortions(typed TypedPortions) (NewPortions, map[string]Problem) {
 	}, problems
 }
 
-// ParseHowMany reads how many Portions to add as `typed`: a whole number of
-// at least 1 and at most maxPortions.
+// ParseHowMany reads how many Portions to add as `typed`: a whole number of at least 1
+// and at most maxPortions.
 func ParseHowMany(typed string) (int, Problem) {
 	n, problem := parseWhole(typed)
 	switch {

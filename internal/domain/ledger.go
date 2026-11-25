@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// Quantity is how much of an Ingredient, in its Unit, as a whole number of tenths: what
-// a Stock Item holds, or a Movement's change, which may be below nothing. Tenths add up
+// Quantity is how much of an Ingredient, in its Unit, as a whole number of tenths: what a
+// Stock Item holds, or a Movement's change, which may be below nothing. Tenths add up
 // exactly, as the floats a piece's decimal place would be don't.
 type Quantity int64
 
@@ -29,9 +29,8 @@ func (q Quantity) RoundUp() Quantity { return (q + tenths - 1) / tenths * tenths
 // QuantityOf is the Quantity of `v` in its Unit, as Number gives it.
 func QuantityOf(v float64) Quantity { return Quantity(math.Round(v * tenths)) }
 
-// ParseQuantity reads a quantity of `unit` as `typed`, with a point or a
-// comma: grams and millilitres are whole numbers, pieces have one decimal place, and
-// nothing is negative.
+// ParseQuantity reads a quantity of `unit` as `typed`, with a point or a comma: grams and
+// millilitres are whole numbers, pieces have one decimal place, and nothing is negative.
 func ParseQuantity(unit Unit, typed string) (Quantity, Problem) {
 	typed = strings.ReplaceAll(strings.TrimSpace(typed), ",", ".")
 	if typed == "" {
@@ -270,8 +269,8 @@ func (m Movement) placePortions(where map[int64]StorageLocation) {
 	}
 }
 
-// HeldAt is what each Storage Location holds of the Ingredient `id` at `at`. A
-// Storage Location no Movement of it has reached has no entry.
+// HeldAt is what each Storage Location holds of the Ingredient `id` at `at`. A Storage
+// Location no Movement of it has reached has no entry.
 func (l Ledger) HeldAt(at time.Time, id int64) map[StorageLocation]Quantity {
 	held := make(map[StorageLocation]Quantity, len(StorageLocations))
 	for key, item := range l.At(at) {

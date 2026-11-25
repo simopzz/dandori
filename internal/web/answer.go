@@ -10,10 +10,10 @@ import (
 )
 
 // Answer is the answer to a write, as ADR-0009 has it. To htmx, it is Fragment followed
-// by Notice in a floating Notice, with Trigger in HX-Trigger. To a plain browser, it is
-// a redirect to RedirectTo, whose page says Notice, when that is set, or else Page,
-// saying Notice. A boosted form, which swaps the whole body, and one with neither
-// Fragment nor Trigger, get what a plain browser does.
+// by Notice in a floating Notice, with Trigger in HX-Trigger. To a plain browser, it is a
+// redirect to RedirectTo, whose page says Notice, when that is set, or else Page, saying
+// Notice. A boosted form, which swaps the whole body, and one with neither Fragment nor
+// Trigger, get what a plain browser does.
 type Answer struct {
 	// Status is the status of a fragment or page, 200 when unset.
 	Status                      int

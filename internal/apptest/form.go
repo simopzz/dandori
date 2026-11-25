@@ -20,8 +20,8 @@ type FormData struct {
 // Get returns the first value of `field`.
 func (f FormData) Get(field string) string { return f.Values.Get(field) }
 
-// Form reads the form with the given `id` from `page`: its action and the
-// values of its inputs, textareas and selects as they are shown.
+// Form reads the form with the given `id` from `page`: its action and the values of its
+// inputs, textareas and selects as they are shown.
 func Form(t testing.TB, page, id string) FormData {
 	t.Helper()
 	doc, err := html.Parse(strings.NewReader(page))

@@ -89,9 +89,12 @@ Rules code review checks against. Each says what it protects.
   enforces the prefixes, that only a `web_` file imports `internal/web` or
   `internal/httpx`, that only a `store` file calls the database, and that a
   `store` file's exported functions are reads: a write another feature may
-  call lives in a `service` file, beside the rules it must hold.
-  *Protects: SQL or a page link landing in the wrong tier shows in the file
-  name and fails CI.*
+  call lives in a `service` file, beside the rules it must hold. The flow
+  runs handlers to Service to store, never back: a `store` file calls no
+  function its package declares in a `service` or `web_` file, so it loads
+  and leaves what to make of it to the Service. *Protects: SQL or a page link
+  landing in the wrong tier shows in the file name and fails CI, and a store
+  stays the bottom of its feature.*
 
 ## Types
 
@@ -104,9 +107,12 @@ Rules code review checks against. Each says what it protects.
 ## Comments
 
 - **Go comments fill each line** up to the width `TestCommentsWrap` enforces,
-  in `scripts/wrap`, with its lone-word rule: when a last line would hold one
-  word, break the earlier lines sooner or reword. *Protects: comments that
-  read as prose, without lines that stop early.*
+  in `scripts/wrap`: it fails a line that stops while the next one's first
+  word would still fit, and `mise run wrap` fills it. Its lone-word rule: when
+  a last line would hold one word, the line before gives it one, as `mise run
+  wrap` does, or reword. A list, indented code and a paragraph ended by a bare `//` stop where they
+  like. *Protects: comments that read as prose, without lines that stop
+  early.*
 - **A comment writes a parameter, named result or receiver as `name`**, in
   backticks, with a field or method on it inside them (`p.Slots`): in a doc
   comment or one in the body, a closure's and a type parameter's too. Types,

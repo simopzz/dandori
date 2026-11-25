@@ -9,9 +9,9 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// plansFridaySplitting opens friday, plans it as fridayDraft with 100 g of yogurt and
-// 400 g of chicken breast, which it adds and no Prep Session uses, split to the
-// freezer, and approves it. Its Grocery List buys 150 g of yogurt.
+// plansFridaySplitting opens friday, plans it as fridayDraft with 100 g of yogurt and 400
+// g of chicken breast, which it adds and no Prep Session uses, split to the freezer, and
+// approves it. Its Grocery List buys 150 g of yogurt.
 func plansFridaySplitting(t *testing.T, s *apptest.Scenario) {
 	t.Helper()
 	s.AddsIngredient(chicken)
@@ -34,12 +34,12 @@ func plansFridaySplitting(t *testing.T, s *apptest.Scenario) {
 	s.IsConfirmed("Plan approved.")
 }
 
-// At the end of the Delivery's window its Grocery List becomes Stock Items: yogurt in
-// the fridge but for the 100 g its freezer split sends to the freezer, and no chicken,
-// which the list doesn't buy. Their Movements say delivered. The current Cycle's list
-// stays as it arrived, saying "Delivered on" its day, with neither the hint to fill the
-// cart nor checkboxes, offering neither marking ordered nor undoing it, which are
-// refused, saying why.
+// At the end of the Delivery's window its Grocery List becomes Stock Items: yogurt in the
+// fridge but for the 100 g its freezer split sends to the freezer, and no chicken, which
+// the list doesn't buy. Their Movements say delivered. The current Cycle's list stays as
+// it arrived, saying "Delivered on" its day, with neither the hint to fill the cart nor
+// checkboxes, offering neither marking ordered nor undoing it, which are refused,
+// saying why.
 func TestTheDeliveryIsPutAwayWhenItArrives(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridaySplitting(t, s)

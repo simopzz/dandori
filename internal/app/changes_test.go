@@ -35,8 +35,8 @@ func snackChanged(t *testing.T, req agent.Request) map[string]any {
 	}
 }
 
-// snackChangedPlanned scripts a planning Run into a pending Plan Proposal of
-// snackChanged summed up as `summary`.
+// snackChangedPlanned scripts a planning Run into a pending Plan Proposal of snackChanged
+// summed up as `summary`.
 func snackChangedPlanned(t *testing.T, s *apptest.Scenario, summary string) {
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", snackChanged(t, req)) }),
@@ -47,8 +47,8 @@ func snackChangedPlanned(t *testing.T, s *apptest.Scenario, summary string) {
 
 // Asking for changes on Friday afternoon starts a planning Run with no Kitchen Check,
 // told the Planning Note, from the first Slot not yet prepared: the snack. It is told
-// what of the Plan it replaces, and the Portions the Rice bowl prepared at lunch frees
-// to put in Slots again. The Plan stays as it is until a Plan Proposal is approved;
+// what of the Plan it replaces, and the Portions the Rice bowl prepared at lunch frees to
+// put in Slots again. The Plan stays as it is until a Plan Proposal is approved;
 // rejecting that with a note plans again, and approving it changes the Plan from the
 // snack on.
 func TestAskingForChangesReplansFromTheFirstSlotNotYetPrepared(t *testing.T) {
@@ -100,9 +100,9 @@ func TestAskingForChangesReplansFromTheFirstSlotNotYetPrepared(t *testing.T) {
 	s.DoesNotSee("lasagne 620 kcal")
 }
 
-// A Plan Proposal from asking for changes marks what it changes of the Plan: one line
-// in Section 01 with the days, each changed day's row, and in it each changed Slot and
-// Prep Session; the rest is unmarked.
+// A Plan Proposal from asking for changes marks what it changes of the Plan: one line in
+// Section 01 with the days, each changed day's row, and in it each changed Slot and Prep
+// Session; the rest is unmarked.
 func TestAPlanProposalMarksWhatItChangesOfThePlan(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	planned(t, s)
@@ -200,8 +200,8 @@ func TestAskingForChangesNeedsAPlanningNote(t *testing.T) {
 // askHint is what opening Ask for changes says it does.
 const askHint = "Dandori plans the Cycle again from the next Slot, told your note. The Plan stays as it is until you approve the new Plan Proposal."
 
-// Ask for changes is there only on a Cycle with a Plan while no Plan Proposal is
-// pending and no planning Run is going, for any Cycle.
+// Ask for changes is there only on a Cycle with a Plan while no Plan Proposal is pending
+// and no planning Run is going, for any Cycle.
 func TestAskForChangesIsAbsentWhileAnythingIsPendingOrGoing(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	s.OpensCycle(friday)

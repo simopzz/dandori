@@ -20,8 +20,8 @@ func (h *Harness) SignIn(t testing.TB, email string) Response {
 	return h.OpenLink(t, h.Auth.LastLink(t, email))
 }
 
-// AskForLink asks for a magic link for `email` on the sign-in page,
-// returning the page that answers.
+// AskForLink asks for a magic link for `email` on the sign-in page, returning the page
+// that answers.
 func (h *Harness) AskForLink(t testing.TB, email string) Response {
 	t.Helper()
 	form := Form(t, h.Get(t, "/sign-in").Body, "sign-in")
@@ -29,8 +29,8 @@ func (h *Harness) AskForLink(t testing.TB, email string) Response {
 	return h.PostForm(t, form.Action, form.Values)
 }
 
-// OpenLink opens a `link` from an email and confirms signing in with it,
-// returning the page that lands on.
+// OpenLink opens a `link` from an email and confirms signing in with it, returning the
+// page that lands on.
 func (h *Harness) OpenLink(t testing.TB, link string) Response {
 	t.Helper()
 	path, ok := strings.CutPrefix(link, h.URL)

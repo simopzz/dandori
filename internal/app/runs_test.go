@@ -42,6 +42,9 @@ func TestARunsPageWithoutJavaScriptShowsItsTraceSoFarAndALink(t *testing.T) {
 
 	close(release)
 	s.Settle()
+	if logged := s.Logged(); !strings.Contains(logged, "a Run ended") || !strings.Contains(logged, "status=succeeded") {
+		t.Errorf("the app doesn't log the Run's end:\n%s", logged)
+	}
 	s.Follows("See how it's going")
 	s.Sees("Reading a Recipe Succeeded")
 	s.Sees("Parsed the lasagne.")

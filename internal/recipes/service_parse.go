@@ -170,8 +170,8 @@ func amount(problems map[string]string, field string, v *float64) domain.Amount 
 // languageNames name each Language for the model.
 var languageNames = map[domain.Language]string{domain.English: "English", domain.Italian: "Italian"}
 
-// parseSystem is the parse Run's system prompt, the same for every User and paste but
-// for %[1]s, the name of the User's Language, so it is cached.
+// parseSystem is the parse Run's system prompt, the same for every User and paste but for
+// %[1]s, the name of the User's Language, so it is cached.
 const parseSystem = `You turn recipe text the user pasted into a structured Recipe for their Recipe Library.
 
 Call submit_recipe with the whole Recipe. Then end your turn with one short sentence.

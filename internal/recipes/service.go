@@ -1,5 +1,5 @@
-// Package recipes is the Recipe Library: the Recipes a User writes by hand or pastes,
-// the Recipe Drafts parse Runs read pasted text into, and the one form every Recipe is
+// Package recipes is the Recipe Library: the Recipes a User writes by hand or pastes, the
+// Recipe Drafts parse Runs read pasted text into, and the one form every Recipe is
 // written with.
 package recipes
 

@@ -31,8 +31,8 @@ func loadLanguage(ctx context.Context, q db.Querier) (domain.Language, bool, err
 }
 
 // LoadSlotTimes reads the signed-in User's times of day of each kind of Slot: the
-// defaults until they set theirs. It has no WHERE on purpose: run in db.AsUser,
-// row-level security leaves only their row.
+// defaults until they set theirs. It has no WHERE on purpose: run in db.AsUser, row-level
+// security leaves only their row.
 func LoadSlotTimes(ctx context.Context, q db.Querier) (domain.SlotTimes, error) {
 	var b, l, s, d pgtype.Time
 	err := q.QueryRow(ctx, `SELECT breakfast_at, lunch_at, snack_at, dinner_at FROM profile`).Scan(&b, &l, &s, &d)

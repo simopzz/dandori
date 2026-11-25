@@ -9,8 +9,8 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// chili is a Recipe written for 4 Portions: 400 g of mince and 2 onions, 300 kcal and
-// 25 g protein a Portion, its fibre unknown in the mince.
+// chili is a Recipe written for 4 Portions: 400 g of mince and 2 onions, 300 kcal and 25
+// g protein a Portion, its fibre unknown in the mince.
 var chili = domain.Recipe{ID: 7, Name: "Chili", Portions: 4, Ingredients: []domain.RecipeIngredient{
 	{Ingredient: domain.Ingredient{Name: "beef mince", Unit: domain.Grams, Nutrition: nutrition(250, 20, 0, 18, domain.Unknown, domain.Known(0))}, Quantity: grams(400)},
 	{Ingredient: domain.Ingredient{Name: "onion", Unit: domain.Pieces, Nutrition: nutrition(100, 10, 10, 2, domain.Known(3), domain.Known(4))}, Quantity: grams(2)},
@@ -114,8 +114,8 @@ func TestADraftPlanThatCantBeRead(t *testing.T) {
 	}
 }
 
-// The structural hard rules: a Slot filled twice or left empty, a Portion eaten before
-// it is prepared or that doesn't exist, food outside the Cycle.
+// The structural hard rules: a Slot filled twice or left empty, a Portion eaten before it
+// is prepared or that doesn't exist, food outside the Cycle.
 func TestTheStructuralHardRules(t *testing.T) {
 	// The Plan fills Thursday 5 November's dinner to Friday 6's lunch.
 	slots := []domain.Slot{slot(5, domain.Dinner), slot(6, domain.Breakfast), slot(6, domain.Lunch)}

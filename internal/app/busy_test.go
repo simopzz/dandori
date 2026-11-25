@@ -8,8 +8,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// A write slow to answer shows the busy bar and the pressed button busy, both gone
-// once it lands.
+// A write slow to answer shows the busy bar and the pressed button busy, both gone once
+// it lands.
 func TestBrowserShowsASlowWriteIsBusy(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/profile")

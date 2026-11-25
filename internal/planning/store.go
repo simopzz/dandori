@@ -46,9 +46,9 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 	return current, upcoming, nil
 }
 
-// loadCycles reads every Cycle of the signed-in User's, in the order of their
-// Deliveries, its dates as days in `zone`. It has no WHERE on purpose: run in db.AsUser,
-// row-level security leaves only their rows.
+// loadCycles reads every Cycle of the signed-in User's, in the order of their Deliveries,
+// its dates as days in `zone`. It has no WHERE on purpose: run in db.AsUser, row-level
+// security leaves only their rows.
 func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle, error) {
 	rows, err := q.Query(ctx, `
 		SELECT id, delivery_on, extract(epoch FROM window_from)::int / 60, extract(epoch FROM window_to)::int / 60, ends_on, ordered_at,
@@ -140,8 +140,8 @@ func undoOrdered(ctx context.Context, q db.Querier, id int64) error {
 	return err
 }
 
-// loadGroceryLines is the fixed Grocery List of the signed-in User's Cycle `id`: how
-// much it buys of each Ingredient, by its id.
+// loadGroceryLines is the fixed Grocery List of the signed-in User's Cycle `id`: how much
+// it buys of each Ingredient, by its id.
 func loadGroceryLines(ctx context.Context, q db.Querier, id int64) (map[int64]domain.Quantity, error) {
 	var ingredientID int64
 	var quantity float64
@@ -154,8 +154,8 @@ func loadGroceryLines(ctx context.Context, q db.Querier, id int64) (map[int64]do
 	return lines, err
 }
 
-// planningBusy reports whether the signed-in User has a planning Run going other than
-// the Run `except`, or a pending Plan Proposal, for any Cycle.
+// planningBusy reports whether the signed-in User has a planning Run going other than the
+// Run `except`, or a pending Plan Proposal, for any Cycle.
 func planningBusy(ctx context.Context, q db.Querier, except int64) (busy bool, err error) {
 	err = q.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM run WHERE kind = $1 AND status = $2 AND id <> $3)
@@ -164,8 +164,8 @@ func planningBusy(ctx context.Context, q db.Querier, except int64) (busy bool, e
 	return busy, err
 }
 
-// busyCycles are the ids of the signed-in User's Cycles with a pending Plan Proposal or
-// a planning Run going.
+// busyCycles are the ids of the signed-in User's Cycles with a pending Plan Proposal or a
+// planning Run going.
 func busyCycles(ctx context.Context, q db.Querier) ([]int64, error) {
 	rows, _ := q.Query(ctx, `
 		SELECT DISTINCT cr.cycle_id FROM cycle_run cr JOIN run r ON r.id = cr.run_id
@@ -454,16 +454,16 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 	return err
 }
 
-// loadStanding is how planning the signed-in User's Cycle `id` stands, by its planning
-// Runs and their Plan Proposals.
-func loadStanding(ctx context.Context, q db.Querier, id int64) (Standing, error) {
-	var pending, going, planned, failed bool
-	err := q.QueryRow(ctx, `
+// loadStanding is what how planning the signed-in User's Cycle `id` stands is read from,
+// by its planning Runs and their Plan Proposals: whether one is `pending`, one `going`,
+// one approved so it is `planned`, and whether the latest `failed`.
+func loadStanding(ctx context.Context, q db.Querier, id int64) (pending, going, planned, failed bool, err error) {
+	err = q.QueryRow(ctx, `
 		SELECT coalesce(bool_or(pp.status = $2), false), coalesce(bool_or(r.status = $3), false),
 			coalesce(bool_or(pp.status = $4), false), coalesce((array_agg(r.status ORDER BY r.id DESC))[1] = $5, false)
 		FROM cycle_run cr JOIN run r ON r.id = cr.run_id LEFT JOIN plan_proposal pp ON pp.run_id = r.id
 		WHERE cr.cycle_id = $1`, id, Pending, runs.Going, Approved, runs.Failed).Scan(&pending, &going, &planned, &failed)
-	return standing(pending, going, planned, failed), err
+	return pending, going, planned, failed, err
 }
 
 // hasPlan reports whether the signed-in User's Cycle `id` has a Plan: a Plan Proposal of
@@ -497,9 +497,9 @@ func Prepares(ctx context.Context, q db.Querier, id int64) (prepared bool, err e
 }
 
 // UsesIngredient reports whether a Plan Proposal of the signed-in User's, whatever its
-// status, uses the Ingredient `id`, which its Prep Sessions and freezer splits keep, or
-// a fixed Grocery List buys it. The ingredients feature, which this one depends on,
-// reads it, and app wires it.
+// status, uses the Ingredient `id`, which its Prep Sessions and freezer splits keep, or a
+// fixed Grocery List buys it. The ingredients feature, which this one depends on, reads
+// it, and app wires it.
 func UsesIngredient(ctx context.Context, q db.Querier, id int64) (used bool, err error) {
 	err = q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM prep_session WHERE ingredient_id = $1)
 		OR EXISTS (SELECT 1 FROM freezer_split WHERE ingredient_id = $1)
@@ -609,8 +609,8 @@ func cycleOfRun(ctx context.Context, q db.Querier, runID int64) (id int64, err e
 	return id, err
 }
 
-// cycleOfProposal is the id of the signed-in User's Cycle their Plan Proposal `id`
-// plans, and ErrNoProposal when they have no such Plan Proposal.
+// cycleOfProposal is the id of the signed-in User's Cycle their Plan Proposal `id` plans,
+// and ErrNoProposal when they have no such Plan Proposal.
 func cycleOfProposal(ctx context.Context, q db.Querier, id int64) (cycleID int64, err error) {
 	err = q.QueryRow(ctx, `SELECT cr.cycle_id FROM plan_proposal pp JOIN cycle_run cr ON cr.run_id = pp.run_id WHERE pp.id = $1`, id).Scan(&cycleID)
 	if errors.Is(err, pgx.ErrNoRows) {

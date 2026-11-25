@@ -14,16 +14,16 @@ import (
 	"testing"
 )
 
-// ordinarySense are avoided words a page uses in their ordinary sense,
-// not as the term the glossary avoids them for.
+// ordinarySense are avoided words a page uses in their ordinary sense, not as the term
+// the glossary avoids them for.
 var ordinarySense = map[string]string{
 	"log":   `"the server log", not a Trace`,
 	"step":  `a Recipe's steps, which the glossary names so, not a Trace Event`,
 	"order": `the verb, as Today says "Order the next Delivery", not a Delivery`,
 }
 
-// nameSense are names that use an avoided word in its ordinary sense, not as the term
-// the glossary avoids it for.
+// nameSense are names that use an avoided word in its ordinary sense, not as the term the
+// glossary avoids it for.
 var nameSense = map[string]string{
 	"Schedule":            "starting the app's scheduler, not a Plan",
 	"goneToTodayIfChosen": "the verb, not a Stock Item left in the kitchen",
@@ -31,9 +31,9 @@ var nameSense = map[string]string{
 	"TestStartupMigratesTheDatabaseBeforeServing": "serving HTTP, not a Portion",
 }
 
-// Pages speak the glossary: what a page shows, a Message's English or a template's
-// own text, never uses a word GLOSSARY.md lists under _Avoid_. A glossary term
-// containing such a word (Meal Out holds "meal") is the term, and fine; so is a word
+// Pages speak the glossary: what a page shows, a Message's English or a template's own
+// text, never uses a word GLOSSARY.md lists under _Avoid_. A glossary term containing
+// such a word (Meal Out holds "meal") is the term, and fine; so is a word
 // in ordinarySense.
 func TestPagesAvoidWhatTheGlossaryAvoids(t *testing.T) {
 	glossary, err := os.ReadFile("../../GLOSSARY.md")
@@ -150,8 +150,8 @@ var (
 	glossaryAvoid = regexp.MustCompile(`(?m)^_Avoid_: (.+)$`)
 )
 
-// glossaryWords are `glossary`'s `terms` and the words it avoids, each as
-// a whole-word, case-insensitive pattern; a term matches its plural too.
+// glossaryWords are `glossary`'s `terms` and the words it avoids, each as a whole-word,
+// case-insensitive pattern; a term matches its plural too.
 func glossaryWords(glossary string) (terms []*regexp.Regexp, avoided map[string]*regexp.Regexp) {
 	word := func(w string) *regexp.Regexp {
 		return regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(w) + `s?\b`)

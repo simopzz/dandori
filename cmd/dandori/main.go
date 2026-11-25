@@ -17,8 +17,8 @@
 //
 // DANDORI_DEV_NOW runs the app on a manual clock at that time, with a fake Supabase Auth
 // and the /_test/ routes a driver needs, instead of on the machine's time and the real
-// Supabase Auth: DANDORI_DEV_USERS invites the emails it lists, each an email or an
-// email and the User's id, as "ada@example.com" or "ada@example.com:<uuid>".
+// Supabase Auth: DANDORI_DEV_USERS invites the emails it lists, each an email or an email
+// and the User's id, as "ada@example.com" or "ada@example.com:<uuid>".
 package main
 
 import (
@@ -145,8 +145,8 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string, d
 	defer a.Close()
 	a.Schedule(ctx)
 	if devMode != nil {
-		// The app wakes up at the dev time: what it assumed up to then is
-		// recorded before the first request.
+		// The app wakes up at the dev time: what it assumed up to then is recorded before
+		// the first request.
 		devMode.Wake()
 	}
 	srv := &http.Server{
@@ -168,8 +168,8 @@ func serve(ctx context.Context, log *slog.Logger, cfg app.Config, addr string, d
 	}
 }
 
-// healthcheck fails unless the app on `addr` answers its health check with
-// 200: serving, with its database reachable.
+// healthcheck fails unless the app on `addr` answers its health check with 200: serving,
+// with its database reachable.
 func healthcheck(ctx context.Context, addr string) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -211,8 +211,8 @@ func handler(next http.Handler, devMode *devmode.Dev) http.Handler {
 	return devMode.Handler(next)
 }
 
-// baseURL is the address the app serves on, as a browser reaches it: the
-// listener's, with a wildcard host turned into the loopback one.
+// baseURL is the address the app serves on, as a browser reaches it: the listener's, with
+// a wildcard host turned into the loopback one.
 func baseURL(addr net.Addr) string {
 	host, port, err := net.SplitHostPort(addr.String())
 	if err != nil {

@@ -13,8 +13,8 @@ import (
 	"github.com/simopzz/dandori/internal/clock"
 )
 
-// A deploy starts the new binary on the database as the last one left it:
-// the migrations a PR added are applied before the app serves.
+// A deploy starts the new binary on the database as the last one left it: the migrations
+// a PR added are applied before the app serves.
 func TestStartupMigratesTheDatabaseBeforeServing(t *testing.T) {
 	h := apptest.Start(t, apptest.WithUnmigratedDatabase())
 	h.Invite("ada@example.com")
@@ -25,8 +25,8 @@ func TestStartupMigratesTheDatabaseBeforeServing(t *testing.T) {
 	h.Exec(t, "SELECT '[1,2,3]'::vector")
 }
 
-// The app does not start on a database it can't reach: Docker Compose
-// restarts it, and a deploy that never comes up healthy fails.
+// The app does not start on a database it can't reach: Docker Compose restarts it, and a
+// deploy that never comes up healthy fails.
 func TestStartupFailsWhenTheDatabaseIsUnreachable(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a, err := app.New(context.Background(), app.Config{

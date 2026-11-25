@@ -12,8 +12,8 @@ import (
 
 type userKey struct{}
 
-// WithUser returns `ctx` carrying the signed-in User's id, which AsUser runs
-// their queries as.
+// WithUser returns `ctx` carrying the signed-in User's id, which AsUser runs their
+// queries as.
 func WithUser(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, userKey{}, userID)
 }
@@ -25,9 +25,9 @@ func UserID(ctx context.Context) (string, bool) {
 }
 
 // AsUser runs `fn` in a transaction as the User `ctx` carries: as Supabase's
-// authenticated role, with their id as the claims' sub, so row-level
-// security shows `fn` only that User's rows, whatever its queries filter.
-// It commits if `fn` returns nil. Every query on an owned table runs in one.
+// authenticated role, with their id as the claims' sub, so row-level security shows `fn`
+// only that User's rows, whatever its queries filter. It commits if `fn` returns nil.
+// Every query on an owned table runs in one.
 func AsUser(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error {
 	userID, ok := UserID(ctx)
 	if !ok {

@@ -112,8 +112,8 @@ func TestTodaySpeaksTheUsersLanguage(t *testing.T) {
 	s.Sees("A seguire: colazione domani alle 08:00")
 }
 
-// From three days before the current Cycle's end date, not before, Today says to open
-// the next Cycle, linking to the form opening one, until it is open.
+// From three days before the current Cycle's end date, not before, Today says to open the
+// next Cycle, linking to the form opening one, until it is open.
 func TestTodaySaysToOpenTheNextCycleFromThreeDaysBeforeItsEnd(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
 	s.OpensCycle(thursday) // ending on Sunday 15 November
@@ -212,8 +212,8 @@ func TestTodaySaysHowPlanningTheCurrentCycleStands(t *testing.T) {
 	s.DoesNotSee("waiting to be planned")
 }
 
-// While the Targets aren't set, Today points to the Profile instead of offering to open
-// a Cycle, which would be refused; once they are, it offers to.
+// While the Targets aren't set, Today points to the Profile instead of offering to open a
+// Cycle, which would be refused; once they are, it offers to.
 func TestTodayPointsToTheProfileUntilTheTargetsAreSet(t *testing.T) {
 	s := profileOf(t, "ada@example.com")
 	s.Open("/")

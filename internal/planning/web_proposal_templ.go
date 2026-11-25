@@ -948,8 +948,8 @@ func changedDays(ds []proposalDay) (first, last time.Time, ok bool) {
 
 // missRows are `p`'s soft misses beside the averages, a line per kind, each led by its
 // icon: the days more than 25% off a Target, each with the Targets it misses; each
-// Portion eaten back to back; the Portions carried in left unused; then, as
-// information, the Portions made for after the Cycle.
+// Portion eaten back to back; the Portions carried in left unused; then, as information,
+// the Portions made for after the Cycle.
 func missRows(p Proposal) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1921,8 +1921,8 @@ func earlierNotes(notes []string) templ.Component {
 }
 
 // daysBefore are the days before a Plan Proposal, `trailing`, folded into one Group: how
-// many an approved Plan covered and how many none did; opened, each covered day with
-// its figures, and the days no Plan covered collapsed into ranges.
+// many an approved Plan covered and how many none did; opened, each covered day with its
+// figures, and the days no Plan covered collapsed into ranges.
 func daysBefore(trailing []domain.Day) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2082,8 +2082,8 @@ func text(s string) templ.Component {
 	})
 }
 
-// beforeLine says how many of the days before an approved Plan covered, and how many
-// none did, leaving out a count of none.
+// beforeLine says how many of the days before an approved Plan covered, and how many none
+// did, leaving out a count of none.
 func beforeLine(ctx context.Context, trailing []domain.Day) string {
 	planned := 0
 	for _, d := range trailing {
