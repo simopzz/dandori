@@ -44,7 +44,7 @@ func (s *Service) Language(ctx context.Context) (l domain.Language, ok bool, err
 // once they have chosen their Language.
 func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		t, err = loadSlotTimes(ctx, tx)
+		t, err = LoadSlotTimes(ctx, tx)
 		return err
 	})
 	return t, err
@@ -187,7 +187,7 @@ func (s *Service) Profile(ctx context.Context) (p domain.Profile, err error) {
 		if p.Language, _, err = loadLanguage(ctx, tx); err != nil {
 			return err
 		}
-		if p.SlotTimes, err = loadSlotTimes(ctx, tx); err != nil {
+		if p.SlotTimes, err = LoadSlotTimes(ctx, tx); err != nil {
 			return err
 		}
 		if p.Targets, _, err = LoadTargets(ctx, tx); err != nil {

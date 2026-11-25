@@ -15,6 +15,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
@@ -224,11 +225,11 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 	return nil
 }
 
-// plansBetween is the Plans of `cycles`, read in `tx`, that may have a Slot after `from`
+// plansBetween is the Plans of `cycles`, read in `q`, that may have a Slot after `from`
 // and by `to`, by `times`, together: each Cycle's as its approved Plan Proposals leave
 // it, Until the next Cycle's Delivery arrives, its Recipes and Ingredients found among
 // `library` and `known`. Days between Cycles are in none.
-func plansBetween(ctx context.Context, tx pgx.Tx, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (domain.Plan, error) {
+func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (domain.Plan, error) {
 	var plan domain.Plan
 	for i, c := range cycles {
 		if i+1 < len(cycles) {
@@ -237,7 +238,7 @@ func plansBetween(ctx context.Context, tx pgx.Tx, cycles []Cycle, library []doma
 		if c.Delivery.Arrives().After(to) || (!c.Until.IsZero() && !c.Until.After(from)) || !c.Ends.AddDate(0, 0, 1).After(from) {
 			continue
 		}
-		own, err := loadPlanOf(ctx, tx, c.ID, to.Location())
+		own, err := loadPlanOf(ctx, q, c.ID, to.Location())
 		if err != nil {
 			return plan, err
 		}
@@ -246,6 +247,37 @@ func plansBetween(ctx context.Context, tx pgx.Tx, cycles []Cycle, library []doma
 		plan.Kept = append(plan.Kept, p.Kept...)
 	}
 	return plan, nil
+}
+
+// PortionSlots is the time of the Slot after `now` each Portion the signed-in User's
+// kitchen may hold fills, by its id, in the approved Plans of their Cycles: the earliest,
+// for one filling more than one (domain.Plan.Filled). The kitchen feature, which this
+// one depends on, reads it in its own transaction, and app wires it: a read, made only of
+// store reads.
+func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]time.Time, error) {
+	cycles, err := loadCycles(ctx, q, now.Location())
+	if err != nil || len(cycles) == 0 { // a User without a Cycle may have no Profile
+		return nil, err
+	}
+	times, err := profile.LoadSlotTimes(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := plansBetween(ctx, q, cycles, nil, nil, times, now, now.AddDate(100, 0, 0)) // every Cycle still to come
+	if err != nil {
+		return nil, err
+	}
+	madeFrom, err := ledger.LoadMadeFrom(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	slots := map[int64]time.Time{}
+	for id, s := range plan.Filled(madeFrom) {
+		if at := s.At(times); at.After(now) {
+			slots[id] = at
+		}
+	}
+	return slots, nil
 }
 
 // putAwayDue puts away at `now`, in `tx`, each of `cycles`' Deliveries `due` says arrived
