@@ -11,7 +11,7 @@ Under `mise run dev` the demo model only parses Recipes: a planning Run needs `D
 
 `mise run dev` serves on `.env`'s `DANDORI_ADDR`, `127.0.0.1:8080`. With another dev server already there, `DANDORI_DEV_ADDR=127.0.0.1:8081 mise run dev` serves this branch beside it; a sign-in carries across ports. Run it through the task, which points it at the dev database, never `.env`'s `DANDORI_DATABASE_URL`.
 
-The dev server runs on the real clock. Reach a state that depends on the date, such as three days before a Cycle's end, by editing the dev database: back it up first with `pg_dump -Fc -d <dev URL> -f <scratchpad>/devdb.dump`, and restore it once done with `pg_restore --clean --if-exists --single-transaction -d <dev URL> <scratchpad>/devdb.dump`. The dev URL is the `DANDORI_DATABASE_URL` in `mise.toml`'s `dev` task.
+The dev server runs on the real clock, unless `DANDORI_DEV_NOW` gives it another one: with it the app runs on a manual clock you can jump, with a fake Supabase Auth, and a state that depends on the date is reached by moving the clock, not by editing the dev database (`docs/agents/dev-mode.md`). The dev database is written to either way: back it up first with `pg_dump -Fc -d <dev URL> -f <scratchpad>/devdb.dump`, and restore it once done with `pg_restore --clean --if-exists --single-transaction -d <dev URL> <scratchpad>/devdb.dump`. The dev URL is the `DANDORI_DATABASE_URL` in `mise.toml`'s `dev` task.
 
 ## playwright-brave
 

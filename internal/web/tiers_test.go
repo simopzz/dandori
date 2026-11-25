@@ -15,7 +15,7 @@ import (
 
 // shared are the internal packages of shared machinery, not features: ADR-0006's tiers
 // are a feature's. Every other package under internal is held to them.
-var shared = []string{"agent", "app", "apptest", "clock", "db", "domain", "httpx", "telemetry", "web"}
+var shared = []string{"agent", "app", "apptest", "clock", "db", "devmode", "domain", "httpx", "telemetry", "web"}
 
 // sqlCalls are the pgx methods that reach the database. Each takes a context first, so
 // a call without arguments, such as r.URL.Query(), is not one.

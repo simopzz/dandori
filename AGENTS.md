@@ -38,6 +38,10 @@ Any UI work follows the design system in `docs/design.md`: build pages from the 
 
 Diagnosing a page in a browser, whether a style that won't apply, a slow load or swap, an accessibility failure or a leak, goes through the `chrome-devtools` MCP server in `.mcp.json`. Clicking through and screenshots go through `playwright-brave`. See `docs/agents/browser-tools.md` before opening either.
 
+### Dev mode
+
+`DANDORI_DEV_NOW` runs the dev server on a manual clock at that time, with a fake Supabase Auth and the `/_test/` routes a driver needs: the clock switch, the mailbox, the fake Auth. A state that depends on the date is reached by jumping the clock, not by editing the dev database. `docs/agents/dev-mode.md` is how, and what the app does when the clock jumps.
+
 ### PR screenshots
 
 A PR body shows images from the orphan branch `pr-images`: `mise run pr-image <pr> <image>...` publishes them and prints the `<img>` tags.
