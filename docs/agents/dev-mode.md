@@ -35,6 +35,21 @@ The fake Auth emails magic links to invited Users only, into the fake mailbox.
 
 The mailbox's links lead to the app as the mailbox was reached, so a browser on `localhost` gets a `localhost` link and keeps its session cookie on that host.
 
+When the sign-in pages aren't what you are testing, one `browser_evaluate` from any page of the dev server signs a fresh User in, chooses English and seeds the kitchen, leaving the tab signed in:
+
+```js
+async () => {
+  const email = "ada@example.com";
+  const post = (path, fields) => fetch(path, {method: "POST", body: new URLSearchParams(fields)});
+  await post("/sign-in", {email});
+  const link = new URL((await (await fetch(`/_test/mail?email=${encodeURIComponent(email)}`)).json()).at(-1));
+  await post("/auth/confirm", {token_hash: link.searchParams.get("token_hash"), type: link.searchParams.get("type")});
+  const language = await post("/language", {language: "en"});
+  const seed = await post("/_test/seed", {});
+  return {landed: new URL(language.url).pathname, seed: seed.status}; // {landed: "/", seed: 204}
+}
+```
+
 ## Moving time
 
 ```
