@@ -9,9 +9,9 @@ Facts this playbook stands on (datasource UIDs, Loki labels, each tool's argumen
 
 ## Before the first query
 
-1. **Pin the window.** Turn the report's time into RFC3339 with the User's offset (Italy is `+01:00` in winter, `+02:00` in summer) and pass a range of an hour or so around it to every call. Without one each tool looks at the last hour only, and an empty result means nothing. "Just now" is whatever `date` says: read it from there, never from earlier in the conversation.
+1. **Pin the window.** Turn the report's time into RFC3339 with the User's offset (Italy is `+01:00` in winter, `+02:00` in summer) and pass a range of an hour or so around it to every call. Without one each tool looks at the last hour only, and an empty result means nothing. "Just now" is whatever `date` says: read it from there, never from earlier in the conversation — unless the dev server runs on a manual clock (`DANDORI_DEV_NOW`), when it is the dev time.
 2. **Check retention.** Spans and logs older than 14 days are gone. Say so, and work from what outlives them: the database (a Run's Trace, the ledger's Movements, the User's rows), the deploys (`gh run list --branch v2`) and the code at the commit then running.
-3. **Pick the environment**: `prod` for a report, `dev` for your own `mise run dev`.
+3. **Pick the environment**: `prod` for a report, `dev` for your own `mise run dev`. A dev server on a manual clock carries the dev time in its spans and logs, not the machine's: pin the window to that (`docs/agents/dev-mode.md`).
 
 Every query below is for `prod`; swap the environment for `dev`.
 

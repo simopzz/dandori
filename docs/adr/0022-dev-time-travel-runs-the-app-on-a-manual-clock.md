@@ -17,3 +17,4 @@ The `/_test/` routes are mounted only when `DANDORI_DEV_NOW` is set, the same op
 - A traveled run writes Movements dated in the fake future into the dev database: the dev data is disposable, and part of it goes when a traveled session is over.
 - The driver signs in through the app's own pages, with the magic link a User gets: only the Supabase behind it is fake.
 - The override is dev-only by design; a production demo, when it comes, is its own decision, not this feature's second half.
+- How a driver uses it: `docs/agents/dev-mode.md`.
