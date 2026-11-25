@@ -86,7 +86,7 @@ func ClockSwitch(c *clock.Manual) http.HandlerFunc {
 			return
 		}
 		if r.FormValue("beat") == "false" {
-			c.Move(now)
+			c.SkipTo(now)
 		} else {
 			c.Set(now)
 		}

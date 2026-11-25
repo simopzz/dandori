@@ -87,8 +87,8 @@ func (m *Manual) Set(now time.Time) {
 	}
 }
 
-// Move moves the clock to `now` without beating: the multiples it passes are skipped.
-func (m *Manual) Move(now time.Time) {
+// SkipTo moves the clock to `now` without beating: the multiples it passes are skipped.
+func (m *Manual) SkipTo(now time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.now = now
