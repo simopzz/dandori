@@ -87,6 +87,13 @@ func (m *Manual) Set(now time.Time) {
 	}
 }
 
+// SkipTo moves the clock to `now` without beating: the multiples it passes are skipped.
+func (m *Manual) SkipTo(now time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.now = now
+}
+
 // Every beats `beat` whenever Set passes a multiple of `d`, until `ctx` ends.
 func (m *Manual) Every(ctx context.Context, d time.Duration, beat func(at time.Time)) {
 	m.mu.Lock()

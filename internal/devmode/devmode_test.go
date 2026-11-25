@@ -82,3 +82,37 @@ func TestTheDevRoutesAreMountedUnderTest(t *testing.T) {
 		t.Errorf("the fake Supabase Auth answered %d, want 200", res.StatusCode)
 	}
 }
+
+// The clock switch posted beat=false moves the clock without beating, so a request is
+// the first to bring the kitchen up to the new time. The beat it passed is skipped: the
+// next one is at the next multiple.
+func TestTheClockSwitchCanMoveWithoutBeating(t *testing.T) {
+	at := time.Date(2026, time.November, 25, 8, 0, 0, 0, time.UTC)
+	dev, err := devmode.New(at, 5*time.Minute, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dev.Wake()
+	var beats []time.Time
+	dev.Clock.Every(t.Context(), 5*time.Minute, func(at time.Time) { beats = append(beats, at) })
+	move := func(now time.Time, form url.Values) {
+		t.Helper()
+		form.Set("now", now.Format(time.RFC3339))
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/_test/clock", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		devmode.ClockSwitch(dev.Clock)(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("the clock switch answered %d, want 204", rec.Code)
+		}
+	}
+
+	move(at.Add(10*time.Minute), url.Values{"beat": {"false"}})
+	if got := dev.Clock.Now(); !got.Equal(at.Add(10*time.Minute)) || len(beats) != 0 {
+		t.Fatalf("the clock stands at %s with beats %v, want 8:10 and none", got, beats)
+	}
+	move(at.Add(15*time.Minute), url.Values{})
+	if len(beats) != 1 || !beats[0].Equal(at.Add(15*time.Minute)) {
+		t.Errorf("beats = %v, want the one at 8:15", beats)
+	}
+}

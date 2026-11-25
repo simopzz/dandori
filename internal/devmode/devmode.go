@@ -63,10 +63,11 @@ func (d *Dev) Listening(base string) {
 func (d *Dev) Wake() { d.Clock.Set(d.now) }
 
 // Handler serves the dev routes beside the app's: the clock switch, the
-// mailbox and the fake Supabase Auth, all under /_test/.
+// seed, the mailbox and the fake Supabase Auth, all under /_test/.
 func (d *Dev) Handler(next http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("POST /_test/clock", ClockSwitch(d.Clock))
+	mux.Handle("POST /_test/seed", Seed(next))
 	mux.Handle("GET /_test/mail", Mailbox(d.Auth))
 	mux.Handle("/_test/supabase/", http.StripPrefix("/_test/supabase", d.Auth.Handler()))
 	mux.Handle("/", next)
@@ -74,7 +75,9 @@ func (d *Dev) Handler(next http.Handler) http.Handler {
 }
 
 // ClockSwitch sets the clock to the time posted as now, for a driver that
-// can't reach the app's clock, such as a browser's.
+// can't reach the app's clock, such as a browser's. Posted with beat=false,
+// it moves the clock without beating, so the next request is the first to
+// bring the kitchen up to now.
 func ClockSwitch(c *clock.Manual) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		now, err := Parse(r.FormValue("now"), c.Now().Location())
@@ -82,7 +85,11 @@ func ClockSwitch(c *clock.Manual) http.HandlerFunc {
 			http.Error(w, "now: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		c.Set(now)
+		if r.FormValue("beat") == "false" {
+			c.SkipTo(now)
+		} else {
+			c.Set(now)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

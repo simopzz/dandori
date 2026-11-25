@@ -176,12 +176,17 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	}
 	// Not a ServeMux: the pattern it matched would name every request's span "GET /".
 	setClock := devmode.ClockSwitch(manual)
+	appHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { (*handler.Load()).ServeHTTP(w, r) })
+	seed := devmode.Seed(appHandler)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == "/_test/clock" {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/_test/clock":
 			setClock(w, r)
-			return
+		case r.Method == http.MethodPost && r.URL.Path == "/_test/seed":
+			seed(w, r)
+		default:
+			appHandler(w, r)
 		}
-		(*handler.Load()).ServeHTTP(w, r)
 	}))
 	t.Cleanup(func() {
 		srv.Close()

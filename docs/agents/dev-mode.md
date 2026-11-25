@@ -9,16 +9,17 @@ DANDORI_DEV_NOW=2026-11-25T08:00 DANDORI_DEV_USERS=ada@example.com mise run dev
 ```
 
 - **The time**: an RFC 3339 time (`2026-11-25T08:00:00+01:00`) or a local one (`2026-11-25T08:00`), read in the installation's zone (`DANDORI_TIMEZONE`, Europe/Rome) when it carries none.
-- **The users**: `DANDORI_DEV_USERS` is a comma list of `email` or `email:<uuid>`. The uuid pins the User: the session is then that User of the dev database, with the data built under real Supabase. Without it the email gets a fresh User with an empty kitchen.
+- **The users**: `DANDORI_DEV_USERS` is a comma list of `email` or `email:<uuid>`. The uuid pins the User: the session is then that User of the dev database, with the data built under real Supabase. Without it the email gets a fresh User with an empty kitchen: `POST /_test/seed` fills it.
 - **The auth**: the fake Supabase Auth replaces the real one, so `DANDORI_SUPABASE_URL` and `DANDORI_SUPABASE_PUBLISHABLE_KEY` are not needed, and the app's auth code is untouched.
 - **The model**: `DANDORI_DEMO_LLM=false` (as `.env` has it) asks Claude; the demo model only parses Recipes. A planning Run takes a minute and several turns: watch it on `/runs/<id>`.
-- **The database**: the dev database, as `mise run dev` points at it. A traveled run writes into it: Movements dated in the fake future, Runs of the fake future. Back it up and restore it when the session is over (`browser-tools.md` has the `pg_dump` and `pg_restore` commands), or delete the User's rows: `DELETE FROM "user" WHERE email = '<email>'`, the foreign keys cascade.
+- **The database**: `dandori_travel_<port>` on the dev server, dropped and made again each start, so every traveled run starts empty and leaves the dev database as it was. A pinned User runs on the dev database itself: a traveled run writes Movements and Runs of the fake future into it, so back it up first and restore it when the session is over (`browser-tools.md` has the `pg_dump` and `pg_restore` commands).
 
 ## The routes under /_test/
 
 | Route | What it does |
 |---|---|
-| `POST /_test/clock` | Moves the clock: `now=<RFC 3339>`. Answers 204 when the beat is done. |
+| `POST /_test/clock` | Moves the clock: `now=<RFC 3339>`. Answers 204 when the beat is done; with `beat=false`, moves it without beating. |
+| `POST /_test/seed` | Gives the signed-in User a kitchen ready to plan, through the app's own forms: Targets, appliances, five Ingredients with rice and oats counted, two Recipes. Answers 204; 409 before a Language is chosen; 422 naming the post the app refused, such as a second seed. |
 | `GET /_test/mail?email=<email>` | The fake mailbox: a JSON array of the links sent to that email, oldest first. The last one is the newest. |
 | `/_test/supabase/auth/v1/...` | The fake Supabase Auth the app itself signs Users in through. |
 
@@ -42,6 +43,7 @@ curl -X POST --data-urlencode "now=2026-12-01T10:00:00+01:00" http://127.0.0.1:8
 
 - **Encode the form value**: a `+` in the offset becomes a space in a form body and the switch answers 400. Use `Z` (`2026-12-01T09:00:00Z`) or `--data-urlencode`.
 - **The clock stands still between jumps**, and each jump past a multiple of five minutes fires the scheduler's beat once, with the latest. The POST answers when the beat is done, so a jump that crosses a Delivery's arrival has already written its Movements.
+- **`beat=false` leaves the step to the next request**: the clock moves and the beat it passed is skipped, so opening a page is what brings the kitchen up to now, as when the scheduler is late. The next beat is at the next multiple.
 - **The app's ledger never moves back**: `kitchen.up_to` only moves forward, so a jump backwards leaves the kitchen ahead of the clock. Jump forward.
 - **The app's days and Slots follow the clock**: Today shows the day, the Slot now or next, the later ones a click away, and "Kitchen up to date as of <time>".
 
@@ -55,12 +57,15 @@ curl -X POST --data-urlencode "now=2026-12-01T10:00:00+01:00" http://127.0.0.1:8
 
 ## Setting a kitchen up
 
-The pages' endpoints take the same posts as their forms, so from the page:
+`await fetch("/_test/seed", {method: "POST"})` from a signed-in page gives a kitchen ready to plan: open a Cycle and plan it. For anything else, the pages' endpoints take the same posts as their forms, so from the page:
 
 ```js
-await fetch("/ingredients", {method: "POST", body: new URLSearchParams({name: "rice", unit: "g", usual: "pantry", kcal: "130", protein: "2.7", carbs: "28", fat: "0.3"})});
-await fetch("/kitchen/count", {method: "POST", body: new URLSearchParams({ingredient: "17", location: "pantry", stated: "500"})});
+const added = await fetch("/ingredients", {method: "POST", body: new URLSearchParams({name: "rice", unit: "g", usual: "pantry", kcal: "130", protein: "2.7", carbs: "28", fat: "0.3", counting: "1"})});
+const id = new URL(added.url).searchParams.get("ingredient"); // counting=1 lands on its Count
+await fetch("/kitchen/count", {method: "POST", body: new URLSearchParams({ingredient: id, location: "pantry", stated: "500"})});
 ```
+
+The forms' ids are the scenario helpers' in `internal/apptest/scenario.go`, with their fields: `profile-targets`, `ingredient-add`, `recipe-form` (an Ingredient row is `ing_name_<i>` and `ing_quantity_<i>`), `open-cycle`, `plan-cycle`.
 
 Drive the form when the form is what you are testing; post when you are only setting up.
 

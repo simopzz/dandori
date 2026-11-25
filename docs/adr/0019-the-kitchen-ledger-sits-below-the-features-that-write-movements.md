@@ -10,7 +10,7 @@ Marking an Ingredient a Staple counts its stock to nothing, a unit is fixed once
 ## Consequences
 
 - Every table has one owning feature (ADR-0006), and a feature may write the tables of one below it, never of one above it. The Ingredients writing Movements through wired functions was a write up the graph, into `kitchen`, which depends on `ingredients`. Moving the Ledger below both turned it into a write down it.
-- ADR-0006's wired functions stay reads only. A feature that needs to write, in its own transaction, what a feature depending on it owns means the shared part belongs in a package below both. A write down the graph needs no such move: `ledger` exports `Write`, `CountToNothing`, `SavePortions` and `SaveUpTo` in its `service` file for the features above it, the first two taking the kitchen lock as every write of Movements must.
+- ADR-0006's wired functions stay reads only. A feature that needs to write, in its own transaction, what a feature depending on it owns means the shared part belongs in a package below both. A write down the graph needs no such move: `ledger` exports the writes the features above it need in its `service` file, each taking the kitchen lock as every write of Movements must.
 - Planning, when it writes assumed Movements, imports `ledger` like the Ingredients do.
 - ADR-0021 amends this: `ledger` no longer runs the step that brings the kitchen up to now. `planning` runs it and writes the `kitchen` row through `ledger`.
 - `ingredients.Handlers.CountNew` stays a function `app` wires from the Kitchen page's handlers: an edge between handlers, with no transaction or lock in it.
