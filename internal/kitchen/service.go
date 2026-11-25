@@ -107,11 +107,11 @@ func (s *Service) StockItemMovements(ctx context.Context, id int64, location dom
 		if err != nil || !ok {
 			return err
 		}
-		movements, err := ledger.LoadMovements(ctx, tx)
+		l, err := ledger.LoadIngredientLedger(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		touched := domain.NewLedger(movements).Movements(domain.StockKey{Ingredient: id, Location: location})
+		touched := l.Movements(domain.StockKey{Ingredient: id, Location: location})
 		slices.Reverse(touched)
 		item = &StockItemMovements{Ingredient: ing, Location: location, Movements: touched}
 		return nil
@@ -130,11 +130,11 @@ type Holding struct {
 // it at `now`, or nil if they have no such Ingredient.
 func (s *Service) Holding(ctx context.Context, now time.Time, id int64) (holding *Holding, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		movements, err := ledger.LoadMovements(ctx, tx)
+		l, err := ledger.LoadIngredientLedger(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		holding, err = loadHolding(ctx, tx, domain.NewLedger(movements), now, id)
+		holding, err = loadHolding(ctx, tx, l, now, id)
 		return err
 	})
 	return holding, err
@@ -188,7 +188,7 @@ type Recorded struct {
 // Ingredient. Counting a Staple is ErrStaple, with what was read.
 func (s *Service) Count(ctx context.Context, now time.Time, id int64, location domain.StorageLocation, stated, note string) (rec *Recorded, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+		return ledger.WriteIngredient(ctx, tx, id, func(l domain.Ledger) ([]domain.Movement, error) {
 			holding, err := loadHolding(ctx, tx, l, now, id)
 			if err != nil || holding == nil {
 				return nil, err
@@ -371,7 +371,7 @@ func (s *Service) MovePortions(ctx context.Context, now time.Time, key domain.Lo
 // nil if the signed-in User has no such Ingredient.
 func (s *Service) Move(ctx context.Context, now time.Time, id int64, from, to domain.StorageLocation, moved, note string) (rec *Recorded, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+		return ledger.WriteIngredient(ctx, tx, id, func(l domain.Ledger) ([]domain.Movement, error) {
 			holding, err := loadHolding(ctx, tx, l, now, id)
 			if err != nil || holding == nil {
 				return nil, err

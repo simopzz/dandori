@@ -399,6 +399,16 @@ func TestTheLedgerWritesAMovement(t *testing.T) {
 		}
 	})
 
+	t.Run("of one Ingredient, after another's later Movement", func(t *testing.T) {
+		l := domain.IngredientLedger(behind, onMonday(11))
+		if got, want := l.Count(onMonday(10), riceFridge, 3000, ""), counted(11, riceFridge, 8000, 3000); !reflect.DeepEqual(got, want) {
+			t.Errorf("the Count is %+v, want %+v", got, want)
+		}
+		if got, _ := l.Move(onMonday(10), riceFridge, domain.Freezer, 1000, ""); !got.At.Equal(onMonday(11)) {
+			t.Errorf("the move is at %v, want %v", got.At, onMonday(11))
+		}
+	})
+
 	t.Run("a Staple's Counts to nothing", func(t *testing.T) {
 		movements := []domain.Movement{
 			counted(9, riceFridge, 0, 8000),
