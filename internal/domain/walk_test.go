@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 	"testing"
@@ -298,6 +299,26 @@ func TestThePortionFillingASlot(t *testing.T) {
 				t.Errorf("Filling(%s) = %d, %v, want %d, %v", tt.at, got, ok, tt.want, tt.ok)
 			}
 		})
+	}
+}
+
+// The Slot each Portion fills is the one Filling finds it in: a Planned Portion once
+// prepared, a kept Portion, and the earliest for one two Plans put in two Slots. One not
+// prepared yet fills none.
+func TestTheSlotEachPortionFills(t *testing.T) {
+	plan := domain.Plan{
+		PrepSessions: []domain.PrepSession{{ID: 5, At: slot(6, domain.Dinner), Ingredient: &plainRice, Quantity: grams(100), Portions: []domain.PlannedPortion{
+			planned(51, domain.Fridge, ptr(slot(6, domain.Dinner))), planned(52, domain.Fridge, ptr(slot(8, domain.Lunch))), planned(53, domain.Freezer, nil),
+		}}},
+		Kept: []domain.Kept{
+			{Portion: 7, At: slot(8, domain.Dinner)},
+			{Portion: 7, At: slot(7, domain.Lunch)}, // the upcoming Cycle's Plan, placing it again
+		},
+	}
+	got := plan.Filled(map[int64]int64{51: 101})
+	want := map[int64]domain.Slot{101: slot(6, domain.Dinner), 7: slot(7, domain.Lunch)}
+	if !maps.EqualFunc(got, want, domain.Slot.Equal) {
+		t.Errorf("Filled() = %v, want %v", got, want)
 	}
 }
 

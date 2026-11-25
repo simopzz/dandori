@@ -94,7 +94,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing, planning.UsesIngredient), ledger: ledger.New(pool)}
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs, planning.Prepares)
-	a.kitchen = kitchen.New(pool, a.ingredients)
+	a.kitchen = kitchen.New(pool, a.ingredients, planning.PortionSlots)
 	a.planning = planning.New(pool, a.clock, a.runs, a.profile, a.recipes, a.ingredients, a.kitchen, cfg.PlanChecks)
 	a.today = today.New(a.profile, a.ledger, a.planning, a.kitchen)
 	if err := a.ping(ctx); err != nil {

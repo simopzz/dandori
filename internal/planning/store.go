@@ -10,6 +10,8 @@ import (
 
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
@@ -505,6 +507,34 @@ func UsesIngredient(ctx context.Context, q db.Querier, id int64) (used bool, err
 		OR EXISTS (SELECT 1 FROM freezer_split WHERE ingredient_id = $1)
 		OR EXISTS (SELECT 1 FROM grocery_line WHERE ingredient_id = $1)`, id).Scan(&used)
 	return used, err
+}
+
+// PortionSlots is the time of the Slot each Portion the signed-in User's kitchen may
+// hold fills, by its id, in the approved Plans of their Cycles with a Slot after `now`:
+// the earliest, for one filling more than one (domain.Plan.Filled). The kitchen feature,
+// which this one depends on, reads it, and app wires it.
+func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]time.Time, error) {
+	cycles, err := loadCycles(ctx, q, now.Location())
+	if err != nil || len(cycles) == 0 { // a User without a Cycle may have no Profile
+		return nil, err
+	}
+	times, err := profile.LoadSlotTimes(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := plansBetween(ctx, q, cycles, nil, nil, times, now, now.AddDate(100, 0, 0)) // every Cycle still to come
+	if err != nil {
+		return nil, err
+	}
+	madeFrom, err := ledger.LoadMadeFrom(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	slots := map[int64]time.Time{}
+	for id, s := range plan.Filled(madeFrom) {
+		slots[id] = s.At(times)
+	}
+	return slots, nil
 }
 
 // prepareAccepted has the Prep Sessions of the Recipe Draft `draftID` prepare the Recipe

@@ -109,7 +109,7 @@ func (g PortionLot) MoreAlike(stated Quantity) NewPortions {
 }
 
 // takes is the `n` Portions of `g` a Count down takes: those without a Slot, oldest
-// first, then the latest Slot. `slots` has each one's Slot, nil until there are Slots.
+// first, then the latest Slot. `slots` has the time of each one's Slot.
 func (g PortionLot) takes(n int, slots map[int64]time.Time) []int64 {
 	order := slices.Clone(g.IDs)
 	slices.SortStableFunc(order, func(a, b int64) int {

@@ -24,13 +24,19 @@ var ErrStaple = errors.New("a Staple is never counted")
 
 // Service is the signed-in User's Kitchen page.
 type Service struct {
-	pool        *pgxpool.Pool
-	ingredients *ingredients.Service
+	pool         *pgxpool.Pool
+	ingredients  *ingredients.Service
+	portionSlots PortionSlots
 }
 
+// PortionSlots is the time of the Slot each Portion the signed-in User's kitchen may hold
+// fills, by its id, as their Plans have it at `now`. planning owns Plans and depends on
+// this feature, so app gives it.
+type PortionSlots func(ctx context.Context, q db.Querier, now time.Time) (map[int64]time.Time, error)
+
 // New creates the Service.
-func New(pool *pgxpool.Pool, ings *ingredients.Service) *Service {
-	return &Service{pool: pool, ingredients: ings}
+func New(pool *pgxpool.Pool, ings *ingredients.Service, portionSlots PortionSlots) *Service {
+	return &Service{pool: pool, ingredients: ings, portionSlots: portionSlots}
 }
 
 // Held is one Stock Item holding more than nothing, for the Kitchen page.
@@ -325,7 +331,8 @@ func (s *Service) writeLot(ctx context.Context, now time.Time, key domain.LotKey
 
 // CountPortions records at `now` the Count of the Portion Lot `key` names, stating what
 // the User typed is there, as domain.ParsePortionCount reads it, once the kitchen is
-// held. Counting up saves the Portions it adds. A Count of nothing where nothing is held,
+// held. Counting up saves the Portions it adds; counting down keeps those filling a Slot
+// of a Plan the longest. A Count of nothing where nothing is held,
 // as from a form another write has overtaken, lists no Portion, so records nothing.
 func (s *Service) CountPortions(ctx context.Context, now time.Time, key domain.LotKey, stated, note string) (*RecordedPortions, error) {
 	return s.writeLot(ctx, now, key, func(tx pgx.Tx, l domain.Ledger, _ []domain.Portion, rec *RecordedPortions) (err error) {
@@ -339,8 +346,11 @@ func (s *Service) CountPortions(ctx context.Context, now time.Time, key domain.L
 				return err
 			}
 		}
-		// shortcut: no Portion has a Slot yet, pass each one's Slot once Slots exist.
-		rec.Movement = l.CountPortions(now, rec.Lot, q, added, nil, strings.TrimSpace(note))
+		slots, err := s.portionSlots(ctx, tx, now)
+		if err != nil {
+			return err
+		}
+		rec.Movement = l.CountPortions(now, rec.Lot, q, added, slots, strings.TrimSpace(note))
 		return nil
 	})
 }

@@ -228,7 +228,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 // and by `to`, by `times`, together: each Cycle's as its approved Plan Proposals leave
 // it, Until the next Cycle's Delivery arrives, its Recipes and Ingredients found among
 // `library` and `known`. Days between Cycles are in none.
-func plansBetween(ctx context.Context, tx pgx.Tx, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (domain.Plan, error) {
+func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (domain.Plan, error) {
 	var plan domain.Plan
 	for i, c := range cycles {
 		if i+1 < len(cycles) {
@@ -237,7 +237,7 @@ func plansBetween(ctx context.Context, tx pgx.Tx, cycles []Cycle, library []doma
 		if c.Delivery.Arrives().After(to) || (!c.Until.IsZero() && !c.Until.After(from)) || !c.Ends.AddDate(0, 0, 1).After(from) {
 			continue
 		}
-		own, err := loadPlanOf(ctx, tx, c.ID, to.Location())
+		own, err := loadPlanOf(ctx, q, c.ID, to.Location())
 		if err != nil {
 			return plan, err
 		}
