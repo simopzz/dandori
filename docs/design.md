@@ -358,13 +358,15 @@ are styled once in `app.css`: every text input, select and textarea a square
 dense grids' cells included; tables ruled like rows, `dl` as a two-column list
 of facts.
 
-Three feature-shaped components live in `app.css` because nothing else needs
+Five feature-shaped components live in `app.css` because nothing else needs
 them yet: the Profile's `appliance-grid`, each kind's `Check` with the note on
 its model beside it under column heads (`appliance-grid-head`), or under it
 on a phone, where the heads are hidden and the note's placeholder, "Model
 (optional)", says on screen what it is, as a `SearchField`'s does, a hidden
 label naming it for a screen reader at every width; the Recipe form (`ingredient-grid`, `ingredient-row`, `ingredient-details`, `draft-steps`), and the
-Run `trace` panel.
+Run `trace` panel, and `cycle-switcher`, which keeps the current and upcoming
+Cycle links compact on a page and stacks them into full-width touch targets on
+a phone.
 
 ## Accessibility baseline
 
