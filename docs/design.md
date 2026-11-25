@@ -358,7 +358,7 @@ are styled once in `app.css`: every text input, select and textarea a square
 dense grids' cells included; tables ruled like rows, `dl` as a two-column list
 of facts.
 
-Four feature-shaped components live in `app.css` because nothing else needs
+Five feature-shaped components live in `app.css` because nothing else needs
 them yet: the Profile's `appliance-grid`, each kind's `Check` with the note on
 its model beside it under column heads (`appliance-grid-head`), or under it
 on a phone, where the heads are hidden and the note's placeholder, "Model
