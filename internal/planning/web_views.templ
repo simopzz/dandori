@@ -93,15 +93,17 @@ templ cyclePage(now time.Time, v cycleView) {
 // `shown`, the Cycle shown, marked; the upcoming one says how planning it stands, so a
 // Plan Proposal waiting is never hidden behind the current Cycle.
 templ switchCycles(shown int64, l cycleLinks) {
-	@web.SegmentedLinks(web.T(ctx, msgCycles)) {
-		@web.SegmentLink(shown == l.Current.ID, templ.Attributes{"href": string(cycleURL(l.Current.ID))}) {
-			{ web.Tf(ctx, msgCurrentDates, dates(ctx, l.Current)) }
+	<div class="cycle-switcher">
+		@web.SegmentedLinks(web.T(ctx, msgCycles)) {
+			@web.SegmentLink(shown == l.Current.ID, templ.Attributes{"href": string(cycleURL(l.Current.ID))}) {
+				{ web.Tf(ctx, msgCurrentDates, dates(ctx, l.Current)) }
+			}
+			@web.SegmentLink(shown == l.Upcoming.ID, templ.Attributes{"href": string(cycleURL(l.Upcoming.ID))}) {
+				{ web.Tf(ctx, msgUpcomingDates, dates(ctx, l.Upcoming)) }
+				@planningTag(l.Planning)
+			}
 		}
-		@web.SegmentLink(shown == l.Upcoming.ID, templ.Attributes{"href": string(cycleURL(l.Upcoming.ID))}) {
-			{ web.Tf(ctx, msgUpcomingDates, dates(ctx, l.Upcoming)) }
-			@planningTag(l.Planning)
-		}
-	}
+	</div>
 }
 
 // planningTag is how planning stands as a Tag after a Cycle's dates: a Plan Proposal
