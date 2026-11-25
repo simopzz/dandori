@@ -79,10 +79,13 @@ func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 
 // SaveUpTo records, in `q`'s transaction, the signed-in User's kitchen as brought up to
 // `now`, and the scheduler's beat at `now` too when `beat`, for `planning`'s step
-// (ADR-0021). It makes their `kitchen` row, which the kitchen lock holds. Neither moves
-// back, and a moment reached is not written again.
+// (ADR-0021). It makes their `kitchen` row and holds it, as Write does, until `q`'s
+// transaction ends. Neither moves back, and a moment reached is not written again.
 func SaveUpTo(ctx context.Context, q db.Querier, now time.Time, beat bool) error {
-	if err := saveUpTo(ctx, q, now); err != nil || !beat {
+	if err := saveUpTo(ctx, q, now); err != nil {
+		return err
+	}
+	if err := lock(ctx, q); err != nil || !beat {
 		return err
 	}
 	return saveBeat(ctx, q, now)
