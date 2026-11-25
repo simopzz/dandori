@@ -45,14 +45,15 @@ type parsedIngredient struct {
 
 // proposedIngredient is a new Ingredient's values; nil is unknown, never 0.
 type proposedIngredient struct {
-	Kcal    *float64               `json:"kcal"`
-	Protein *float64               `json:"protein_g"`
-	Carbs   *float64               `json:"carbs_g"`
-	Fat     *float64               `json:"fat_g"`
-	Fibre   *float64               `json:"fibre_g"`
-	Sugar   *float64               `json:"sugar_g"`
-	Usual   domain.StorageLocation `json:"usual"`
-	Staple  bool                   `json:"staple"`
+	Kcal          *float64               `json:"kcal"`
+	Protein       *float64               `json:"protein_g"`
+	Carbs         *float64               `json:"carbs_g"`
+	Fat           *float64               `json:"fat_g"`
+	Fibre         *float64               `json:"fibre_g"`
+	Sugar         *float64               `json:"sugar_g"`
+	Usual         domain.StorageLocation `json:"usual"`
+	UseFromFrozen bool                   `json:"use_from_frozen"`
+	Staple        bool                   `json:"staple"`
 }
 
 // recipe is `p` for a User speaking `l`, each Ingredient resolved by name to the one of
@@ -90,7 +91,7 @@ func (p parsedRecipe) recipe(l domain.Language, known []domain.Ingredient) (rec 
 			unresolved[i] = true
 			ing = domain.Ingredient{Name: strings.TrimSpace(pi.Name), Unit: pi.Unit}
 		case !isKnown:
-			ing = domain.Ingredient{Name: strings.TrimSpace(pi.Name), Unit: pi.Unit, Usual: pi.New.Usual, Staple: pi.New.Staple}
+			ing = domain.Ingredient{Name: strings.TrimSpace(pi.Name), Unit: pi.Unit, Usual: pi.New.Usual, UseFromFrozen: pi.New.UseFromFrozen, Staple: pi.New.Staple}
 			ing.Nutrition = domain.Nutrition{
 				Kcal: amount(problems, at+".new.kcal", pi.New.Kcal), Protein: amount(problems, at+".new.protein_g", pi.New.Protein),
 				Carbs: amount(problems, at+".new.carbs_g", pi.New.Carbs), Fat: amount(problems, at+".new.fat_g", pi.New.Fat),
@@ -151,7 +152,7 @@ func fixThese(problems map[string]string) error {
 var schemaFields = map[string]string{
 	"active": "active_minutes", "total": "total_minutes", "slots": "slot_kinds",
 	"ingredient.kcal": "new.kcal", "ingredient.protein": "new.protein_g", "ingredient.carbs": "new.carbs_g",
-	"ingredient.fat": "new.fat_g", "ingredient.usual": "new.usual",
+	"ingredient.fat": "new.fat_g", "ingredient.usual": "new.usual", "ingredient.use_from_frozen": "new.use_from_frozen",
 }
 
 // amount is a proposed value `v`, nil being unknown, or why it can't be, kept in
@@ -180,7 +181,7 @@ Call submit_recipe with the whole Recipe. Then end your turn with one short sent
 - Name each Ingredient as a generic food: lowercase, singular, no amounts or brands ("chicken breast", not "2 organic chicken breasts").
 - When an Ingredient is one of the known Ingredients, use exactly its name and unit, and leave out new.
 - Give every quantity in the Ingredient's unit: g for solids, ml for liquids, piece for things that are counted (eggs, lemons). Convert cups and spoons to g or ml. Give food packed in liquid drained: "1 tin of chickpeas" is 240 g.
-- For an Ingredient that is not known, propose in new its nutritional values per 100 g, per 100 ml or per piece, matching its unit, where it is usually kept (pantry, fridge or freezer), and whether it is a staple: always in the kitchen and too fiddly to weigh, such as oil, salt and spices. Give fibre_g and sugar_g as null when you can't tell; never guess 0.
+- For an Ingredient that is not known, propose in new its nutritional values per 100 g, per 100 ml or per piece, matching its unit, where it is usually kept (pantry, fridge or freezer), whether freezer stock is used straight from frozen, and whether it is a staple: always in the kitchen and too fiddly to weigh, such as oil, salt and spices. Decide usual location and use_from_frozen independently. Set use_from_frozen true only for Ingredients usually kept in the freezer and used straight from frozen; set it false for a frozen Ingredient that must thaw, such as a whole chicken. Give fibre_g and sugar_g as null when you can't tell; never guess 0.
 - portions is how many Portions the recipe makes as written; estimate it if the text doesn't say. active_minutes is the time spent working at it, total_minutes the whole time including unattended oven or resting time.
 - slot_kinds are when its Portions may be eaten: breakfast, lunch, snack or dinner, any number of them.
 - appliances are the kinds of kitchen appliance the recipe needs, each picked from the list in the schema. Leave any other equipment (a knife, an ice-cream maker) to the steps. steps are the method, one instruction each.
@@ -218,9 +219,10 @@ var submitRecipeSchema = json.RawMessage(fmt.Sprintf(`{
               "fibre_g": {"type": ["number", "null"], "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
               "sugar_g": {"type": ["number", "null"], "minimum": 0, "exclusiveMaximum": 10000, "description": "At most one decimal place."},
               "usual": {"type": "string", "enum": ["pantry", "fridge", "freezer"]},
+              "use_from_frozen": {"type": "boolean"},
               "staple": {"type": "boolean"}
             },
-            "required": ["kcal", "protein_g", "carbs_g", "fat_g", "fibre_g", "sugar_g", "usual", "staple"]
+            "required": ["kcal", "protein_g", "carbs_g", "fat_g", "fibre_g", "sugar_g", "usual", "use_from_frozen", "staple"]
           }
         },
         "required": ["name", "quantity", "unit"]

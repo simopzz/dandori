@@ -120,6 +120,11 @@ func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {
 	if got := odd.Problems(); got["unit"] != domain.Required || got["usual"] != domain.Required {
 		t.Errorf("an Ingredient in cups kept in the cellar has problems %v, want unit and usual", got)
 	}
+	odd = egg
+	odd.UseFromFrozen = true
+	if got := odd.Problems(); got["use_from_frozen"] == "" {
+		t.Errorf("a fridge Ingredient marked Use from frozen has problems %v, want a use_from_frozen problem", got)
+	}
 }
 
 // A name of only size or grade words keeps them: it names something, if oddly.

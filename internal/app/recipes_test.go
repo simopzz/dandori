@@ -84,6 +84,24 @@ func TestANewIngredientIsConfirmedInTheFormAndCreatedWithTheRecipe(t *testing.T)
 	s.Sees("tofu")
 }
 
+// A new Ingredient can be usually kept in the freezer but still require thawing.
+func TestRecipeIngredientStorageLocationDoesNotImplyUseFromFrozen(t *testing.T) {
+	s := kitchenWith(t)
+	row := tofu()
+	row.Name, row.Usual, row.UseFromFrozen = "whole chicken", "freezer", false
+	r := riceBowl()
+	r.Ingredients = []apptest.RecipeRow{row}
+	s.WritesRecipe(r)
+	s.IsConfirmed("Added Rice bowl to the Recipe Library.")
+	var usual string
+	var useFromFrozen bool
+	s.Scan(t, &usual, `SELECT storage_location FROM ingredient WHERE name = 'whole chicken'`)
+	s.Scan(t, &useFromFrozen, `SELECT use_from_frozen FROM ingredient WHERE name = 'whole chicken'`)
+	if usual != "freezer" || useFromFrozen {
+		t.Errorf("the new Ingredient has usual location %q and Use from frozen %t, want freezer and false", usual, useFromFrozen)
+	}
+}
+
 // A new Ingredient's fields are refused on theirs.
 func TestANewIngredientsMissingValuesAreRefusedOnTheirFields(t *testing.T) {
 	s := kitchenWith(t, rice)

@@ -101,6 +101,46 @@ func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {
 	s.Sees("Give it a name.")
 }
 
+// Use from frozen is stored only for freezer Ingredients, independently of location.
+func TestUseFromFrozenIsSeparateFromUsualStorageLocation(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+
+	peas := apptest.Ingredient{Name: "frozen peas", Unit: "g", Usual: "freezer", UseFromFrozen: true, Kcal: "80", Protein: "5", Carbs: "14", Fat: "1"}
+	s.AddsIngredient(peas)
+	s.IsConfirmed("Added frozen peas.")
+	assertUse := func(name string, want int) {
+		t.Helper()
+		var got int
+		s.Scan(t, &got, `SELECT CASE WHEN use_from_frozen IS NULL THEN -1 WHEN use_from_frozen THEN 1 ELSE 0 END FROM ingredient WHERE name = $1`, name)
+		if got != want {
+			t.Errorf("%s use_from_frozen = %d, want %d", name, got, want)
+		}
+	}
+	assertUse("frozen peas", 1)
+
+	chicken := peas
+	chicken.Name, chicken.UseFromFrozen = "whole chicken", false
+	s.AddsIngredient(chicken)
+	s.IsConfirmed("Added whole chicken.")
+	assertUse("whole chicken", 0)
+
+	fresh := peas
+	fresh.Name, fresh.Usual, fresh.UseFromFrozen = "chicken breast", "fridge", false
+	s.AddsIngredient(fresh)
+	s.IsConfirmed("Added chicken breast.")
+	assertUse("chicken breast", -1)
+
+	invalid := fresh
+	invalid.Name, invalid.UseFromFrozen = "fresh peas", true
+	s.AddsIngredient(invalid)
+	s.IsRefused()
+	s.Sees("Choose whether freezer stock is used without thawing.")
+}
+
 // One food is one Ingredient: a name that normalises as an existing one's, with a size or
 // grade word, is refused on the name, naming the one the User has. A plural, which no
 // rule tells from another food, is added.

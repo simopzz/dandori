@@ -18,9 +18,10 @@ var nutrients = []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"}
 type AddForm struct {
 	Name, Unit, Usual string
 	// Values are the nutritional values as typed, by field.
-	Values map[string]string
-	Staple bool
-	Errs   map[string]string
+	Values        map[string]string
+	UseFromFrozen bool
+	Staple        bool
+	Errs          map[string]string
 	// Suggested is the Ingredient the name typed is close to, which the User may have
 	// meant; Picked is the one they said they meant, which adds nothing.
 	Suggested, Picked string
@@ -39,7 +40,7 @@ type EditForm struct {
 // editFormOf is the edit form of `ing` as it is, before anything is typed.
 func editFormOf(ing domain.Ingredient) EditForm {
 	return EditForm{ID: ing.ID, AddForm: AddForm{
-		Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), Staple: ing.Staple, Values: ValuesOf(ing.Nutrition),
+		Name: ing.Name, Unit: string(ing.Unit), Usual: string(ing.Usual), UseFromFrozen: ing.UseFromFrozen, Staple: ing.Staple, Values: ValuesOf(ing.Nutrition),
 	}}
 }
 
@@ -61,17 +62,18 @@ func ValuesOf(n domain.Nutrition) map[string]string {
 func parseAddForm(r *http.Request) (domain.Ingredient, AddForm) {
 	ctx := r.Context()
 	f := AddForm{
-		Name:     strings.TrimSpace(r.PostFormValue("name")),
-		Unit:     r.PostFormValue("unit"),
-		Usual:    r.PostFormValue("usual"),
-		Staple:   r.PostFormValue("staple") != "",
-		Counting: r.PostFormValue("counting") != "",
+		Name:          strings.TrimSpace(r.PostFormValue("name")),
+		Unit:          r.PostFormValue("unit"),
+		Usual:         r.PostFormValue("usual"),
+		UseFromFrozen: r.PostFormValue("use_from_frozen") != "",
+		Staple:        r.PostFormValue("staple") != "",
+		Counting:      r.PostFormValue("counting") != "",
 	}
 	f.Values = PostedNutrition(r)
 	nutrition, problems := domain.ParseNutrition(f.Values)
 	f.Errs = NutritionErrs(ctx, problems)
 	ing := domain.Ingredient{
-		Name: f.Name, Unit: domain.Unit(f.Unit), Usual: domain.StorageLocation(f.Usual), Staple: f.Staple,
+		Name: f.Name, Unit: domain.Unit(f.Unit), Usual: domain.StorageLocation(f.Usual), UseFromFrozen: f.UseFromFrozen, Staple: f.Staple,
 		Nutrition: nutrition,
 	}
 	for field, problem := range ing.Problems() {
@@ -115,6 +117,7 @@ func Refusals(ctx context.Context, named func(string) string, errs map[string]st
 	}
 	refuse("unit", msgUnit)
 	refuse("usual", msgUsual)
+	refuse("use_from_frozen", msgUseFromFrozen)
 	for _, field := range nutrients {
 		refuse(field, nutrientNames[field])
 	}
@@ -130,6 +133,8 @@ func ProblemMessage(field string, problem domain.Problem) web.Message {
 		return msgUnitRequired
 	case "usual":
 		return msgUsualRequired
+	case "use_from_frozen":
+		return msgUseFromFrozenRequired
 	}
 	return web.ProblemMessage(problem, problemMessages)
 }

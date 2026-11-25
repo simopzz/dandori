@@ -20,7 +20,7 @@ import (
 type IngredientRow struct {
 	Name, Quantity, Unit, Usual string
 	Values                      map[string]string
-	Staple                      bool
+	UseFromFrozen, Staple       bool
 	// New says the name is no Ingredient of the User's. Confirming says its fields are
 	// only now shown, so nothing about them is refused yet.
 	New, Confirming bool
@@ -77,7 +77,7 @@ func formOf(ctx context.Context, rec domain.Recipe, known []domain.Ingredient) R
 			Name: ri.Ingredient.Name, Quantity: web.Number(ctx, ri.Quantity.Number()), Unit: string(ri.Ingredient.Unit),
 		}
 		if ri.Ingredient.IsNew() { // a Recipe Draft's new Ingredient, its proposed values shown to confirm
-			row.New, row.Usual, row.Staple = true, string(ri.Ingredient.Usual), ri.Ingredient.Staple
+			row.New, row.Usual, row.UseFromFrozen, row.Staple = true, string(ri.Ingredient.Usual), ri.Ingredient.UseFromFrozen, ri.Ingredient.Staple
 			row.Values = ingredients.ValuesOf(ri.Ingredient.Nutrition)
 			row.Suggested, _ = domain.ClosestIngredient(web.LanguageOf(ctx), ri.Ingredient.Name, namesOf(known))
 		} else if ri.Quantity == 0 { // a Recipe Draft's row known since in another unit
@@ -170,14 +170,14 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 	}
 	row.New, row.Confirming = true, seen != "true"
 	row.Suggested, _ = domain.ClosestIngredient(l, row.Name, names)
-	row.Unit, row.Usual, row.Staple = in("unit"), in("usual"), in("staple") != ""
+	row.Unit, row.Usual, row.UseFromFrozen, row.Staple = in("unit"), in("usual"), in("use_from_frozen") != "", in("staple") != ""
 	row.Values = map[string]string{}
 	for _, field := range []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"} {
 		row.Values[field] = in(field)
 	}
 	nutrition, problems := domain.ParseNutrition(row.Values)
 	ing = domain.Ingredient{
-		Name: row.Name, Unit: domain.Unit(row.Unit), Usual: domain.StorageLocation(row.Usual), Staple: row.Staple,
+		Name: row.Name, Unit: domain.Unit(row.Unit), Usual: domain.StorageLocation(row.Usual), UseFromFrozen: row.UseFromFrozen, Staple: row.Staple,
 		Nutrition: nutrition,
 	}
 	if !row.Confirming {
@@ -298,8 +298,8 @@ func rowProblem(ctx context.Context, field string, problem domain.Problem) strin
 // typed is `row` as the fields confirming its new Ingredient show it.
 func (row IngredientRow) typed() ingredients.TypedIngredient {
 	return ingredients.TypedIngredient{
-		Unit: row.Unit, Usual: row.Usual, Staple: row.Staple, Values: row.Values, Errs: row.Errs, Focus: row.Confirming,
-		UnitAttrs: followRow(),
+		Unit: row.Unit, Usual: row.Usual, UseFromFrozen: row.UseFromFrozen, Staple: row.Staple, Values: row.Values, Errs: row.Errs, Focus: row.Confirming,
+		UnitAttrs: followRow(), UsualAttrs: followRow(),
 	}
 }
 

@@ -661,6 +661,8 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 .field { display: grid; gap: var(--space-1); align-content: start; }
 
 .field-label { font-size: 0.875rem; color: var(--color-text-soft); }
+.field-info { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; margin-left: var(--space-1); cursor: help; vertical-align: middle; }
+.field-info:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; }
 
 .field-hint { margin-left: var(--space-1); }
 

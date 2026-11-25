@@ -25,6 +25,19 @@ func Icon(name string) templ.Component {
 // icons are 10×10 bitmaps, one string per row, drawn on a 20px square so each pixel is
 // two: '#' is ink, '.' is paper. Add one by drawing it here.
 var icons = map[string][]string{
+	// A circle around the letter i: field help.
+	"info": {
+		"...####...",
+		"..#....#..",
+		".#......#.",
+		".#..##..#.",
+		".#..##..#.",
+		".#......#.",
+		".#..##..#.",
+		".#..##..#.",
+		"..#....#..",
+		"...####...",
+	},
 	// Runs: a Run's activity, as bars rising.
 	"activity": {
 		"..........",

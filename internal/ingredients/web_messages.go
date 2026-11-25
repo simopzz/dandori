@@ -7,30 +7,34 @@ import (
 
 // The Ingredients' Messages.
 var (
-	msgIngredients      = web.Message{En: "Ingredients", It: "Ingredienti"}
-	msgIngredientsTitle = web.Message{En: "Ingredients · Dandori", It: "Ingredienti · Dandori"}
-	msgAddIngredient    = web.Message{En: "Add an Ingredient", It: "Aggiungi un Ingrediente"}
-	msgAddTitle         = web.Message{En: "Add an Ingredient · Dandori", It: "Aggiungi un Ingrediente · Dandori"}
-	msgYourIngredients  = web.Message{En: "Your Ingredients", It: "I tuoi Ingredienti"}
-	msgNoIngredients    = web.Message{En: "No Ingredients yet.", It: "Ancora nessun Ingrediente."}
-	msgAdded            = web.Message{En: "Added %s.", It: "Aggiunto: %s."}
-	msgAdd              = web.Message{En: "Add", It: "Aggiungi"}
-	msgName             = web.Message{En: "Name", It: "Nome"}
-	msgUnit             = web.Message{En: "Unit", It: "Unità"}
-	msgUsual            = web.Message{En: "Usually kept in", It: "Di solito in"}
-	msgChoose           = web.Message{En: "Choose…", It: "Scegli…"}
-	msgNutritionHint    = web.Message{
+	msgIngredients       = web.Message{En: "Ingredients", It: "Ingredienti"}
+	msgIngredientsTitle  = web.Message{En: "Ingredients · Dandori", It: "Ingredienti · Dandori"}
+	msgAddIngredient     = web.Message{En: "Add an Ingredient", It: "Aggiungi un Ingrediente"}
+	msgAddTitle          = web.Message{En: "Add an Ingredient · Dandori", It: "Aggiungi un Ingrediente · Dandori"}
+	msgYourIngredients   = web.Message{En: "Your Ingredients", It: "I tuoi Ingredienti"}
+	msgNoIngredients     = web.Message{En: "No Ingredients yet.", It: "Ancora nessun Ingrediente."}
+	msgAdded             = web.Message{En: "Added %s.", It: "Aggiunto: %s."}
+	msgAdd               = web.Message{En: "Add", It: "Aggiungi"}
+	msgName              = web.Message{En: "Name", It: "Nome"}
+	msgUnit              = web.Message{En: "Unit", It: "Unità"}
+	msgUsual             = web.Message{En: "Usually kept in", It: "Di solito in"}
+	msgUsualInfo         = web.Message{En: "Where this Ingredient is normally stored. Stock may still be split into the freezer when a Delivery arrives.", It: "Dove si conserva normalmente questo Ingrediente. Una Consegna può comunque dividere le scorte nel congelatore."}
+	msgUseFromFrozen     = web.Message{En: "Use from frozen", It: "Usa da congelato"}
+	msgUseFromFrozenInfo = web.Message{En: "Use freezer stock directly, without thawing it first.", It: "Usa le scorte congelate direttamente, senza scongelarle prima."}
+	msgChoose            = web.Message{En: "Choose…", It: "Scegli…"}
+	msgNutritionHint     = web.Message{
 		En: "Per 100 g, per 100 ml or per piece, to match the unit, as on the label.",
 		It: "Per 100 g, per 100 ml o per pezzo, secondo l'unità, come in etichetta.",
 	}
-	msgKcal      = web.Message{En: "Calories", It: "Calorie"}
-	msgProtein   = web.Message{En: "Protein", It: "Proteine"}
-	msgCarbs     = web.Message{En: "Carbs", It: "Carboidrati"}
-	msgFat       = web.Message{En: "Fat", It: "Grassi"}
-	msgFibre     = web.Message{En: "Fibre", It: "Fibre"}
-	msgSugar     = web.Message{En: "Sugar", It: "Zuccheri"}
-	msgKcalUnit  = web.Message{En: "kcal", It: "kcal"}
-	msgGramsUnit = web.Message{En: "g", It: "g"}
+	msgUseFromFrozenRequired = web.Message{En: "Choose whether freezer stock is used without thawing.", It: "Scegli se usare le scorte congelate senza scongelarle."}
+	msgKcal                  = web.Message{En: "Calories", It: "Calorie"}
+	msgProtein               = web.Message{En: "Protein", It: "Proteine"}
+	msgCarbs                 = web.Message{En: "Carbs", It: "Carboidrati"}
+	msgFat                   = web.Message{En: "Fat", It: "Grassi"}
+	msgFibre                 = web.Message{En: "Fibre", It: "Fibre"}
+	msgSugar                 = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgKcalUnit              = web.Message{En: "kcal", It: "kcal"}
+	msgGramsUnit             = web.Message{En: "g", It: "g"}
 	// FibreHint and SugarHint are fibre's and sugar's units, saying they may be left
 	// blank, wherever they are typed.
 	FibreHint       = web.Message{En: "g, optional", It: "g, facoltative"}

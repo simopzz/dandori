@@ -20,13 +20,13 @@ func misoSalmon() map[string]any {
 		"ingredients": []map[string]any{
 			{"name": "salmon", "quantity": 300, "unit": "g", "new": map[string]any{
 				"kcal": 200, "protein_g": 20, "carbs_g": 0, "fat_g": 13, "fibre_g": 0, "sugar_g": 0,
-				"usual": "fridge", "staple": false}},
+				"usual": "freezer", "use_from_frozen": false, "staple": false}},
 			{"name": "miso", "quantity": 30, "unit": "g", "new": map[string]any{
 				"kcal": 200, "protein_g": 12, "carbs_g": 26, "fat_g": 6, "fibre_g": nil, "sugar_g": nil,
-				"usual": "fridge", "staple": false}},
+				"usual": "fridge", "use_from_frozen": false, "staple": false}},
 			{"name": "rice", "quantity": 150, "unit": "g", "new": map[string]any{
 				"kcal": 130, "protein_g": 3, "carbs_g": 28, "fat_g": 0, "fibre_g": 0, "sugar_g": 0,
-				"usual": "pantry", "staple": false}},
+				"usual": "pantry", "use_from_frozen": false, "staple": false}},
 		},
 	}
 }
@@ -114,8 +114,15 @@ func TestApprovingAPlanProposalAcceptsItsRecipeDraft(t *testing.T) {
 	s.Sees("salmon 300 g miso 30 g rice 150 g")
 	s.Sees("Bake it 12 minutes.")
 	s.Open("/ingredients")
-	s.Sees("salmon Fridge per 100 g: 200 kcal protein 20 g")
+	s.Sees("salmon Freezer per 100 g: 200 kcal protein 20 g")
 	s.Sees("miso Fridge per 100 g: 200 kcal protein 12 g")
+	var salmonUsual string
+	var salmonUseFromFrozen bool
+	s.Scan(t, &salmonUsual, `SELECT storage_location FROM ingredient WHERE name = 'salmon'`)
+	s.Scan(t, &salmonUseFromFrozen, `SELECT use_from_frozen FROM ingredient WHERE name = 'salmon'`)
+	if salmonUsual != "freezer" || salmonUseFromFrozen {
+		t.Errorf("the drafted salmon has storage %q and use_from_frozen %t, want freezer and false", salmonUsual, salmonUseFromFrozen)
+	}
 	if res := s.Get(t, "/plan/drafts/1"); res.StatusCode != http.StatusNotFound {
 		t.Errorf("the accepted Recipe Draft opened with %d, want 404", res.StatusCode)
 	}

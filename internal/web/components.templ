@@ -440,6 +440,23 @@ templ Field(label, hint, err string) {
 	</label>
 }
 
+// FieldInfo is a Field with an information mark that reveals `info` as a tooltip.
+templ FieldInfo(label, info, hint, err string) {
+	<label class="field">
+		<span class="field-label">
+			{ label }
+			<span class="field-info" tabindex="0" title={ info } aria-label={ info }>
+				@Icon("info")
+			</span>
+			if hint != "" {
+				<span class="field-hint">({ hint })</span>
+			}
+		</span>
+		{ children... }
+		@FieldError(err)
+	</label>
+}
+
 // SearchField is the search box over a list: the input is the children, with the
 // magnifying glass inside it. `label` names it for a screen reader; the input's
 // placeholder says it on screen.
