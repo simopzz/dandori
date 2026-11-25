@@ -2,9 +2,7 @@ package app_test
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -114,18 +112,6 @@ func tenDayScript(t *testing.T) []fakellm.Step {
 		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
 		fakellm.Reply(tenDaySummary),
 	}
-}
-
-// idsIn are the ids `pattern`'s group finds in the prompt of the first request of the Run
-// `req` belongs to.
-func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
-	t.Helper()
-	var ids []int64
-	for _, m := range regexp.MustCompile(pattern).FindAllStringSubmatch(firstTurn(req), -1) {
-		id, _ := strconv.ParseInt(m[1], 10, 64)
-		ids = append(ids, id)
-	}
-	return ids
 }
 
 // eatenOn is a Portion kept in `location` and eaten at the `kind` of Slot on the `day`.

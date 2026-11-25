@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/simopzz/dandori/internal/agent"
-	"github.com/simopzz/dandori/internal/agent/fakellm"
-	"github.com/simopzz/dandori/internal/apptest"
 )
 
 // yogurtAt is Prep Sessions of 150 g of yogurt `pot` set out at each Slot of `days`
@@ -24,22 +22,6 @@ func yogurtAt(pot int64, days []string, except ...string) []map[string]any {
 		}
 	}
 	return sessions
-}
-
-// approves scripts a planning Run into a Plan Proposal of what `read` reads from the
-// prompt, which the step `plan` starts, and approves it on its Cycle's page: the upcoming
-// Cycle's, or the Plan page's with none.
-func approves(t *testing.T, s *apptest.Scenario, read func(agent.Request) map[string]any, plan func()) {
-	t.Helper()
-	s.Model.Script(
-		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", read(req)) }),
-		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
-		fakellm.Reply("A Plan."),
-	)
-	plan()
-	s.OpensUpcomingCycle()
-	s.Submits("approve")
-	s.IsConfirmed("Plan approved.")
 }
 
 // Counting a Portion Lot down keeps the Portion the Plan puts in a Slot: of the three

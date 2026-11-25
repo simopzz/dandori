@@ -66,6 +66,18 @@ func idIn(t *testing.T, req agent.Request, pattern string) int64 {
 	return id
 }
 
+// idsIn are the ids `pattern`'s group finds in the prompt of the first request of the Run
+// `req` belongs to.
+func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
+	t.Helper()
+	var ids []int64
+	for _, m := range regexp.MustCompile(pattern).FindAllStringSubmatch(firstTurn(req), -1) {
+		id, _ := strconv.ParseInt(m[1], 10, 64)
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // fridayDraft is a draft Plan of friday, read from the prompt of `req`: yogurt at
 // breakfast, a Rice bowl prepared at lunch for three Portions at 1.25×, eaten at lunch
 // and dinner with the third frozen, and a Portion of lasagne at the snack.
@@ -165,6 +177,22 @@ func plansFriday(t *testing.T, s *apptest.Scenario, summary string) {
 	s.OpensCycle(friday)
 	s.PlansCycle()
 	s.Sees("Planning a Cycle Succeeded")
+}
+
+// approves scripts a planning Run into a Plan Proposal of what `read` reads from the
+// prompt, which the step `plan` starts, and approves it on its Cycle's page: the upcoming
+// Cycle's, or the Plan page's with none.
+func approves(t *testing.T, s *apptest.Scenario, read func(agent.Request) map[string]any, plan func()) {
+	t.Helper()
+	s.Model.Script(
+		fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", read(req)) }),
+		fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1}),
+		fakellm.Reply("A Plan."),
+	)
+	plan()
+	s.OpensUpcomingCycle()
+	s.Submits("approve")
+	s.IsConfirmed("Plan approved.")
 }
 
 // plansFridayWithFreezerSplit plans friday as plansFriday does, with chicken breast,
