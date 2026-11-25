@@ -423,7 +423,7 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 			pp.EatAt = &domain.Slot{On: in(*eatOn), Kind: eatKind}
 		}
 		if sessionID != last {
-			ps.At.On, ps.Quantity = in(ps.At.On), domain.QuantityOf(quantity)
+			ps.ID, ps.At.On, ps.Quantity = sessionID, in(ps.At.On), domain.QuantityOf(quantity)
 			sp.sessions = append(sp.sessions, ps)
 			last = sessionID
 		}

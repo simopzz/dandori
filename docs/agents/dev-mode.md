@@ -49,10 +49,10 @@ curl -X POST --data-urlencode "now=2026-12-01T10:00:00+01:00" http://127.0.0.1:8
 
 ## What the app does when the clock jumps
 
-- **A Delivery arrives** when the clock passes the end of its window: the Plan page goes from "Tentative" to "Delivered on <day>", and Today shows "Put the Delivery away" with its lines until the end of the day after it. Its Movements are dated at the beat's moment, not at the arrival's, so a jump of an hour dates them an hour late.
+- **A Delivery arrives** when the clock passes the end of its window: the Plan page goes from "Tentative" to "Delivered on <day>", and Today shows "Put the Delivery away" with its lines until the end of the day after it. Its Movements are dated at its arrival, or at the latest Movement's time if that is later, so a Prep Session after it uses what it brought.
 - **A Delivery that was never marked ordered still arrives**: the beat does not look at the ordered state. Don't read that as the rule.
 - **"Order the next Delivery"** shows while the Delivery is tentative, **"Open the next Cycle"** from three days before the current Cycle's end.
-- **v2 writes no assumed Movements yet**: a Prep Session's Ingredients are not used up and a Portion is not prepared or eaten. The kitchen's stock only grows as the plan is eaten, and Today's Slot sections show the day's times, not the dishes — the Plan page shows those. Don't read a traveled kitchen as what the Plan would have used.
+- **The Plan happens at its Slots' times**: once the clock passes a Slot, its Prep Session has used up its Ingredients' Stock Items and prepared its Portions where the Plan keeps them, and the Portion filling it is eaten. Each Movement is dated at its Slot's time, or at the latest Movement's if that is later, so a traveled Kitchen page shows them in the fake future. Frozen stock is not thawed yet: a Prep Session uses only what is outside the freezer, and an Ingredient usually kept frozen. Today's Slot sections show the day's times, not the dishes — the Plan page shows those.
 - **Today's Plan section is a placeholder**: its empty message ("Your Plan shows here once Dandori plans what you eat…") shows whatever the Plan is.
 
 ## Setting a kitchen up

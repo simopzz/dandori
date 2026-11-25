@@ -52,8 +52,10 @@ func (p Plan) Until(until time.Time, times SlotTimes) Plan {
 }
 
 // PrepSession is one preparation of food at a Slot: of Recipe, its Portions all of Size,
-// or, with no Recipe, of Ingredient set out as it is, Quantity of it for each Portion.
+// or, with no Recipe, of Ingredient set out as it is, Quantity of it for each Portion. ID
+// is its id once its Plan Proposal is stored, 0 in a draft.
 type PrepSession struct {
+	ID         int64
 	At         Slot
 	Recipe     *Recipe
 	Size       float64

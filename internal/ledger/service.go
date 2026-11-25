@@ -95,16 +95,40 @@ func SavePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 
 // SaveUpTo records, in `q`'s transaction, the signed-in User's kitchen as brought up to
 // `now`, and the scheduler's beat at `now` too when `beat`, for `planning`'s step
-// (ADR-0021). It makes their `kitchen` row and holds it, as Write does, until `q`'s
-// transaction ends. Neither moves back, and a moment reached is not written again.
-func SaveUpTo(ctx context.Context, q db.Querier, now time.Time, beat bool) error {
+// (ADR-0021), and is how far it had been brought: `now` when it never was, so nothing
+// before is recorded, or when it had been brought further. It makes their `kitchen` row
+// and holds it, as Write does, until `q`'s transaction ends. Neither moves back, and a
+// moment reached is not written again.
+func SaveUpTo(ctx context.Context, q db.Querier, now time.Time, beat bool) (from time.Time, err error) {
+	from, err = LoadUpTo(ctx, q, now)
+	if err != nil {
+		return from, err
+	}
 	if err := saveUpTo(ctx, q, now); err != nil {
-		return err
+		return from, err
 	}
 	if err := lock(ctx, q); err != nil || !beat {
+		return from, err
+	}
+	return from, saveBeat(ctx, q, now)
+}
+
+// SavePrepared saves, in `q`'s transaction, inside Write, the Portions `made` that
+// `written`, about to be written, list by their PlannedIDs, and lists them by their ids
+// in place of those.
+func SavePrepared(ctx context.Context, q db.Querier, made []domain.PreparedPortion, written []domain.Movement) error {
+	ids, err := savePrepared(ctx, q, made)
+	if err != nil {
 		return err
 	}
-	return saveBeat(ctx, q, now)
+	for _, m := range written {
+		for i, id := range m.Portions {
+			if id < 0 {
+				m.Portions[i] = ids[domain.PlannedID(id)]
+			}
+		}
+	}
+	return nil
 }
 
 // LastBeat is when the scheduler last brought the signed-in User's kitchen up to now;

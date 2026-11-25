@@ -103,41 +103,86 @@ func (s *Service) end(ctx context.Context, tx pgx.Tx, id int64, why cause) (stop
 }
 
 // BringUpToNow is the step that brings the signed-in User's kitchen up to `now`
-// (ADR-0021): it records how far the kitchen has reached and takes every Delivery whose
-// window has ended by `now` as arrived, in one transaction, under the planning lock and
-// then the kitchen lock. A Cycle a Delivery closes has its pending Plan Proposal rejected
-// and its planning Run cancelled, naming the Delivery, and each Delivery is put away, its
-// Grocery List, fixed then if it wasn't ordered, becoming Stock Items where the Plan's
-// freezer splits say (domain.PutAway). A Cycle with no Plan brings nothing. Run again for
-// a moment it has reached, it changes nothing. Every request runs it, as the beat does.
+// (ADR-0021): in one transaction, under the planning lock and then the kitchen lock, it
+// records how far the kitchen has reached, takes every Delivery whose window has ended
+// by `now` as arrived, and records what the Plan assumed happened since the kitchen was
+// last brought up to now. A Cycle a Delivery closes has its pending Plan Proposal
+// rejected and its planning Run cancelled, naming the Delivery, and each Delivery is put
+// away at its arrival, its Grocery List, fixed then if it wasn't ordered, becoming Stock
+// Items where the Plan's freezer splits say (domain.PutAway). Each Cycle's Plan, as far
+// as it lasts, has its Prep Sessions use up stock and prepare their Portions, and the
+// Portion filling each Slot eaten, at their Slots' times, interleaved with the arrivals
+// (domain.Ledger.UpToNow). A Cycle with no Plan brings nothing. Run again for a moment it
+// has reached, it changes nothing. Every request runs it, as the beat does.
 func (s *Service) BringUpToNow(ctx context.Context, now time.Time) error {
 	return s.upToNow(ctx, now, false)
 }
 
 // upToNow is BringUpToNow, which records the scheduler's beat at `now` too when `beat`.
 func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
-	due, err := s.dueAt(ctx, now)
+	due, upTo, cycled, err := s.dueAt(ctx, now)
 	if err != nil {
 		return err
+	}
+	// What a Plan needs is read only once a Slot of a User with a Cycle has passed: the
+	// kitchen reaches no further back than `upTo`. A User without one may have
+	// no Profile.
+	var times domain.SlotTimes
+	if cycled {
+		if times, err = s.profile.SlotTimes(ctx); err != nil {
+			return err
+		}
+	}
+	var library []domain.Recipe
+	var known []domain.Ingredient
+	if cycled && times.PassBetween(upTo, now) {
+		if library, err = s.recipes.Search(ctx, ""); err != nil {
+			return err
+		}
+		if known, err = s.ingredients.List(ctx); err != nil {
+			return err
+		}
 	}
 	var stops []func(context.Context)
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}
-		if err := ledger.SaveUpTo(ctx, tx, now, beat); err != nil {
+		from, err := ledger.SaveUpTo(ctx, tx, now, beat)
+		if err != nil {
 			return err
 		}
+		passed := cycled && times.PassBetween(from, now)
 		busy, err := busyCycles(ctx, tx)
-		if err != nil || (len(busy) == 0 && len(due) == 0) {
+		if err != nil || (len(busy) == 0 && len(due) == 0 && !passed) {
 			return err
 		}
 		cycles, err := loadCycles(ctx, tx, now.Location())
 		if err != nil {
 			return err
 		}
-		if err := putAwayDue(ctx, tx, cycles, due, now); err != nil {
+		arrivals, err := putAwayDue(ctx, tx, cycles, due, now)
+		if err != nil {
 			return err
+		}
+		var plan domain.Plan
+		if passed {
+			if plan, err = plansBetween(ctx, tx, cycles, library, known, times, from, now); err != nil {
+				return err
+			}
+		}
+		if len(arrivals) > 0 || passed {
+			err := ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
+				madeFrom, err := ledger.LoadMadeFrom(ctx, tx)
+				if err != nil {
+					return nil, err
+				}
+				written, made := l.UpToNow(plan, madeFrom, arrivals, times, from, now)
+				return written, ledger.SavePrepared(ctx, tx, made, written)
+			})
+			if err != nil {
+				return err
+			}
 		}
 		for i, status := range domain.CycleStatuses(plain(cycles), now) {
 			c := cycles[i]
@@ -166,12 +211,35 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 	return nil
 }
 
-// putAwayDue puts away at `now`, in `tx`, each of `cycles`' Deliveries `due` says
-// arrived and isn't put away yet, writing what they bring through the Ledger. One whose
-// state or fixed list changed since `due` was worked out, before the lock, waits for the
-// next request.
-func putAwayDue(ctx context.Context, tx pgx.Tx, cycles []Cycle, due map[int64]arrival, now time.Time) error {
-	var put []domain.PutAwayLine
+// plansBetween is the Plans of `cycles`, read in `tx`, that may have a Slot after `from`
+// and by `to`, by `times`, together: each Cycle's as its approved Plan Proposals leave
+// it, Until the next Cycle's Delivery arrives, its Recipes and Ingredients found among
+// `library` and `known`. Days between Cycles are in none.
+func plansBetween(ctx context.Context, tx pgx.Tx, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (domain.Plan, error) {
+	var plan domain.Plan
+	for i, c := range cycles {
+		if i+1 < len(cycles) {
+			c.Until = cycles[i+1].Delivery.Arrives()
+		}
+		if c.Delivery.Arrives().After(to) || (!c.Until.IsZero() && !c.Until.After(from)) || !c.Ends.AddDate(0, 0, 1).After(from) {
+			continue
+		}
+		own, err := loadPlanOf(ctx, tx, c.ID, to.Location())
+		if err != nil {
+			return plan, err
+		}
+		p := cyclePlan(c, own, library, known, nil, times)
+		plan.PrepSessions = append(plan.PrepSessions, p.PrepSessions...)
+		plan.Kept = append(plan.Kept, p.Kept...)
+	}
+	return plan, nil
+}
+
+// putAwayDue puts away at `now`, in `tx`, each of `cycles`' Deliveries `due` says arrived
+// and isn't put away yet, and is their arrivals, for the Ledger. One whose state or fixed
+// list changed since `due` was worked out, before the lock, waits for the next request.
+func putAwayDue(ctx context.Context, tx pgx.Tx, cycles []Cycle, due map[int64]arrival, now time.Time) ([]domain.Arrival, error) {
+	var arrivals []domain.Arrival
 	for _, c := range cycles {
 		a, ok := due[c.ID]
 		if !ok || a.state != c.Delivery.State {
@@ -179,23 +247,20 @@ func putAwayDue(ctx context.Context, tx pgx.Tx, cycles []Cycle, due map[int64]ar
 		}
 		same, err := fixedAs(ctx, tx, c, a.list.Lines)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !same {
 			continue
 		}
 		done, err := putAway(ctx, tx, c.ID, now, a.list.Lines)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if done {
-			put = append(put, domain.PutAway(a.list.Lines, a.splits)...)
+			arrivals = append(arrivals, domain.Arrival{At: c.Delivery.Arrives(), Put: domain.PutAway(a.list.Lines, a.splits)})
 		}
 	}
-	if len(put) == 0 {
-		return nil
-	}
-	return ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) { return l.Deliver(now, put), nil })
+	return arrivals, nil
 }
 
 // fixedAs reports whether the Grocery List of `c`, read in `tx`, is still fixed as
@@ -225,15 +290,19 @@ type arrival struct {
 }
 
 // dueAt is what each of the signed-in User's Deliveries arrived by `now` and not put
-// away yet brings, by its Cycle's id: nothing for a Cycle without a Plan.
-func (s *Service) dueAt(ctx context.Context, now time.Time) (map[int64]arrival, error) {
+// away yet brings, by its Cycle's id, nothing for a Cycle without a Plan, how far their
+// kitchen has been brought up to now (ledger.SaveUpTo), and whether they have any Cycle.
+func (s *Service) dueAt(ctx context.Context, now time.Time) (_ map[int64]arrival, upTo time.Time, cycled bool, err error) {
 	var cycles []Cycle
-	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		if upTo, err = ledger.LoadUpTo(ctx, tx, now); err != nil {
+			return err
+		}
 		cycles, err = loadCycles(ctx, tx, now.Location())
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, upTo, false, err
 	}
 	due := map[int64]arrival{}
 	for i, c := range cycles {
@@ -245,11 +314,11 @@ func (s *Service) dueAt(ctx context.Context, now time.Time) (map[int64]arrival, 
 		}
 		list, plan, err := s.groceryList(ctx, c, now)
 		if err != nil && !errors.Is(err, ErrNoPlan) {
-			return nil, err
+			return nil, upTo, true, err
 		}
 		due[c.ID] = arrival{state: c.Delivery.State, list: list, splits: plan.FreezerSplits}
 	}
-	return due, nil
+	return due, upTo, len(cycles) > 0, nil
 }
 
 // Beat brings every User's kitchen up to `at`, the scheduler's beat, and records the beat

@@ -22,6 +22,17 @@ func saveUpTo(ctx context.Context, q db.Querier, now time.Time) error {
 	return err
 }
 
+// LoadUpTo is how far the signed-in User's kitchen has been brought up to now, `now` when
+// it never was or has been brought further. It has no WHERE on purpose, as loadBeat.
+func LoadUpTo(ctx context.Context, q db.Querier, now time.Time) (time.Time, error) {
+	var upTo time.Time
+	err := q.QueryRow(ctx, `SELECT up_to FROM kitchen`).Scan(&upTo)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && upTo.After(now)) {
+		return now, nil
+	}
+	return upTo, err
+}
+
 // saveBeat records the scheduler's beat at `now` for the signed-in User, whose kitchen
 // row saveUpTo has made, unless a beat as late is recorded.
 func saveBeat(ctx context.Context, q db.Querier, now time.Time) error {
@@ -106,20 +117,26 @@ func loadMovements(ctx context.Context, q db.Querier, where string, args ...any)
 
 // saveMovement appends `m` to the signed-in User's Kitchen Ledger, with the Portions it
 // touches. Only a Count keeps what was believed and stated, and a blank Storage Location
-// to or note, or no Ingredient, is none.
+// to or note, no Ingredient or Prep Session, or a zero Slot, is none.
 func saveMovement(ctx context.Context, q db.Querier, m domain.Movement) error {
 	var believed, stated *float64
 	if m.Cause.Sets() {
 		b, s := m.Believed.Number(), m.Stated.Number()
 		believed, stated = &b, &s
 	}
+	var slotOn, slotKind *string
+	if !m.Slot.On.IsZero() {
+		on, kind := m.Slot.On.Format(time.DateOnly), string(m.Slot.Kind)
+		slotOn, slotKind = &on, &kind
+	}
 	var id int64
 	err := q.QueryRow(ctx, `
-		INSERT INTO movement (happened_at, ingredient_id, storage_location, moved_to, change, cause_kind, believed, stated, note)
-		VALUES ($1, NULLIF($2::bigint, 0), $3, NULLIF($4, ''), $5, $6, $7, $8, NULLIF($9, ''))
+		INSERT INTO movement (happened_at, ingredient_id, storage_location, moved_to, change, cause_kind, believed, stated, note,
+			cause_ref, slot_on, slot_kind)
+		VALUES ($1, NULLIF($2::bigint, 0), $3, NULLIF($4, ''), $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10::bigint, 0), $11, $12)
 		RETURNING id`,
 		m.At, m.Key.Ingredient, string(m.Key.Location), string(m.To), m.Change.Number(), string(m.Cause),
-		believed, stated, m.Note).Scan(&id)
+		believed, stated, m.Note, m.PrepSession, slotOn, slotKind).Scan(&id)
 	if err != nil || len(m.Portions) == 0 {
 		return err
 	}
@@ -139,6 +156,41 @@ func savePortions(ctx context.Context, q db.Querier, p domain.NewPortions) ([]in
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// savePrepared saves the Portions `made` for the signed-in User, each recording its
+// Planned Portion, and is their ids by Planned Portion.
+func savePrepared(ctx context.Context, q db.Querier, made []domain.PreparedPortion) (map[int64]int64, error) {
+	ids := map[int64]int64{}
+	for _, p := range made {
+		n := p.Nutrition
+		var id int64
+		err := q.QueryRow(ctx, `
+			INSERT INTO portion (name, kcal, protein, carbs, fat, fibre, sugar, planned_portion_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+			p.Name, n.Kcal.Value, n.Protein.Value, n.Carbs.Value, n.Fat.Value, known(n.Fibre), known(n.Sugar), p.Planned).Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		ids[p.Planned] = id
+	}
+	return ids, nil
+}
+
+// LoadMadeFrom is the Portion each of the signed-in User's Planned Portions was prepared
+// as, by Planned Portion. It has no WHERE on purpose, as LoadMovements.
+func LoadMadeFrom(ctx context.Context, q db.Querier) (map[int64]int64, error) {
+	rows, err := q.Query(ctx, `SELECT planned_portion_id, id FROM portion WHERE planned_portion_id IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	made := map[int64]int64{}
+	var planned, id int64
+	_, err = pgx.ForEachRow(rows, []any{&planned, &id}, func() error {
+		made[planned] = id
+		return nil
+	})
+	return made, err
 }
 
 // known is `a`, or nil for an unknown value, which is never 0.
