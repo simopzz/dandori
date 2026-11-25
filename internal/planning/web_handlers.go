@@ -65,12 +65,12 @@ func (h Handlers) RunPage() runs.KindPage {
 	}
 }
 
-// Arrived takes the signed-in User's Deliveries arrived by now as arrived, then serves
-// `next`. It runs after the kitchen is brought up to now.
-func (h Handlers) Arrived(next http.Handler) http.Handler {
+// UpToNow brings the signed-in User's kitchen up to now, Deliveries arrived included,
+// then serves `next`, so a page is never wrong because the scheduler was late.
+func (h Handlers) UpToNow(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := h.Service.Arrive(r.Context(), h.Clock.Now()); err != nil {
-			httpx.ServerError(w, r, h.Log, "take the Deliveries arrived as arrived", err)
+		if err := h.Service.BringUpToNow(r.Context(), h.Clock.Now()); err != nil {
+			httpx.ServerError(w, r, h.Log, "bring the kitchen up to now", err)
 			return
 		}
 		next.ServeHTTP(w, r)

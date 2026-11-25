@@ -47,7 +47,7 @@ func loadBeat(ctx context.Context, q db.Querier) (time.Time, bool, error) {
 }
 
 // lock holds the signed-in User's kitchen until `q`'s transaction ends, so what one Count
-// or move read isn't changed by another before it writes. BringUpToNow made their row.
+// or move read isn't changed by another before it writes. SaveUpTo made their row.
 func lock(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `SELECT 1 FROM kitchen FOR UPDATE`)
 	return err

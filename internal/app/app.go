@@ -91,7 +91,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing, planning.UsesIngredient), ledger: ledger.New(pool, log)}
+	a := &App{pool: pool, clock: cfg.Clock, spans: spans, faroURL: cfg.FaroURL, log: log, auth: auth.New(pool, cfg.Auth, cfg.Clock, spans), profile: profile.New(pool), ingredients: ingredients.New(pool, recipes.RecipesUsing, planning.UsesIngredient), ledger: ledger.New(pool)}
 	a.runs = runs.New(pool, cfg.Clock, cfg.Runs, spans, log)
 	a.recipes = recipes.New(pool, a.ingredients, a.runs, planning.Prepares)
 	a.kitchen = kitchen.New(pool, a.ingredients)
@@ -131,7 +131,6 @@ func (a *App) Schedule(ctx context.Context) {
 	a.clock.Every(ctx, ledger.BeatEvery, func(at time.Time) {
 		ctx, span := tracer.Start(ctx, "kitchen beat")
 		defer span.End()
-		a.ledger.Beat(ctx, at)
 		a.planning.Beat(ctx, at, a.log)
 	})
 }
@@ -139,15 +138,15 @@ func (a *App) Schedule(ctx context.Context) {
 // Handler returns the app's HTTP routes. Every page speaks the signed-in User's Language,
 // and asks them for it before anything else; pages before signing in speak the one they
 // were switched to. A page shows the floating Notice the plain post before its redirect
-// left. Every signed-in page first brings the User's kitchen up to now and takes their
-// Deliveries arrived as arrived. Every request but
-// the health check and the assets is a span with no parent: one a traceparent header
-// names, sent from the internet, is ignored. The span says who asked, in what Language,
-// and why a request was refused, never with their email (docs/agents/grafana.md).
+// left. Every signed-in page first brings the User's kitchen up to now, Deliveries
+// arrived included (ADR-0021). Every request but the health check and the assets is a
+// span with no parent: one a traceparent header names, sent from the internet, is
+// ignored. The span says who asked, in what Language, and why a request was refused,
+// never with their email (docs/agents/grafana.md).
 func (a *App) Handler() http.Handler {
 	signIn := auth.Handlers{Service: a.auth, Clock: a.clock, Log: a.log}
 	prof := profile.Handlers{Service: a.profile, Clock: a.clock, Log: a.log, Email: a.auth.Email}
-	kit := kitchen.Handlers{Service: a.kitchen, Ledger: a.ledger, Clock: a.clock, Log: a.log}
+	kit := kitchen.Handlers{Service: a.kitchen, Clock: a.clock, Log: a.log}
 	ings := ingredients.Handlers{Service: a.ingredients, Clock: a.clock, Log: a.log, CountNew: kit.CountNew}
 	recs := recipes.Handlers{Service: a.recipes, Clock: a.clock, Log: a.log}
 	plan := planning.Handlers{Service: a.planning, Kitchen: a.kitchen, Clock: a.clock, Log: a.log}
@@ -158,9 +157,9 @@ func (a *App) Handler() http.Handler {
 		Log:    a.log,
 	}
 	day := today.Handlers{Service: a.today, Clock: a.clock, Log: a.log}
-	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(kit.UpToNow(plan.Arrived(h))) }
+	choosing := func(h http.HandlerFunc) http.Handler { return signIn.SignedIn(plan.UpToNow(h)) }
 	signedIn := func(h http.HandlerFunc) http.Handler {
-		return signIn.SignedIn(kit.UpToNow(plan.Arrived(prof.LanguageChosen(h))))
+		return signIn.SignedIn(plan.UpToNow(prof.LanguageChosen(h)))
 	}
 	mux := http.NewServeMux()
 	web.Assets(mux)
