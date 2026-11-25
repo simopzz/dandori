@@ -313,6 +313,7 @@ func TestASlotPassesBetween(t *testing.T) {
 		{"none at the window's start", at(6, "13:00"), at(6, "14:00"), false},
 		{"overnight, none", at(6, "20:30"), at(7, "07:59"), false},
 		{"days later", at(6, "20:30"), at(9, "07:00"), true},
+		{"from read in another zone, the Slots in the clock's", at(6, "12:00").UTC(), at(6, "13:00"), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -117,10 +117,10 @@ func TodayAt(at time.Time, times SlotTimes) Today {
 }
 
 // PassBetween reports whether the time of day of some Slot, by `times`, falls after
-// `from` and by `to`.
+// `from` and by `to`, its days those of `to`'s zone, the clock's.
 func (times SlotTimes) PassBetween(from, to time.Time) bool {
-	y, m, d := from.Date()
-	for day := time.Date(y, m, d, 0, 0, 0, 0, from.Location()); !day.After(to); day = day.AddDate(0, 0, 1) {
+	y, m, d := from.In(to.Location()).Date()
+	for day := time.Date(y, m, d, 0, 0, 0, 0, to.Location()); !day.After(to); day = day.AddDate(0, 0, 1) {
 		for _, k := range SlotKinds {
 			if t := (Slot{On: day, Kind: k}).At(times); t.After(from) && !t.After(to) {
 				return true
