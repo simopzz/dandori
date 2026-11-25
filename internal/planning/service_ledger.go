@@ -15,6 +15,7 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/ledger"
+	"github.com/simopzz/dandori/internal/profile"
 	"github.com/simopzz/dandori/internal/recipes"
 	"github.com/simopzz/dandori/internal/runs"
 )
@@ -246,6 +247,37 @@ func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []d
 		plan.Kept = append(plan.Kept, p.Kept...)
 	}
 	return plan, nil
+}
+
+// PortionSlots is the time of the Slot after `now` each Portion the signed-in User's
+// kitchen may hold fills, by its id, in the approved Plans of their Cycles: the earliest,
+// for one filling more than one (domain.Plan.Filled). The kitchen feature, which this
+// one depends on, reads it in its own transaction, and app wires it: a read, made only of
+// store reads.
+func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]time.Time, error) {
+	cycles, err := loadCycles(ctx, q, now.Location())
+	if err != nil || len(cycles) == 0 { // a User without a Cycle may have no Profile
+		return nil, err
+	}
+	times, err := profile.LoadSlotTimes(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := plansBetween(ctx, q, cycles, nil, nil, times, now, now.AddDate(100, 0, 0)) // every Cycle still to come
+	if err != nil {
+		return nil, err
+	}
+	madeFrom, err := ledger.LoadMadeFrom(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	slots := map[int64]time.Time{}
+	for id, s := range plan.Filled(madeFrom) {
+		if at := s.At(times); at.After(now) {
+			slots[id] = at
+		}
+	}
+	return slots, nil
 }
 
 // putAwayDue puts away at `now`, in `tx`, each of `cycles`' Deliveries `due` says arrived
