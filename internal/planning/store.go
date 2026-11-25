@@ -454,16 +454,16 @@ func loadPlan(ctx context.Context, q db.Querier, sp *storedProposal, zone *time.
 	return err
 }
 
-// loadStanding is how planning the signed-in User's Cycle `id` stands, by its planning
-// Runs and their Plan Proposals.
-func loadStanding(ctx context.Context, q db.Querier, id int64) (Standing, error) {
-	var pending, going, planned, failed bool
-	err := q.QueryRow(ctx, `
+// loadStanding is what how planning the signed-in User's Cycle `id` stands is read from,
+// by its planning Runs and their Plan Proposals: whether one is `pending`, one `going`,
+// one approved so it is `planned`, and whether the latest `failed`.
+func loadStanding(ctx context.Context, q db.Querier, id int64) (pending, going, planned, failed bool, err error) {
+	err = q.QueryRow(ctx, `
 		SELECT coalesce(bool_or(pp.status = $2), false), coalesce(bool_or(r.status = $3), false),
 			coalesce(bool_or(pp.status = $4), false), coalesce((array_agg(r.status ORDER BY r.id DESC))[1] = $5, false)
 		FROM cycle_run cr JOIN run r ON r.id = cr.run_id LEFT JOIN plan_proposal pp ON pp.run_id = r.id
 		WHERE cr.cycle_id = $1`, id, Pending, runs.Going, Approved, runs.Failed).Scan(&pending, &going, &planned, &failed)
-	return standing(pending, going, planned, failed), err
+	return pending, going, planned, failed, err
 }
 
 // hasPlan reports whether the signed-in User's Cycle `id` has a Plan: a Plan Proposal of

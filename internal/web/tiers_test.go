@@ -71,6 +71,57 @@ func TestFeatureFilesKeepToTheirTier(t *testing.T) {
 	}
 }
 
+// The flow runs from a feature's handlers to its Service to its store, never back: a
+// store file calls no function its package declares in a service or web_ file (ADR-0006).
+// A store loads; what to make of what it loaded is the Service's.
+func TestStoresCallNoServiceOrHandler(t *testing.T) {
+	packages, err := os.ReadDir("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range packages {
+		if !p.IsDir() || slices.Contains(shared, p.Name()) {
+			continue
+		}
+		files, err := filepath.Glob(filepath.Join("..", p.Name(), "*.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := token.NewFileSet()
+		above := map[string]bool{} // the package's functions declared in service and web_ files
+		var stores []*ast.File
+		for _, path := range files {
+			tier, ok := fileTier(filepath.Base(path))
+			if !ok || strings.HasSuffix(path, "_test.go") {
+				continue
+			}
+			f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tier == tierStore {
+				stores = append(stores, f)
+				continue
+			}
+			for _, d := range f.Decls {
+				if fn, ok := d.(*ast.FuncDecl); ok && fn.Recv == nil {
+					above[fn.Name.Name] = true
+				}
+			}
+		}
+		for _, f := range stores {
+			ast.Inspect(f, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok {
+					if id, ok := call.Fun.(*ast.Ident); ok && above[id.Name] {
+						t.Errorf("%s: a store calls %s, a service or web_ function: the flow runs service to store, never back (ADR-0006)", fset.Position(call.Pos()), id.Name)
+					}
+				}
+				return true
+			})
+		}
+	}
+}
+
 // checkTier reports where the file at `path` breaks its tier's rules.
 func checkTier(t *testing.T, path string) {
 	tier, ok := fileTier(filepath.Base(path))

@@ -89,9 +89,12 @@ Rules code review checks against. Each says what it protects.
   enforces the prefixes, that only a `web_` file imports `internal/web` or
   `internal/httpx`, that only a `store` file calls the database, and that a
   `store` file's exported functions are reads: a write another feature may
-  call lives in a `service` file, beside the rules it must hold.
-  *Protects: SQL or a page link landing in the wrong tier shows in the file
-  name and fails CI.*
+  call lives in a `service` file, beside the rules it must hold. The flow
+  runs handlers to Service to store, never back: a `store` file calls no
+  function its package declares in a `service` or `web_` file, so it loads
+  and leaves what to make of it to the Service. *Protects: SQL or a page link
+  landing in the wrong tier shows in the file name and fails CI, and a store
+  stays the bottom of its feature.*
 
 ## Types
 

@@ -113,7 +113,8 @@ func (p Planning) Standing() Standing {
 // StandingOf is how planning the signed-in User's Cycle `id` stands.
 func (s *Service) StandingOf(ctx context.Context, id int64) (st Standing, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		st, err = loadStanding(ctx, tx, id)
+		pending, going, planned, failed, err := loadStanding(ctx, tx, id)
+		st = standing(pending, going, planned, failed)
 		return err
 	})
 	return st, err
