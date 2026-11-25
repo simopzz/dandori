@@ -63,10 +63,11 @@ func (d *Dev) Listening(base string) {
 func (d *Dev) Wake() { d.Clock.Set(d.now) }
 
 // Handler serves the dev routes beside the app's: the clock switch, the
-// mailbox and the fake Supabase Auth, all under /_test/.
+// seed, the mailbox and the fake Supabase Auth, all under /_test/.
 func (d *Dev) Handler(next http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("POST /_test/clock", ClockSwitch(d.Clock))
+	mux.Handle("POST /_test/seed", Seed(next))
 	mux.Handle("GET /_test/mail", Mailbox(d.Auth))
 	mux.Handle("/_test/supabase/", http.StripPrefix("/_test/supabase", d.Auth.Handler()))
 	mux.Handle("/", next)
