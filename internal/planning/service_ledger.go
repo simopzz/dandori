@@ -135,11 +135,17 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 	}
 	var library []domain.Recipe
 	var known []domain.Ingredient
-	if cycled && times.PassBetween(upTo, now) {
+	loaded := false
+	load := func() (err error) {
 		if library, err = s.recipes.Search(ctx, ""); err != nil {
 			return err
 		}
-		if known, err = s.ingredients.List(ctx); err != nil {
+		known, err = s.ingredients.List(ctx)
+		loaded = err == nil
+		return err
+	}
+	if cycled && times.PassBetween(upTo, now) {
+		if err := load(); err != nil {
 			return err
 		}
 	}
@@ -166,6 +172,13 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 			return err
 		}
 		var plan domain.Plan
+		if passed && !loaded {
+			// The kitchen reached less far than `upTo` said: a first request racing
+			// another, before either made its row.
+			if err := load(); err != nil {
+				return err
+			}
+		}
 		if passed {
 			if plan, err = plansBetween(ctx, tx, cycles, library, known, times, from, now); err != nil {
 				return err

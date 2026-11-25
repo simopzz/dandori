@@ -31,13 +31,16 @@ func planned(id int64, location domain.StorageLocation, eat *domain.Slot) domain
 	return domain.PlannedPortion{ID: id, Location: location, EatAt: eat}
 }
 
+// ptr is a pointer to `v`.
 func ptr[T any](v T) *T { return &v }
 
-// The walk's Movements of each kind, by Cause.
+// usedUp is what the Prep Session `ps` at `s` used up of `k`, `quantity`, at `when`.
 func usedUp(when time.Time, k domain.StockKey, quantity float64, ps int64, s domain.Slot) domain.Movement {
 	return domain.Movement{At: when, Key: k, Change: -grams(quantity), Cause: domain.UsedUp, PrepSession: ps, Slot: s}
 }
 
+// prepared is the Portions the Prep Session `ps` at `s` prepared in `location` at `when`
+// from its Planned Portions `planned`, listed by their PlannedIDs.
 func prepared(when time.Time, location domain.StorageLocation, ps int64, s domain.Slot, planned ...int64) domain.Movement {
 	ids := make([]int64, len(planned))
 	for i, id := range planned {
@@ -46,64 +49,84 @@ func prepared(when time.Time, location domain.StorageLocation, ps int64, s domai
 	return domain.Movement{At: when, Key: domain.StockKey{Location: location}, Portions: ids, Change: grams(float64(len(ids))), Cause: domain.Prepared, PrepSession: ps, Slot: s}
 }
 
+// ate is the Portion `portion` filling `s` eaten from `location` at `when`.
 func ate(when time.Time, location domain.StorageLocation, portion int64, s domain.Slot) domain.Movement {
 	return domain.Movement{At: when, Key: domain.StockKey{Location: location}, Portions: []int64{portion}, Change: -grams(1), Cause: domain.PortionEaten, Slot: s}
 }
 
 // A Prep Session uses up each Ingredient once: the Stock Items outside the freezer, the
 // pantry before the fridge, and frozen ones only for an Ingredient usually kept in the
-// freezer, as far as they go. A Staple is skipped.
+// freezer, as far as they go, from what the Prep Sessions before it left. A Staple
+// is skipped.
 func TestAPrepSessionUsesUpItsIngredients(t *testing.T) {
-	lunch := slot(6, domain.Lunch)
+	lunch, dinner := slot(6, domain.Lunch), slot(6, domain.Dinner)
 	scaled := domain.PrepSession{ID: 1, At: lunch, Recipe: &riceBowl, Size: 1.25,
 		Portions: []domain.PlannedPortion{planned(11, domain.Fridge, nil), planned(12, domain.Fridge, nil), planned(13, domain.Freezer, nil)}}
 	tests := []struct {
-		name    string
-		ledger  []domain.Movement
-		session domain.PrepSession
-		want    []domain.Movement
+		name     string
+		ledger   []domain.Movement
+		sessions []domain.PrepSession
+		want     []domain.Movement
 	}{
 		{
 			"the pantry before the fridge",
 			[]domain.Movement{holds(plainRice, domain.Fridge, 300), holds(plainRice, domain.Pantry, 100)},
-			session(1, lunch, plainRice, 300, planned(11, domain.Fridge, nil)),
+			[]domain.PrepSession{session(1, lunch, plainRice, 300, planned(11, domain.Fridge, nil))},
 			[]domain.Movement{usedUp(at(6, "13:00"), key(plainRice, domain.Pantry), 100, 1, lunch), usedUp(at(6, "13:00"), key(plainRice, domain.Fridge), 200, 1, lunch)},
 		},
 		{
 			"a Recipe scaled to its Portions and size",
 			[]domain.Movement{holds(plainRice, domain.Pantry, 800)},
-			scaled,
+			[]domain.PrepSession{scaled},
 			[]domain.Movement{usedUp(at(6, "13:00"), key(plainRice, domain.Pantry), 375, 1, lunch)},
 		},
 		{
 			"frozen stock of an Ingredient kept in the fridge is left, and short stock used up as far as it goes",
 			[]domain.Movement{holds(breast, domain.Fridge, 200), holds(breast, domain.Freezer, 400)},
-			session(1, lunch, breast, 300, planned(11, domain.Fridge, nil)),
+			[]domain.PrepSession{session(1, lunch, breast, 300, planned(11, domain.Fridge, nil))},
 			[]domain.Movement{usedUp(at(6, "13:00"), key(breast, domain.Fridge), 200, 1, lunch)},
 		},
 		{
 			"an Ingredient usually kept in the freezer from frozen",
 			[]domain.Movement{holds(peas, domain.Freezer, 500)},
-			session(1, lunch, peas, 200, planned(11, domain.Fridge, nil)),
+			[]domain.PrepSession{session(1, lunch, peas, 200, planned(11, domain.Fridge, nil))},
 			[]domain.Movement{usedUp(at(6, "13:00"), key(peas, domain.Freezer), 200, 1, lunch)},
 		},
 		{
 			"none held, nothing used up",
 			nil,
-			session(1, lunch, breast, 300, planned(11, domain.Fridge, nil)),
+			[]domain.PrepSession{session(1, lunch, breast, 300, planned(11, domain.Fridge, nil))},
 			nil,
 		},
 		{
 			"a Staple skipped",
 			[]domain.Movement{holds(salt, domain.Pantry, 50)},
-			session(1, lunch, salt, 10, planned(11, domain.Fridge, nil)),
+			[]domain.PrepSession{session(1, lunch, salt, 10, planned(11, domain.Fridge, nil))},
 			nil,
+		},
+		{
+			"several Prep Sessions, each from what those before it left",
+			[]domain.Movement{holds(plainRice, domain.Pantry, 500)},
+			[]domain.PrepSession{
+				session(2, dinner, plainRice, 300, planned(21, domain.Fridge, nil)),
+				session(1, lunch, plainRice, 300, planned(11, domain.Fridge, nil)),
+			},
+			[]domain.Movement{usedUp(at(6, "13:00"), key(plainRice, domain.Pantry), 300, 1, lunch), usedUp(at(6, "20:00"), key(plainRice, domain.Pantry), 200, 2, dinner)},
+		},
+		{
+			"a Stock Item used up exactly holds nothing for the next",
+			[]domain.Movement{holds(plainRice, domain.Pantry, 300)},
+			[]domain.PrepSession{
+				session(1, lunch, plainRice, 300, planned(11, domain.Fridge, nil)),
+				session(2, dinner, plainRice, 100, planned(21, domain.Fridge, nil)),
+			},
+			[]domain.Movement{usedUp(at(6, "13:00"), key(plainRice, domain.Pantry), 300, 1, lunch)},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plan := domain.Plan{PrepSessions: []domain.PrepSession{tt.session}}
-			walked, _ := domain.NewLedger(tt.ledger).UpToNow(plan, nil, nil, domain.DefaultSlotTimes, at(6, "12:00"), at(6, "13:00"))
+			plan := domain.Plan{PrepSessions: tt.sessions}
+			walked, _ := domain.NewLedger(tt.ledger).UpToNow(plan, nil, nil, domain.DefaultSlotTimes, at(6, "12:00"), at(6, "21:00"))
 			var got []domain.Movement
 			for _, m := range walked {
 				if m.Cause == domain.UsedUp {

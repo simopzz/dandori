@@ -6,6 +6,7 @@ import (
 	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/agent/fakellm"
 	"github.com/simopzz/dandori/internal/apptest"
+	"github.com/simopzz/dandori/internal/domain"
 )
 
 // approvesFriday plans friday as plansFriday does and approves it: yogurt set out at
@@ -20,11 +21,12 @@ func approvesFriday(t *testing.T, s *apptest.Scenario) {
 	s.IsConfirmed("Plan approved.")
 }
 
-// assumed is how many Movements of `cause` the kitchen of `s` holds.
-func assumed(t *testing.T, s *apptest.Scenario, cause string) int {
+// assumed is how many Movements of `cause` the kitchen of `s` holds, for a check before
+// any page has brought it up to now.
+func assumed(t *testing.T, s *apptest.Scenario, cause domain.Cause) int {
 	t.Helper()
 	var n int
-	s.Scan(t, &n, `SELECT count(*) FROM movement WHERE cause_kind = $1`, cause)
+	s.Scan(t, &n, `SELECT count(*) FROM movement WHERE cause_kind = $1`, string(cause))
 	return n
 }
 
@@ -58,7 +60,7 @@ func TestTheBeatBringsThePlanUpToNow(t *testing.T) {
 	approvesFriday(t, s)
 
 	s.At("Fri 20:05")
-	if got := assumed(t, s, "eaten"); got != 4 {
+	if got := assumed(t, s, domain.PortionEaten); got != 4 {
 		t.Errorf("by the beat alone, %d Portions eaten, want the day's 4", got)
 	}
 	s.Open("/kitchen")
@@ -67,6 +69,9 @@ func TestTheBeatBringsThePlanUpToNow(t *testing.T) {
 	s.Sees("Count Rice bowl in the freezer")
 	s.Follows("lasagne")
 	s.Sees("Eaten 3 → 2 Fri, Nov 6 · 5:00 pm")
+	s.Open("/kitchen")
+	s.Follows("Rice bowl")
+	s.Sees("Prepared 0 → 1 Fri, Nov 6 · 1:00 pm")
 }
 
 // Running the step again for a moment it has reached changes nothing.
@@ -160,4 +165,26 @@ func TestADinnersSecondPortionIsEatenTwoDaysLater(t *testing.T) {
 	s.Open("/kitchen")
 	s.DoesNotSee("Count Rice bowl in the fridge")
 	s.Sees("Count Rice bowl in the freezer")
+}
+
+// Only the current Cycle's Plan writes: once the next Cycle's Delivery arrives, at noon
+// on Friday, the closing Cycle's later Slots write nothing, and the next Cycle, with no
+// Plan, writes nothing either. Friday's breakfast, before it, is still prepared.
+func TestOnlyTheCurrentCyclesPlanHappens(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	approvesFriday(t, s)
+	s.At("Thu 20:00")
+	s.OpensCycle(saturday)
+	s.IsConfirmed("Cycle opened.")
+
+	s.At("Fri 21:00")
+	s.Open("/kitchen")
+	s.Sees("rice 800 g")
+	s.Sees("lasagne × 3")
+	s.DoesNotSee("Rice bowl")
+	if got := assumed(t, s, domain.UsedUp); got != 1 {
+		t.Errorf("%d Stock Items used up, want breakfast's yogurt alone", got)
+	}
+	s.Open("/kitchen/movements?ingredient=2&location=fridge")
+	s.Sees("Used up 150 g → 0 g Fri, Nov 6 · 8:00 am")
 }
