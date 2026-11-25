@@ -81,33 +81,9 @@ until sudo docker exec dandori-devdb pg_isready -q -h 127.0.0.1; do sleep 0.5; d
 
 [tasks.dev]
 description = "Run the app locally against the dev server and the real Supabase Auth. With DANDORI_DEV_NOW set, the app runs on a manual clock at that time, with a fake Supabase Auth, on a database of its own made afresh each start, unless DANDORI_DEV_USERS pins a User of the dev database."
-# The dev server, never DANDORI_DATABASE_URL: a branch's migrations must not
-# reach production. Supabase's URL and key come from .env under either name,
-# DANDORI_ as in .env.example or bare as provision.sh writes them. Spans and logs go to
-# Grafana Cloud if .env sets its endpoint, tagged dev to tell them from production's.
-# Runs ask the demo model, which costs nothing, unless DANDORI_DEMO_LLM=false is set in the
-# shell or .env: then they ask Claude with .env's ANTHROPIC_API_KEY. It serves on
-# DANDORI_DEV_ADDR when set, beside another dev server, else on .env's DANDORI_ADDR.
-env = { DANDORI_ADDR = "{{ env.DANDORI_DEV_ADDR | default(value=env | get(key='DANDORI_ADDR', default='127.0.0.1:8080')) }}", DANDORI_DEMO_LLM = "{{ env.DANDORI_DEMO_LLM | default(value='true') }}", OTEL_RESOURCE_ATTRIBUTES = "deployment.environment.name=dev", DANDORI_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5434/postgres?sslmode=disable", DANDORI_SUPABASE_URL = "{{ env.DANDORI_SUPABASE_URL | default(value=env | get(key='SUPABASE_URL', default='')) }}", DANDORI_SUPABASE_PUBLISHABLE_KEY = "{{ env.DANDORI_SUPABASE_PUBLISHABLE_KEY | default(value=env | get(key='SUPABASE_PUBLISHABLE_KEY', default='')) }}" }
 # devdb first, alone: as dependencies the two would run in parallel, and
-# generate's output would land on sudo's password prompt.
-# A traveled run writes Movements dated in the fake future, and a kitchen never moves
-# back: on the dev database they would stay ahead of the next run's clock. So it gets
-# dandori_travel_<port>, dropped and made again each start, one per port so two dev
-# servers don't share one. A pinned User (email:<uuid>) lives in the dev database.
-run = [{ task = "devdb" }, { task = "generate" }, '''
-if [ -n "$DANDORI_DEV_NOW" ]; then
-  case "$DANDORI_DEV_USERS" in
-    *:*) echo "dev mode on the dev database, for the pinned User: back it up first (docs/agents/dev-mode.md)" ;;
-    *)
-      travel="dandori_travel_${DANDORI_ADDR##*:}"
-      PGOPTIONS="-c client_min_messages=warning" psql "$DANDORI_DATABASE_URL" -q -c "DROP DATABASE IF EXISTS $travel WITH (FORCE)" -c "CREATE DATABASE $travel"
-      export DANDORI_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5434/$travel?sslmode=disable"
-      ;;
-  esac
-fi
-exec go run ./cmd/dandori
-''']
+# generate's output would land on sudo's password prompt. The script sets the env.
+run = [{ task = "devdb" }, { task = "generate" }, "scripts/dev.sh"]
 
 [tasks.wrap]
 description = "Rewrap the Go comments TestCommentsWrap fails, naming those that aren't plain prose"
