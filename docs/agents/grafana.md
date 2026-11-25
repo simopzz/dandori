@@ -108,9 +108,12 @@ A dashboard or an alert lives in the owner's Grafana Cloud stack, beside whateve
 | | |
 |---|---|
 | Dashboard | `Dandori`, UID `dandori-overview`, variable `env` (`prod`, `dev`). Panels: requests, p95 latency and 5xx per route (TraceQL metrics over the request spans; the p95 is Tempo's histogram bucket, a power of two), Supabase failures (its error spans, by call), the beat (`kitchen beat` spans beside the beat's error lines) and the server's error lines (Loki). |
+| Dashboard | `Dandori (Long Range)`, UID `dandori-long-range`, variable `env` (`prod`, `dev`). Panels: uptime, TLS expiry and probe latency (Synthetic Monitoring), requests, p95 latency and 5xx per route, Postgres operations, Supabase calls and Anthropic calls with their p95 (Prometheus span metrics), and the server's logs beside the browser's (Loki). Its windows reach past the 14 days the traces and logs are kept: the span metrics are what go that far back. |
 | `Dandori is down` | UID `dandori-down`. Fires when the Synthetic Monitoring check `dandori-healthz` (GET `https://dandori.simopzz.com/healthz` from Frankfurt and Paris every 2 minutes) has failed from both probes for 5 minutes: `max(probe_success{job="dandori-healthz"}) < 1` in `grafanacloud-prom`. No data, the check gone, notifies too. |
 | `Dandori server errors` | UID `dandori-errors`. Fires at 3 or more of prod's error lines in 5 minutes, `sum(count_over_time({service_name="dandori", deployment_environment_name="prod"} \| detected_level="error" [5m])) > 2` in `grafanacloud-logs`. Tempo can't back an alert, so it counts log lines, not spans: a failed beat or render counts too. No data means none, and is OK. |
 | Contact point | `Dandori owner`, email to the owner, set on each rule (the stack's root notification policy is untouched). |
+
+Both dashboards' JSON is in the repo, in `deploy/`: `grafana-dashboard-overview.json` is UID `dandori-overview`, `grafana-dashboard-long-range.json` is UID `dandori-long-range`. It holds the panels and their queries, to provision a stack from.
 
 Synthetic Monitoring checks are made through `run_gcx_command` (`synthetic-monitoring checks list`, `get`, `status`); its `create` and `update` read a YAML file the sandbox doesn't have, so a new check is made in the UI, under Testing & synthetics → Synthetics. Its warning "Alerting setup is incomplete" is about Synthetics' own per-check alerts, which Dandori doesn't use: `Dandori is down` alerts on the check's `probe_success`.
 
