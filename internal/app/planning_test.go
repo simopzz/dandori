@@ -185,8 +185,8 @@ func plansFridayWithFreezerSplit(t *testing.T, s *apptest.Scenario) {
 	s.PlansCycle()
 }
 
-// The freezer splits a Plan names are shown under its Delivery's day, flagged while it
-// is folded, on the Plan Proposal and on the Plan once approved.
+// The freezer splits a Plan names are shown under its Delivery's day, flagged while it is
+// folded, on the Plan Proposal and on the Plan once approved.
 func TestFreezerSplitsShowUnderTheDeliverysDay(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFridayWithFreezerSplit(t, s)
@@ -350,8 +350,8 @@ func TestCheckPlanRefusesADraftItCantRead(t *testing.T) {
 	s.DoesNotSee("Draft 1")
 }
 
-// submit_plan refuses a draft breaking a hard rule, saying what it breaks, and three
-// such submits fail the Run, listing what they broke.
+// submit_plan refuses a draft breaking a hard rule, saying what it breaks, and three such
+// submits fail the Run, listing what they broke.
 func TestThreeSubmitsBreakingHardRulesFailThePlanningRun(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	submit := fakellm.CallTool("submit_plan", map[string]any{"draft_id": 1})
@@ -385,9 +385,9 @@ func TestAPlanningRunEndingWithoutAPlanProposalFailsWithTheModelsLastMessage(t *
 }
 
 // check_plan gives the planner the draft's Verdict: each day's nutrition, the Targets'
-// results and the soft misses, then the Portions made for after the Cycle as
-// information. Once its calls are spent, it says to submit the best draft, which
-// submit_plan still stores.
+// results and the soft misses, then the Portions made for after the Cycle as information.
+// Once its calls are spent, it says to submit the best draft, which submit_plan
+// still stores.
 func TestCheckPlanReportsAVerdictAndItsCallsRunOut(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com", apptest.WithConfig(func(c *app.Config) { c.PlanChecks = 2 }))
 	check := fakellm.Then(func(req agent.Request) fakellm.Step { return fakellm.CallTool("check_plan", fridayDraft(t, req)) })

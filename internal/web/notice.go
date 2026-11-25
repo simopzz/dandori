@@ -48,8 +48,8 @@ func Notices(next http.Handler) http.Handler {
 	})
 }
 
-// forgetsNotice deletes the notice cookie with the response's header, unless the
-// response is a redirect, which shows no page.
+// forgetsNotice deletes the notice cookie with the response's header, unless the response
+// is a redirect, which shows no page.
 type forgetsNotice struct {
 	http.ResponseWriter
 	r           *http.Request

@@ -41,8 +41,8 @@ func TestAPageNumbersItsOwnGroups(t *testing.T) {
 	}
 }
 
-// A title sets its times, quantities and User text in the body face, where l, I and 1
-// are told apart: Today's time of day, a Recipe's name.
+// A title sets its times, quantities and User text in the body face, where l, I and 1 are
+// told apart: Today's time of day, a Recipe's name.
 func TestATitleSetsItsDataInTheBodyFace(t *testing.T) {
 	s := kitchenWith(t, rice)
 	s.At("Mon 12:00")

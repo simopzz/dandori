@@ -1,6 +1,6 @@
-// Package runs carries out agent Runs in the background, each as the User it belongs
-// to, records each Run and its Trace, and serves a Run's page. Features start their
-// kinds of Run through the Engine.
+// Package runs carries out agent Runs in the background, each as the User it belongs to,
+// records each Run and its Trace, and serves a Run's page. Features start their kinds of
+// Run through the Engine.
 package runs
 
 import (
@@ -30,8 +30,8 @@ type Config struct {
 	// LLM answers every Run; without one, every Run fails for agent.NoModel.
 	LLM   agent.LLM
 	Model string
-	// Retries is how many times a failed request to the model is retried when the
-	// failure is worth retrying; Backoff is the first wait.
+	// Retries is how many times a failed request to the model is retried when the failure
+	// is worth retrying; Backoff is the first wait.
 	Retries int
 	Backoff time.Duration
 	// MaxTurns bounds the requests to the model in one Run.

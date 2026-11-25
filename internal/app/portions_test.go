@@ -205,8 +205,8 @@ func TestAddingPortionsAnswersHTMXWithAFragment(t *testing.T) {
 }
 
 // The chevron only chooses what the + adds, and the + opens that sheet. A refused add
-// comes back in it with focus on the refused field; one accepted closes it, shows the
-// Lot and leaves the choice, which a new page forgets.
+// comes back in it with focus on the refused field; one accepted closes it, shows the Lot
+// and leaves the choice, which a new page forgets.
 func TestBrowserAddsPortionsInTheSheet(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen")
@@ -376,8 +376,8 @@ func TestMovingPortions(t *testing.T) {
 	s.DoesNotSee("Freezer")
 }
 
-// A move above what the Lot holds is refused on its field, and so is a move of none,
-// part of one, or to nowhere.
+// A move above what the Lot holds is refused on its field, and so is a move of none, part
+// of one, or to nowhere.
 func TestMovingPortionsRefusesWhatTheLotCannotGive(t *testing.T) {
 	s := kitchenWith(t)
 	s.AddsPortions(lasagne)
@@ -523,8 +523,8 @@ func TestPortionFormsAnswerHTMXWithFragments(t *testing.T) {
 	}
 }
 
-// A Lot's Movements open in the side sheet, leaving the User on the Kitchen page, which
-// a plain URL stands in for without htmx.
+// A Lot's Movements open in the side sheet, leaving the User on the Kitchen page, which a
+// plain URL stands in for without htmx.
 func TestBrowserOpensALotsMovementsInPlace(t *testing.T) {
 	b := signedUpBrowser(t)
 	b.Open(t, "/kitchen/portions")

@@ -44,8 +44,8 @@ var (
 	msgNextFailed       = web.Message{En: "Planning the next Cycle", It: "Pianificazione del prossimo Ciclo"}
 )
 
-// offers are what Today says of each Offer about opening a Cycle, where it links and
-// the icon leading it, its page's.
+// offers are what Today says of each Offer about opening a Cycle, where it links and the
+// icon leading it, its page's.
 var offers = map[Offer]struct {
 	text       web.Message
 	href, icon string
@@ -55,8 +55,8 @@ var offers = map[Offer]struct {
 	TargetsFirst: {msgNeedsTargets, "/profile#targets", "user"},
 }
 
-// standings are what Today says of each Standing of a Cycle still to plan, of the
-// current Cycle and of the next.
+// standings are what Today says of each Standing of a Cycle still to plan, of the current
+// Cycle and of the next.
 var standings = map[planning.Standing]struct{ current, next web.Message }{
 	planning.Unplanned:       {msgCurrentUnplanned, msgNextUnplanned},
 	planning.BeingPlanned:    {msgCurrentGoing, msgNextGoing},

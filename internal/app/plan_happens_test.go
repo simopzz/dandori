@@ -32,8 +32,8 @@ func assumed(t *testing.T, s *apptest.Scenario, cause domain.Cause) int {
 
 // At a Slot's time, its Prep Session uses up its stock and prepares its Portions where
 // the Plan keeps them, and the Portion filling it is eaten: the Kitchen page shows it,
-// once opened, and each Stock Item's Movements say why. The Delivery the night before
-// is put away at its arrival, and breakfast uses what it brought.
+// once opened, and each Stock Item's Movements say why. The Delivery the night before is
+// put away at its arrival, and breakfast uses what it brought.
 func TestOpeningAPageBringsThePlanUpToNow(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	s.Open("/profile")

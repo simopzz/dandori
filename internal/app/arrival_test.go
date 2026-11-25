@@ -137,9 +137,9 @@ func TestAnEarlyDeliveryCancelsTheClosingCyclesPlanningRun(t *testing.T) {
 }
 
 // Once the next Cycle is opened, the current one's Plan reaches as far as its Delivery
-// arriving: the delivery day's earlier Slots stay the current Cycle's, and the later
-// ones are the next one's. When it arrives, what is left carries over, and the next
-// Cycle is planned from its first Slot after the window.
+// arriving: the delivery day's earlier Slots stay the current Cycle's, and the later ones
+// are the next one's. When it arrives, what is left carries over, and the next Cycle is
+// planned from its first Slot after the window.
 func TestTheDeliveryDaysEarlierSlotsStayWithTheClosingCycle(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")

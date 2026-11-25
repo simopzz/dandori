@@ -6,8 +6,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// The type floor on a phone, in English and Italian: the bottom tabs, a Profile
-// FieldRow and the Recipe form's Ingredient grid still fit the screen.
+// The type floor on a phone, in English and Italian: the bottom tabs, a Profile FieldRow
+// and the Recipe form's Ingredient grid still fit the screen.
 func TestBrowserTypeFloorFitsAPhone(t *testing.T) {
 	for _, lang := range []string{"English", "Italiano"} {
 		t.Run(lang, func(t *testing.T) {
@@ -29,8 +29,8 @@ func TestBrowserTypeFloorFitsAPhone(t *testing.T) {
 	}
 }
 
-// fits fails for each element matching `selector`, or inside one, whose content is
-// wider than it or that runs past the screen's edge.
+// fits fails for each element matching `selector`, or inside one, whose content is wider
+// than it or that runs past the screen's edge.
 func fits(t *testing.T, b *apptest.Browser, selector string) {
 	t.Helper()
 	got, err := b.Evaluate(`sel => {

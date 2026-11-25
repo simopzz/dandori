@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// Text is `page`'s main content without markup, its whitespace
-// collapsed: what a test checks a page shows.
+// Text is `page`'s main content without markup, its whitespace collapsed: what a test
+// checks a page shows.
 func Text(page string) string {
 	if _, main, ok := strings.Cut(page, "<main"); ok {
 		page, _, _ = strings.Cut(main, "</main>")
@@ -29,8 +29,8 @@ func Text(page string) string {
 	return strings.Join(strings.Fields(html.UnescapeString(b.String())), " ")
 }
 
-// Notices are the texts of the floating Notices a page or a fragment shows, newest
-// first, without markup: what a test checks a write confirmed.
+// Notices are the texts of the floating Notices a page or a fragment shows, newest first,
+// without markup: what a test checks a write confirmed.
 func Notices(t testing.TB, page string) []string {
 	t.Helper()
 	var notices []string

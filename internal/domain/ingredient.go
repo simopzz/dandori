@@ -51,8 +51,8 @@ type Ingredient struct {
 // its values.
 func (ing Ingredient) IsNew() bool { return ing.ID == 0 }
 
-// Nutrition is an Ingredient's nutritional values: calories, and grams of the rest.
-// Fibre and sugar may be Unknown; the others an Ingredient always has.
+// Nutrition is an Ingredient's nutritional values: calories, and grams of the rest. Fibre
+// and sugar may be Unknown; the others an Ingredient always has.
 type Nutrition struct {
 	Kcal, Protein, Carbs, Fat, Fibre, Sugar Amount
 }
@@ -84,8 +84,8 @@ const (
 // maxAmount bounds a nutritional value: no food holds 10000 kcal in 100 g or a piece.
 const maxAmount = 10000
 
-// ParseAmount reads a nutritional value as `typed`: blank is Unknown, and a
-// value is a number not negative, to one decimal place at most, with a point or a comma.
+// ParseAmount reads a nutritional value as `typed`: blank is Unknown, and a value is a
+// number not negative, to one decimal place at most, with a point or a comma.
 func ParseAmount(typed string) (Amount, Problem) {
 	typed = strings.ReplaceAll(strings.TrimSpace(typed), ",", ".")
 	if typed == "" {
@@ -116,9 +116,9 @@ func (n Nutrition) Problems() map[string]Problem {
 	return problems
 }
 
-// ParseNutrition reads nutritional values as `typed`, by field, with why
-// each field is refused, by field, if any is: one that isn't a valid amount, or is one
-// of the four always known and is left blank.
+// ParseNutrition reads nutritional values as `typed`, by field, with why each field is
+// refused, by field, if any is: one that isn't a valid amount, or is one of the four
+// always known and is left blank.
 func ParseNutrition(typed map[string]string) (Nutrition, map[string]Problem) {
 	problems := map[string]Problem{}
 	read := func(field string) Amount {

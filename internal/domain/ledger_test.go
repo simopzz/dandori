@@ -227,8 +227,8 @@ func TestAMoveTakesFromOneStockItemAndGivesToAnother(t *testing.T) {
 	})
 }
 
-// A Count stands: a Movement recorded after it but dated before it never changes what
-// the kitchen held once it was counted, in what the Ledger holds or in a Stock Item's
+// A Count stands: a Movement recorded after it but dated before it never changes what the
+// kitchen held once it was counted, in what the Ledger holds or in a Stock Item's
 // Movements. The Ledger has its Movements in the order they happened, so such a Movement
 // comes first.
 func TestACountStands(t *testing.T) {

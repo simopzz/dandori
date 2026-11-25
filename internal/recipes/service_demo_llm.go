@@ -9,10 +9,10 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// DemoLLM answers parse Runs without asking a real model, so the pages can be
-// tried under mise run dev at no cost. It submits one Recipe named after the paste's
-// first line, in the Language the system prompt names, each of its Ingredients the User
-// knows in the unit they know it in, then ends its turn; a refusal ends it saying why.
+// DemoLLM answers parse Runs without asking a real model, so the pages can be tried under
+// mise run dev at no cost. It submits one Recipe named after the paste's first line, in
+// the Language the system prompt names, each of its Ingredients the User knows in the
+// unit they know it in, then ends its turn; a refusal ends it saying why.
 type DemoLLM struct{}
 
 // demoUsage is what each of its turns claims to use, so the Trace shows tokens.

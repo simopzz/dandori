@@ -1,7 +1,7 @@
 // Command wrap rewraps the Go comments that break the wrapping rule TestCommentsWrap
 // enforces, in every .go and .templ file under the paths it is given, or under the
-// directory it runs in without any: mise run wrap. A comment that isn't plain prose,
-// such as a list, it names for rewrapping by hand.
+// directory it runs in without any: mise run wrap. A comment that isn't plain prose, such
+// as a list, it names for rewrapping by hand.
 package main
 
 import (
@@ -91,6 +91,27 @@ func problems(src string) []string {
 		}
 		if i-start > 1 && len(strings.Fields(text(lines[i-1]))) == 1 {
 			found = append(found, fmt.Sprintf("%d: leaves a lone word on its last line", i))
+		}
+		found = append(found, stopsEarly(lines[start:i], start)...)
+	}
+	return found
+}
+
+// stopsEarly says where a prose comment `block`, starting on line `start`+1, stops a line
+// while the next one's first word would still fit on it: unless the next is the last, of
+// two words, which would leave the last alone.
+func stopsEarly(block []string, start int) []string {
+	if slices.ContainsFunc(block, notProse) {
+		return nil
+	}
+	var found []string
+	for j := 0; j+1 < len(block); j++ {
+		next := strings.Fields(text(block[j+1]))
+		if j+2 == len(block) && len(next) == 2 {
+			continue
+		}
+		if columns(block[j]+" "+next[0]) <= width {
+			found = append(found, fmt.Sprintf("%d: stops before the next line's %q, which fits", start+j+1, next[0]))
 		}
 	}
 	return found

@@ -59,8 +59,8 @@ func (h Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ShowNew is the add page. Its query name starts the add form, and counting says it is
-// to count what is added.
+// ShowNew is the add page. Its query name starts the add form, and counting says it is to
+// count what is added.
 func (h Handlers) ShowNew(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	f := AddForm{Name: query.Get("name"), Counting: query.Get("counting") != ""}

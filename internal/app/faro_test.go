@@ -19,8 +19,8 @@ const collector = "https://faro.example/collect/key"
 
 // With a Faro url, the pages send the collector what the browser saw: the User's id, the
 // page's lang, whether it was translated, and each htmx request with its server span's
-// trace id. A query string never leaves. The lang follows a boosted swap to the
-// User's new Language.
+// trace id. A query string never leaves. The lang follows a boosted swap to the User's
+// new Language.
 func TestBrowserSendsFaroWhatThePageSaw(t *testing.T) {
 	withSpans, spans := withSpans(t)
 	h := apptest.Start(t, withSpans, apptest.WithConfig(func(c *app.Config) { c.FaroURL = collector }))

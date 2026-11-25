@@ -13,8 +13,8 @@ import (
 // colourLiteral is a hex or rgb()/rgba() colour value.
 var colourLiteral = regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b|\brgba?\(`)
 
-// Colours are tokens: a literal colour value belongs only in the :root
-// block that opens app.css, never in a template. See docs/design.md.
+// Colours are tokens: a literal colour value belongs only in the :root block that opens
+// app.css, never in a template. See docs/design.md.
 func TestColourValuesAreOnlyTokens(t *testing.T) {
 	css, err := os.ReadFile("static/app.css")
 	if err != nil {
@@ -42,8 +42,8 @@ func TestColourValuesAreOnlyTokens(t *testing.T) {
 	}
 }
 
-// The browser chrome's colour can't read a token, so themeColour and the
-// manifest repeat the paper colour; they must match it.
+// The browser chrome's colour can't read a token, so themeColour and the manifest repeat
+// the paper colour; they must match it.
 func TestThemeColourIsThePaper(t *testing.T) {
 	css, err := os.ReadFile("static/app.css")
 	if err != nil {
@@ -73,9 +73,8 @@ func TestThemeColourIsThePaper(t *testing.T) {
 	}
 }
 
-// tokensRemoved blanks the contents of every :root block, including one
-// inside a media query (dark mode), keeping their lines so line numbers
-// still match.
+// tokensRemoved blanks the contents of every :root block, including one inside a media
+// query (dark mode), keeping their lines so line numbers still match.
 func tokensRemoved(t *testing.T, css string) string {
 	blocks := regexp.MustCompile(`:root \{[^}]*\}`)
 	if !blocks.MatchString(css) {

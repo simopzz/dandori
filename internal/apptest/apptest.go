@@ -4,9 +4,9 @@
 // the dev mode serves too, on the same paths, so the production binary, which never
 // mounts it, has none.
 //
-// DANDORI_TEST_DATABASE_URL must point at a disposable Postgres server with
-// pgvector, as a superuser (`mise run testdb`). pgtestdb migrates a template
-// database once per set of migrations and clones it for every test.
+// DANDORI_TEST_DATABASE_URL must point at a disposable Postgres server with pgvector, as
+// a superuser (`mise run testdb`). pgtestdb migrates a template database once per set of
+// migrations and clones it for every test.
 package apptest
 
 import (
@@ -45,9 +45,9 @@ type Harness struct {
 	URL string
 	// Client is the User's browser: it keeps cookies.
 	Client *http.Client
-	// Clock is the app's clock, standing at Monday 2 November 2026 in
-	// clock.DefaultZone until the test moves it. Moving it past a
-	// beat runs the scheduler before Set returns.
+	// Clock is the app's clock, standing at Monday 2 November 2026 in clock.DefaultZone
+	// until the test moves it. Moving it past a beat runs the scheduler before
+	// Set returns.
 	Clock *clock.Manual
 	// Auth is the fake Supabase Auth the app signs Users in through.
 	Auth *FakeAuth
@@ -84,15 +84,15 @@ func WithConfig(configure func(*app.Config)) Option {
 	}
 }
 
-// WithUnmigratedDatabase starts the app on an empty database, as on its
-// first deploy, so the app's own startup applies every migration.
+// WithUnmigratedDatabase starts the app on an empty database, as on its first deploy, so
+// the app's own startup applies every migration.
 func WithUnmigratedDatabase() Option {
 	return func(s *settings) { s.unmigrated = true }
 }
 
-// Start boots the app against a new database cloned from a migrated
-// template, and runs the test in parallel with the others. Everything is torn
-// down when the test ends; a failed test's database is kept for inspection.
+// Start boots the app against a new database cloned from a migrated template, and runs
+// the test in parallel with the others. Everything is torn down when the test ends; a
+// failed test's database is kept for inspection.
 func Start(t testing.TB, opts ...Option) *Harness {
 	t.Helper()
 	// Each test has its own app, database and clock, so every one runs in parallel.
@@ -130,8 +130,8 @@ func Start(t testing.TB, opts ...Option) *Harness {
 		Database:                  strings.TrimPrefix(admin.Path, "/"),
 		Options:                   admin.RawQuery, // keeps sslmode and friends from the URL
 		ForceTerminateConnections: true,
-		// Migrate and connect as the admin role, like the app's `postgres`
-		// role on Supabase: enabling pgvector needs more than a plain role.
+		// Migrate and connect as the admin role, like the app's `postgres` role on
+		// Supabase: enabling pgvector needs more than a plain role.
 		TestRole: &pgtestdb.Role{Username: admin.User.Username(), Password: password},
 	}, migrator)
 
@@ -202,8 +202,8 @@ func Start(t testing.TB, opts ...Option) *Harness {
 	return h
 }
 
-// Restart stops the app and starts it again on the same database, at the same address,
-// as a deploy or a crash and restart does: its Users stay signed in.
+// Restart stops the app and starts it again on the same database, at the same address, as
+// a deploy or a crash and restart does: its Users stay signed in.
 func (h *Harness) Restart(t testing.TB) {
 	t.Helper()
 	h.restart(t)
@@ -243,8 +243,8 @@ func zone(t testing.TB) *time.Location {
 	return loc
 }
 
-// startFakeAuth starts a fake Supabase Auth beside the app, on a server of
-// its own, which the app signs Users in through.
+// startFakeAuth starts a fake Supabase Auth beside the app, on a server of its own, which
+// the app signs Users in through.
 func startFakeAuth(t testing.TB, c clock.Clock) *FakeAuth {
 	t.Helper()
 	f, err := devmode.NewFakeAuth(c)
@@ -257,8 +257,8 @@ func startFakeAuth(t testing.TB, c clock.Clock) *FakeAuth {
 	return &FakeAuth{f}
 }
 
-// Exec runs `sql` on the app's database, for fixtures of what the app can't
-// create through its pages yet.
+// Exec runs `sql` on the app's database, for fixtures of what the app can't create
+// through its pages yet.
 func (h *Harness) Exec(t testing.TB, sql string, args ...any) {
 	t.Helper()
 	ctx := context.Background()
@@ -309,8 +309,8 @@ type Response struct {
 	StatusCode int
 	Header     http.Header
 	Body       string
-	// Method and Path are those of the request that got this response:
-	// a GET of the new location when a POST was redirected.
+	// Method and Path are those of the request that got this response: a GET of the new
+	// location when a POST was redirected.
 	Method string
 	Path   string
 }

@@ -201,8 +201,8 @@ const knownIngredients = "known-ingredients"
 const removeSheetID = "recipe-remove"
 
 // removal is what the step asking before deleting a Recipe or discarding a Recipe Draft
-// shows: its Title, the Question naming it, the button Remove posting to Action, the
-// page Back it leaves for, and why removing was refused, if it was.
+// shows: its Title, the Question naming it, the button Remove posting to Action, the page
+// Back it leaves for, and why removing was refused, if it was.
 type removal struct {
 	Title, Remove                   web.Message
 	Question, Action, Back, Refusal string
@@ -231,8 +231,8 @@ templ removeStep(r removal, back templ.SafeURL) {
 // one more row, and without htmx post the form back with one.
 templ recipeForm(f RecipeForm) {
 	<form novalidate id="recipe-form" method="post" action={ templ.SafeURL(f.Action) }>
-		// Enter presses a form's first submit button: this one saves, not
-		// the add or pick buttons above the save button shown.
+		// Enter presses a form's first submit button: this one saves, not the add or pick
+		// buttons above the save button shown.
 		<button type="submit" hidden tabindex="-1"></button>
 		@web.ErrorSummary(f.refusals(ctx))
 		if f.Confirm {
@@ -262,9 +262,8 @@ templ recipeForm(f RecipeForm) {
 			<div id="ingredients" class="ingredient-grid">
 				for i, row := range f.Ingredients {
 					if f.DraftID != 0 && row.New {
-						// A Recipe Draft's new Ingredient folds its proposed
-						// values, so the Draft is quick to check; one refused or
-						// to confirm opens.
+						// A Recipe Draft's new Ingredient folds its proposed values, so
+						// the Draft is quick to check; one refused or to confirm opens.
 						@web.Rows() {
 							@web.EditRow(len(row.Errs) > 0 || row.Confirming, draftRowSummary(row)) {
 								@ingredientRow(i, row)
@@ -315,8 +314,8 @@ templ recipeForm(f RecipeForm) {
 	}
 }
 
-// draftRowSummary is the line a Recipe Draft's new Ingredient folds to: its name and
-// New, and its quantity in its unit.
+// draftRowSummary is the line a Recipe Draft's new Ingredient folds to: its name and New,
+// and its quantity in its unit.
 templ draftRowSummary(row IngredientRow) {
 	@web.RowTitle(row.Name, true, web.T(ctx, msgNew), false)
 	<span class="row-figure">{ strings.TrimSpace(row.Quantity + " " + quantityUnit(ctx, row)) }</span>

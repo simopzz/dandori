@@ -9,10 +9,9 @@ import (
 	"time"
 )
 
-// Scenario is a test told as Given/When/Then over the app's clock: it
-// moves the clock (At, NextDay), acts as the User would (Open), and
-// checks what the User sees (Sees). Each step goes on a timeline, which a
-// failed test prints.
+// Scenario is a test told as Given/When/Then over the app's clock: it moves the clock
+// (At, NextDay), acts as the User would (Open), and checks what the User sees (Sees).
+// Each step goes on a timeline, which a failed test prints.
 type Scenario struct {
 	*Harness
 	t        testing.TB
@@ -20,8 +19,8 @@ type Scenario struct {
 	timeline []string
 }
 
-// NewScenario starts the app for a scenario. The clock stands at the
-// start of Monday 2 November 2026 until a step moves it.
+// NewScenario starts the app for a scenario. The clock stands at the start of Monday 2
+// November 2026 until a step moves it.
 func NewScenario(t testing.TB, opts ...Option) *Scenario {
 	t.Helper()
 	s := &Scenario{Harness: Start(t, opts...), t: t}
@@ -34,9 +33,9 @@ func NewScenario(t testing.TB, opts ...Option) *Scenario {
 	return s
 }
 
-// At moves the clock forward to `when`: a weekday and a time, "Tue 10:00",
-// the next one from now (or now itself), or a date and a time,
-// "2026-11-03 10:00". The clock never moves back.
+// At moves the clock forward to `when`: a weekday and a time, "Tue 10:00", the next one
+// from now (or now itself), or a date and a time, "2026-11-03 10:00". The clock never
+// moves back.
 func (s *Scenario) At(when string) {
 	s.t.Helper()
 	now := s.Clock.Now()
@@ -77,8 +76,8 @@ func (s *Scenario) NextDay() {
 	s.record("next day")
 }
 
-// Open requests `path` as the User's browser does, and keeps the page for
-// the checks that follow.
+// Open requests `path` as the User's browser does, and keeps the page for the checks
+// that follow.
 func (s *Scenario) Open(path string) {
 	s.t.Helper()
 	s.page = s.Get(s.t, path)
@@ -483,8 +482,8 @@ func (s *Scenario) PostsRecipeForm(r Recipe) {
 	s.record(fmt.Sprintf("writes the Recipe %q: %d %s", r.Name, s.page.StatusCode, s.page.Path))
 }
 
-// PastesRecipe pastes `text` on the paste page, lands on its Run's page, and
-// reloads it once the Run has ended.
+// PastesRecipe pastes `text` on the paste page, lands on its Run's page, and reloads it
+// once the Run has ended.
 func (s *Scenario) PastesRecipe(text string) {
 	s.t.Helper()
 	s.StartsParse(text)

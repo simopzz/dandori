@@ -27,8 +27,8 @@ func yogurtAt(pot int64, days []string, except ...string) []map[string]any {
 }
 
 // approves scripts a planning Run into a Plan Proposal of what `read` reads from the
-// prompt, which the step `plan` starts, and approves it on its Cycle's page: the
-// upcoming Cycle's, or the Plan page's with none.
+// prompt, which the step `plan` starts, and approves it on its Cycle's page: the upcoming
+// Cycle's, or the Plan page's with none.
 func approves(t *testing.T, s *apptest.Scenario, read func(agent.Request) map[string]any, plan func()) {
 	t.Helper()
 	s.Model.Script(
@@ -56,9 +56,9 @@ func TestCountingPortionsDownKeepsTheOneFillingASlot(t *testing.T) {
 	s.DoesNotSee("lasagne")
 }
 
-// Among Portions that each fill a Slot, counting down takes the one with the latest:
-// with the three lasagne at Friday's lunch, snack and dinner, counting down to two
-// takes dinner's, so by the snack none is left.
+// Among Portions that each fill a Slot, counting down takes the one with the latest: with
+// the three lasagne at Friday's lunch, snack and dinner, counting down to two takes
+// dinner's, so by the snack none is left.
 func TestCountingPortionsDownTakesTheLatestSlot(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	approves(t, s, func(req agent.Request) map[string]any {
@@ -81,8 +81,8 @@ func TestCountingPortionsDownTakesTheLatestSlot(t *testing.T) {
 }
 
 // A Portion the upcoming Cycle's Plan puts in a Slot has one: on Friday evening, with
-// friday current, the two lasagne its snack left are counted down to one, which keeps
-// the one Saturday's lunch eats.
+// friday current, the two lasagne its snack left are counted down to one, which keeps the
+// one Saturday's lunch eats.
 func TestCountingPortionsDownKeepsTheOneTheUpcomingPlanPlaces(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	approvesFriday(t, s)

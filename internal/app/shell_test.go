@@ -82,8 +82,8 @@ func TestTodayIsServedInTheAppShell(t *testing.T) {
 	}
 }
 
-// Every signed-in page has the same tabs, Today first, and marks its own; Runs sits
-// apart from them, at the rail's foot.
+// Every signed-in page has the same tabs, Today first, and marks its own; Runs sits apart
+// from them, at the rail's foot.
 func TestEverySignedInPageHasTheSameTabs(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")

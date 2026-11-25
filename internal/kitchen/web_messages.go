@@ -111,8 +111,8 @@ var portionCountProblemMessages = map[domain.Problem]web.Message{
 	domain.TooLarge: {En: "Must be at most 99.", It: "Deve essere al massimo 99."},
 }
 
-// portionMoveProblemMessages say why how many of a Lot to move is refused. More than
-// it holds needs what it holds: msgPortionsMoreThanHeld says that.
+// portionMoveProblemMessages say why how many of a Lot to move is refused. More than it
+// holds needs what it holds: msgPortionsMoreThanHeld says that.
 var portionMoveProblemMessages = map[domain.Problem]web.Message{
 	domain.Required:     {En: "Say how many to move.", It: "Di' quante spostare."},
 	domain.NothingMoved: {En: "Say how many to move.", It: "Di' quante spostare."},

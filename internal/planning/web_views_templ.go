@@ -43,9 +43,9 @@ func window(ctx context.Context, d domain.Delivery) string {
 }
 
 // cycleView is what the Cycle page shows: the Cycle, nil when there's none, upcoming or
-// current, how planning it stands, why its latest planning Run failed, if it did, why
-// a decision or planning was refused, if one was, the Planning Note typed with it, and
-// the Cycles it links, if any.
+// current, how planning it stands, why its latest planning Run failed, if it did, why a
+// decision or planning was refused, if one was, the Planning Note typed with it, and the
+// Cycles it links, if any.
 type cycleView struct {
 	Cycle    *Cycle
 	Planning Planning
@@ -67,8 +67,8 @@ func (v cycleView) droppable() bool {
 	return v.Cycle != nil && v.Cycle.Delivery.State == domain.Tentative
 }
 
-// cycleLinks are the User's current and upcoming Cycles, which the Cycle page links
-// while they have both, with how planning the upcoming one stands.
+// cycleLinks are the User's current and upcoming Cycles, which the Cycle page links while
+// they have both, with how planning the upcoming one stands.
 type cycleLinks struct {
 	Current, Upcoming Cycle
 	Planning          Planning
@@ -1189,8 +1189,8 @@ func clashed(err error) bool {
 func checkURL(id int64) templ.SafeURL { return templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/check", id)) }
 
 // checkPage is the Kitchen Check before planning `c`: why planning is refused, if it is,
-// what the kitchen holds today with a Count for each, and one button that confirms it
-// and starts planning.
+// what the kitchen holds today with a Count for each, and one button that confirms it and
+// starts planning.
 func checkPage(now time.Time, c Cycle, contents kitchen.Contents, refusal error) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1644,8 +1644,8 @@ func prepSessionLine(ps domain.PrepSession) templ.Component {
 	})
 }
 
-// sizeOf is a Portion size as SlotRow shows it: none for 0, a Portion not made by a
-// Prep Session of a Recipe.
+// sizeOf is a Portion size as SlotRow shows it: none for 0, a Portion not made by a Prep
+// Session of a Recipe.
 func sizeOf(ctx context.Context, s float64) string {
 	if s == 0 {
 		return ""
@@ -1679,10 +1679,10 @@ func eatenAt(ctx context.Context, s *domain.Slot) string {
 	return web.Tf(ctx, msgSlotOn, web.Capitalised(web.T(ctx, web.SlotKindNames[s.Kind])), web.Date(ctx, s.On))
 }
 
-// filledSlot is a Slot of a Plan Proposal with the Portion filling it: its name, its
-// size when a Prep Session of a Recipe yields it, its nutrition, and the Prep Session it
-// comes from, nil for a Portion already in the kitchen, with where it is kept; and
-// whether the Plan Proposal changes it.
+// filledSlot is a Slot of a Plan Proposal with the Portion filling it: its name, its size
+// when a Prep Session of a Recipe yields it, its nutrition, and the Prep Session it comes
+// from, nil for a Portion already in the kitchen, with where it is kept; and whether the
+// Plan Proposal changes it.
 type filledSlot struct {
 	kind      domain.SlotKind
 	name      string
@@ -2228,8 +2228,8 @@ func bounds(t domain.Targets, target domain.Target) templ.Component {
 	})
 }
 
-// worthWeighing marks the children, a value, as a soft miss to weigh: a cream Tag with
-// ▼ under its Target or ▲ over it, said in words to a screen reader.
+// worthWeighing marks the children, a value, as a soft miss to weigh: a cream Tag with ▼
+// under its Target or ▲ over it, said in words to a screen reader.
 func worthWeighing(under bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

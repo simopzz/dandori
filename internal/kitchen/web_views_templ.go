@@ -1188,8 +1188,8 @@ func movementsPage(now time.Time, item StockItemMovements) templ.Component {
 }
 
 // movementsBody is a Stock Item's Movements, newest first, to read: a mistake in one is
-// corrected by another Count, never here. Above them each Storage Location is a link,
-// so a move can be followed from one side to the other, swapping the body when `inSheet`.
+// corrected by another Count, never here. Above them each Storage Location is a link, so
+// a move can be followed from one side to the other, swapping the body when `inSheet`.
 func movementsBody(now time.Time, item StockItemMovements, inSheet bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1607,8 +1607,8 @@ func countSearch(q string) templ.Component {
 	})
 }
 
-// foundList is the Ingredients a search for `q` found to count, each opening its form;
-// or why the Staple it named isn't one of them; or the offer to add what nothing matched.
+// foundList is the Ingredients a search for `q` found to count, each opening its form; or
+// why the Staple it named isn't one of them; or the offer to add what nothing matched.
 func foundList(found []domain.Ingredient, staple, q string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2166,8 +2166,8 @@ func quantityStep(unit domain.Unit) string {
 	return "1"
 }
 
-// portionsPage is the Add Portions form as a page of its own, for a browser without
-// htmx: the sheet's body, under the page's header.
+// portionsPage is the Add Portions form as a page of its own, for a browser without htmx:
+// the sheet's body, under the page's header.
 func portionsPage(now time.Time, f PortionsForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2244,11 +2244,11 @@ func portionsPage(now time.Time, f PortionsForm) templ.Component {
 	})
 }
 
-// portionsForm adds Portions no Prep Session produced, in the sheet swapping its body;
-// on a page, boosted, a refusal comes back as the page, its error summary first. Its
-// Storage Location starts unchosen, so nothing lands in the wrong place by default.
-// `inSheet` focuses its name as the sheet opens; a page focuses nothing, so a phone's
-// keyboard doesn't cover it.
+// portionsForm adds Portions no Prep Session produced, in the sheet swapping its body; on
+// a page, boosted, a refusal comes back as the page, its error summary first. Its Storage
+// Location starts unchosen, so nothing lands in the wrong place by default. `inSheet`
+// focuses its name as the sheet opens; a page focuses nothing, so a phone's keyboard
+// doesn't cover it.
 func portionsForm(f PortionsForm, inSheet bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

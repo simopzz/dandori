@@ -17,8 +17,8 @@ import (
 // are a feature's. Every other package under internal is held to them.
 var shared = []string{"agent", "app", "apptest", "clock", "db", "devmode", "domain", "httpx", "telemetry", "web"}
 
-// sqlCalls are the pgx methods that reach the database. Each takes a context first, so
-// a call without arguments, such as r.URL.Query(), is not one.
+// sqlCalls are the pgx methods that reach the database. Each takes a context first, so a
+// call without arguments, such as r.URL.Query(), is not one.
 var sqlCalls = []string{"Exec", "Query", "QueryRow", "SendBatch", "CopyFrom"}
 
 // sqlWrite is a word of SQL that writes or locks rows: FOR UPDATE ends in UPDATE.
@@ -110,9 +110,9 @@ func checkTier(t *testing.T, path string) {
 // locks: another feature, or app's wiring, calls it, and a write it may call belongs in a
 // service file, holding every rule its owner holds for it.
 //
-// shortcut: it reads only the string literals in the function's own body, not a helper
-// it calls (HasMovements locks through lock) nor a package-level const; follow those if
-// an exported write slips past.
+// shortcut: it reads only the string literals in the function's own body, not a helper it
+// calls (HasMovements locks through lock) nor a package-level const; follow those if an
+// exported write slips past.
 func checkExportsRead(t *testing.T, fset *token.FileSet, f *ast.File) {
 	for _, d := range f.Decls {
 		fn, ok := d.(*ast.FuncDecl)

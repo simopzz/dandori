@@ -102,9 +102,9 @@ func TestAValueAgainstItsTarget(t *testing.T) {
 	}
 }
 
-// The Targets' results over the planned days: the average against each Target, then
-// each day more than 25% off one in its direction, in whole percent, a day planned only
-// partly left out. None when no day is judged.
+// The Targets' results over the planned days: the average against each Target, then each
+// day more than 25% off one in its direction, in whole percent, a day planned only partly
+// left out. None when no day is judged.
 func TestTheTargetsResults(t *testing.T) {
 	on := func(d int, n domain.PortionNutrition) domain.Day {
 		return domain.Day{On: day(d), Nutrition: n, Filled: 4}
@@ -179,8 +179,8 @@ func TestTheSoftRulesOfAPlansStructure(t *testing.T) {
 	}
 }
 
-// Of the Portions left without a Slot, only those carried into the Cycle are a miss,
-// told with how many of them the kitchen holds; those the Plan makes are made for after
+// Of the Portions left without a Slot, only those carried into the Cycle are a miss, told
+// with how many of them the kitchen holds; those the Plan makes are made for after
 // the Cycle.
 func TestPortionsLeftWithoutASlot(t *testing.T) {
 	lasagne := []domain.PortionLot{

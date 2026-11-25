@@ -20,8 +20,8 @@ const (
 	refreshCookie = "dandori_refresh"
 )
 
-// sessionAge is how long the browser keeps the cookies: as long as it
-// allows. The session lasts until the User signs out.
+// sessionAge is how long the browser keeps the cookies: as long as it allows. The session
+// lasts until the User signs out.
 const sessionAge = 400 * 24 * 60 * 60
 
 // Handlers serve signing in and out, and keep every other page for the signed-in.
@@ -31,8 +31,8 @@ type Handlers struct {
 	Log     *slog.Logger
 }
 
-// SignedIn serves `next` only to a signed-in User, on a context carrying
-// them, whose id the request's span records; anyone else goes to sign-in.
+// SignedIn serves `next` only to a signed-in User, on a context carrying them, whose id
+// the request's span records; anyone else goes to sign-in.
 func (h Handlers) SignedIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokens, ok := cookieTokens(r)
@@ -81,16 +81,15 @@ func (h Handlers) ShowSent(w http.ResponseWriter, r *http.Request) {
 	httpx.Render(w, r, h.Log, http.StatusOK, sentPage(h.Clock.Now()))
 }
 
-// ShowConfirm is where a magic link leads: Supabase's email templates
-// link here with the token hash and the link's type.
+// ShowConfirm is where a magic link leads: Supabase's email templates link here with the
+// token hash and the link's type.
 func (h Handlers) ShowConfirm(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	httpx.Render(w, r, h.Log, http.StatusOK, confirmPage(r.URL, h.Clock.Now(), q.Get("token_hash"), q.Get("type")))
 }
 
-// linkTypes are the links that sign in: a magic link, an invitation, and
-// the signup confirmation an invited User who hasn't confirmed yet is sent
-// in place of a magic link.
+// linkTypes are the links that sign in: a magic link, an invitation, and the signup
+// confirmation an invited User who hasn't confirmed yet is sent in place of a magic link.
 var linkTypes = map[string]bool{"email": true, "invite": true, "signup": true}
 
 func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
@@ -114,8 +113,8 @@ func (h Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 
 func (h Handlers) SignOut(w http.ResponseWriter, r *http.Request) {
 	if tokens, ok := cookieTokens(r); ok {
-		// Signing out on this browser goes ahead even if Supabase can't
-		// revoke the session.
+		// Signing out on this browser goes ahead even if Supabase can't revoke
+		// the session.
 		if err := h.Service.SignOut(r.Context(), tokens); err != nil {
 			h.Log.WarnContext(r.Context(), "revoke session", "err", err)
 		}
@@ -165,9 +164,9 @@ func cookie(r *http.Request, name, value string, maxAge int) *http.Cookie {
 	}
 }
 
-// origin is the app's address as the browser reached it, which a magic
-// link leads back to. Supabase Auth sends links only to its allowed
-// redirect URLs, so a forged Host can't lead one elsewhere.
+// origin is the app's address as the browser reached it, which a magic link leads back
+// to. Supabase Auth sends links only to its allowed redirect URLs, so a forged Host can't
+// lead one elsewhere.
 func origin(r *http.Request) string {
 	scheme := "http"
 	if httpx.Secure(r) {

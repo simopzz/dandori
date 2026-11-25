@@ -43,9 +43,9 @@ type judging struct {
 // 9 pm on Thursday: yogurt at breakfast, a Rice bowl prepared at lunch for three Portions
 // at 1.25×, eaten at lunch and dinner with the third frozen with no Slot, and a Portion
 // of lasagne at the snack. The kitchen holds 800 g of rice in the pantry and 500 g of
-// yogurt in the fridge. The User owns a hob and a microwave, and aims at 2200 kcal
-// within 8%, at least 130 g protein and 30 g fibre, at most 50 g sugar. Friday eats 1586
-// kcal and 65 g protein: 90 and 15 of yogurt, 438 and 9 of each Rice bowl, 620 and 32
+// yogurt in the fridge. The User owns a hob and a microwave, and aims at 2200 kcal within
+// 8%, at least 130 g protein and 30 g fibre, at most 50 g sugar. Friday eats 1586 kcal
+// and 65 g protein: 90 and 15 of yogurt, 438 and 9 of each Rice bowl, 620 and 32
 // of lasagne.
 func friday() judging {
 	return judging{
@@ -238,9 +238,9 @@ func TestJudgeGivesADraftsDaysAndTheSevenBefore(t *testing.T) {
 	}
 }
 
-// Judge gives the Targets a draft misses, on average and by day, then the soft rules
-// it breaks; a day only a little under a Target misses it only on average, and a first
-// day partly planned isn't judged against the Targets.
+// Judge gives the Targets a draft misses, on average and by day, then the soft rules it
+// breaks; a day only a little under a Target misses it only on average, and a first day
+// partly planned isn't judged against the Targets.
 func TestJudgeGivesTheTargetsAndSoftRulesADraftMisses(t *testing.T) {
 	unused := []string{"Rice bowl eaten back to back, Fri 6 Nov", "lasagne: 2 of 3 left unused, in the freezer", "soup: 1 of 1 left unused, in the fridge"}
 	tests := []struct {
@@ -302,9 +302,9 @@ func TestJudgeGivesThePortionsMadeForAfterTheCycle(t *testing.T) {
 // A Prep Session the Plan keeps before the draft's first Slot counts towards back to back
 // with the Portions of it the draft puts in Slots again, when the draft puts one close to
 // another; and one it leaves without a Slot is made for after the Cycle, no miss, as are
-// those of the draft's own Prep Sessions. Here the Plan set out yogurt
-// at Friday's breakfast for three Portions, eaten at breakfast and lunch, the third
-// without a Slot, and the draft plans Friday from its snack.
+// those of the draft's own Prep Sessions. Here the Plan set out yogurt at Friday's
+// breakfast for three Portions, eaten at breakfast and lunch, the third without a Slot,
+// and the draft plans Friday from its snack.
 func TestJudgeCountsTheKeptPrepSessionsOfAReplan(t *testing.T) {
 	current := domain.Plan{PrepSessions: []domain.PrepSession{{At: slot(6, domain.Breakfast), Ingredient: &plainYogurt, Quantity: grams(150), Portions: []domain.PlannedPortion{
 		{ID: 31, Location: domain.Fridge, EatAt: in(slot(6, domain.Breakfast))},

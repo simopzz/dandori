@@ -19,8 +19,8 @@ const (
 type Plan struct {
 	PrepSessions []PrepSession
 	Kept         []Kept
-	// FreezerSplits are how much of each Ingredient goes in the freezer when the
-	// Delivery is put away.
+	// FreezerSplits are how much of each Ingredient goes in the freezer when the Delivery
+	// is put away.
 	FreezerSplits []RecipeIngredient
 }
 

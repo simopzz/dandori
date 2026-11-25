@@ -9,8 +9,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// TestPagesShowTheClocksDay through a real browser: the clock is set
-// through the test-only switch.
+// TestPagesShowTheClocksDay through a real browser: the clock is set through the
+// test-only switch.
 func TestBrowserPagesShowTheClocksDay(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -452,8 +452,8 @@ func TestBrowserSavesAnApplianceWithItsNoteInPlace(t *testing.T) {
 	b.Shot(t, "appliances-phone")
 }
 
-// A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line
-// of a Run's Trace that opens.
+// A finger's target is at least 44px tall: a Kitchen row's Count and Move, and a line of
+// a Run's Trace that opens.
 func TestBrowserTargetsAreAtLeast44pxTall(t *testing.T) {
 	s := draftedLasagne(t)
 	run := s.Page().Path

@@ -64,8 +64,8 @@ var languageNames = map[domain.Language]string{domain.English: "English", domain
 // StartPlanning starts a planning Run of the signed-in User's Cycle `id`, upcoming or
 // current at `now`, from its first Slot still to come, told what the kitchen holds `now`,
 // and is the Run's id. It is ErrNoCycle for a Cycle neither, ErrPlanned for one with a
-// Plan, ErrNothingLeft when all its Slots have passed, and ErrBusy while another
-// planning Run is going or a Plan Proposal is pending.
+// Plan, ErrNothingLeft when all its Slots have passed, and ErrBusy while another planning
+// Run is going or a Plan Proposal is pending.
 func (s *Service) StartPlanning(ctx context.Context, id int64, now time.Time) (int64, error) {
 	c, err := s.Find(ctx, id, now)
 	if err != nil {
@@ -154,8 +154,8 @@ func (s *Service) start(ctx context.Context, c Cycle, from domain.Slot, now time
 // cycleKitchen is what planning a Cycle, or shopping for it, reads of the kitchen at a
 // Slot: the Recipe Library, the known Ingredients, what the kitchen holds and its
 // Portions, what every approved Plan Proposal plans together, the Cycle's own Plan,
-// whether it has one, its Grocery List's lines once fixed, in name order, and the
-// kitchen forecast at that Slot.
+// whether it has one, its Grocery List's lines once fixed, in name order, and the kitchen
+// forecast at that Slot.
 type cycleKitchen struct {
 	library        []domain.Recipe
 	known          []domain.Ingredient
@@ -535,12 +535,12 @@ func parenthesised(note string) string {
 }
 
 // planBrief is what one planning Run judges drafts by, domain.Judge's inputs: the Cycle,
-// the first Slot it plans, the Profile, the Cycle's Plan it replaces, if any, the
-// Portion Lots without a Slot, what the kitchen
-// holds of each Stock Item, what approved Plans put in Slots before, and the clock. It
-// has the Recipe Library and Ingredients the drafts' ids name, the zone their days are
-// in, how many check_plan calls it has, and how it leaves its Plan Proposal, stored only
-// as the Run is stored succeeded; then the Run's state.
+// the first Slot it plans, the Profile, the Cycle's Plan it replaces, if any, the Portion
+// Lots without a Slot, what the kitchen holds of each Stock Item, what approved Plans put
+// in Slots before, and the clock. It has the Recipe Library and Ingredients the drafts'
+// ids name, the zone their days are in, how many check_plan calls it has, and how it
+// leaves its Plan Proposal, stored only as the Run is stored succeeded; then the
+// Run's state.
 type planBrief struct {
 	cycle   domain.Cycle
 	from    domain.Slot
@@ -913,12 +913,12 @@ func (pb *planBrief) read(input json.RawMessage) (domain.Plan, []string) {
 // Proposal is a Plan Proposal as its Cycle page shows it: its Plan, the Portions without
 // a Slot it puts in Slots by id, the planner's summary, the Targets it aimed at, the soft
 // rules it breaks, and the Recipe Drafts it prepares, while pending. It has its day table
-// too: the days it plans and, for a pending one, the seven days before its first Slot;
-// as judged while pending, worked out from today's Recipes once approved. Pending with
-// the Cycle's Plan to replace, it has what it changes of that Plan: the Slots it fills
-// with other food, and the indexes of its Prep Sessions the Plan has none alike of; and
-// before the Delivery, the indexes of its freezer splits the Plan has none alike of,
-// and whether it changes the Plan's freezer splits at all.
+// too: the days it plans and, for a pending one, the seven days before its first Slot; as
+// judged while pending, worked out from today's Recipes once approved. Pending with the
+// Cycle's Plan to replace, it has what it changes of that Plan: the Slots it fills with
+// other food, and the indexes of its Prep Sessions the Plan has none alike of; and before
+// the Delivery, the indexes of its freezer splits the Plan has none alike of, and whether
+// it changes the Plan's freezer splits at all.
 type Proposal struct {
 	ID              int64
 	Plan            domain.Plan

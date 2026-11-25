@@ -59,15 +59,15 @@ var allowedCascades = map[cascade]string{
 	{"cycle_run", "run"}:    "no code deletes a Run: only deleting a User does, and that cascades everything anyway",
 }
 
-// table matches a table's name in SQL, quoted or not, perhaps after ONLY or a schema;
-// its group is the name.
+// table matches a table's name in SQL, quoted or not, perhaps after ONLY or a schema; its
+// group is the name.
 const table = `(?:ONLY\s+)?(?:"?\w+"?\.)?("?\w+"?)`
 
 var (
 	sqlComment = regexp.MustCompile(`--.*`)
 	tableDDL   = regexp.MustCompile(`(?is)^\s*(CREATE|ALTER)\s+(?:(?:UNLOGGED|TEMP|TEMPORARY)\s+)?TABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?` + table)
-	// foreignKey's second group is what follows the referenced columns, up to the end
-	// of the constraint: where ON DELETE stands.
+	// foreignKey's second group is what follows the referenced columns, up to the end of
+	// the constraint: where ON DELETE stands.
 	foreignKey = regexp.MustCompile(`(?i)REFERENCES\s+` + table + `\s*(?:\([^)]*\))?([^,;)]*)`)
 	cascades   = regexp.MustCompile(`(?i)ON\s+DELETE\s+CASCADE`)
 	written    = regexp.MustCompile(`(?i)\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE|MERGE\s+INTO)\s+` + table)
@@ -258,8 +258,8 @@ func touched(sql string) (tables []string) {
 	return tables
 }
 
-// checkAllowedUsed fails on an allowance nothing needs any more, so the list shrinks
-// once a leak is fixed.
+// checkAllowedUsed fails on an allowance nothing needs any more, so the list shrinks once
+// a leak is fixed.
 func checkAllowedUsed[K comparable](t *testing.T, allowed map[K]string, used map[K]bool) {
 	t.Helper()
 	for c := range allowed {

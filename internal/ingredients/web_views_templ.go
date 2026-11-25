@@ -525,8 +525,8 @@ func addPage(today time.Time, f AddForm) templ.Component {
 }
 
 // sheetBody is what the Ingredients side sheet shows: `view`'s add form, closed under its
-// name until the User opens it or has begun it, then the search of the User's
-// Ingredients for its Q.
+// name until the User opens it or has begun it, then the search of the User's Ingredients
+// for its Q.
 func sheetBody(ings []domain.Ingredient, view sheetView) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1810,8 +1810,8 @@ func NutritionFields(values, errs map[string]string, ids bool) templ.Component {
 	})
 }
 
-// TypedIngredient is a new Ingredient's fields as typed, with why each was refused.
-// Focus marks them as those a refused form hands the focus to.
+// TypedIngredient is a new Ingredient's fields as typed, with why each was refused. Focus
+// marks them as those a refused form hands the focus to.
 type TypedIngredient struct {
 	Unit, Usual string
 	Values      map[string]string
@@ -1822,9 +1822,9 @@ type TypedIngredient struct {
 	UnitAttrs templ.Attributes
 }
 
-// NewIngredientFields confirm a new Ingredient inside another form, whose field names
-// are `named` gives them, as are their ids: its unit, usual Storage Location, Staple flag
-// and values, and what the values are per, for the unit chosen.
+// NewIngredientFields confirm a new Ingredient inside another form, whose field names are
+// `named` gives them, as are their ids: its unit, usual Storage Location, Staple flag and
+// values, and what the values are per, for the unit chosen.
 func NewIngredientFields(named func(string) string, ing TypedIngredient) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

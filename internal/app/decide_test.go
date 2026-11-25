@@ -138,8 +138,8 @@ func TestRejectingWithoutANoteStartsNothing(t *testing.T) {
 
 // Rejecting with a Planning Note starts a planning Run with no Kitchen Check, from the
 // rejected Plan Proposal's first Slot, told every Planning Note of the Cycle, newest
-// first; once that Slot has passed, from the first Slot still to come. Planning again
-// is told them too.
+// first; once that Slot has passed, from the first Slot still to come. Planning again is
+// told them too.
 func TestRejectingWithANotePlansAgainToldEveryNoteNewestFirst(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
@@ -226,9 +226,9 @@ func TestAFailedPlanningRunOffersToPlanAgain(t *testing.T) {
 	s.DoesNotSee("Planning failed")
 }
 
-// Each decision answers htmx as it does a plain post: approving and rejecting land on
-// the Cycle page, rejecting with a note and planning again on the Run, and a refused
-// approval is the Cycle page with 422.
+// Each decision answers htmx as it does a plain post: approving and rejecting land on the
+// Cycle page, rejecting with a note and planning again on the Run, and a refused approval
+// is the Cycle page with 422.
 func TestDecisionsPostedAsHTMX(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")

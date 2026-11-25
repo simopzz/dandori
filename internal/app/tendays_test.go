@@ -116,8 +116,8 @@ func tenDayScript(t *testing.T) []fakellm.Step {
 	}
 }
 
-// idsIn are the ids `pattern`'s group finds in the prompt of the first request of the
-// Run `req` belongs to.
+// idsIn are the ids `pattern`'s group finds in the prompt of the first request of the Run
+// `req` belongs to.
 func idsIn(t *testing.T, req agent.Request, pattern string) []int64 {
 	t.Helper()
 	var ids []int64
@@ -206,8 +206,8 @@ func tenDayDraft(t *testing.T, req agent.Request) map[string]any {
 }
 
 // Through a browser: a ten-day Plan Proposal after an approved Plan, its first day
-// planned only from lunch on, puts the verdict first: the Cycle's dates and Delivery,
-// the planner's summary, the averages with the Targets they miss marked, the soft misses
+// planned only from lunch on, puts the verdict first: the Cycle's dates and Delivery, the
+// planner's summary, the averages with the Targets they miss marked, the soft misses
 // grouped by kind, then Approve and Reject, all before any day.
 func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 	s := tenDayKitchen(t, "ada@example.com", "English")
@@ -239,10 +239,10 @@ func TestBrowserShowsATenDayPlanProposalVerdictFirst(t *testing.T) {
 	)
 }
 
-// Through a browser: every day of a Plan Proposal starts closed; opening Friday shows
-// its Slots, each with its Portion's calories and protein and where it comes from, then
-// its Prep Sessions of a Recipe, each opening to its Ingredients and the Portions it
-// leaves for later. The apple, one Ingredient as it is, shows only as its Slot.
+// Through a browser: every day of a Plan Proposal starts closed; opening Friday shows its
+// Slots, each with its Portion's calories and protein and where it comes from, then its
+// Prep Sessions of a Recipe, each opening to its Ingredients and the Portions it leaves
+// for later. The apple, one Ingredient as it is, shows only as its Slot.
 func TestBrowserOpensADayOfATenDayPlanProposal(t *testing.T) {
 	s := tenDayKitchen(t, "ada@example.com", "English")
 	plansTenDays(t, s, tenDays)

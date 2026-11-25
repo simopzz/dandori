@@ -201,8 +201,8 @@ func TestParsePortionCount(t *testing.T) {
 }
 
 // A Count keeps what was believed and stated. Counting down takes those without a Slot,
-// oldest first, then the latest Slot; counting up lists what was added; and a Count
-// that changes nothing lists the whole Lot, so its Movement can be told as the Lot's.
+// oldest first, then the latest Slot; counting up lists what was added; and a Count that
+// changes nothing lists the whole Lot, so its Movement can be told as the Lot's.
 func TestCountingPortions(t *testing.T) {
 	now := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
 	tuesday, friday := now.AddDate(0, 0, 1), now.AddDate(0, 0, 4)
@@ -268,8 +268,8 @@ func TestMovingPortions(t *testing.T) {
 	}
 }
 
-// A Lot's Movements begin when the oldest Portion it holds now arrived there, leaving
-// out an earlier life of the Lot, and each tells what it held before and after it.
+// A Lot's Movements begin when the oldest Portion it holds now arrived there, leaving out
+// an earlier life of the Lot, and each tells what it held before and after it.
 func TestLotMovements(t *testing.T) {
 	at := func(hour int) time.Time { return time.Date(2026, 11, 2, hour, 0, 0, 0, time.UTC) }
 	freezer := domain.StockKey{Location: domain.Freezer}

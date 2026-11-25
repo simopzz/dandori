@@ -28,8 +28,8 @@ func Anchored(t testing.TB, page, id string) string {
 	return ""
 }
 
-// Link returns where the first link on `page` whose text contains `text`
-// leads, as a user would follow it: without JavaScript, so one in a noscript too.
+// Link returns where the first link on `page` whose text contains `text` leads, as a user
+// would follow it: without JavaScript, so one in a noscript too.
 func Link(t testing.TB, page, text string) string {
 	t.Helper()
 	doc, err := html.ParseWithOptions(strings.NewReader(page), html.ParseOptionEnableScripting(false))

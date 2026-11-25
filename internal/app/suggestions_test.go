@@ -108,8 +108,8 @@ func TestAcceptingASuggestionInAnotherUnitAsksForTheQuantity(t *testing.T) {
 }
 
 // A row whose new Ingredient the User has since added under that name uses the known one,
-// whether the form was opened before or after: in the same unit as it is, in another
-// with its quantity asked for again.
+// whether the form was opened before or after: in the same unit as it is, in another with
+// its quantity asked for again.
 func TestARecipeDraftUsesAnIngredientAddedSince(t *testing.T) {
 	s := draftedLasagneWith(t, rice)
 	draft := s.Page().Path
@@ -142,8 +142,8 @@ func TestARecipeDraftUsesAnIngredientAddedSince(t *testing.T) {
 	s.Sees("Beef mince Freezer per 100 g: 200 kcal")
 }
 
-// A row whose known Ingredient the User has since deleted asks for its values like a
-// new one, whether the form was opened before or after.
+// A row whose known Ingredient the User has since deleted asks for its values like a new
+// one, whether the form was opened before or after.
 func TestARecipeDraftAsksForAnIngredientDeletedSince(t *testing.T) {
 	s := draftedLasagneWith(t, rice)
 	draft := s.Page().Path
@@ -170,8 +170,8 @@ func TestARecipeDraftAsksForAnIngredientDeletedSince(t *testing.T) {
 	s.Sees("rice 100 g")
 }
 
-// In a browser, picking a suggestion swaps its row in place to the known Ingredient,
-// its quantity asked for again in the known unit.
+// In a browser, picking a suggestion swaps its row in place to the known Ingredient, its
+// quantity asked for again in the known unit.
 func TestBrowserPicksASuggestionInPlace(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")

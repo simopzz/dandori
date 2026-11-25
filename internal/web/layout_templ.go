@@ -35,8 +35,8 @@ const (
 // content. Every link and form is boosted, with a form's buttons disabled while its
 // request is in flight; ADR 0009 says why a rejection keeps its address and why settling
 // is off. A request slower than 300 ms shows the busy bar along the top, and its pressed
-// button busy. With a Faro url, the page loads Faro first (static/faro.js), and its
-// shell carries the signed-in User's id for it.
+// button busy. With a Faro url, the page loads Faro first (static/faro.js), and its shell
+// carries the signed-in User's id for it.
 func Layout(title string, current Tab) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

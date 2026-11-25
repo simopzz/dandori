@@ -25,8 +25,8 @@ func PathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
-// IsHTMX reports whether htmx sent the request: a boosted one, or a form
-// swapping its own fragment.
+// IsHTMX reports whether htmx sent the request: a boosted one, or a form swapping its
+// own fragment.
 func IsHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
 
 // IsPartial reports whether htmx sent `r` to swap part of a page, so a fragment answers

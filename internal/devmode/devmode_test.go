@@ -12,9 +12,9 @@ import (
 	"github.com/simopzz/dandori/internal/devmode"
 )
 
-// The dev server wakes up at the dev time: the clock stands there, and the
-// scheduler's beat runs once, so what the app assumed up to then is
-// recorded before the first request.
+// The dev server wakes up at the dev time: the clock stands there, and the scheduler's
+// beat runs once, so what the app assumed up to then is recorded before the
+// first request.
 func TestTheDevServerWakesUpAtTheDevTime(t *testing.T) {
 	at := time.Date(2026, time.November, 25, 8, 0, 0, 0, time.UTC)
 	dev, err := devmode.New(at, 5*time.Minute, "")
@@ -32,9 +32,9 @@ func TestTheDevServerWakesUpAtTheDevTime(t *testing.T) {
 	}
 }
 
-// The dev routes are mounted under /_test/: the mailbox lists the links the
-// fake Auth sent, the clock switch moves the clock, and the fake Auth
-// answers where the app reaches it.
+// The dev routes are mounted under /_test/: the mailbox lists the links the fake Auth
+// sent, the clock switch moves the clock, and the fake Auth answers where the app
+// reaches it.
 func TestTheDevRoutesAreMountedUnderTest(t *testing.T) {
 	at := time.Date(2026, time.November, 25, 8, 0, 0, 0, time.UTC)
 	dev, err := devmode.New(at, 5*time.Minute, "ada@example.com")
@@ -83,9 +83,9 @@ func TestTheDevRoutesAreMountedUnderTest(t *testing.T) {
 	}
 }
 
-// The clock switch posted beat=false moves the clock without beating, so a request is
-// the first to bring the kitchen up to the new time. The beat it passed is skipped: the
-// next one is at the next multiple.
+// The clock switch posted beat=false moves the clock without beating, so a request is the
+// first to bring the kitchen up to the new time. The beat it passed is skipped: the next
+// one is at the next multiple.
 func TestTheClockSwitchCanMoveWithoutBeating(t *testing.T) {
 	at := time.Date(2026, time.November, 25, 8, 0, 0, 0, time.UTC)
 	dev, err := devmode.New(at, 5*time.Minute, "")

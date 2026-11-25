@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// The type floor: nothing a User reads to act is under 0.875rem, and letter-spacing
-// is for the eyebrow, the wordmark and the titles in the pixel face. See docs/design.md.
+// The type floor: nothing a User reads to act is under 0.875rem, and letter-spacing is
+// for the eyebrow, the wordmark and the titles in the pixel face. See docs/design.md.
 func TestTypeHasAFloorAndNoTrackingOnWords(t *testing.T) {
 	css, err := os.ReadFile("static/app.css")
 	if err != nil {

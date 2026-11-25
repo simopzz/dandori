@@ -19,11 +19,11 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 )
 
-// The shared components every page is built from. docs/design.md says when
-// to use each; app.css styles them.
+// The shared components every page is built from. docs/design.md says when to use each;
+// app.css styles them.
 
-// PageHeader opens a page: an eyebrow with the page's Japanese name and
-// `today`'s date, then the `title`. Children, if any, are a lede below it.
+// PageHeader opens a page: an eyebrow with the page's Japanese name and `today`'s date,
+// then the `title`. Children, if any, are a lede below it.
 func PageHeader(ja, title string, today time.Time) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -438,8 +438,8 @@ func number(n int) templ.Component {
 // PageHeader's, Section's and FieldGroup's titles read the mark.
 func Data(s string) string { return dataStart + s + dataEnd }
 
-// dataStart and dataEnd mark Data: characters of Unicode's private use, which no text
-// a User reads holds.
+// dataStart and dataEnd mark Data: characters of Unicode's private use, which no text a
+// User reads holds.
 const dataStart, dataEnd = "\uE000", "\uE001"
 
 // titlePart is a run of a title, Data or not.
@@ -819,8 +819,8 @@ func Rows() templ.Component {
 	})
 }
 
-// Row is one line of a list. Lay it out with a row-title, a row-figure,
-// row-meta and a row-action.
+// Row is one line of a list. Lay it out with a row-title, a row-figure, row-meta and
+// a row-action.
 func Row() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -899,8 +899,8 @@ func Seal() templ.Component {
 
 // Group is a part of a Section's content under an h3, `title`, with `meta`, unless nil,
 // under it: a soft line, or a day's Figures. It opens in place, closed unless `open` says
-// it holds what the User is at, such as a refused form. What a Group holds is Rows,
-// never a deeper heading.
+// it holds what the User is at, such as a refused form. What a Group holds is Rows, never
+// a deeper heading.
 func Group(title string, meta templ.Component, open bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1454,9 +1454,9 @@ func RowTitle(name string, tagged bool, tag string, changed bool) templ.Componen
 	})
 }
 
-// QuantityFigure is a Row's row-figure: the quantity `q` in `unit`, as an Ingredient's
-// is written. The space before it keeps it apart from the title in the row's text,
-// which a screen reader reads; the Row's grid lays it out without it.
+// QuantityFigure is a Row's row-figure: the quantity `q` in `unit`, as an Ingredient's is
+// written. The space before it keeps it apart from the title in the row's text, which a
+// screen reader reads; the Row's grid lays it out without it.
 func QuantityFigure(q domain.Quantity, unit domain.Unit) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1716,8 +1716,8 @@ func AmountText(ctx context.Context, a domain.Amount, floor bool, unit string) s
 	return strings.TrimSpace(s + " " + unit)
 }
 
-// EditRow is one line of a list that opens in place to edit: `summary` is
-// the line, the children are what it opens to.
+// EditRow is one line of a list that opens in place to edit: `summary` is the line, the
+// children are what it opens to.
 func EditRow(open bool, summary templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1765,8 +1765,8 @@ func EditRow(open bool, summary templ.Component) templ.Component {
 	})
 }
 
-// EditRowIn is an EditRow one of `group`, e.g. the Slots of a day: opening
-// it closes `group`'s open one.
+// EditRowIn is an EditRow one of `group`, e.g. the Slots of a day: opening it closes
+// `group`'s open one.
 func EditRowIn(group string, open bool, summary templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1841,8 +1841,8 @@ func EditRowIn(group string, open bool, summary templ.Component) templ.Component
 	})
 }
 
-// detailsAttributes are an EditRow's <details> attributes: `open`, and the
-// name of its `group` when it has one.
+// detailsAttributes are an EditRow's <details> attributes: `open`, and the name of its
+// `group` when it has one.
 func detailsAttributes(group string, open bool) templ.Attributes {
 	a := templ.Attributes{"open": open}
 	if group != "" {
@@ -2306,8 +2306,8 @@ func DateField(label, hint, name, value, err string) templ.Component {
 	})
 }
 
-// CellField is a Field in a grid whose column heads name it, so its `label`
-// is shown only on a phone, where the heads are hidden.
+// CellField is a Field in a grid whose column heads name it, so its `label` is shown only
+// on a phone, where the heads are hidden.
 func CellField(label, err string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2729,8 +2729,8 @@ func Actions() templ.Component {
 	})
 }
 
-// ActionsApart is Actions for a row ending a form with one more action that isn't part
-// of it: the primary one first, the other at the far end.
+// ActionsApart is Actions for a row ending a form with one more action that isn't part of
+// it: the primary one first, the other at the far end.
 func ActionsApart() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -3141,8 +3141,8 @@ func buttonFold(class, label string, open bool) templ.Component {
 }
 
 // SideColumn is a page's main column, the children, beside `side`: `side` comes first on
-// a phone; from 1200px it is a column of its own on the right, which stays in view
-// while the main column scrolls, such as a Plan Proposal's decision beside its days.
+// a phone; from 1200px it is a column of its own on the right, which stays in view while
+// the main column scrolls, such as a Plan Proposal's decision beside its days.
 func SideColumn(side templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -3891,8 +3891,8 @@ func notices(text string) templ.Component {
 	})
 }
 
-// notice says `text` happened as asked, until its time runs out, which its line tells,
-// or Close closes it; hovering or focusing it stops its time.
+// notice says `text` happened as asked, until its time runs out, which its line tells, or
+// Close closes it; hovering or focusing it stops its time.
 func notice(text string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -4008,8 +4008,8 @@ func noticePartial(text string) templ.Component {
 	})
 }
 
-// Tag is a short label on a row or field. `accent` marks one that needs
-// attention; its text must say why.
+// Tag is a short label on a row or field. `accent` marks one that needs attention; its
+// text must say why.
 func Tag(accent bool, title string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -4091,8 +4091,8 @@ func Tag(accent bool, title string) templ.Component {
 // Tone is the colour of a ToneTag.
 type Tone string
 
-// The tones of a ToneTag: Going is navy, for what is happening now, and Done is sage,
-// for what has succeeded.
+// The tones of a ToneTag: Going is navy, for what is happening now, and Done is sage, for
+// what has succeeded.
 const (
 	Going Tone = "going"
 	Done  Tone = "done"
@@ -4704,8 +4704,8 @@ var veilCloses = templ.Attributes{
 }
 
 // keepsChanges keeps a sheet open on the veil once the User types or chooses in its form,
-// a search aside, until it closes or a form in it saves: Esc and Close still close it.
-// It sets the attribute: setting closedBy would add the property veilCloses checks.
+// a search aside, until it closes or a form in it saves: Esc and Close still close it. It
+// sets the attribute: setting closedBy would add the property veilCloses checks.
 var keepsChanges = templ.Attributes{
 	"hx-on:input":              "if (!event.target.closest('[role=search]')) " + sheetChanged(true),
 	"hx-on:close":              sheetChanged(false),
@@ -4733,8 +4733,8 @@ const onVeil = `event.target === this && ((r) => event.clientX < r.left || event
 // SheetBody is the body of the sheet `id`, an AddSheet's or a SideSheet's, for one whose
 // content swaps in place; the children are what it starts with. Each swap into it opens
 // the sheet, if it isn't open, and focuses the first field marked aria-invalid, or else
-// marked autofocus, so a rejected form in it is shown again in place. A swap into part
-// of the body, such as a search's results, leaves the focus where it is.
+// marked autofocus, so a rejected form in it is shown again in place. A swap into part of
+// the body, such as a search's results, leaves the focus where it is.
 func SheetBody(id string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

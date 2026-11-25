@@ -138,8 +138,8 @@ func TestAKnownIngredientKeepsItsValuesAndUnitOnARecipeDraft(t *testing.T) {
 	s.Sees("rice Pantry per 100 g: 350 kcal protein 7 g")
 }
 
-// Each row of a Recipe Draft gives its quantity's unit, and a new Ingredient's values
-// say what they are per.
+// Each row of a Recipe Draft gives its quantity's unit, and a new Ingredient's values say
+// what they are per.
 func TestARecipeDraftRowGivesItsUnitAndWhatItsValuesArePer(t *testing.T) {
 	s := draftedLasagne(t)
 	s.Follows("Recipe Draft")
@@ -172,8 +172,8 @@ func TestARecipeDraftShowsWhatWasPastedAndFoldsItsNewIngredients(t *testing.T) {
 	}
 }
 
-// A refused Recipe Draft comes back with the refused new Ingredient's row open with
-// why, the others still folded, whether posted as htmx or not.
+// A refused Recipe Draft comes back with the refused new Ingredient's row open with why,
+// the others still folded, whether posted as htmx or not.
 func TestARefusedRecipeDraftOpensTheRefusedRow(t *testing.T) {
 	s := draftedLasagne(t)
 	s.Follows("Recipe Draft")

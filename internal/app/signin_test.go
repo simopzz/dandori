@@ -16,8 +16,8 @@ import (
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
-// Every page but sign-in needs a signed-in User: the magic link signs them
-// in, and signing out sends them back to sign-in.
+// Every page but sign-in needs a signed-in User: the magic link signs them in, and
+// signing out sends them back to sign-in.
 func TestPagesNeedASignedInUser(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -58,8 +58,8 @@ func TestEachUserSeesOnlyTheirOwnRows(t *testing.T) {
 	s.DoesNotSee("ada@example.com")
 }
 
-// An email that wasn't invited gets no link, and the page says the same as
-// for one that was: it tells no one who has been invited.
+// An email that wasn't invited gets no link, and the page says the same as for one that
+// was: it tells no one who has been invited.
 func TestAnEmailNotInvitedGetsNoLink(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -74,8 +74,8 @@ func TestAnEmailNotInvitedGetsNoLink(t *testing.T) {
 	}
 }
 
-// Signing in lasts until signing out: a day later, past the hour Supabase's
-// access token lasts, the User is still signed in.
+// Signing in lasts until signing out: a day later, past the hour Supabase's access token
+// lasts, the User is still signed in.
 func TestSigningInLastsUntilSigningOut(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -119,8 +119,8 @@ func TestTheInvitationSignsIn(t *testing.T) {
 	}
 }
 
-// An invited User who never opened the invitation signs in by asking for a
-// link: Supabase sends its signup confirmation in place of a magic link.
+// An invited User who never opened the invitation signs in by asking for a link: Supabase
+// sends its signup confirmation in place of a magic link.
 func TestAnInvitedUserCanIgnoreTheInvitation(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -146,9 +146,8 @@ func TestSignInRejectsWhatIsNotAnEmail(t *testing.T) {
 	}
 }
 
-// Signing out ends the session at Supabase, not only in this browser: its
-// cookies, kept from before, sign no one in. It does so after the access
-// token has expired, too.
+// Signing out ends the session at Supabase, not only in this browser: its cookies, kept
+// from before, sign no one in. It does so after the access token has expired, too.
 func TestSigningOutEndsTheSession(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -167,9 +166,8 @@ func TestSigningOutEndsTheSession(t *testing.T) {
 	}
 }
 
-// An access token the project didn't sign as it should signs no one in,
-// though it names a User who signed up: it lands on sign-in, and its
-// cookies are cleared.
+// An access token the project didn't sign as it should signs no one in, though it names a
+// User who signed up: it lands on sign-in, and its cookies are cleared.
 func TestAForgedSessionTokenIsRefused(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")
@@ -216,8 +214,8 @@ func mustParse(t *testing.T, raw string) *url.URL {
 	return u
 }
 
-// A key in the JWKS the app can't read, the fake's Ed25519 standby key,
-// doesn't stop a User signing in: the app skips it.
+// A key in the JWKS the app can't read, the fake's Ed25519 standby key, doesn't stop a
+// User signing in: the app skips it.
 func TestSigningInPastAKeyTheAppCantRead(t *testing.T) {
 	s := apptest.NewScenario(t)
 	s.Invite("ada@example.com")
@@ -227,8 +225,8 @@ func TestSigningInPastAKeyTheAppCantRead(t *testing.T) {
 	s.Sees("Monday, November 2")
 }
 
-// A JWKS with no key the app can read is Supabase failing, not the User's
-// session ending: the page fails instead of sending them to sign in.
+// A JWKS with no key the app can read is Supabase failing, not the User's session ending:
+// the page fails instead of sending them to sign in.
 func TestAJWKSWithNoUsableKeyFails(t *testing.T) {
 	h := apptest.Start(t)
 	h.Invite("ada@example.com")

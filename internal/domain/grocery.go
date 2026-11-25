@@ -65,8 +65,8 @@ func (l PutAwayLine) Key() StockKey {
 
 // PutAway is where the Delivery bringing `lines` puts them, by the Plan's freezer
 // `splits`: each line in its Ingredient's usual Storage Location, but for what a split
-// sends to the freezer, never more than the line brings. A split of an Ingredient no
-// line buys puts nothing away: stock already in the kitchen stays where it is.
+// sends to the freezer, never more than the line brings. A split of an Ingredient no line
+// buys puts nothing away: stock already in the kitchen stays where it is.
 func PutAway(lines []GroceryLine, splits []RecipeIngredient) []PutAwayLine {
 	var put []PutAwayLine
 	for _, l := range lines {
