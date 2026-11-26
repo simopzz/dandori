@@ -972,6 +972,18 @@ func TestBrowserFieldInfoHoverDismissAndCheckboxAlignment(t *testing.T) {
 	if !visible {
 		t.Error("the tooltip doesn't appear on hover")
 	}
+	clearOfPointer, err := b.Evaluate(`() => {
+		const mark = document.querySelector('#ingredient-add .field:not(.field-info-check) .field-info');
+		const tip = mark.querySelector('.field-tooltip').getBoundingClientRect();
+		const icon = mark.getBoundingClientRect();
+		return tip.bottom <= icon.top;
+	}`)
+	if err != nil {
+		t.Fatalf("compare tooltip and pointer positions: %v", err)
+	}
+	if clearOfPointer != true {
+		t.Error("the tooltip overlaps the hovered information mark")
+	}
 
 	if err := b.GetByRole("heading", playwright.PageGetByRoleOptions{Name: "Add an Ingredient"}).Click(); err != nil {
 		t.Fatalf("click outside the tooltip: %v", err)
@@ -1027,15 +1039,34 @@ func TestBrowserFieldInfoHoverDismissAndCheckboxAlignment(t *testing.T) {
 				t.Error("at 390px, the Use from frozen label wraps beyond two lines")
 			}
 		}
+		if width == 1280 {
+			iconFits, err := b.Evaluate(`() => {
+				const field = document.querySelector('#ingredient-add .field-info-check');
+				const label = field.querySelector('.field-label label');
+				const range = document.createRange();
+				range.selectNodeContents(label);
+				const text = [...range.getClientRects()].at(-1);
+				const icon = field.querySelector('.field-info').getBoundingClientRect();
+				return Math.abs(icon.left - text.right) <= 6;
+			}`)
+			if err != nil {
+				t.Fatalf("measure the desktop label and icon: %v", err)
+			}
+			if iconFits != true {
+				t.Error("at desktop width, the Use from frozen icon is separated from its label")
+			}
+		}
 	}
 
 	if err := b.SetViewportSize(390, 844); err != nil {
 		t.Fatalf("size the page as a phone: %v", err)
 	}
-	if err := mark.Locator(".field-info-trigger").Click(); err != nil {
+	checkMark := b.Locator("#ingredient-add .field-info-check .field-info")
+	checkTip := checkMark.Locator(".field-tooltip")
+	if err := checkMark.Locator(".field-info-trigger").Click(); err != nil {
 		t.Fatalf("tap the information mark: %v", err)
 	}
-	visible, err = tip.IsVisible()
+	visible, err = checkTip.IsVisible()
 	if err != nil {
 		t.Fatalf("read tooltip visibility after a tap: %v", err)
 	}
@@ -1043,19 +1074,33 @@ func TestBrowserFieldInfoHoverDismissAndCheckboxAlignment(t *testing.T) {
 		t.Error("tapping the information mark doesn't open the tooltip")
 	}
 	withinViewport, err := b.Evaluate(`() => {
-		const r = document.querySelector('#ingredient-add .field-tooltip').getBoundingClientRect();
-		return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+		const field = document.querySelector('#ingredient-add .field-info-check');
+		const label = field.querySelector('.field-label label');
+		const range = document.createRange();
+		range.selectNodeContents(label);
+		const textRects = [...range.getClientRects()];
+		const lastText = textRects[textRects.length - 1];
+		const icon = field.querySelector('.field-info').getBoundingClientRect();
+		const tip = field.querySelector('.field-tooltip');
+		const r = tip.getBoundingClientRect();
+		const nav = document.querySelector('.shell');
+		const navBox = nav.getBoundingClientRect();
+		return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight
+			&& Math.abs(icon.left - lastText.right) <= 6
+			&& getComputedStyle(tip).overflowY !== 'auto'
+			&& scrollY === 0 && navBox.top === innerHeight - navBox.height
+			&& getComputedStyle(nav).visibility === 'visible';
 	}`)
 	if err != nil {
-		t.Fatalf("measure the mobile tooltip: %v", err)
+		t.Fatalf("measure the mobile tooltip, label and navbar: %v", err)
 	}
 	if withinViewport != true {
-		t.Error("the mobile tooltip extends outside the viewport")
+		t.Error("the mobile tooltip overflows, scrolls, separates from its label, or shifts the navbar")
 	}
 	if err := b.GetByRole("heading", playwright.PageGetByRoleOptions{Name: "Add an Ingredient"}).Click(); err != nil {
 		t.Fatalf("tap outside the tooltip: %v", err)
 	}
-	visible, err = tip.IsVisible()
+	visible, err = checkTip.IsVisible()
 	if err != nil {
 		t.Fatalf("read tooltip visibility after an outside tap: %v", err)
 	}

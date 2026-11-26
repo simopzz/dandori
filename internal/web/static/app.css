@@ -667,13 +667,15 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 .field-info-trigger:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; border-radius: 50%; }
 
 .field-tooltip[popover] {
-  position: absolute;
-  position-area: block-end center;
-  position-try-fallbacks: flip-inline, flip-block;
-  inset: auto;
-  margin: var(--space-2) 0 0;
+  position: fixed;
+  left: clamp(calc(1rem + 9rem), anchor(center), calc(100vw - 1rem - 9rem));
+  top: anchor(top);
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, calc(-100% - var(--space-2)));
+  margin: 0;
   z-index: 20;
-  width: max-content;
+  width: 18rem;
   max-width: min(18rem, calc(100vw - 2rem));
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-rule-strong);
@@ -685,20 +687,8 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
+  overflow: visible;
   pointer-events: none;
-}
-
-.field-tooltip::after {
-  position: absolute;
-  top: -5px;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  transform: translateX(-50%) rotate(225deg);
-  border-right: 1px solid var(--color-rule-strong);
-  border-bottom: 1px solid var(--color-rule-strong);
-  background: var(--color-surface);
-  content: "";
 }
 
 .field-tooltip[popover]:popover-open {
@@ -710,9 +700,6 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
   visibility: visible;
   opacity: 1;
 }
-
-.ingredient-row .field-tooltip[popover] { position-area: block-start center; margin: 0 0 var(--space-2); }
-.ingredient-row .field-tooltip::after { top: auto; bottom: -5px; transform: translateX(-50%) rotate(45deg); }
 
 @media (any-hover: hover) {
   .field-info:hover .field-tooltip[popover]:not(:popover-open) { display: block; visibility: visible; opacity: 1; }
@@ -786,8 +773,8 @@ legend.field-label { margin-bottom: var(--space-1); }
 .field-row > .field > .field-error { margin-top: var(--space-1); }
 
 .field-info-check { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
-.field-info-check > .field-label { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: var(--space-1); grid-column: 1 / -1; grid-row: 1; margin: 0 0 var(--space-1); }
-.field-info-check .field-info { grid-column: 2; grid-row: 1; margin-left: 0; }
+.field-info-check > .field-label { grid-column: 1 / -1; grid-row: 1; margin: 0 0 var(--space-1); }
+.field-info-check .field-info { margin-left: 0; }
 .field-info-check > input[type="checkbox"] { grid-column: 1; grid-row: 2; justify-self: start; align-self: center; width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; accent-color: var(--color-fill); }
 .field-info-check > .field-error { grid-column: 1 / -1; grid-row: 3; }
 

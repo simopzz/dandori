@@ -459,7 +459,7 @@ templ FieldInfo(label, info, hint, err, controlID string) {
 templ FieldInfoCheck(label, info, err, controlID string) {
 	<div class="field field-info-check">
 		<span class="field-label">
-			<label for={ controlID }>{ label }</label>
+			<label for={ controlID }>{ label }</label>{ "\u00a0" }
 			@FieldInfoMark(info)
 		</span>
 		{ children... }
