@@ -330,16 +330,16 @@ templ ingredientFields(f AddForm) {
 				}
 			</select>
 		}
-		@web.FieldInfo(web.T(ctx, msgUsual), web.T(ctx, msgUsualInfo), "", f.Errs["usual"]) {
-			<select name="usual" required hx-on:change="const c = this.closest('form').querySelector('[name=use_from_frozen]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false" { Invalid(f.Errs["usual"])... }>
+		@web.FieldInfo(web.T(ctx, msgUsual), web.T(ctx, msgUsualInfo), "", f.Errs["usual"], "usual") {
+			<select id="usual" name="usual" required hx-on:change="const c = this.closest('form').querySelector('[name=use_from_frozen]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false" { Invalid(f.Errs["usual"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, l := range domain.StorageLocations {
 					<option value={ string(l) } selected?={ f.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
 				}
 			</select>
 		}
-		@web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), f.Errs["use_from_frozen"]) {
-			<input type="checkbox" name="use_from_frozen" value="on" checked?={ f.UseFromFrozen } disabled?={ f.Usual != string(domain.Freezer) }/>
+		@web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), f.Errs["use_from_frozen"], "use_from_frozen") {
+			<input id="use_from_frozen" type="checkbox" name="use_from_frozen" value="on" checked?={ f.UseFromFrozen } disabled?={ f.Usual != string(domain.Freezer) }/>
 		}
 	}
 	@web.Hint() {
@@ -381,7 +381,7 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 				}
 			</select>
 		}
-		@web.FieldInfo(web.T(ctx, msgUsual), web.T(ctx, msgUsualInfo), "", ing.Errs["usual"]) {
+		@web.FieldInfo(web.T(ctx, msgUsual), web.T(ctx, msgUsualInfo), "", ing.Errs["usual"], named("usual")) {
 			<select id={ named("usual") } name={ named("usual") } { ing.UsualAttrs... } { Invalid(ing.Errs["usual"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, l := range domain.StorageLocations {
@@ -389,7 +389,7 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 				}
 			</select>
 		}
-		@web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), ing.Errs["use_from_frozen"]) {
+		@web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), ing.Errs["use_from_frozen"], named("use_from_frozen")) {
 			<input id={ named("use_from_frozen") } name={ named("use_from_frozen") } type="checkbox" value="on" checked?={ ing.UseFromFrozen } disabled?={ ing.Usual != string(domain.Freezer) }/>
 		}
 	}
