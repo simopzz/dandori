@@ -379,7 +379,7 @@ func followRow() templ.Attributes {
 // clearing Use from frozen if the Ingredient is no longer usually kept in the freezer.
 func followUsualRow() templ.Attributes {
 	attrs := followRow()
-	attrs["hx-on:change"] = "const c = this.closest('.ingredient-row').querySelector('[name$=use_from_frozen]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false"
+	attrs["hx-on:change"] = "const c = this.closest('.ingredient-row').querySelector('[name^=ing_use_from_frozen_]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false"
 	return attrs
 }
 
