@@ -661,8 +661,80 @@ a.row-title { display: flex; align-items: center; min-height: var(--tap); }
 .field { display: grid; gap: var(--space-1); align-content: start; }
 
 .field-label { font-size: 0.875rem; color: var(--color-text-soft); }
-.field-info { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; margin-left: var(--space-1); cursor: help; vertical-align: middle; }
-.field-info:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; }
+.field-info { display: inline-flex; position: relative; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; margin-left: var(--space-1); vertical-align: middle; }
+.field-info > summary { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; cursor: default; list-style: none; }
+.field-info > summary::-webkit-details-marker { display: none; }
+.field-info-icon { display: block; flex: none; }
+.field-info > summary:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; border-radius: 50%; }
+
+.field-tooltip {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: var(--space-2) var(--space-3);
+  transform: translate(-50%, -0.25rem);
+  border: 1px solid var(--color-rule-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.field-tooltip::after {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(225deg);
+  border-right: 1px solid var(--color-rule-strong);
+  border-bottom: 1px solid var(--color-rule-strong);
+  background: var(--color-surface);
+  content: "";
+}
+
+.field-info[open] .field-tooltip,
+.field-info > summary:focus-visible ~ .field-tooltip {
+  transform: translate(-50%, 0);
+  visibility: visible;
+  opacity: 1;
+}
+
+.ingredient-row .field-tooltip { top: auto; bottom: calc(100% + var(--space-2)); transform: translate(-50%, 0.25rem); }
+.ingredient-row .field-tooltip::after { top: auto; bottom: -5px; transform: translateX(-50%) rotate(45deg); }
+
+.ingredient-row .field-info[open] .field-tooltip,
+.ingredient-row .field-info > summary:focus-visible ~ .field-tooltip { transform: translate(-50%, 0); }
+
+@media (hover: hover) {
+  .field-info:hover .field-tooltip { transform: translate(-50%, 0); visibility: visible; opacity: 1; }
+}
+
+@media (max-width: 40rem) {
+  .field-info-check .field-tooltip { right: 0; left: auto; transform: translateY(-0.25rem); }
+
+  .field-info-check .field-tooltip::after { right: var(--space-2); left: auto; transform: rotate(225deg); }
+
+  .ingredient-row .field-info-check .field-tooltip::after { top: auto; bottom: -5px; transform: rotate(45deg); }
+
+  .field-info-check .field-info[open] .field-tooltip,
+  .field-info-check .field-info > summary:focus-visible ~ .field-tooltip { transform: translateY(0); }
+
+}
+
+@media (max-width: 40rem) and (hover: hover) {
+  .field-info-check .field-info:hover .field-tooltip { transform: translateY(0); }
+}
 
 .field-hint { margin-left: var(--space-1); }
 
@@ -726,6 +798,12 @@ legend.field-label { margin-bottom: var(--space-1); }
 .field-row > .field > .field-label { margin-bottom: var(--space-1); }
 
 .field-row > .field > .field-error { margin-top: var(--space-1); }
+
+.field-info-check { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); }
+.field-info-check > .field-label { grid-column: 1; grid-row: 1; margin: 0; }
+.field-info-check > input[type="checkbox"] { grid-column: 2; grid-row: 1; width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; accent-color: var(--color-fill); }
+.field-info-check > .field-error { grid-column: 1 / -1; grid-row: 2; }
+.field-row > .field-info-check { grid-template-rows: auto auto; }
 
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: var(--space-5) 0 0; }
 

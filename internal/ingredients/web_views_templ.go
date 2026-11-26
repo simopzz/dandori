@@ -1770,7 +1770,7 @@ func ingredientFields(f AddForm) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.FieldInfo(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), "", f.Errs["use_from_frozen"]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var80), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), f.Errs["use_from_frozen"]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var80), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2200,7 +2200,7 @@ func NewIngredientFields(named func(string) string, ing TypedIngredient) templ.C
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.FieldInfo(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), "", ing.Errs["use_from_frozen"]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var98), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), ing.Errs["use_from_frozen"]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var98), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -445,9 +445,7 @@ templ FieldInfo(label, info, hint, err string) {
 	<label class="field">
 		<span class="field-label">
 			{ label }
-			<span class="field-info" tabindex="0" title={ info } aria-label={ info }>
-				@Icon("info")
-			</span>
+			@FieldInfoMark(info)
 			if hint != "" {
 				<span class="field-hint">({ hint })</span>
 			}
@@ -455,6 +453,32 @@ templ FieldInfo(label, info, hint, err string) {
 		{ children... }
 		@FieldError(err)
 	</label>
+}
+
+// FieldInfoCheck is a checkbox with an information mark beside its label.
+templ FieldInfoCheck(label, info, err string) {
+	<label class="field field-info-check">
+		<span class="field-label">
+			{ label }
+			@FieldInfoMark(info)
+		</span>
+		{ children... }
+		@FieldError(err)
+	</label>
+}
+
+// FieldInfoMark is a small vector information mark with a hoverable and
+// focusable tooltip.
+templ FieldInfoMark(info string) {
+	<details class="field-info">
+		<summary aria-label={ info }>
+			<svg class="field-info-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+				<path d="M8 7.1v4.1M8 4.8h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+			</svg>
+		</summary>
+		<span class="field-tooltip" role="tooltip">{ info }</span>
+	</details>
 }
 
 // SearchField is the search box over a list: the input is the children, with the

@@ -891,7 +891,7 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 
 	expect := playwright.NewPlaywrightAssertions()
 	row := sheet.Locator("li.row").Filter(playwright.LocatorFilterOptions{HasText: "rice"})
-	if err := row.Locator("summary").Click(); err != nil {
+	if err := row.Locator("details:not(.field-info) > summary").Click(); err != nil {
 		t.Fatalf("open rice's row: %v", err)
 	}
 	// By its input's name, as the label of a refused field also says why.
@@ -911,7 +911,7 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 		t.Errorf("a row stays open after saving: %v", err)
 	}
 
-	if err := row.Locator("summary").Click(); err != nil {
+	if err := row.Locator("details:not(.field-info) > summary").Click(); err != nil {
 		t.Fatalf("open brown rice's row: %v", err)
 	}
 	if err := name.Fill(""); err != nil {

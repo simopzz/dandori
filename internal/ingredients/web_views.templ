@@ -338,7 +338,7 @@ templ ingredientFields(f AddForm) {
 				}
 			</select>
 		}
-		@web.FieldInfo(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), "", f.Errs["use_from_frozen"]) {
+		@web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), f.Errs["use_from_frozen"]) {
 			<input type="checkbox" name="use_from_frozen" value="on" checked?={ f.UseFromFrozen } disabled?={ f.Usual != string(domain.Freezer) }/>
 		}
 	}
@@ -389,7 +389,7 @@ templ NewIngredientFields(named func(string) string, ing TypedIngredient) {
 				}
 			</select>
 		}
-		@web.FieldInfo(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), "", ing.Errs["use_from_frozen"]) {
+		@web.FieldInfoCheck(web.T(ctx, msgUseFromFrozen), web.T(ctx, msgUseFromFrozenInfo), ing.Errs["use_from_frozen"]) {
 			<input id={ named("use_from_frozen") } name={ named("use_from_frozen") } type="checkbox" value="on" checked?={ ing.UseFromFrozen } disabled?={ ing.Usual != string(domain.Freezer) }/>
 		}
 	}
