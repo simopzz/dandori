@@ -133,6 +133,8 @@ alone is the **seal** (`Seal`) on an urgent row.
 Icons are 10×10 bitmaps in `icons.go`, drawn 20px square, in the text colour
 and `aria-hidden`. One that must be smaller is drawn 10px square: any other
 size puts a bitmap pixel on a fraction of a screen pixel and blurs its edges.
+The `FieldInfo` mark is a small stroked vector icon, so its circle and letter stay
+smooth at every size.
 
 **An icon before words sits on the middle of their lowercase letters**, not on
 the middle of their line nor of their capitals: most of what follows an icon is
@@ -306,6 +308,8 @@ elements themselves.
 | `FoldRow(summary)` | A `Row` that opens in place to read (a Prep Session, opening to its Ingredients and Portions): its summary is a Row's `row-title`, `row-figure` and `row-meta`, with a chevron that turns. Unlike an `EditRow` it changes nothing, so it says no "Change" and isn't raised. |
 | `EditRowIn(group, open, summary)` | An `EditRow` one of a group, such as the Slots of a day: opening it closes the group's open one. |
 | `Field(label, hint, err)` | Any labelled control: the control is the children; `hint` follows the label in brackets (`optional`, a unit); `err` shows under it. A field that may be left blank says `optional`, and a value's unit (`g`, `kcal`, `minutes`) is always in the hint, never in the label or a paragraph; a paragraph says only what a group of values is per (`Per Portion.`). The label sits 4px (`--space-1`) above its own field. |
+| `FieldInfo(label, info, hint, err)` | A `Field` with a small information mark; its wrapping tooltip appears on hover, keyboard focus or tap. |
+| `FieldInfoCheck(label, info, err)` | A checkbox with its information mark, label and control aligned on one line. |
 | `SearchField(label)` | The search box over a list, the input the child: a square box with the magnifying glass inside, so it doesn't read as one of the rows. `label` is for a screen reader; the input's placeholder says it on screen. |
 | `ListSearch(id, action, listURL, listID, label)` | A `SearchField` in a form that swaps the list as the User types and opens `action` searched without htmx, the input the child. |
 | `TimeField(label, name, value, err)` | A `Field` for a time of day (a Slot time, a Delivery window), typed in either 24- or 12-hour form and shown in the Language's (`web.TimeOfDay`); never a native `type="time"`, which follows the browser's locale. |

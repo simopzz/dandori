@@ -43,8 +43,11 @@ type Ingredient struct {
 	// Nutrition is per 100 g, per 100 ml or per piece, as Unit says.
 	Nutrition Nutrition
 	// Usual is the Storage Location it is usually kept in.
-	Usual  StorageLocation
-	Staple bool
+	Usual StorageLocation
+	// UseFromFrozen says freezer stock is used without thawing. It is meaningful only
+	// when Usual is Freezer.
+	UseFromFrozen bool
+	Staple        bool
 }
 
 // IsNew reports whether `ing` is not saved yet: a Recipe Draft proposes it, with
@@ -152,6 +155,9 @@ func (i Ingredient) Problems() map[string]Problem {
 	}
 	if !slices.Contains(StorageLocations, i.Usual) {
 		problems["usual"] = Required
+	}
+	if i.UseFromFrozen && i.Usual != Freezer {
+		problems["use_from_frozen"] = Required
 	}
 	return problems
 }

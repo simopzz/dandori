@@ -261,12 +261,13 @@ A Plan is Prep Sessions, each preparing food at one Slot (an eating occasion: br
 - A Portion is eaten at or after the Slot it is prepared at. One given no Slot is kept, and carries over past the Cycle.
 - Give each Portion a Storage Location (pantry, fridge or freezer) that fits what it is and how long it must keep.
 - Eat a Recipe's Portions only at the kinds of Slot it is for, and prepare only Recipes whose appliances the user owns.
-- Frozen food is thawed the evening before the Slot or Prep Session that needs it, after the previous day's dinner: use a frozen Portion, or stock in the freezer of an Ingredient not usually kept there, only where that evening is still to come, and eat a Portion you freeze on a later day than it is prepared. An Ingredient usually kept in the freezer (frozen peas) is used from frozen, with no thaw. A Prep Session uses the stock outside the freezer first, and what it still needs is thawed from the freezer.
+- Frozen food is thawed the evening before the Slot or Prep Session that needs it, after the previous day's dinner: use a frozen Portion, or freezer stock of an Ingredient without Use from frozen, only where that evening is still to come, and eat a Portion you freeze on a later day than it is prepared. An Ingredient marked Use from frozen (frozen peas) is used straight from the freezer, with no thaw. A Prep Session uses stock outside the freezer first, then freezer stock marked Use from frozen, and thaws what it still needs from the freezer.
 - When a fresh Ingredient the Delivery brings is used late in the Cycle, name a freezer split: how much of it goes in the freezer when the Delivery is put away (of 800 g chicken breast, 400 g).
 - Until the user marks the Delivery ordered, it brings whatever the Plan needs. Once the prompt says it is ordered, it brings only what the prompt lists: no Prep Session may need more of an Ingredient than the kitchen will hold with it, Staples aside, which it always holds. Its freezer splits may still change until it is put away.
 - Put the Portions without a Slot in Slots before scheduling new Prep Sessions, and use first the Stock Items that would spoil first, judged from the Ingredient and its Storage Location.
 - Prefer Recipes with few active minutes: the user spends little time cooking.
 - Draft new Recipes with draft_recipe as the Planning Brief wishes, about one a Cycle when it doesn't say: dishes the Recipe Library lacks, reusing the known Ingredients where they fit. Each gets a negative id, which a Prep Session prepares as its recipe_id. Approving the Plan adds the drafts it prepares to the user's Recipe Library.
+- For each new Ingredient in draft_recipe, choose its usual Storage Location and whether it is used from frozen independently. Set Use from frozen only when it is usually kept in the freezer and used straight from frozen; a whole chicken kept in the freezer needs thawing first.
 - Follow the user's Planning Brief as far as these rules allow.
 
 Write every food term in the user's Language, named in the prompt.
@@ -316,7 +317,11 @@ func planStable(p domain.Profile, library []domain.Recipe, known []domain.Ingred
 		if ing.Staple {
 			staple = ", a Staple, which the kitchen always holds"
 		}
-		fmt.Fprintf(&b, "- Ingredient %d: %s, in %s, usually in the %s%s, per %s %s\n", ing.ID, ing.Name, ing.Unit, ing.Usual, staple, per(ing.Unit), describeNutrition(ing.Nutrition, false, false))
+		useFromFrozen := ""
+		if ing.UseFromFrozen {
+			useFromFrozen = ", use directly from frozen"
+		}
+		fmt.Fprintf(&b, "- Ingredient %d: %s, in %s, usually in the %s%s%s, per %s %s\n", ing.ID, ing.Name, ing.Unit, ing.Usual, useFromFrozen, staple, per(ing.Unit), describeNutrition(ing.Nutrition, false, false))
 	}
 	return strings.TrimSpace(b.String())
 }

@@ -12,7 +12,7 @@ import (
 // the freezer.
 var (
 	breast = domain.Ingredient{ID: 1, Name: "chicken breast", Unit: domain.Grams, Usual: domain.Fridge}
-	peas   = domain.Ingredient{ID: 2, Name: "frozen peas", Unit: domain.Grams, Usual: domain.Freezer}
+	peas   = domain.Ingredient{ID: 2, Name: "frozen peas", Unit: domain.Grams, Usual: domain.Freezer, UseFromFrozen: true}
 )
 
 // setsOut is a Prep Session at dinner on `day` setting out `quantity` of `ing` for
@@ -65,6 +65,18 @@ func TestPrepSessionsUseUpStockAndThawTheRest(t *testing.T) {
 				t.Errorf("Thaws() = %+v, want %+v", got, tt.want)
 			}
 		})
+	}
+}
+
+// A freezer Ingredient that needs thawing is distinct from one used straight from frozen.
+func TestFreezerIngredientsCanNeedThawing(t *testing.T) {
+	chicken := domain.Ingredient{ID: 3, Name: "whole chicken", Unit: domain.Grams, Usual: domain.Freezer}
+	plan := domain.Plan{PrepSessions: []domain.PrepSession{setsOut(6, chicken, 300)}}
+	stock := map[domain.StockKey]domain.Quantity{{Ingredient: chicken.ID, Location: domain.Freezer}: grams(500)}
+	got := plan.Thaws(stock)
+	want := []domain.Thaw{{At: slot(6, domain.Dinner), Ingredient: chicken, Quantity: grams(300)}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Thaws() = %+v, want freezer chicken thawed: %+v", got, want)
 	}
 }
 

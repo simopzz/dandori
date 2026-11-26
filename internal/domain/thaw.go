@@ -108,7 +108,7 @@ func usesFrom(stock map[StockKey]Quantity, ri RecipeIngredient) []took {
 	// shortcut: a Stock Item is one per Storage Location, so "oldest first" is the order
 	// of StorageLocations; it changes nothing `thawed`.
 	for _, loc := range StorageLocations {
-		if loc == Freezer && ri.Ingredient.Usual != Freezer {
+		if loc == Freezer && !ri.Ingredient.UseFromFrozen {
 			continue
 		}
 		key := StockKey{Ingredient: ri.Ingredient.ID, Location: loc}

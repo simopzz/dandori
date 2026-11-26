@@ -178,7 +178,7 @@ func TestBrowserMarksAStapleInTheSideSheet(t *testing.T) {
 	}
 	sheet := b.GetByRole("dialog", playwright.PageGetByRoleOptions{Name: "Ingredients"})
 	row := sheet.Locator("li.row").Filter(playwright.LocatorFilterOptions{HasText: "rice"})
-	if err := row.Locator("summary").Click(); err != nil {
+	if err := row.Locator("details:not(.field-info) > summary").Click(); err != nil {
 		t.Fatalf("open rice's row: %v", err)
 	}
 	if err := row.GetByLabel("Staple").Check(); err != nil {
@@ -194,7 +194,7 @@ func TestBrowserMarksAStapleInTheSideSheet(t *testing.T) {
 	if err := expect.Locator(b.Locator("#stock")).ToContainText("Nothing in your kitchen yet."); err != nil {
 		t.Errorf("rice stays on the Kitchen page under the sheet: %v", err)
 	}
-	if err := row.Locator("summary").Click(); err != nil {
+	if err := row.Locator("details:not(.field-info) > summary").Click(); err != nil {
 		t.Fatalf("open rice's row again: %v", err)
 	}
 	b.Shot(t, "staple-marked")

@@ -84,6 +84,45 @@ func TestANewIngredientIsConfirmedInTheFormAndCreatedWithTheRecipe(t *testing.T)
 	s.Sees("tofu")
 }
 
+// A new Ingredient can be usually kept in the freezer but still require thawing.
+func TestRecipeIngredientStorageLocationDoesNotImplyUseFromFrozen(t *testing.T) {
+	s := kitchenWith(t)
+	row := tofu()
+	row.Name, row.Usual, row.UseFromFrozen = "whole chicken", "freezer", false
+	r := riceBowl()
+	r.Ingredients = []apptest.RecipeRow{row}
+	s.WritesRecipe(r)
+	s.IsConfirmed("Added Rice bowl to the Recipe Library.")
+	var usual string
+	var useFromFrozen bool
+	s.Scan(t, &usual, `SELECT storage_location FROM ingredient WHERE name = 'whole chicken'`)
+	s.Scan(t, &useFromFrozen, `SELECT use_from_frozen FROM ingredient WHERE name = 'whole chicken'`)
+	if usual != "freezer" || useFromFrozen {
+		t.Errorf("the new Ingredient has usual location %q and Use from frozen %t, want freezer and false", usual, useFromFrozen)
+	}
+}
+
+// Changing a new Recipe Ingredient out of the freezer clears its disabled checkbox.
+func TestRecipeRowClearsUseFromFrozenWhenStorageChanges(t *testing.T) {
+	s := kitchenWith(t)
+	row := url.Values{
+		"ing_name_0":            {"whole chicken"},
+		"ing_quantity_0":        {"300"},
+		"ing_new_0":             {"true"},
+		"ing_unit_0":            {"g"},
+		"ing_usual_0":           {"fridge"},
+		"ing_use_from_frozen_0": {"on"},
+		"ing_kcal_0":            {"120"},
+		"ing_protein_0":         {"12"},
+		"ing_carbs_0":           {"2"},
+		"ing_fat_0":             {"7"},
+	}
+	refreshed := s.HTMXGet(t, "/recipes/ingredient-row?"+row.Encode())
+	if refreshed.StatusCode != http.StatusOK || strings.Contains(refreshed.Body, "checked=\"checked\"") {
+		t.Errorf("the refreshed fridge row retained Use from frozen, response %d:\n%s", refreshed.StatusCode, refreshed.Body)
+	}
+}
+
 // A new Ingredient's fields are refused on theirs.
 func TestANewIngredientsMissingValuesAreRefusedOnTheirFields(t *testing.T) {
 	s := kitchenWith(t, rice)

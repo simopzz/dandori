@@ -221,7 +221,7 @@ func (s *Scenario) record(step string) {
 type Ingredient struct {
 	Name, Unit, Usual                       string
 	Kcal, Protein, Carbs, Fat, Fibre, Sugar string
-	Staple                                  bool
+	UseFromFrozen, Staple                   bool
 }
 
 // Fill sets `f`, the add form, to `ing`.
@@ -236,6 +236,10 @@ func (ing Ingredient) Fill(f FormData) {
 	f.Values.Del("staple")
 	if ing.Staple {
 		f.Values.Set("staple", "on")
+	}
+	f.Values.Del("use_from_frozen")
+	if ing.UseFromFrozen {
+		f.Values.Set("use_from_frozen", "on")
 	}
 }
 
@@ -462,6 +466,9 @@ func (r Recipe) Fill(f FormData) {
 		}
 		if row.Staple {
 			set("staple", "on")
+		}
+		if row.UseFromFrozen {
+			set("use_from_frozen", "on")
 		}
 	}
 }

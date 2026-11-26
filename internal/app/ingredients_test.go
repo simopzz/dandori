@@ -101,6 +101,46 @@ func TestAnIngredientNeedsItsFourNutritionalValues(t *testing.T) {
 	s.Sees("Give it a name.")
 }
 
+// Use from frozen is stored only for freezer Ingredients, independently of location.
+func TestUseFromFrozenIsSeparateFromUsualStorageLocation(t *testing.T) {
+	s := apptest.NewScenario(t)
+	s.Invite("ada@example.com")
+	s.SignsIn("ada@example.com")
+	s.ChoosesLanguage("English")
+	s.Open("/ingredients")
+
+	peas := apptest.Ingredient{Name: "frozen peas", Unit: "g", Usual: "freezer", UseFromFrozen: true, Kcal: "80", Protein: "5", Carbs: "14", Fat: "1"}
+	s.AddsIngredient(peas)
+	s.IsConfirmed("Added frozen peas.")
+	assertUse := func(name string, want int) {
+		t.Helper()
+		var got int
+		s.Scan(t, &got, `SELECT CASE WHEN use_from_frozen IS NULL THEN -1 WHEN use_from_frozen THEN 1 ELSE 0 END FROM ingredient WHERE name = $1`, name)
+		if got != want {
+			t.Errorf("%s use_from_frozen = %d, want %d", name, got, want)
+		}
+	}
+	assertUse("frozen peas", 1)
+
+	chicken := peas
+	chicken.Name, chicken.UseFromFrozen = "whole chicken", false
+	s.AddsIngredient(chicken)
+	s.IsConfirmed("Added whole chicken.")
+	assertUse("whole chicken", 0)
+
+	fresh := peas
+	fresh.Name, fresh.Usual, fresh.UseFromFrozen = "chicken breast", "fridge", false
+	s.AddsIngredient(fresh)
+	s.IsConfirmed("Added chicken breast.")
+	assertUse("chicken breast", -1)
+
+	invalid := fresh
+	invalid.Name, invalid.UseFromFrozen = "fresh peas", true
+	s.AddsIngredient(invalid)
+	s.IsRefused()
+	s.Sees("Choose whether freezer stock is used without thawing.")
+}
+
 // One food is one Ingredient: a name that normalises as an existing one's, with a size or
 // grade word, is refused on the name, naming the one the User has. A plural, which no
 // rule tells from another food, is added.
@@ -851,7 +891,7 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 
 	expect := playwright.NewPlaywrightAssertions()
 	row := sheet.Locator("li.row").Filter(playwright.LocatorFilterOptions{HasText: "rice"})
-	if err := row.Locator("summary").Click(); err != nil {
+	if err := row.Locator("details:not(.field-info) > summary").Click(); err != nil {
 		t.Fatalf("open rice's row: %v", err)
 	}
 	// By its input's name, as the label of a refused field also says why.
@@ -871,7 +911,7 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 		t.Errorf("a row stays open after saving: %v", err)
 	}
 
-	if err := row.Locator("summary").Click(); err != nil {
+	if err := row.Locator("details:not(.field-info) > summary").Click(); err != nil {
 		t.Fatalf("open brown rice's row: %v", err)
 	}
 	if err := name.Fill(""); err != nil {
@@ -912,6 +952,189 @@ func TestBrowserEditsAndDeletesInTheSideSheet(t *testing.T) {
 	}
 	if err := expect.Locator(sheet).ToContainText("No Ingredients yet."); err != nil {
 		t.Errorf("the sheet still lists brown rice: %v", err)
+	}
+}
+
+func TestBrowserFieldInfoHoverDismissAndCheckboxAlignment(t *testing.T) {
+	b := signedUpBrowser(t)
+	b.Open(t, "/ingredients/new")
+	expect := playwright.NewPlaywrightAssertions()
+	mark := b.Locator("#ingredient-add .field-info").First()
+	tip := mark.Locator(".field-tooltip")
+
+	if err := mark.Hover(); err != nil {
+		t.Fatalf("hover the information mark: %v", err)
+	}
+	visible, err := tip.IsVisible()
+	if err != nil {
+		t.Fatalf("read tooltip visibility on hover: %v", err)
+	}
+	if !visible {
+		t.Error("the tooltip doesn't appear on hover")
+	}
+	clearOfPointer, err := b.Evaluate(`() => {
+		const mark = document.querySelector('#ingredient-add .field:not(.field-info-check) .field-info');
+		const tip = mark.querySelector('.field-tooltip').getBoundingClientRect();
+		const icon = mark.getBoundingClientRect();
+		return tip.bottom <= icon.top;
+	}`)
+	if err != nil {
+		t.Fatalf("compare tooltip and pointer positions: %v", err)
+	}
+	if clearOfPointer != true {
+		t.Error("the tooltip overlaps the hovered information mark")
+	}
+
+	if err := b.GetByRole("heading", playwright.PageGetByRoleOptions{Name: "Add an Ingredient"}).Click(); err != nil {
+		t.Fatalf("click outside the tooltip: %v", err)
+	}
+	visible, err = tip.IsVisible()
+	if err != nil {
+		t.Fatalf("read tooltip visibility after an outside click: %v", err)
+	}
+	if visible {
+		t.Error("the tooltip stays open after clicking outside")
+	}
+
+	for _, width := range []int{1280, 390, 360, 320} {
+		if err := b.SetViewportSize(width, 844); err != nil {
+			t.Fatalf("size the page to %dpx: %v", width, err)
+		}
+		aligned, err := b.Evaluate(`() => {
+			const checkbox = document.querySelector('#ingredient-add .field-info-check input[type="checkbox"]');
+			const controls = [...document.querySelectorAll('#ingredient-add select')];
+			const center = element => { const r = element.getBoundingClientRect(); return r.top + r.height / 2; };
+			return controls.every(control => Math.abs(center(checkbox) - center(control)) < 5);
+		}`)
+		if err != nil {
+			t.Fatalf("compare checkbox and select positions: %v", err)
+		}
+		if width >= 360 && aligned != true {
+			t.Errorf("at %dpx, Use from frozen doesn't align with its selects", width)
+		}
+		if width == 320 {
+			mobileLayout, err := b.Evaluate(`() => {
+				const field = document.querySelector('#ingredient-add .field-info-check');
+				const label = field.querySelector('.field-label').getBoundingClientRect();
+				const checkbox = field.querySelector('input[type="checkbox"]').getBoundingClientRect();
+				return checkbox.top >= label.bottom && document.documentElement.scrollWidth <= innerWidth;
+			}`)
+			if err != nil {
+				t.Fatalf("measure the narrow mobile layout: %v", err)
+			}
+			if mobileLayout != true {
+				t.Error("at 320px, the checkbox isn't under its label or the page overflows")
+			}
+		}
+		if width < 600 {
+			labelFits, err := b.Evaluate(`() => {
+				const label = document.querySelector('#ingredient-add .field-info-check > .field-label');
+				const style = getComputedStyle(label);
+				return label.getBoundingClientRect().height <= parseFloat(style.lineHeight) * 2 + 1;
+			}`)
+			if err != nil {
+				t.Fatalf("measure the mobile label: %v", err)
+			}
+			if labelFits != true {
+				t.Error("at 390px, the Use from frozen label wraps beyond two lines")
+			}
+		}
+		if width == 1280 {
+			iconFits, err := b.Evaluate(`() => {
+				const field = document.querySelector('#ingredient-add .field-info-check');
+				const label = field.querySelector('.field-label label');
+				const range = document.createRange();
+				range.selectNodeContents(label);
+				const text = [...range.getClientRects()].at(-1);
+				const icon = field.querySelector('.field-info').getBoundingClientRect();
+				return Math.abs(icon.left - text.right) <= 6;
+			}`)
+			if err != nil {
+				t.Fatalf("measure the desktop label and icon: %v", err)
+			}
+			if iconFits != true {
+				t.Error("at desktop width, the Use from frozen icon is separated from its label")
+			}
+		}
+	}
+
+	if err := b.SetViewportSize(390, 844); err != nil {
+		t.Fatalf("size the page as a phone: %v", err)
+	}
+	checkMark := b.Locator("#ingredient-add .field-info-check .field-info")
+	checkTip := checkMark.Locator(".field-tooltip")
+	if err := checkMark.Locator(".field-info-trigger").Click(); err != nil {
+		t.Fatalf("tap the information mark: %v", err)
+	}
+	visible, err = checkTip.IsVisible()
+	if err != nil {
+		t.Fatalf("read tooltip visibility after a tap: %v", err)
+	}
+	if !visible {
+		t.Error("tapping the information mark doesn't open the tooltip")
+	}
+	withinViewport, err := b.Evaluate(`() => {
+		const field = document.querySelector('#ingredient-add .field-info-check');
+		const label = field.querySelector('.field-label label');
+		const range = document.createRange();
+		range.selectNodeContents(label);
+		const textRects = [...range.getClientRects()];
+		const lastText = textRects[textRects.length - 1];
+		const icon = field.querySelector('.field-info').getBoundingClientRect();
+		const tip = field.querySelector('.field-tooltip');
+		const r = tip.getBoundingClientRect();
+		const nav = document.querySelector('.shell');
+		const navBox = nav.getBoundingClientRect();
+		return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight
+			&& Math.abs(icon.left - lastText.right) <= 6
+			&& getComputedStyle(tip).overflowY !== 'auto'
+			&& scrollY === 0 && navBox.top === innerHeight - navBox.height
+			&& getComputedStyle(nav).visibility === 'visible';
+	}`)
+	if err != nil {
+		t.Fatalf("measure the mobile tooltip, label and navbar: %v", err)
+	}
+	if withinViewport != true {
+		t.Error("the mobile tooltip overflows, scrolls, separates from its label, or shifts the navbar")
+	}
+	if err := b.GetByRole("heading", playwright.PageGetByRoleOptions{Name: "Add an Ingredient"}).Click(); err != nil {
+		t.Fatalf("tap outside the tooltip: %v", err)
+	}
+	visible, err = checkTip.IsVisible()
+	if err != nil {
+		t.Fatalf("read tooltip visibility after an outside tap: %v", err)
+	}
+	if visible {
+		t.Error("tapping outside doesn't dismiss the tooltip")
+	}
+
+	b.Open(t, "/recipes/new")
+	name := b.GetByLabel("Ingredient").First()
+	if err := name.Fill("whole chicken"); err != nil {
+		t.Fatalf("type a new Ingredient: %v", err)
+	}
+	if err := name.Press("Tab"); err != nil {
+		t.Fatalf("leave the Ingredient name: %v", err)
+	}
+	checkField := b.Locator(".ingredient-row .field-info-check")
+	if err := expect.Locator(checkField).ToBeVisible(); err != nil {
+		t.Fatalf("wait for the new Ingredient's fields: %v", err)
+	}
+	for _, width := range []int{1280, 390, 360, 320} {
+		if err := b.SetViewportSize(width, 844); err != nil {
+			t.Fatalf("size the Recipe form to %dpx: %v", width, err)
+		}
+		labelFits, err := b.Evaluate(`() => {
+			const label = document.querySelector('.ingredient-row .field-info-check > .field-label');
+			const style = getComputedStyle(label);
+			return label.getBoundingClientRect().height <= parseFloat(style.lineHeight) * 2 + 1;
+		}`)
+		if err != nil {
+			t.Fatalf("measure the Recipe label at %dpx: %v", width, err)
+		}
+		if labelFits != true {
+			t.Errorf("at %dpx, the Recipe label wraps beyond two lines", width)
+		}
 	}
 }
 

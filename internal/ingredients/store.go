@@ -24,12 +24,12 @@ func CountIngredients(ctx context.Context, q db.Querier) (int, error) {
 func saveIngredient(ctx context.Context, q db.Querier, ing domain.Ingredient, normalised string) (id int64, added bool, err error) {
 	n := ing.Nutrition
 	err = q.QueryRow(ctx, `
-		INSERT INTO ingredient (name, normalised_name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, staple)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO ingredient (name, normalised_name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, use_from_frozen, staple)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT (user_id, normalised_name) DO NOTHING
 		RETURNING id`,
 		ing.Name, normalised, string(ing.Unit), n.Kcal.Value, n.Protein.Value, n.Carbs.Value, n.Fat.Value,
-		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), ing.Staple).Scan(&id)
+		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), useFromFrozen(ing), ing.Staple).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -44,7 +44,7 @@ func loadNameOf(ctx context.Context, q db.Querier, normalised string) (string, e
 }
 
 // ingredientColumns are the columns scanIngredient reads, in its order.
-const ingredientColumns = `id, name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, staple`
+const ingredientColumns = `id, name, unit, kcal, protein, carbs, fat, fibre, sugar, storage_location, use_from_frozen, staple`
 
 // LoadIngredients is the signed-in User's Ingredients by name, for this feature and those
 // reading them in a transaction of their own. It has no WHERE on purpose: run in
@@ -72,11 +72,13 @@ func scanIngredient(row pgx.Row) (domain.Ingredient, error) {
 	var (
 		ing                       domain.Ingredient
 		unit, usual               string
+		useFromFrozen             *bool
 		kcal, protein, carbs, fat float64
 		fibre, sugar              *float64
 	)
-	err := row.Scan(&ing.ID, &ing.Name, &unit, &kcal, &protein, &carbs, &fat, &fibre, &sugar, &usual, &ing.Staple)
+	err := row.Scan(&ing.ID, &ing.Name, &unit, &kcal, &protein, &carbs, &fat, &fibre, &sugar, &usual, &useFromFrozen, &ing.Staple)
 	ing.Unit, ing.Usual = domain.Unit(unit), domain.StorageLocation(usual)
+	ing.UseFromFrozen = useFromFrozen != nil && *useFromFrozen
 	ing.Nutrition = domain.Nutrition{
 		Kcal: domain.Known(kcal), Protein: domain.Known(protein), Carbs: domain.Known(carbs), Fat: domain.Known(fat),
 		Fibre: amount(fibre), Sugar: amount(sugar),
@@ -106,11 +108,20 @@ func updateIngredient(ctx context.Context, q db.Querier, id int64, ing domain.In
 	n := ing.Nutrition
 	_, err := q.Exec(ctx, `
 		UPDATE ingredient SET name = $2, normalised_name = $3, unit = $4, kcal = $5, protein = $6, carbs = $7,
-			fat = $8, fibre = $9, sugar = $10, storage_location = $11, staple = $12
+			fat = $8, fibre = $9, sugar = $10, storage_location = $11, use_from_frozen = $12, staple = $13
 		WHERE id = $1`,
 		id, ing.Name, normalised, string(ing.Unit), n.Kcal.Value, n.Protein.Value, n.Carbs.Value, n.Fat.Value,
-		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), ing.Staple)
+		nullable(n.Fibre), nullable(n.Sugar), string(ing.Usual), useFromFrozen(ing), ing.Staple)
 	return err
+}
+
+// useFromFrozen is the stored value: null unless the Ingredient is usually kept in
+// the freezer.
+func useFromFrozen(ing domain.Ingredient) *bool {
+	if ing.Usual != domain.Freezer {
+		return nil
+	}
+	return &ing.UseFromFrozen
 }
 
 // loadOtherNameOf is the name of the signed-in User's Ingredient other than `id` under
