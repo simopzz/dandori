@@ -1659,7 +1659,7 @@ func ingredientFields(f AddForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<select name=\"usual\" required hx-on:change=\"this.closest('form').querySelector('[name=use_from_frozen]').disabled = this.value !== 'freezer'\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<select name=\"usual\" required hx-on:change=\"const c = this.closest('form').querySelector('[name=use_from_frozen]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

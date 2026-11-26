@@ -170,7 +170,8 @@ func readRow(ctx context.Context, form url.Values, i int, known map[string]domai
 	}
 	row.New, row.Confirming = true, seen != "true"
 	row.Suggested, _ = domain.ClosestIngredient(l, row.Name, names)
-	row.Unit, row.Usual, row.UseFromFrozen, row.Staple = in("unit"), in("usual"), in("use_from_frozen") != "", in("staple") != ""
+	row.Unit, row.Usual, row.Staple = in("unit"), in("usual"), in("staple") != ""
+	row.UseFromFrozen = in("use_from_frozen") != "" && row.Usual == string(domain.Freezer)
 	row.Values = map[string]string{}
 	for _, field := range []string{"kcal", "protein", "carbs", "fat", "fibre", "sugar"} {
 		row.Values[field] = in(field)
@@ -299,7 +300,7 @@ func rowProblem(ctx context.Context, field string, problem domain.Problem) strin
 func (row IngredientRow) typed() ingredients.TypedIngredient {
 	return ingredients.TypedIngredient{
 		Unit: row.Unit, Usual: row.Usual, UseFromFrozen: row.UseFromFrozen, Staple: row.Staple, Values: row.Values, Errs: row.Errs, Focus: row.Confirming,
-		UnitAttrs: followRow(), UsualAttrs: followRow(),
+		UnitAttrs: followRow(), UsualAttrs: followUsualRow(),
 	}
 }
 

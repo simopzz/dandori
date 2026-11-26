@@ -375,6 +375,14 @@ func followRow() templ.Attributes {
 	}
 }
 
+// followUsualRow follows `row` when its usual Storage Location changes, disabling and
+// clearing Use from frozen if the Ingredient is no longer usually kept in the freezer.
+func followUsualRow() templ.Attributes {
+	attrs := followRow()
+	attrs["hx-on:change"] = "const c = this.closest('.ingredient-row').querySelector('[name$=use_from_frozen]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false"
+	return attrs
+}
+
 // quantityUnit is the unit `row`'s quantity is in, once its Ingredient has one.
 func quantityUnit(ctx context.Context, row IngredientRow) string {
 	if unit, ok := ingredients.RecordedIn[domain.Unit(row.Unit)]; ok {

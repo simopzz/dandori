@@ -331,7 +331,7 @@ templ ingredientFields(f AddForm) {
 			</select>
 		}
 		@web.FieldInfo(web.T(ctx, msgUsual), web.T(ctx, msgUsualInfo), "", f.Errs["usual"]) {
-			<select name="usual" required hx-on:change="this.closest('form').querySelector('[name=use_from_frozen]').disabled = this.value !== 'freezer'" { Invalid(f.Errs["usual"])... }>
+			<select name="usual" required hx-on:change="const c = this.closest('form').querySelector('[name=use_from_frozen]'); c.disabled = this.value !== 'freezer'; if (c.disabled) c.checked = false" { Invalid(f.Errs["usual"])... }>
 				<option value="">{ web.T(ctx, msgChoose) }</option>
 				for _, l := range domain.StorageLocations {
 					<option value={ string(l) } selected?={ f.Usual == string(l) }>{ web.T(ctx, StorageLocationNames[l]) }</option>
