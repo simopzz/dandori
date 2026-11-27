@@ -147,10 +147,7 @@ func (l Ledger) thaw(now time.Time, p Plan, day time.Time, arrivals []Arrival, p
 	}
 	slices.SortStableFunc(slots, func(a, b Slot) int { return a.At(times).Compare(b.At(times)) })
 	slots = slices.CompactFunc(slots, Slot.Equal)
-	stock := map[StockKey]Quantity{}
-	for key, item := range l.At(at) {
-		stock[key] = item.Held
-	}
+	stock := l.stock(at)
 	for _, a := range arrivals {
 		if !a.Ordered || !a.At.After(at) || len(slots) == 0 || !a.At.Before(slots[0].At(times)) {
 			continue
@@ -186,10 +183,7 @@ func (l Ledger) with(ms []Movement) Ledger {
 // a Staple, as far as the kitchen holds it.
 func (l Ledger) usesUp(now time.Time, ps PrepSession) []Movement {
 	at := l.WriteAt(now)
-	stock := map[StockKey]Quantity{}
-	for key, item := range l.At(at) {
-		stock[key] = item.Held
-	}
+	stock := l.stock(at)
 	var used []Movement
 	for _, ri := range ps.Ingredients() {
 		if ri.Ingredient.Staple {
@@ -200,6 +194,37 @@ func (l Ledger) usesUp(now time.Time, ps PrepSession) []Movement {
 		}
 	}
 	return used
+}
+
+// TakesFrom is where each of `sessions`, in turn, would take each of its Ingredients
+// from, using them up at `at`, by Ingredient id: the Storage Locations of the Stock Items
+// it takes from, in order, none for one the kitchen holds none of once the sessions
+// before it took their share. A Staple has no entry.
+func (l Ledger) TakesFrom(at time.Time, sessions []PrepSession) []map[int64][]StorageLocation {
+	stock := l.stock(at)
+	out := make([]map[int64][]StorageLocation, len(sessions))
+	for i, ps := range sessions {
+		out[i] = map[int64][]StorageLocation{}
+		for _, ri := range ps.Ingredients() {
+			if ri.Ingredient.Staple {
+				continue
+			}
+			out[i][ri.Ingredient.ID] = []StorageLocation{}
+			for _, t := range usesFrom(stock, ri) {
+				out[i][ri.Ingredient.ID] = append(out[i][ri.Ingredient.ID], t.Key.Location)
+			}
+		}
+	}
+	return out
+}
+
+// stock is what each Stock Item of `l` holds at `at`.
+func (l Ledger) stock(at time.Time) map[StockKey]Quantity {
+	stock := map[StockKey]Quantity{}
+	for key, item := range l.At(at) {
+		stock[key] = item.Held
+	}
+	return stock
 }
 
 // prepares is the Movements, written at `now`, of `ps` preparing its Portions, one per

@@ -3,28 +3,33 @@ package today
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
+	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/planning"
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is Today at `now`: the Slot now or next, the day's later Slots a click away, what
-// to do next about planning, where the Plan will show and what planning needs (no Plan
-// yet), and how up to date it is.
+// page is Today at `now`: what to start preparing, the Slot now or next, the day's later
+// Slots a click away, each with what fills it, what to do next about planning, where the
+// Plan will show and what planning needs (no Plan yet), and how up to date it is.
 templ page(now time.Time, d Day) {
 	@web.Layout(web.T(ctx, msgTodayTitle), web.TodayTab) {
 		@web.PageHeader("今日", web.T(ctx, msgToday), now)
-		@web.Section(1, firstText(ctx, now, d))
+		@startPreparing(now, d)
+		@web.Section(1, firstText(ctx, now, d)) {
+			@web.Rows() {
+				@slotRow(d.Filled[0], d.Times)
+			}
+		}
 		if len(d.Slots.Later) > 0 {
 			@web.Disclosure(web.T(ctx, msgLaterToday), false) {
 				@web.Rows() {
-					for _, s := range d.Slots.Later {
-						@web.Row() {
-							<span class="row-title">{ web.T(ctx, web.SlotKindNames[s.Kind]) }</span>
-							<span class="row-figure">{ web.TimeOfDay(ctx, s.TimeOfDay(d.Times)) }</span>
-						}
+					for _, f := range d.Filled[1:] {
+						@slotRow(f, d.Times)
 					}
 				}
 			}
@@ -192,4 +197,128 @@ func firstText(ctx context.Context, now time.Time, d Day) string {
 	default:
 		return web.Tf(ctx, msgNextAt, kind, at)
 	}
+}
+
+// startPreparing is a line for each Prep Session of a Recipe whose start time has come
+// and whose Slot's time hasn't, at the top of Today, whichever Slot is next: nothing when
+// none is.
+templ startPreparing(now time.Time, d Day) {
+	{{ var starting []templ.Component }}
+	for _, f := range d.Filled {
+		for _, ps := range f.Sessions {
+			if ps.Preparing(now, d.Times) {
+				{{ starting = append(starting, startLine(f.Slot, ps.PrepSession)) }}
+			}
+		}
+	}
+	if len(starting) > 0 {
+		<div class="section">
+			@web.Rows() {
+				for _, line := range starting {
+					@line
+				}
+			}
+		</div>
+	}
+}
+
+// startLine is the line saying to start preparing `ps` for the Slot `s`, led by its
+// kind's icon.
+templ startLine(s domain.Slot, ps domain.PrepSession) {
+	@web.Row() {
+		@web.Icon(string(s.Kind))
+		<span class="row-title">{ web.Tf(ctx, msgStartPreparing, ps.Name(), web.T(ctx, web.SlotKindNames[s.Kind])) }</span>
+	}
+}
+
+// slotRow is the Slot of `f` at its time by `times`: the Portion filling it and where it
+// comes from, and when to start its Prep Sessions of a Recipe, if it has one, opening to
+// their Ingredients, each with where it is taken from, and a link to each Recipe. A Slot
+// with such a Prep Session and no Portion takes the Prep Session's name; a Slot with
+// neither is its kind and time.
+templ slotRow(f planning.Filled, times domain.Times) {
+	{{ when := web.Time(ctx, f.Slot.At(times)) }}
+	{{ cooked := recipesOf(f.Sessions) }}
+	if len(cooked) > 0 {
+		{{ title, from := f.Name, source(ctx, f) }}
+		if title == "" {
+			{{ title, from = cooked[0].Name(), "" }}
+		}
+		{{ start, _ := cooked[0].Start(times) }}
+		@web.FoldRow(web.SlotLine(f.Slot.Kind, when, title, false, "", nil, from, web.Tf(ctx, msgStartAt, web.Time(ctx, start)))) {
+			for _, ps := range cooked {
+				@web.RowsHead(ps.Name())
+				@web.IngredientRowsWith(ps.Ingredients(), nil, places(ps.TakesFrom))
+				@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/recipes/%d", ps.Recipe.ID)}) {
+					{ web.T(ctx, msgRecipeSteps) }
+				}
+			}
+		}
+	} else if f.Name != "" {
+		@web.SlotRow(f.Slot.Kind, when, f.Name, false, "", nil, source(ctx, f))
+	} else {
+		@web.Row() {
+			<span class="row-title">{ web.T(ctx, web.SlotKindNames[f.Slot.Kind]) }</span>
+			<span class="row-figure">{ when }</span>
+		}
+	}
+}
+
+// places is the Storage Locations each Ingredient is taken from by `from`, as a row's
+// details: "not in the kitchen" for one held nowhere, nothing for a Staple or once `from`
+// is nil, its Slot's time passed.
+func places(from map[int64][]domain.StorageLocation) func(domain.Ingredient) templ.Component {
+	return func(ing domain.Ingredient) templ.Component {
+		locations, ok := from[ing.ID]
+		if !ok {
+			return nil
+		}
+		return placesText(locations)
+	}
+}
+
+// placesText is the Storage Locations `locations`, in a sentence, or "not in the kitchen"
+// for none.
+templ placesText(locations []domain.StorageLocation) {
+	if len(locations) == 0 {
+		{ web.T(ctx, msgNotInTheKitchen) }
+	} else {
+		{{ var words []string }}
+		for _, l := range locations {
+			{{ words = append(words, web.T(ctx, web.InLocations[l])) }}
+		}
+		{ strings.Join(words, ", ") }
+	}
+}
+
+// recipesOf are those of `sessions` preparing a Recipe, the one starting earliest first.
+func recipesOf(sessions []planning.Session) []planning.Session {
+	var out []planning.Session
+	for _, ps := range sessions {
+		if ps.Recipe != nil {
+			out = append(out, ps)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b planning.Session) int { return b.Recipe.TotalMinutes - a.Recipe.TotalMinutes })
+	return out
+}
+
+// source says where `f`'s Portion comes from: not in the kitchen when the kitchen doesn't
+// hold it, already in it, cooked then or set out at its Slot, or from an earlier Slot of
+// its day, or an earlier day, and where it is kept.
+func source(ctx context.Context, f planning.Filled) string {
+	switch {
+	case f.Missing:
+		return web.T(ctx, msgNotInTheKitchen)
+	case f.From == nil:
+		return web.T(ctx, msgInTheKitchen)
+	case f.From.At.Equal(f.Slot) && f.From.Recipe != nil:
+		return web.T(ctx, msgCookedThen)
+	case f.From.At.Equal(f.Slot):
+		ri := f.From.Ingredients()[0] // one without a Recipe sets out its one Ingredient
+		return web.Tf(ctx, msgSetOut, web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit), ri.Ingredient.Name)
+	case f.From.At.On.Equal(f.Slot.On):
+		return web.Tf(ctx, msgFromEarlier, web.T(ctx, web.SlotKindNames[f.From.At.Kind]), web.T(ctx, web.InLocations[f.Location]))
+	}
+	return web.Tf(ctx, msgFromEarlier, web.ShortDate(ctx, f.From.At.On), web.T(ctx, web.InLocations[f.Location]))
 }

@@ -17,18 +17,26 @@ var (
 		En: "Your Plan shows here once Dandori plans what you eat. To plan it, it needs to know your kitchen, your Recipes and your Targets.",
 		It: "Il tuo Piano compare qui quando Dandori pianifica cosa mangi. Per pianificarlo, deve conoscere la tua cucina, le tue Ricette e i tuoi Obiettivi.",
 	}
-	msgCountKitchen = web.Message{En: "Count your kitchen", It: "Conta la tua cucina"}
-	msgAddRecipes   = web.Message{En: "Add Recipes", It: "Aggiungi Ricette"}
-	msgSetTargets   = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
-	msgOpenCycle    = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
-	msgOpenNext     = web.Message{En: "Open the next Cycle", It: "Apri il prossimo Ciclo"}
-	msgOrderingNext = web.Message{En: "Order the next Delivery", It: "Ordina la prossima Consegna"}
-	msgNeedsTargets = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
-	msgFailed       = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
-	msgPutAway      = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
-	msgThawTonight  = web.Message{En: "Out of the freezer tonight", It: "Dal congelatore stasera"}
-	msgForTomorrow  = web.Message{En: "for %s tomorrow", It: "per %s di domani"}
-	msgPutAwayLater = web.Message{
+	msgCountKitchen    = web.Message{En: "Count your kitchen", It: "Conta la tua cucina"}
+	msgAddRecipes      = web.Message{En: "Add Recipes", It: "Aggiungi Ricette"}
+	msgSetTargets      = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
+	msgOpenCycle       = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
+	msgOpenNext        = web.Message{En: "Open the next Cycle", It: "Apri il prossimo Ciclo"}
+	msgOrderingNext    = web.Message{En: "Order the next Delivery", It: "Ordina la prossima Consegna"}
+	msgNeedsTargets    = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
+	msgFailed          = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
+	msgPutAway         = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
+	msgThawTonight     = web.Message{En: "Out of the freezer tonight", It: "Dal congelatore stasera"}
+	msgForTomorrow     = web.Message{En: "for %s tomorrow", It: "per %s di domani"}
+	msgCookedThen      = web.Message{En: "cooked then", It: "cucinata al momento"}
+	msgSetOut          = web.Message{En: "set out %s %s", It: "tira fuori %s di %s"}
+	msgFromEarlier     = web.Message{En: "from %s, %s", It: "da %s, %s"}
+	msgInTheKitchen    = web.Message{En: "already in the kitchen", It: "già in cucina"}
+	msgNotInTheKitchen = web.Message{En: "not in the kitchen", It: "non in cucina"}
+	msgStartAt         = web.Message{En: "start at %s", It: "inizia alle %s"}
+	msgStartPreparing  = web.Message{En: "Start preparing %s for %s", It: "Inizia a preparare %s per %s"}
+	msgRecipeSteps     = web.Message{En: "The Recipe's steps", It: "I passaggi della Ricetta"}
+	msgPutAwayLater    = web.Message{
 		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
 		It: "Conta e Sposta si aprono quando arriva la spesa, per correggere ciò che è arrivato diverso.",
 	}

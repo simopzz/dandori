@@ -619,7 +619,7 @@ templ dayBody(d proposalDay) {
 		@web.RowsHead(web.T(ctx, msgSlots))
 		@web.Rows() {
 			for _, f := range d.filled {
-				@web.SlotRow(f.kind, f.name, f.changed, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
+				@web.SlotRow(f.kind, "", f.name, f.changed, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On))
 			}
 		}
 	}

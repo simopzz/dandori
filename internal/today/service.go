@@ -1,7 +1,7 @@
-// Package today is Today, the page a User opens Dandori on: for now, the day's Slot now
-// or next by the Profile's times of day, the day's later ones, where a Delivery's lines
-// go, how up to date the kitchen is, and an offer to open a Cycle while there's none.
-// Later slices fill each Slot in.
+// Package today is Today, the page a User opens Dandori on: the day's Slot now or next by
+// the Profile's times of day, the day's later ones, each with what fills it and when to
+// start preparing it, where a Delivery's lines go, how up to date the kitchen is, and an
+// offer to open a Cycle while there's none.
 package today
 
 import (
@@ -32,6 +32,8 @@ func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Se
 type Day struct {
 	Slots domain.Today
 	Times domain.Times
+	// Filled are Slots.First, then each of Slots.Later, as the Plan fills them.
+	Filled []planning.Filled
 	// Beat is when the scheduler last brought the kitchen up to now; Beaten is false
 	// until it first has.
 	Beat   time.Time
@@ -144,6 +146,9 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		}
 	}
 	if d.PutAway, err = s.PutAwayAt(ctx, now); err != nil {
+		return Day{}, err
+	}
+	if d.Filled, err = s.planning.FilledAt(ctx, now, append([]domain.Slot{d.Slots.First}, d.Slots.Later...)); err != nil {
 		return Day{}, err
 	}
 	if d.Thaws, err = s.planning.ThawsTonight(ctx, now); err != nil {
