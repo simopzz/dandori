@@ -13,9 +13,10 @@ import (
 	"github.com/simopzz/dandori/internal/web"
 )
 
-// page is Today at `now`: what to start preparing, the Slot now or next, the day's later
-// Slots a click away, each with what fills it, what to do next about planning, where the
-// Plan will show and what planning needs (no Plan yet), and how up to date it is.
+// page is Today at `now`: a Delivery due that day, what to start preparing, the Slot now
+// or next, the day's later Slots a click away, each with what fills it, what to do next
+// about planning, where the Plan will show and what planning needs (no Plan yet), and how
+// up to date it is.
 templ page(now time.Time, d Day) {
 	@web.Layout(web.T(ctx, msgTodayTitle), web.TodayTab) {
 		@web.PageHeader("今日", web.T(ctx, msgToday), now)
@@ -66,7 +67,7 @@ templ deliveryDue(c *planning.Cycle) {
 	<div class="section">
 		@web.Rows() {
 			@web.Row() {
-				@web.Icon("package")
+				@web.Icon("list")
 				<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/grocery-list", c.ID)) }>
 					{ web.Tf(ctx, msgDeliveryToday, web.Time(ctx, c.Delivery.Starts()), web.Time(ctx, c.Delivery.Arrives())) }
 				</a>
