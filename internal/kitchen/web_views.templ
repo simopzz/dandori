@@ -540,8 +540,37 @@ func portionLocations(ctx context.Context, except domain.StorageLocation) []web.
 
 // lotURL is `path`, asking for the Lot `p` by its oldest Portion.
 func lotURL(path string, p domain.PortionLot) templ.SafeURL {
-	query := url.Values{"portion": {strconv.FormatInt(p.IDs[0], 10)}, "location": {string(p.Location)}}
+	return portionURL(path, p.IDs[0], p.Location)
+}
+
+// portionURL is `path`, asking for the Lot of the Portion `id` in `location`.
+func portionURL(path string, id int64, location domain.StorageLocation) templ.SafeURL {
+	query := url.Values{"portion": {strconv.FormatInt(id, 10)}, "location": {string(location)}}
 	return templ.SafeURL(path + "?" + query.Encode())
+}
+
+// MovementsLink opens, in the sheet StockItemSheets holds, the Movements of what `m`
+// touched where it left it, its To for a move: the Portion Lot of its first Portion, or
+// its Stock Item.
+templ MovementsLink(m domain.Movement) {
+	{{ location := LeftIn(m) }}
+	if len(m.Portions) > 0 {
+		@web.SideSheetLink(movementsSheetID, portionURL("/kitchen/portions/movements", m.Portions[0], location), portionURL("/kitchen/portions/movements/sheet", m.Portions[0], location)) {
+			{ children... }
+		}
+	} else {
+		@web.SideSheetLink(movementsSheetID, stockItemURL("/kitchen/movements", m.Key.Ingredient, location), stockItemURL("/kitchen/movements/sheet", m.Key.Ingredient, location)) {
+			{ children... }
+		}
+	}
+}
+
+// LeftIn is the Storage Location `m` left what it touched in: its To for a move.
+func LeftIn(m domain.Movement) domain.StorageLocation {
+	if m.To != "" {
+		return m.To
+	}
+	return m.Key.Location
 }
 
 // lotMovementsPage is a Lot's Movements as a page of their own, for a browser without

@@ -38,6 +38,14 @@ var (
 	msgStartAt         = web.Message{En: "start at %s", It: "inizia alle %s"}
 	msgStartPreparing  = web.Message{En: "Start preparing %s for %s", It: "Inizia a preparare %s per %s"}
 	msgRecipeSteps     = web.Message{En: "The Recipe's steps", It: "I passaggi della Ricetta"}
+	msgSinceYouLooked  = web.Message{En: "Since you last looked", It: "Da quando hai guardato"}
+	msgPreparedPart    = web.Message{En: "%s prepared", It: "Preparato %s"}
+	msgEatenPart       = web.Message{En: "%s eaten", It: "Mangiato %s"}
+	msgEatenCount      = web.Message{En: "%d eaten", It: "mangiate: %d"}
+	msgKeptCount       = web.Message{En: "%d kept", It: "tenute: %d"}
+	msgOutOfTheFreezer = web.Message{En: "Out of the freezer: %s", It: "Dal congelatore: %s"}
+	msgForTomorrowOnly = web.Message{En: "for tomorrow", It: "per domani"}
+	msgTimes           = web.Message{En: "× %d", It: "× %d"}
 	msgPutAwayLater    = web.Message{
 		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
 		It: "Conta e Sposta si aprono quando arriva la spesa, per correggere ciò che è arrivato diverso.",

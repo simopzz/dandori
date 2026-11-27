@@ -1,14 +1,20 @@
 // Package today is Today, the page a User opens Dandori on: the day's Slot now or next by
 // the Profile's times of day, the day's later ones, each with what fills it and when to
-// start preparing it, a Delivery due that day, where a Delivery's lines go, how up to
-// date the kitchen is, and an offer to open a Cycle while there's none.
+// start preparing it, a Delivery due that day, where a Delivery's lines go, what Dandori
+// assumed since the User last looked, how up to date the kitchen is, and an offer to open
+// a Cycle while there's none.
 package today
 
 import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
+	"github.com/simopzz/dandori/internal/ingredients"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/ledger"
 	"github.com/simopzz/dandori/internal/planning"
@@ -17,6 +23,7 @@ import (
 
 // Service is what Today shows the signed-in User.
 type Service struct {
+	pool     *pgxpool.Pool
 	profile  *profile.Service
 	ledger   *ledger.Service
 	planning *planning.Service
@@ -24,8 +31,8 @@ type Service struct {
 }
 
 // New creates the Service.
-func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Service, kitchen *kitchen.Service) *Service {
-	return &Service{profile: profile, ledger: ledger, planning: planning, kitchen: kitchen}
+func New(pool *pgxpool.Pool, profile *profile.Service, ledger *ledger.Service, planning *planning.Service, kitchen *kitchen.Service) *Service {
+	return &Service{pool: pool, profile: profile, ledger: ledger, planning: planning, kitchen: kitchen}
 }
 
 // Day is what Today shows at a moment.
@@ -56,6 +63,53 @@ type Day struct {
 	// Due is the upcoming Cycle on its Delivery's day until the Delivery arrives, and
 	// nil otherwise.
 	Due *planning.Cycle
+	// Assumed is what Dandori assumed since the User last looked.
+	Assumed Assumed
+}
+
+// Assumed is what Dandori assumed since the User's visit to Today before, or since the
+// start of the day if that is earlier, with what it touched by id.
+type Assumed struct {
+	Days        []domain.AssumedDay
+	Ingredients map[int64]domain.Ingredient
+	Portions    map[int64]string
+}
+
+// assumed records the signed-in User's visit to Today at `now`, and is what Dandori
+// assumed since the visit before, and at least since the start of `now`'s day.
+func (s *Service) assumed(ctx context.Context, now time.Time) (a Assumed, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		before, ok, err := visit(ctx, tx, now)
+		if err != nil {
+			return err
+		}
+		y, m, d := now.Date()
+		since := time.Date(y, m, d, 0, 0, 0, 0, now.Location())
+		if ok && before.Before(since) {
+			since = before
+		}
+		movements, err := ledger.LoadAssumed(ctx, tx, since, now)
+		if err != nil {
+			return err
+		}
+		if a.Days = domain.AssumedByDay(movements); len(a.Days) == 0 {
+			return nil
+		}
+		ings, err := ingredients.LoadIngredients(ctx, tx)
+		if err != nil {
+			return err
+		}
+		portions, err := ledger.LoadPortions(ctx, tx)
+		a.Ingredients, a.Portions = make(map[int64]domain.Ingredient, len(ings)), make(map[int64]string, len(portions))
+		for _, ing := range ings {
+			a.Ingredients[ing.ID] = ing
+		}
+		for _, p := range portions {
+			a.Portions[p.ID] = p.Name
+		}
+		return err
+	})
+	return a, err
 }
 
 // PutAway is where a Delivery's lines go, and, once it has arrived, what the kitchen
@@ -121,7 +175,7 @@ func offer(current, upcoming *planning.Cycle, now time.Time) Offer {
 	return NoOffer
 }
 
-// At is what Today shows the signed-in User at `now`.
+// At is what Today shows the signed-in User at `now`, which it records as their visit.
 func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	times, err := s.profile.SlotTimes(ctx)
 	if err != nil {
@@ -158,6 +212,9 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		return Day{}, err
 	}
 	if d.Thaws, err = s.planning.ThawsTonight(ctx, now); err != nil {
+		return Day{}, err
+	}
+	if d.Assumed, err = s.assumed(ctx, now); err != nil {
 		return Day{}, err
 	}
 	for _, c := range []*planning.Cycle{current, upcoming} {

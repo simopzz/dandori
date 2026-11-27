@@ -154,11 +154,14 @@ var causeNames = map[domain.Cause]web.Message{
 	domain.Thawed:       {En: "Thawed", It: "Scongelato"},
 }
 
+// CauseName tells the cause `c` of a Movement.
+func CauseName(ctx context.Context, c domain.Cause) string { return web.T(ctx, causeNames[c]) }
+
 // causeText tells the cause of `m` as a Movement of the Stock Item in `location`.
 func causeText(ctx context.Context, m domain.StockMovement, location domain.StorageLocation) string {
 	switch {
 	case m.Cause != domain.Moved:
-		return web.T(ctx, causeNames[m.Cause])
+		return CauseName(ctx, m.Cause)
 	case m.To == location:
 		return web.T(ctx, movedFromLocations[m.Key.Location])
 	}
