@@ -64,8 +64,7 @@ func slotTimes(t [4]pgtype.Time) domain.SlotTimes {
 // kept until then. A second change on the same day replaces the first, which hasn't
 // taken effect.
 func saveSlotTimes(ctx context.Context, q db.Querier, t domain.SlotTimes, today time.Time, atOnce bool) error {
-	y, m, d := today.Date()
-	on := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	on := domain.DateOf(today)
 	from := pgtype.Date{Time: on.AddDate(0, 0, 1), Valid: !atOnce}
 	_, err := q.Exec(ctx, `
 		UPDATE profile SET

@@ -50,11 +50,17 @@ type TimesChange struct {
 // On is the times of day in force on `day`, From and `day` each read as a date in its
 // own zone.
 func (c TimesChange) On(day time.Time) SlotTimes {
-	date := func(t time.Time) time.Time { y, m, d := t.Date(); return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
-	if date(day).Before(date(c.From)) {
+	if DateOf(day).Before(DateOf(c.From)) {
 		return c.Was
 	}
 	return c.Now
+}
+
+// DateOf is the date of `t` in its zone, as midnight UTC: dates from different zones
+// compare as dates.
+func DateOf(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 // DefaultSlotTimes are the times of day of a Profile the User hasn't changed.
@@ -91,9 +97,12 @@ type Slot struct {
 // At is when `s` is, by `times`, on the wall clock of its day.
 func (s Slot) At(times Times) time.Time {
 	y, m, d := s.On.Date()
-	t := times.On(s.On)[s.Kind]
+	t := s.TimeOfDay(times)
 	return time.Date(y, m, d, int(t/60), int(t%60), 0, 0, s.On.Location())
 }
+
+// TimeOfDay is `s`'s time of day by `times`, those in force on its day.
+func (s Slot) TimeOfDay(times Times) TimeOfDay { return times.On(s.On)[s.Kind] }
 
 // NowFor is how long a Slot is now after its time of day, its last minute included.
 const NowFor = time.Hour

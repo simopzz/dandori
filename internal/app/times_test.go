@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -132,10 +133,15 @@ func usual(lunchAt, dinnerAt string) apptest.TimesOfDay {
 }
 
 // Lunch moved later on the day it happened keeps today's lunch where it was: the kitchen
-// isn't prepared again, and the new time is tomorrow's.
+// isn't prepared again, and the new time is tomorrow's, when afterFriday's lunch sets out
+// its yogurt at 13:30, not 13:00.
 func TestLunchMovedLaterAfterItHappenedStaysPassed(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	approvesFriday(t, s)
+	s.At("Thu 20:00")
+	approves(t, s, func(req agent.Request) map[string]any {
+		return map[string]any{"prep_sessions": yogurtAt(idIn(t, req, `Ingredient (\d+): yogurt`), []string{"2026-11-07", "2026-11-08"})}
+	}, func() { s.OpensCycle(afterFriday); s.PlansCycle() })
 	s.At("Fri 13:05")
 	s.Open("/kitchen")
 	s.Sees("rice 425 g")
@@ -147,9 +153,16 @@ func TestLunchMovedLaterAfterItHappenedStaysPassed(t *testing.T) {
 	s.Sees("rice 425 g")
 	s.Open("/")
 	s.Sees("Now: lunch at 1:00 pm")
-	s.At("Sat 09:30")
+
+	yogurtMoves := "/kitchen/movements?location=fridge&ingredient=" + ingredientID(t, s, "yogurt")
+	s.At("Sat 13:15")
 	s.Open("/")
 	s.Sees("Next: lunch at 1:30 pm")
+	s.Open(yogurtMoves)
+	s.DoesNotSee("Sat, Nov 7 · 1:")
+	s.At("Sat 13:35")
+	s.Open(yogurtMoves)
+	s.Sees("Sat, Nov 7 · 1:30 pm")
 }
 
 // Dinner moved later after tonight's thaw runs no second thaw, and Today still lists what

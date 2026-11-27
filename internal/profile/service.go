@@ -71,20 +71,20 @@ func (s *Service) TimesWait(ctx context.Context) (wait bool, err error) {
 }
 
 // SetSlotTimes saves `typed`, by SlotKind, as the signed-in User's time of day of each
-// kind of Slot, from tomorrow once TimesWait, unless a field is refused: then it saves
-// nothing and is each problem.
-func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (domain.SlotTimes, map[string]domain.Problem, error) {
-	t, problems := domain.ParseSlotTimes(typed)
+// kind of Slot, from tomorrow when they `wait` (TimesWait), unless a field is refused:
+// then it saves nothing and is each problem.
+func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (t domain.SlotTimes, wait bool, problems map[string]domain.Problem, err error) {
+	t, problems = domain.ParseSlotTimes(typed)
 	if len(problems) > 0 {
-		return t, problems, nil
+		return t, false, problems, nil
 	}
-	return t, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		wait, err := s.hasCycle(ctx, tx)
-		if err != nil {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		if wait, err = s.hasCycle(ctx, tx); err != nil {
 			return err
 		}
 		return saveSlotTimes(ctx, tx, t, s.clock.Now(), !wait)
 	})
+	return t, wait, nil, err
 }
 
 // Targets is the signed-in User's Targets; `set` is false until they save theirs, when

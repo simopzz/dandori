@@ -267,17 +267,12 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 	for _, k := range domain.SlotKinds {
 		typed[string(k)] = r.PostFormValue(string(k))
 	}
-	t, problems, err := h.Service.SetSlotTimes(ctx, typed)
+	t, wait, problems, err := h.Service.SetSlotTimes(ctx, typed)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "save the User's times of day", err)
 		return
 	}
 	if len(problems) == 0 {
-		wait, err := h.Service.TimesWait(ctx)
-		if err != nil {
-			httpx.ServerError(w, r, h.Log, "read whether the User's times of day wait", err)
-			return
-		}
 		h.answerSaved(w, r, timesForm(shownTimes(ctx, t, wait)))
 		return
 	}

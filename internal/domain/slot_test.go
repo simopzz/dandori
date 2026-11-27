@@ -89,11 +89,13 @@ func TestASlotIsAtItsTimeOfDayOnTheWallClock(t *testing.T) {
 	}
 }
 
+// lunchLater are the default times of day with lunch at 13:30.
+var lunchLater = domain.SlotTimes{domain.Breakfast: 8 * 60, domain.Lunch: 13*60 + 30, domain.Snack: 17 * 60, domain.Dinner: 20 * 60}
+
 // A change of the times of day saved on the 6th takes effect on the 7th: a Slot of the
 // 6th keeps the time it had, before the change and after.
 func TestNewTimesOfDayTakeEffectTheNextDay(t *testing.T) {
-	later := domain.SlotTimes{domain.Breakfast: 8 * 60, domain.Lunch: 13*60 + 30, domain.Snack: 17 * 60, domain.Dinner: 20 * 60}
-	change := domain.TimesChange{Was: domain.DefaultSlotTimes, Now: later, From: slot(7, domain.Lunch).On}
+	change := domain.TimesChange{Was: domain.DefaultSlotTimes, Now: lunchLater, From: slot(7, domain.Lunch).On}
 	tests := []struct {
 		name string
 		s    domain.Slot
@@ -108,7 +110,7 @@ func TestNewTimesOfDayTakeEffectTheNextDay(t *testing.T) {
 			t.Errorf("%s: lunch at %s, want %s", tt.name, got.Format("Jan 2 15:04"), tt.want.Format("Jan 2 15:04"))
 		}
 	}
-	if got := slot(6, domain.Lunch).At(domain.TimesChange{Now: later}); !got.Equal(at(6, "13:30")) {
+	if got := slot(6, domain.Lunch).At(domain.TimesChange{Now: lunchLater}); !got.Equal(at(6, "13:30")) {
 		t.Errorf("times never changed: lunch at %s, want 13:30", got.Format("15:04"))
 	}
 }

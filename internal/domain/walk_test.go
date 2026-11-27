@@ -145,8 +145,7 @@ func TestAPrepSessionUsesUpItsIngredients(t *testing.T) {
 // 7th prepares the 6th's lunch no second time, and the 7th's at 13:30.
 func TestAWalkCrossesTheDayTimesOfDayChange(t *testing.T) {
 	sixth, seventh := slot(6, domain.Lunch), slot(7, domain.Lunch)
-	later := domain.SlotTimes{domain.Breakfast: 8 * 60, domain.Lunch: 13*60 + 30, domain.Snack: 17 * 60, domain.Dinner: 20 * 60}
-	change := domain.TimesChange{Was: domain.DefaultSlotTimes, Now: later, From: seventh.On}
+	change := domain.TimesChange{Was: domain.DefaultSlotTimes, Now: lunchLater, From: seventh.On}
 	plan := domain.Plan{PrepSessions: []domain.PrepSession{
 		session(1, sixth, plainRice, 300, planned(11, domain.Fridge, nil)),
 		session(2, seventh, plainRice, 100, planned(21, domain.Fridge, nil)),
