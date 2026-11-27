@@ -41,7 +41,7 @@ func (f Forecast) WithOrdered(d Delivery, lines []GroceryLine, splits []RecipeIn
 // `at` left without a Slot, and the Portions without a Slot it puts in those Slots are
 // eaten. What `p` brings before `now` the kitchen is taken to hold already. Stock never
 // goes below nothing.
-func (p Plan) Forecast(stock map[StockKey]Quantity, lots []PortionLot, times SlotTimes, now time.Time, at Slot) Forecast {
+func (p Plan) Forecast(stock map[StockKey]Quantity, lots []PortionLot, times Times, now time.Time, at Slot) Forecast {
 	between := func(s Slot) bool { return s.At(times).After(now) && s.Before(at) }
 	f := Forecast{Stock: maps.Clone(stock)}
 	var made Plan

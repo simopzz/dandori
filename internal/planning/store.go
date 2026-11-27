@@ -496,6 +496,14 @@ func Prepares(ctx context.Context, q db.Querier, id int64) (prepared bool, err e
 	return prepared, err
 }
 
+// HasCycle reports whether the signed-in User has a Cycle. The profile feature, which
+// this one depends on, reads it, and app wires it.
+func HasCycle(ctx context.Context, q db.Querier) (bool, error) {
+	var exists bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM cycle)`).Scan(&exists)
+	return exists, err
+}
+
 // UsesIngredient reports whether a Plan Proposal of the signed-in User's, whatever its
 // status, uses the Ingredient `id`, which its Prep Sessions and freezer splits keep, or a
 // fixed Grocery List buys it. The ingredients feature, which this one depends on, reads

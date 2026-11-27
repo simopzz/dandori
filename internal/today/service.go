@@ -31,7 +31,7 @@ func New(profile *profile.Service, ledger *ledger.Service, planning *planning.Se
 // Day is what Today shows at a moment.
 type Day struct {
 	Slots domain.Today
-	Times domain.SlotTimes
+	Times domain.Times
 	// Beat is when the scheduler last brought the kitchen up to now; Beaten is false
 	// until it first has.
 	Beat   time.Time

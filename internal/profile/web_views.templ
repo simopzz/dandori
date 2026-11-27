@@ -71,9 +71,10 @@ type TargetsForm struct {
 }
 
 // TimesForm is the time of day of each kind of Slot as shown, by SlotKind: as saved or as
-// typed, with why each field was refused.
+// typed, with why each field was refused. Wait is whether a change waits for tomorrow.
 type TimesForm struct {
 	Values, Errs map[string]string
+	Wait         bool
 }
 
 // MealOutForm is the Meal Out estimate as shown, by field: as saved or as typed, with why
@@ -238,6 +239,11 @@ templ targetField(label, hint web.Message, field string, f TargetsForm) {
 // timesForm is the times-of-day section.
 templ timesForm(f TimesForm) {
 	@sectionForm(timesSection) {
+		if f.Wait {
+			@web.Hint() {
+				{ web.T(ctx, msgTimesFromTomorrow) }
+			}
+		}
 		@web.FieldRow() {
 			for _, k := range domain.SlotKinds {
 				@web.TimeField(web.Capitalised(web.T(ctx, web.SlotKindNames[k])), string(k), f.Values[string(k)], f.Errs[string(k)])

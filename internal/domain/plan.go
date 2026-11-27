@@ -28,7 +28,7 @@ type Plan struct {
 // before `p` ends: its Prep Sessions after `until` go, its Portions eaten after `until`
 // carry over without a Slot, and those without a Slot it put in Slots after `until` stay
 // without one. `p` is left as it was.
-func (p Plan) Until(until time.Time, times SlotTimes) Plan {
+func (p Plan) Until(until time.Time, times Times) Plan {
 	after := func(s Slot) bool { return s.At(times).After(until) }
 	cut := Plan{FreezerSplits: p.FreezerSplits}
 	for _, ps := range p.PrepSessions {
@@ -235,7 +235,7 @@ func (r Rule) BlocksApproval() bool {
 
 // StartsInThePast is the violation of a Plan whose `first` Slot has passed at `now`, its
 // time of day by `times` reached, or none.
-func StartsInThePast(first Slot, times SlotTimes, now time.Time) []Violation {
+func StartsInThePast(first Slot, times Times, now time.Time) []Violation {
 	if first.At(times).After(now) {
 		return nil
 	}

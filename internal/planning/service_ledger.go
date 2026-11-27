@@ -128,7 +128,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 	// What a Plan needs is read only once a Slot of a User with a Cycle has passed: the
 	// kitchen reaches no further back than `upTo`. A User without one may have
 	// no Profile.
-	var times domain.SlotTimes
+	var times domain.Times
 	if cycled {
 		if times, err = s.profile.SlotTimes(ctx); err != nil {
 			return err
@@ -145,7 +145,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 		loaded = err == nil
 		return err
 	}
-	if cycled && times.PassBetween(upTo, now) {
+	if cycled && domain.PassBetween(times, upTo, now) {
 		if err := load(); err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 		if err != nil {
 			return err
 		}
-		passed := cycled && times.PassBetween(from, now)
+		passed := cycled && domain.PassBetween(times, from, now)
 		busy, err := busyCycles(ctx, tx)
 		if err != nil || (len(busy) == 0 && len(due) == 0 && !passed) {
 			return err
@@ -237,7 +237,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 // it, Until the next Cycle's Delivery arrives, its Recipes and Ingredients found among
 // `library` and `known`. Days between Cycles are in none. `ordered` are those Cycles'
 // Deliveries ordered and not put away yet, as they will be.
-func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (plan domain.Plan, ordered []domain.Arrival, err error) {
+func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.Times, from, to time.Time) (plan domain.Plan, ordered []domain.Arrival, err error) {
 	for i, c := range cycles {
 		if i+1 < len(cycles) {
 			c.Until = cycles[i+1].Delivery.Arrives()

@@ -30,28 +30,52 @@ func loadLanguage(ctx context.Context, q db.Querier) (domain.Language, bool, err
 	return domain.Language(code), true, nil
 }
 
-// LoadSlotTimes reads the signed-in User's times of day of each kind of Slot: the
-// defaults until they set theirs. It has no WHERE on purpose: run in db.AsUser, row-level
-// security leaves only their row.
-func LoadSlotTimes(ctx context.Context, q db.Querier) (domain.SlotTimes, error) {
-	var b, l, s, d pgtype.Time
-	err := q.QueryRow(ctx, `SELECT breakfast_at, lunch_at, snack_at, dinner_at FROM profile`).Scan(&b, &l, &s, &d)
+// LoadSlotTimes reads the signed-in User's times of day of each kind of Slot across their
+// last change: the defaults until they set theirs. It has no WHERE on purpose: run in
+// db.AsUser, row-level security leaves only their row.
+func LoadSlotTimes(ctx context.Context, q db.Querier) (domain.TimesChange, error) {
+	var now, was [4]pgtype.Time
+	var from pgtype.Date
+	err := q.QueryRow(ctx, `
+		SELECT breakfast_at, lunch_at, snack_at, dinner_at,
+			was_breakfast_at, was_lunch_at, was_snack_at, was_dinner_at, times_from
+		FROM profile`).Scan(&now[0], &now[1], &now[2], &now[3], &was[0], &was[1], &was[2], &was[3], &from)
 	if err != nil {
-		return nil, err
+		return domain.TimesChange{}, err
 	}
-	if !b.Valid {
-		return maps.Clone(domain.DefaultSlotTimes), nil
-	}
-	return domain.SlotTimes{
-		domain.Breakfast: timeOfDay(b), domain.Lunch: timeOfDay(l),
-		domain.Snack: timeOfDay(s), domain.Dinner: timeOfDay(d),
-	}, nil
+	return domain.TimesChange{Was: slotTimes(was), Now: slotTimes(now), From: from.Time}, nil
 }
 
-// saveSlotTimes sets the signed-in User's times of day of each kind of Slot to `t`.
-func saveSlotTimes(ctx context.Context, q db.Querier, t domain.SlotTimes) error {
-	_, err := q.Exec(ctx, `UPDATE profile SET breakfast_at = $1, lunch_at = $2, snack_at = $3, dinner_at = $4`,
-		t[domain.Breakfast].String(), t[domain.Lunch].String(), t[domain.Snack].String(), t[domain.Dinner].String())
+// slotTimes is `t`, the times of day as stored in the order of a day: the defaults
+// when null.
+func slotTimes(t [4]pgtype.Time) domain.SlotTimes {
+	if !t[0].Valid {
+		return maps.Clone(domain.DefaultSlotTimes)
+	}
+	times := domain.SlotTimes{}
+	for i, k := range domain.SlotKinds {
+		times[k] = timeOfDay(t[i])
+	}
+	return times
+}
+
+// saveSlotTimes sets the signed-in User's times of day of each kind of Slot to `t`: at
+// once when `atOnce`, otherwise from the day after `today`, the times in force on `today`
+// kept until then. A second change on the same day replaces the first, which hasn't
+// taken effect.
+func saveSlotTimes(ctx context.Context, q db.Querier, t domain.SlotTimes, today time.Time, atOnce bool) error {
+	y, m, d := today.Date()
+	on := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	from := pgtype.Date{Time: on.AddDate(0, 0, 1), Valid: !atOnce}
+	_, err := q.Exec(ctx, `
+		UPDATE profile SET
+			was_breakfast_at = CASE WHEN times_from > $6::date THEN was_breakfast_at ELSE breakfast_at END,
+			was_lunch_at = CASE WHEN times_from > $6::date THEN was_lunch_at ELSE lunch_at END,
+			was_snack_at = CASE WHEN times_from > $6::date THEN was_snack_at ELSE snack_at END,
+			was_dinner_at = CASE WHEN times_from > $6::date THEN was_dinner_at ELSE dinner_at END,
+			times_from = $5::date,
+			breakfast_at = $1, lunch_at = $2, snack_at = $3, dinner_at = $4`,
+		t[domain.Breakfast].String(), t[domain.Lunch].String(), t[domain.Snack].String(), t[domain.Dinner].String(), from, on)
 	return err
 }
 

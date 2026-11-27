@@ -53,7 +53,7 @@ type happening struct {
 // and at dinner's time of day the thaw for the next day of `p` (thaw). An arrival after
 // `to` doesn't happen: an evening's thaw counts it held. Each Movement is dated at its
 // time, or the latest Movement's if that is later (WriteAt).
-func (l Ledger) UpToNow(p Plan, madeFrom map[int64]int64, arrivals []Arrival, times SlotTimes, from, to time.Time) (written []Movement, made []PreparedPortion) {
+func (l Ledger) UpToNow(p Plan, madeFrom map[int64]int64, arrivals []Arrival, times Times, from, to time.Time) (written []Movement, made []PreparedPortion) {
 	in := func(s Slot) bool { t := s.At(times); return t.After(from) && !t.After(to) }
 	var happenings []happening
 	for _, a := range arrivals {
@@ -125,7 +125,7 @@ func (l Ledger) UpToNow(p Plan, madeFrom map[int64]int64, arrivals []Arrival, ti
 // `arrivals` still to come, Ordered and due before the day's first Slot, held where it is
 // put away, and every frozen Portion filling one of its Slots. A freezer split of an
 // Ingredient not used from frozen isn't held: there is no evening left to thaw it.
-func (l Ledger) thaw(now time.Time, p Plan, day time.Time, arrivals []Arrival, prepared map[int64]int64, times SlotTimes) []Movement {
+func (l Ledger) thaw(now time.Time, p Plan, day time.Time, arrivals []Arrival, prepared map[int64]int64, times Times) []Movement {
 	at := l.WriteAt(now)
 	var sessions []PrepSession
 	var slots []Slot

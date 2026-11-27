@@ -141,6 +141,27 @@ func TestAPrepSessionUsesUpItsIngredients(t *testing.T) {
 	}
 }
 
+// Lunch moved from 13:00 to 13:30 on the 6th after it happened: a walk from then over the
+// 7th prepares the 6th's lunch no second time, and the 7th's at 13:30.
+func TestAWalkCrossesTheDayTimesOfDayChange(t *testing.T) {
+	sixth, seventh := slot(6, domain.Lunch), slot(7, domain.Lunch)
+	later := domain.SlotTimes{domain.Breakfast: 8 * 60, domain.Lunch: 13*60 + 30, domain.Snack: 17 * 60, domain.Dinner: 20 * 60}
+	change := domain.TimesChange{Was: domain.DefaultSlotTimes, Now: later, From: seventh.On}
+	plan := domain.Plan{PrepSessions: []domain.PrepSession{
+		session(1, sixth, plainRice, 300, planned(11, domain.Fridge, nil)),
+		session(2, seventh, plainRice, 100, planned(21, domain.Fridge, nil)),
+	}}
+	got, _ := domain.NewLedger([]domain.Movement{holds(plainRice, domain.Pantry, 800)}).
+		UpToNow(plan, nil, nil, change, at(6, "13:05"), at(7, "14:00"))
+	want := []domain.Movement{
+		usedUp(at(7, "13:30"), key(plainRice, domain.Pantry), 100, 2, seventh),
+		prepared(at(7, "13:30"), domain.Fridge, 2, seventh, 21),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("walked\n%+v, want\n%+v", got, want)
+	}
+}
+
 // A Prep Session's Portions are prepared in their Storage Locations with its name and
 // values per Portion, scaled to their size, and the one filling its own Slot is eaten.
 func TestAPrepSessionPreparesItsPortions(t *testing.T) {
@@ -338,7 +359,7 @@ func TestASlotPassesBetween(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := domain.DefaultSlotTimes.PassBetween(tt.from, tt.to); got != tt.want {
+			if got := domain.PassBetween(domain.DefaultSlotTimes, tt.from, tt.to); got != tt.want {
 				t.Errorf("PassBetween(%s, %s) = %v, want %v", tt.from, tt.to, got, tt.want)
 			}
 		})

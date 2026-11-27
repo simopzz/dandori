@@ -50,19 +50,20 @@ var (
 		En: "Carbs and fat have no Target: they are shown, never aimed at.",
 		It: "Carboidrati e grassi non hanno un Obiettivo: si mostrano, senza puntare a un valore.",
 	}
-	msgKcal          = web.Message{En: "Calories", It: "Calorie"}
-	msgKcalHint      = web.Message{En: "kcal a day", It: "kcal al giorno"}
-	msgTolerance     = web.Message{En: "Tolerance", It: "Tolleranza"}
-	msgToleranceHint = web.Message{En: "± %", It: "± %"}
-	msgProtein       = web.Message{En: "Protein", It: "Proteine"}
-	msgFibre         = web.Message{En: "Fibre", It: "Fibre"}
-	msgSugar         = web.Message{En: "Sugar", It: "Zuccheri"}
-	msgFloorHint     = web.Message{En: "g, at least", It: "g, almeno"}
-	msgCeilingHint   = web.Message{En: "g, at most", It: "g, al massimo"}
-	msgTimesOfDay    = web.Message{En: "Times of day", It: "Orari"}
-	msgAfter         = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
-	msgMealOut       = web.Message{En: "Meal Out estimate", It: "Stima di un Pasto Fuori"}
-	msgMealOutHint   = web.Message{
+	msgKcal              = web.Message{En: "Calories", It: "Calorie"}
+	msgKcalHint          = web.Message{En: "kcal a day", It: "kcal al giorno"}
+	msgTolerance         = web.Message{En: "Tolerance", It: "Tolleranza"}
+	msgToleranceHint     = web.Message{En: "± %", It: "± %"}
+	msgProtein           = web.Message{En: "Protein", It: "Proteine"}
+	msgFibre             = web.Message{En: "Fibre", It: "Fibre"}
+	msgSugar             = web.Message{En: "Sugar", It: "Zuccheri"}
+	msgFloorHint         = web.Message{En: "g, at least", It: "g, almeno"}
+	msgCeilingHint       = web.Message{En: "g, at most", It: "g, al massimo"}
+	msgTimesOfDay        = web.Message{En: "Times of day", It: "Orari"}
+	msgTimesFromTomorrow = web.Message{En: "New times apply from tomorrow.", It: "I nuovi orari valgono da domani."}
+	msgAfter             = web.Message{En: "Must be after %s.", It: "Deve essere dopo l'ora di %s."}
+	msgMealOut           = web.Message{En: "Meal Out estimate", It: "Stima di un Pasto Fuori"}
+	msgMealOutHint       = web.Message{
 		En: "What a Meal Out counts toward your Targets, unless you give it its own.",
 		It: "Quanto conta un Pasto Fuori per i tuoi Obiettivi, se non gli dai una stima sua.",
 	}

@@ -225,9 +225,10 @@ type TargetsForm struct {
 }
 
 // TimesForm is the time of day of each kind of Slot as shown, by SlotKind: as saved or as
-// typed, with why each field was refused.
+// typed, with why each field was refused. Wait is whether a change waits for tomorrow.
 type TimesForm struct {
 	Values, Errs map[string]string
+	Wait         bool
 }
 
 // MealOutForm is the Meal Out estimate as shown, by field: as saved or as typed, with why
@@ -342,7 +343,7 @@ func profilePage(today time.Time, email string, forms profileForms) templ.Compon
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgChooseHint))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 129, Col: 31}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 130, Col: 31}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -523,7 +524,7 @@ func profilePage(today time.Time, email string, forms profileForms) templ.Compon
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgSignedInAs, email))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 153, Col: 40}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 154, Col: 40}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
@@ -548,7 +549,7 @@ func profilePage(today time.Time, email string, forms profileForms) templ.Compon
 						var templ_7745c5c3_Var25 string
 						templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgSignOut))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 155, Col: 30}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 156, Col: 30}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 						if templ_7745c5c3_Err != nil {
@@ -583,7 +584,7 @@ func profilePage(today time.Time, email string, forms profileForms) templ.Compon
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgOpenRuns))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 161, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 162, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -636,7 +637,7 @@ func sectionForm(s section) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("profile-" + s.id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 173, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 174, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -649,7 +650,7 @@ func sectionForm(s section) templ.Component {
 		var templ_7745c5c3_Var29 templ.SafeURL
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(s.route()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 175, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 176, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -667,7 +668,7 @@ func sectionForm(s section) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.route())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 177, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 178, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 			if templ_7745c5c3_Err != nil {
@@ -680,7 +681,7 @@ func sectionForm(s section) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue("#" + s.id)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 178, Col: 25}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 179, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 			if templ_7745c5c3_Err != nil {
@@ -742,7 +743,7 @@ func sectionForm(s section) templ.Component {
 					var templ_7745c5c3_Var35 string
 					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgSave))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 187, Col: 27}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 188, Col: 27}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 					if templ_7745c5c3_Err != nil {
@@ -829,7 +830,7 @@ func targetsForm(f TargetsForm) templ.Component {
 					var templ_7745c5c3_Var39 string
 					templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgTargetsNeeded))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 201, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 202, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 					if templ_7745c5c3_Err != nil {
@@ -917,7 +918,7 @@ func targetsForm(f TargetsForm) templ.Component {
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgCarbsAndFat))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 214, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 215, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -981,7 +982,7 @@ func targetField(label, hint web.Message, field string, f TargetsForm) templ.Com
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 227, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 228, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 			if templ_7745c5c3_Err != nil {
@@ -994,7 +995,7 @@ func targetField(label, hint web.Message, field string, f TargetsForm) templ.Com
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Values[field])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 228, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 229, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 			if templ_7745c5c3_Err != nil {
@@ -1058,7 +1059,40 @@ func timesForm(f TimesForm) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var50 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			if f.Wait {
+				templ_7745c5c3_Var50 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+					if !templ_7745c5c3_IsBuffer {
+						defer func() {
+							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+							if templ_7745c5c3_Err == nil {
+								templ_7745c5c3_Err = templ_7745c5c3_BufErr
+							}
+						}()
+					}
+					ctx = templ.InitializeContext(ctx)
+					var templ_7745c5c3_Var51 string
+					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgTimesFromTomorrow))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 244, Col: 38}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					return nil
+				})
+				templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var50), templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Var52 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -1078,7 +1112,7 @@ func timesForm(f TimesForm) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.FieldRow().Render(templ.WithChildren(ctx, templ_7745c5c3_Var50), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.FieldRow().Render(templ.WithChildren(ctx, templ_7745c5c3_Var52), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1109,12 +1143,12 @@ func mealOutForm(f MealOutForm) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var51 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var51 == nil {
-			templ_7745c5c3_Var51 = templ.NopComponent
+		templ_7745c5c3_Var53 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var53 == nil {
+			templ_7745c5c3_Var53 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var52 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var54 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1126,7 +1160,7 @@ func mealOutForm(f MealOutForm) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var53 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var55 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -1138,22 +1172,22 @@ func mealOutForm(f MealOutForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				var templ_7745c5c3_Var54 string
-				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMealOutHint))
+				var templ_7745c5c3_Var56 string
+				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgMealOutHint))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 253, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 259, Col: 31}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var53), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var55), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Var55 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var57 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -1179,11 +1213,11 @@ func mealOutForm(f MealOutForm) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.FieldRow().Render(templ.WithChildren(ctx, templ_7745c5c3_Var55), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.FieldRow().Render(templ.WithChildren(ctx, templ_7745c5c3_Var57), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Var56 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var58 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -1209,13 +1243,13 @@ func mealOutForm(f MealOutForm) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.FieldRow().Render(templ.WithChildren(ctx, templ_7745c5c3_Var56), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.FieldRow().Render(templ.WithChildren(ctx, templ_7745c5c3_Var58), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = sectionForm(mealOutSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var52), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = sectionForm(mealOutSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var54), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1241,12 +1275,12 @@ func mealOutField(label, hint web.Message, field string, f MealOutForm) templ.Co
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var57 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var57 == nil {
-			templ_7745c5c3_Var57 = templ.NopComponent
+		templ_7745c5c3_Var59 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var59 == nil {
+			templ_7745c5c3_Var59 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var58 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var60 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1258,59 +1292,59 @@ func mealOutField(label, hint web.Message, field string, f MealOutForm) templ.Co
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<input type=\"number\" inputmode=\"numeric\" step=\"1\" min=\"0\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<input type=\"number\" inputmode=\"numeric\" step=\"1\" min=\"0\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var59 string
-			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(field)
+			var templ_7745c5c3_Var61 string
+			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 277, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 283, Col: 15}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" value=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var60 string
-			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Values[field])
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 278, Col: 26}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\"")
+			var templ_7745c5c3_Var62 string
+			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Values[field])
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 284, Col: 26}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if domain.MealOutRequired(field) {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, " required")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, " required")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, " autocomplete=\"off\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " autocomplete=\"off\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if f.Errs[field] != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " aria-invalid=\"true\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, " aria-invalid=\"true\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, ">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var58), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = web.Field(web.T(ctx, label), web.T(ctx, hint), f.Errs[field]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var60), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1335,12 +1369,12 @@ func foodsForm(f FoodsForm) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var61 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var61 == nil {
-			templ_7745c5c3_Var61 = templ.NopComponent
+		templ_7745c5c3_Var63 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var63 == nil {
+			templ_7745c5c3_Var63 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var62 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var64 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1352,33 +1386,6 @@ func foodsForm(f FoodsForm) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var63 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				var templ_7745c5c3_Var64 string
-				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgFoodsHint))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 292, Col: 29}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var63), templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 			templ_7745c5c3_Var65 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -1391,26 +1398,18 @@ func foodsForm(f FoodsForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<textarea name=\"exclusions\" rows=\"4\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
 				var templ_7745c5c3_Var66 string
-				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(f.Exclusions, "\n"))
+				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgFoodsHint))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 295, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 298, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</textarea>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Field(web.T(ctx, msgExclusions), web.T(ctx, msgExclusionsHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var65), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var65), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1426,32 +1425,67 @@ func foodsForm(f FoodsForm) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<textarea name=\"allergies\" rows=\"4\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<textarea name=\"exclusions\" rows=\"4\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var68 string
-				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(f.Allergies, "\n"))
+				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(f.Exclusions, "\n"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 298, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 301, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</textarea>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</textarea>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Field(web.T(ctx, msgAllergies), web.T(ctx, msgAllergiesHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var67), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Field(web.T(ctx, msgExclusions), web.T(ctx, msgExclusionsHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var67), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Var69 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<textarea name=\"allergies\" rows=\"4\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var70 string
+				templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(f.Allergies, "\n"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 304, Col: 72}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</textarea>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = web.Field(web.T(ctx, msgAllergies), web.T(ctx, msgAllergiesHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var69), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = sectionForm(foodsSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var62), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = sectionForm(foodsSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var64), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1481,12 +1515,12 @@ func appliancesForm(owned domain.Appliances) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var69 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var69 == nil {
-			templ_7745c5c3_Var69 = templ.NopComponent
+		templ_7745c5c3_Var71 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var71 == nil {
+			templ_7745c5c3_Var71 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var70 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var72 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1498,7 +1532,7 @@ func appliancesForm(owned domain.Appliances) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var71 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var73 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -1510,67 +1544,67 @@ func appliancesForm(owned domain.Appliances) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				var templ_7745c5c3_Var72 string
-				templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAppliancesHint))
+				var templ_7745c5c3_Var74 string
+				templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAppliancesHint))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 312, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 318, Col: 34}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var71), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var73), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"appliance-grid\"><span class=\"appliance-grid-head\" aria-hidden=\"true\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var73 string
-			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAppliance))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 317, Col: 82}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</span> <span class=\"appliance-grid-head\" aria-hidden=\"true\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var74 string
-			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgModel))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 319, Col: 26}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, " <span class=\"field-hint\">(")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<div class=\"appliance-grid\"><span class=\"appliance-grid-head\" aria-hidden=\"true\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var75 string
-			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgModelHint))
+			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgAppliance))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 320, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 323, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, ")</span></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</span> <span class=\"appliance-grid-head\" aria-hidden=\"true\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var76 string
+			templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgModel))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 325, Col: 26}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, " <span class=\"field-hint\">(")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var77 string
+			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgModelHint))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 326, Col: 56}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, ")</span></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, k := range domain.ApplianceKinds {
 				_, isOwned := owned[k]
-				templ_7745c5c3_Var76 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var78 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -1582,30 +1616,30 @@ func appliancesForm(owned domain.Appliances) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<input type=\"checkbox\" name=\"appliances\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<input type=\"checkbox\" name=\"appliances\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var77 string
-					templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(k))
+					var templ_7745c5c3_Var79 string
+					templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(k))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 325, Col: 63}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 331, Col: 63}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if isOwned {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " checked")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " checked")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, ">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, ">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1615,74 +1649,74 @@ func appliancesForm(owned domain.Appliances) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = web.Check(web.Capitalised(web.T(ctx, web.ApplianceKindNames[k])), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var76), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = web.Check(web.Capitalised(web.T(ctx, web.ApplianceKindNames[k])), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var78), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<label><span class=\"sr-only\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var78 string
-				templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgModelOf, web.T(ctx, web.ApplianceKindNames[k])))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 329, Col: 91}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</span> <input type=\"text\" name=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var79 string
-				templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.ResolveAttributeValue(noteField(k))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 332, Col: 25}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<label><span class=\"sr-only\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var80 string
-				templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.ResolveAttributeValue(owned[k])
+				templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgModelOf, web.T(ctx, web.ApplianceKindNames[k])))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 333, Col: 22}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 335, Col: 91}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var80)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\" placeholder=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</span> <input type=\"text\" name=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var81 string
-				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.T(ctx, msgModelPlaceholder))
+				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue(noteField(k))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 334, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 338, Col: 25}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var81)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" autocomplete=\"off\"></label>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\" value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var82 string
+				templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(owned[k])
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 339, Col: 22}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" placeholder=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var83 string
+				templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.T(ctx, msgModelPlaceholder))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 340, Col: 51}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var83)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" autocomplete=\"off\"></label>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = sectionForm(appliancesSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var70), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = sectionForm(appliancesSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var72), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1708,12 +1742,12 @@ func briefForm(brief string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var82 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var82 == nil {
-			templ_7745c5c3_Var82 = templ.NopComponent
+		templ_7745c5c3_Var84 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var84 == nil {
+			templ_7745c5c3_Var84 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var83 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var85 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1725,33 +1759,6 @@ func briefForm(brief string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var84 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				var templ_7745c5c3_Var85 string
-				templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgBriefHint))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 348, Col: 29}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var84), templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 			templ_7745c5c3_Var86 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -1764,45 +1771,72 @@ func briefForm(brief string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<textarea name=\"brief\" rows=\"5\" placeholder=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
 				var templ_7745c5c3_Var87 string
-				templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.T(ctx, msgBriefPlaceholder))
+				templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgBriefHint))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 351, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 354, Col: 29}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var87)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var88 string
-				templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(brief)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 351, Col: 90}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "</textarea>")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var87))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.Field(web.T(ctx, msgWishes), web.T(ctx, msgWishesHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var86), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.Hint().Render(templ.WithChildren(ctx, templ_7745c5c3_Var86), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Var88 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<textarea name=\"brief\" rows=\"5\" placeholder=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var89 string
+				templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.ResolveAttributeValue(web.T(ctx, msgBriefPlaceholder))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 357, Col: 80}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var89)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var90 string
+				templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(brief)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/profile/web_views.templ`, Line: 357, Col: 90}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "</textarea>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = web.Field(web.T(ctx, msgWishes), web.T(ctx, msgWishesHint), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var88), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = sectionForm(briefSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var83), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = sectionForm(briefSection).Render(templ.WithChildren(ctx, templ_7745c5c3_Var85), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

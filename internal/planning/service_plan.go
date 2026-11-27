@@ -171,7 +171,7 @@ type cycleKitchen struct {
 // its forecast at the Slot `first`, once the approved Prep Sessions before it have used
 // up theirs and an ordered Delivery of `c`'s has brought its fixed lines: `c` is Arrived
 // once put away, as loadNow has it, or the Ledger holds those lines twice.
-func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, times domain.SlotTimes, now time.Time) (k cycleKitchen, err error) {
+func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, times domain.Times, now time.Time) (k cycleKitchen, err error) {
 	if k.library, err = s.recipes.Search(ctx, ""); err != nil {
 		return k, err
 	}
@@ -233,7 +233,7 @@ func approvedPlan(approved []*storedProposal, library []domain.Recipe, known []d
 // first, leave in place, as far as `c` lasts: Until the next Cycle's Delivery arrives.
 // One approved after `c`'s Delivery arrives keeps the freezer splits before it: the
 // Delivery was put away by those.
-func cyclePlan(c Cycle, own []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, times domain.SlotTimes) domain.Plan {
+func cyclePlan(c Cycle, own []*storedProposal, library []domain.Recipe, known []domain.Ingredient, portions []domain.Portion, times domain.Times) domain.Plan {
 	var plan domain.Plan
 	for _, sp := range own {
 		splits := plan.FreezerSplits
