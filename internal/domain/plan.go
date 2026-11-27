@@ -116,6 +116,22 @@ func scaled(ing Ingredient, v float64) RecipeIngredient {
 	return RecipeIngredient{Ingredient: ing, Quantity: QuantityOf(v)}
 }
 
+// Start is when to begin preparing `ps` for its Slot by `times`, its Recipe's total
+// minutes before, and false for one without a Recipe, set out at its Slot.
+func (ps PrepSession) Start(times Times) (time.Time, bool) {
+	if ps.Recipe == nil {
+		return time.Time{}, false
+	}
+	return ps.At.At(times).Add(-time.Duration(ps.Recipe.TotalMinutes) * time.Minute), true
+}
+
+// Preparing is whether `ps` is being prepared at `now` by `times`: from its Start until
+// its Slot's time.
+func (ps PrepSession) Preparing(now time.Time, times Times) bool {
+	start, ok := ps.Start(times)
+	return ok && !now.Before(start) && now.Before(ps.At.At(times))
+}
+
 // NutritionPerPortion is one of `ps`'s Portions' nutritional values: its Recipe's Portion
 // as written scaled by its size, or its Ingredient at its quantity.
 func (ps PrepSession) NutritionPerPortion() PortionNutrition {

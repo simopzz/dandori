@@ -995,8 +995,8 @@ func startPreparing(now time.Time, d Day) templ.Component {
 		var starting []templ.Component
 		for _, f := range d.Filled {
 			for _, ps := range f.Sessions {
-				if at := f.Slot.At(d.Times); ps.Recipe != nil && !now.Before(startOf(ps, at)) && now.Before(at) {
-					starting = append(starting, startLine(f.Slot, ps))
+				if ps.Preparing(now, d.Times) {
+					starting = append(starting, startLine(f.Slot, ps.PrepSession))
 				}
 			}
 		}
@@ -1107,7 +1107,8 @@ func startLine(s domain.Slot, ps domain.PrepSession) templ.Component {
 // slotRow is the Slot of `f` at its time by `times`: the Portion filling it and where it
 // comes from, and when to start its Prep Sessions of a Recipe, if it has one, opening to
 // their Ingredients, each with where it is taken from, and a link to each Recipe. A Slot
-// nothing fills is its kind and time.
+// with such a Prep Session and no Portion takes the Prep Session's name; a Slot with
+// neither is its kind and time.
 func slotRow(f planning.Filled, times domain.Times) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1129,59 +1130,19 @@ func slotRow(f planning.Filled, times domain.Times) templ.Component {
 			templ_7745c5c3_Var48 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		at := f.Slot.At(times)
-		when := web.Time(ctx, at)
-		if f.Name == "" {
-			templ_7745c5c3_Var49 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span class=\"row-title\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var50 string
-				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, web.SlotKindNames[f.Slot.Kind]))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 243, Col: 71}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</span> <span class=\"row-figure\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var51 string
-				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(when)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 244, Col: 34}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = web.Row().Render(templ.WithChildren(ctx, templ_7745c5c3_Var49), templ_7745c5c3_Buffer)
+		when := web.Time(ctx, f.Slot.At(times))
+		cooked := recipesOf(f.Sessions)
+		if len(cooked) > 0 {
+			title, from := f.Name, source(ctx, f)
+			if title == "" {
+				title, from = cooked[0].Name(), ""
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		} else if cooked := recipesOf(f.Sessions); len(cooked) > 0 {
-			templ_7745c5c3_Var52 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			start, _ := cooked[0].Start(times)
+			templ_7745c5c3_Var49 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -1198,11 +1159,11 @@ func slotRow(f planning.Filled, times domain.Times) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = web.IngredientRowsWith(ps.Ingredients(), nil, places(f.TakesFrom)).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = web.IngredientRowsWith(ps.Ingredients(), nil, places(ps.TakesFrom)).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var53 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var50 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -1214,30 +1175,79 @@ func slotRow(f planning.Filled, times domain.Times) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						var templ_7745c5c3_Var54 string
-						templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgRecipeSteps))
+						var templ_7745c5c3_Var51 string
+						templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgRecipeSteps))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 252, Col: 33}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 253, Col: 33}
 						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = web.TextLink(templ.Attributes{"href": fmt.Sprintf("/recipes/%d", ps.Recipe.ID)}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var53), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = web.TextLink(templ.Attributes{"href": fmt.Sprintf("/recipes/%d", ps.Recipe.ID)}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var50), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = web.FoldRow(web.SlotLine(f.Slot.Kind, when, f.Name, false, "", nil, source(ctx, f), web.Tf(ctx, msgStartAt, web.Time(ctx, startOf(cooked[0], at))))).Render(templ.WithChildren(ctx, templ_7745c5c3_Var52), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = web.FoldRow(web.SlotLine(f.Slot.Kind, when, title, false, "", nil, from, web.Tf(ctx, msgStartAt, web.Time(ctx, start)))).Render(templ.WithChildren(ctx, templ_7745c5c3_Var49), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else if f.Name != "" {
+			templ_7745c5c3_Err = web.SlotRow(f.Slot.Kind, when, f.Name, false, "", nil, source(ctx, f)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = web.SlotRow(f.Slot.Kind, when, f.Name, false, "", nil, source(ctx, f)).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Var52 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<span class=\"row-title\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var53 string
+				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, web.SlotKindNames[f.Slot.Kind]))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 261, Col: 71}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</span> <span class=\"row-figure\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var54 string
+				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(when)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 262, Col: 34}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = web.Row().Render(templ.WithChildren(ctx, templ_7745c5c3_Var52), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1247,7 +1257,8 @@ func slotRow(f planning.Filled, times domain.Times) templ.Component {
 }
 
 // places is the Storage Locations each Ingredient is taken from by `from`, as a row's
-// details: "not in the kitchen" for one held nowhere, nothing for a Staple.
+// details: "not in the kitchen" for one held nowhere, nothing for a Staple or once `from`
+// is nil, its Slot's time passed.
 func places(from map[int64][]domain.StorageLocation) func(domain.Ingredient) templ.Component {
 	return func(ing domain.Ingredient) templ.Component {
 		locations, ok := from[ing.ID]
@@ -1285,7 +1296,7 @@ func placesText(locations []domain.StorageLocation) templ.Component {
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(web.T(ctx, msgNotInTheKitchen))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 277, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 284, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
@@ -1296,14 +1307,14 @@ func placesText(locations []domain.StorageLocation) templ.Component {
 			for _, l := range locations {
 				words = append(words, web.T(ctx, web.InLocations[l]))
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(words, ", "))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 283, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 290, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
@@ -1315,21 +1326,15 @@ func placesText(locations []domain.StorageLocation) templ.Component {
 }
 
 // recipesOf are those of `sessions` preparing a Recipe, the one starting earliest first.
-func recipesOf(sessions []domain.PrepSession) []domain.PrepSession {
-	var out []domain.PrepSession
+func recipesOf(sessions []planning.Session) []planning.Session {
+	var out []planning.Session
 	for _, ps := range sessions {
 		if ps.Recipe != nil {
 			out = append(out, ps)
 		}
 	}
-	slices.SortStableFunc(out, func(a, b domain.PrepSession) int { return b.Recipe.TotalMinutes - a.Recipe.TotalMinutes })
+	slices.SortStableFunc(out, func(a, b planning.Session) int { return b.Recipe.TotalMinutes - a.Recipe.TotalMinutes })
 	return out
-}
-
-// startOf is when to start `ps`, a Prep Session of a Recipe, for its Slot at `at`: its
-// Recipe's total minutes before.
-func startOf(ps domain.PrepSession, at time.Time) time.Time {
-	return at.Add(-time.Duration(ps.Recipe.TotalMinutes) * time.Minute)
 }
 
 // source says where `f`'s Portion comes from: not in the kitchen when the kitchen doesn't
@@ -1344,7 +1349,7 @@ func source(ctx context.Context, f planning.Filled) string {
 	case f.From.At.Equal(f.Slot) && f.From.Recipe != nil:
 		return web.T(ctx, msgCookedThen)
 	case f.From.At.Equal(f.Slot):
-		ri := f.From.Ingredients()[0]
+		ri := f.From.Ingredients()[0] // one without a Recipe sets out its one Ingredient
 		return web.Tf(ctx, msgSetOut, web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit), ri.Ingredient.Name)
 	case f.From.At.On.Equal(f.Slot.On):
 		return web.Tf(ctx, msgFromEarlier, web.T(ctx, web.SlotKindNames[f.From.At.Kind]), web.T(ctx, web.InLocations[f.Location]))

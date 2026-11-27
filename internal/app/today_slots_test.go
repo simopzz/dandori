@@ -5,6 +5,7 @@ import (
 
 	"github.com/mxschmitt/playwright-go"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -35,6 +36,29 @@ func TestTodaysPrepSessionOpensToItsIngredientsAndRecipe(t *testing.T) {
 	s.Sees("Rice bowl rice 375 g in the pantry The Recipe's steps")
 	s.Follows("The Recipe's steps")
 	s.Sees("Rinse the rice. Cook it.")
+
+	s.At("Fri 13:05") // lunch is now: its Prep Session took the rice
+	s.Open("/")
+	s.Sees("Rice bowl rice 375 g The Recipe's steps")
+	s.DoesNotSee("not in the kitchen")
+}
+
+// A Slot whose Prep Session cooks only for later still says when to start it and opens to
+// its Ingredients: Friday's dinner eats yogurt while a Rice bowl is cooked for
+// the freezer.
+func TestATodaySlotCookingForLaterSaysWhenToStart(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	approves(t, s, func(req agent.Request) map[string]any {
+		sessions := yogurtAt(idIn(t, req, `Ingredient (\d+): yogurt`), []string{"2026-11-06"})
+		sessions = append(sessions, map[string]any{"on": "2026-11-06", "kind": "dinner", "recipe_id": idIn(t, req, `Recipe (\d+): Rice bowl`), "size": 1,
+			"portions": []map[string]any{{"location": "freezer"}, {"location": "freezer"}}})
+		return map[string]any{"prep_sessions": sessions}
+	}, func() { s.OpensCycle(friday); s.PlansCycle() })
+
+	s.At("Fri 19:40")
+	s.Open("/")
+	s.Sees("Start preparing Rice bowl for dinner")
+	s.Sees("yogurt Dinner 8:00 pm set out 150 g yogurt start at 7:35 pm Rice bowl rice 200 g in the pantry")
 }
 
 // From a Prep Session's start time until its Slot's, a line at the top of Today says to

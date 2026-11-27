@@ -24,10 +24,15 @@ type Filled struct {
 	// Missing is whether the kitchen doesn't hold the Portion, prepared or kept, nor has
 	// eaten it.
 	Missing bool
-	// Sessions are the Prep Sessions at the Slot, and TakesFrom where each of their
-	// Ingredients would be taken from, using them up on the kitchen as it holds
-	// now (domain.Ledger.TakesFrom).
-	Sessions  []domain.PrepSession
+	// Sessions are the Prep Sessions at the Slot.
+	Sessions []Session
+}
+
+// Session is a Prep Session at a Slot Today shows, with where each of its Ingredients
+// would be taken from, by Ingredient id (domain.Ledger.TakesFrom): nil once its Slot's
+// time has passed, as it took them.
+type Session struct {
+	domain.PrepSession
 	TakesFrom map[int64][]domain.StorageLocation
 }
 
@@ -76,36 +81,45 @@ func (s *Service) FilledAt(ctx context.Context, now time.Time, slots []domain.Sl
 			return err
 		}
 		l := domain.NewLedger(movements)
-		held := l.PortionsAt(now)
+		held, eaten := l.PortionsAt(now), map[int64]bool{}
+		for _, m := range movements {
+			if m.Cause == domain.PortionEaten {
+				for _, id := range m.Portions {
+					eaten[id] = true
+				}
+			}
+		}
 		for i := range out {
-			fill(&out[i], plan, portions)
+			f := &out[i]
+			fill(f, plan, portions)
+			var sessions []domain.PrepSession
 			for _, ps := range plan.PrepSessions {
-				if ps.At.Equal(out[i].Slot) {
-					out[i].Sessions = append(out[i].Sessions, ps)
+				if ps.At.Equal(f.Slot) {
+					sessions = append(sessions, ps)
 				}
 			}
-			if out[i].Name == "" {
-				continue
+			var from []map[int64][]domain.StorageLocation
+			if f.Slot.At(times).After(now) {
+				// shortcut: the kitchen as it holds now, before the day's earlier Prep
+				// Sessions use their share; worth walking them if a Slot's
+				// places mislead.
+				from = l.TakesFrom(now, sessions)
 			}
-			// shortcut: the kitchen as it holds now, before the day's earlier Prep
-			// Sessions use their share; worth walking them if a Slot's places mislead.
-			out[i].TakesFrom = map[int64][]domain.StorageLocation{}
-			for _, ps := range out[i].Sessions {
-				for id, from := range l.TakesFrom(now, ps) {
-					out[i].TakesFrom[id] = from
+			for j, ps := range sessions {
+				f.Sessions = append(f.Sessions, Session{PrepSession: ps})
+				if from != nil {
+					f.Sessions[j].TakesFrom = from[j]
 				}
 			}
-			id, ok := plan.Filling(out[i].Slot, madeFrom)
+			id, ok := plan.Filling(f.Slot, madeFrom)
 			if !ok {
-				continue // not prepared yet
+				continue // nothing fills it, or not prepared yet
 			}
-			if at, ok := held[id]; ok {
-				out[i].Location = at
-				continue
+			at, isHeld := held[id]
+			if isHeld {
+				f.Location = at
 			}
-			out[i].Missing = !slices.ContainsFunc(movements, func(m domain.Movement) bool {
-				return m.Cause == domain.PortionEaten && slices.Contains(m.Portions, id)
-			})
+			f.Missing = !isHeld && !eaten[id]
 		}
 		return nil
 	})

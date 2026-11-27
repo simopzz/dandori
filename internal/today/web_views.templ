@@ -206,8 +206,8 @@ templ startPreparing(now time.Time, d Day) {
 	{{ var starting []templ.Component }}
 	for _, f := range d.Filled {
 		for _, ps := range f.Sessions {
-			if at := f.Slot.At(d.Times); ps.Recipe != nil && !now.Before(startOf(ps, at)) && now.Before(at) {
-				{{ starting = append(starting, startLine(f.Slot, ps)) }}
+			if ps.Preparing(now, d.Times) {
+				{{ starting = append(starting, startLine(f.Slot, ps.PrepSession)) }}
 			}
 		}
 	}
@@ -234,32 +234,39 @@ templ startLine(s domain.Slot, ps domain.PrepSession) {
 // slotRow is the Slot of `f` at its time by `times`: the Portion filling it and where it
 // comes from, and when to start its Prep Sessions of a Recipe, if it has one, opening to
 // their Ingredients, each with where it is taken from, and a link to each Recipe. A Slot
-// nothing fills is its kind and time.
+// with such a Prep Session and no Portion takes the Prep Session's name; a Slot with
+// neither is its kind and time.
 templ slotRow(f planning.Filled, times domain.Times) {
-	{{ at := f.Slot.At(times) }}
-	{{ when := web.Time(ctx, at) }}
-	if f.Name == "" {
-		@web.Row() {
-			<span class="row-title">{ web.T(ctx, web.SlotKindNames[f.Slot.Kind]) }</span>
-			<span class="row-figure">{ when }</span>
+	{{ when := web.Time(ctx, f.Slot.At(times)) }}
+	{{ cooked := recipesOf(f.Sessions) }}
+	if len(cooked) > 0 {
+		{{ title, from := f.Name, source(ctx, f) }}
+		if title == "" {
+			{{ title, from = cooked[0].Name(), "" }}
 		}
-	} else if cooked := recipesOf(f.Sessions); len(cooked) > 0 {
-		@web.FoldRow(web.SlotLine(f.Slot.Kind, when, f.Name, false, "", nil, source(ctx, f), web.Tf(ctx, msgStartAt, web.Time(ctx, startOf(cooked[0], at))))) {
+		{{ start, _ := cooked[0].Start(times) }}
+		@web.FoldRow(web.SlotLine(f.Slot.Kind, when, title, false, "", nil, from, web.Tf(ctx, msgStartAt, web.Time(ctx, start)))) {
 			for _, ps := range cooked {
 				@web.RowsHead(ps.Name())
-				@web.IngredientRowsWith(ps.Ingredients(), nil, places(f.TakesFrom))
+				@web.IngredientRowsWith(ps.Ingredients(), nil, places(ps.TakesFrom))
 				@web.TextLink(templ.Attributes{"href": fmt.Sprintf("/recipes/%d", ps.Recipe.ID)}) {
 					{ web.T(ctx, msgRecipeSteps) }
 				}
 			}
 		}
-	} else {
+	} else if f.Name != "" {
 		@web.SlotRow(f.Slot.Kind, when, f.Name, false, "", nil, source(ctx, f))
+	} else {
+		@web.Row() {
+			<span class="row-title">{ web.T(ctx, web.SlotKindNames[f.Slot.Kind]) }</span>
+			<span class="row-figure">{ when }</span>
+		}
 	}
 }
 
 // places is the Storage Locations each Ingredient is taken from by `from`, as a row's
-// details: "not in the kitchen" for one held nowhere, nothing for a Staple.
+// details: "not in the kitchen" for one held nowhere, nothing for a Staple or once `from`
+// is nil, its Slot's time passed.
 func places(from map[int64][]domain.StorageLocation) func(domain.Ingredient) templ.Component {
 	return func(ing domain.Ingredient) templ.Component {
 		locations, ok := from[ing.ID]
@@ -285,21 +292,15 @@ templ placesText(locations []domain.StorageLocation) {
 }
 
 // recipesOf are those of `sessions` preparing a Recipe, the one starting earliest first.
-func recipesOf(sessions []domain.PrepSession) []domain.PrepSession {
-	var out []domain.PrepSession
+func recipesOf(sessions []planning.Session) []planning.Session {
+	var out []planning.Session
 	for _, ps := range sessions {
 		if ps.Recipe != nil {
 			out = append(out, ps)
 		}
 	}
-	slices.SortStableFunc(out, func(a, b domain.PrepSession) int { return b.Recipe.TotalMinutes - a.Recipe.TotalMinutes })
+	slices.SortStableFunc(out, func(a, b planning.Session) int { return b.Recipe.TotalMinutes - a.Recipe.TotalMinutes })
 	return out
-}
-
-// startOf is when to start `ps`, a Prep Session of a Recipe, for its Slot at `at`: its
-// Recipe's total minutes before.
-func startOf(ps domain.PrepSession, at time.Time) time.Time {
-	return at.Add(-time.Duration(ps.Recipe.TotalMinutes) * time.Minute)
 }
 
 // source says where `f`'s Portion comes from: not in the kitchen when the kitchen doesn't
@@ -314,7 +315,7 @@ func source(ctx context.Context, f planning.Filled) string {
 	case f.From.At.Equal(f.Slot) && f.From.Recipe != nil:
 		return web.T(ctx, msgCookedThen)
 	case f.From.At.Equal(f.Slot):
-		ri := f.From.Ingredients()[0]
+		ri := f.From.Ingredients()[0] // one without a Recipe sets out its one Ingredient
 		return web.Tf(ctx, msgSetOut, web.Quantity(ctx, ri.Quantity, ri.Ingredient.Unit), ri.Ingredient.Name)
 	case f.From.At.On.Equal(f.Slot.On):
 		return web.Tf(ctx, msgFromEarlier, web.T(ctx, web.SlotKindNames[f.From.At.Kind]), web.T(ctx, web.InLocations[f.Location]))

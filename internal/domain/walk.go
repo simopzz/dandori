@@ -196,22 +196,26 @@ func (l Ledger) usesUp(now time.Time, ps PrepSession) []Movement {
 	return used
 }
 
-// TakesFrom is where `ps` would take each of its Ingredients from, using them up at `at`,
-// by Ingredient id: the Storage Locations of the Stock Items it takes from, in order,
-// none for one the kitchen holds none of. A Staple has no entry.
-func (l Ledger) TakesFrom(at time.Time, ps PrepSession) map[int64][]StorageLocation {
+// TakesFrom is where each of `sessions`, in turn, would take each of its Ingredients
+// from, using them up at `at`, by Ingredient id: the Storage Locations of the Stock Items
+// it takes from, in order, none for one the kitchen holds none of once the sessions
+// before it took their share. A Staple has no entry.
+func (l Ledger) TakesFrom(at time.Time, sessions []PrepSession) []map[int64][]StorageLocation {
 	stock := l.stock(at)
-	from := map[int64][]StorageLocation{}
-	for _, ri := range ps.Ingredients() {
-		if ri.Ingredient.Staple {
-			continue
-		}
-		from[ri.Ingredient.ID] = []StorageLocation{}
-		for _, t := range usesFrom(stock, ri) {
-			from[ri.Ingredient.ID] = append(from[ri.Ingredient.ID], t.Key.Location)
+	out := make([]map[int64][]StorageLocation, len(sessions))
+	for i, ps := range sessions {
+		out[i] = map[int64][]StorageLocation{}
+		for _, ri := range ps.Ingredients() {
+			if ri.Ingredient.Staple {
+				continue
+			}
+			out[i][ri.Ingredient.ID] = []StorageLocation{}
+			for _, t := range usesFrom(stock, ri) {
+				out[i][ri.Ingredient.ID] = append(out[i][ri.Ingredient.ID], t.Key.Location)
+			}
 		}
 	}
-	return from
+	return out
 }
 
 // stock is what each Stock Item of `l` holds at `at`.
