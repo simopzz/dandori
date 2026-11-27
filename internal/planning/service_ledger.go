@@ -259,12 +259,7 @@ func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []d
 		if err != nil {
 			return plan, nil, err
 		}
-		var lines []domain.GroceryLine
-		for _, ing := range known {
-			if quantity, ok := fixed[ing.ID]; ok {
-				lines = append(lines, domain.GroceryLine{Ingredient: ing, Quantity: quantity})
-			}
-		}
+		lines := groceryLinesOf(known, fixed)
 		ordered = append(ordered, domain.Arrival{At: c.Delivery.Arrives(), Put: domain.PutAway(lines, p.FreezerSplits), Ordered: true})
 	}
 	return plan, ordered, nil

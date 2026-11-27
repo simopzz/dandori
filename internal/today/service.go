@@ -146,7 +146,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	if d.PutAway, err = s.PutAwayAt(ctx, now); err != nil {
 		return Day{}, err
 	}
-	if d.Thaws, err = s.planning.Tonight(ctx, now); err != nil {
+	if d.Thaws, err = s.planning.ThawsTonight(ctx, now); err != nil {
 		return Day{}, err
 	}
 	for _, c := range []*planning.Cycle{current, upcoming} {

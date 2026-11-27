@@ -199,15 +199,23 @@ func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, tim
 	if err != nil {
 		return k, err
 	}
-	for _, ing := range k.known { // in name order
-		if q, ok := lines[ing.ID]; ok {
-			k.fixed = append(k.fixed, domain.GroceryLine{Ingredient: ing, Quantity: q})
-		}
-	}
+	k.fixed = groceryLinesOf(k.known, lines)
 	k.standing = approvedPlan(approved, k.library, k.known, k.portions)
 	k.plan, k.planned = cyclePlan(c, own, k.library, k.known, k.portions, times), len(own) > 0
 	k.forecast = k.standing.Forecast(stockOf(k.held.Held), k.held.Portions, times, now, first).WithOrdered(c.Delivery, k.fixed, k.plan.FreezerSplits)
 	return k, nil
+}
+
+// groceryLinesOf is the Grocery Lines `fixed` gives by Ingredient id, in the order of
+// `known`, name order, which holds their Ingredients.
+func groceryLinesOf(known []domain.Ingredient, fixed map[int64]domain.Quantity) []domain.GroceryLine {
+	var lines []domain.GroceryLine
+	for _, ing := range known {
+		if q, ok := fixed[ing.ID]; ok {
+			lines = append(lines, domain.GroceryLine{Ingredient: ing, Quantity: q})
+		}
+	}
+	return lines
 }
 
 // approvedPlan is what `approved`, oldest first, plan together, their Recipes,

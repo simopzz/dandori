@@ -21,11 +21,11 @@ type Thawing struct {
 	For      domain.Slot
 }
 
-// Tonight is the thaws of the signed-in User's kitchen on the evening of `now`'s day,
-// after dinner: until then, worked out as the step will, on the kitchen as it holds
+// ThawsTonight is the thaws of the signed-in User's kitchen on the evening of `now`'s
+// day, after dinner: until then, worked out as the step will, on the kitchen as it holds
 // `now`, through the Plan's Slots and the ordered Deliveries up to then; after, those it
 // recorded. A User without a Cycle has none.
-func (s *Service) Tonight(ctx context.Context, now time.Time) ([]Thawing, error) {
+func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]Thawing, error) {
 	var cycles []Cycle
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		cycles, err = loadCycles(ctx, tx, now.Location())

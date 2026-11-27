@@ -3,6 +3,7 @@ package app_test
 import (
 	"testing"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -54,4 +55,27 @@ func TestTodayListsTonightsThaws(t *testing.T) {
 	s.At("Fri 09:00")
 	s.Open("/")
 	s.DoesNotSee("Out of the freezer tonight")
+}
+
+// On the current Cycle's last evening the thaw is from the upcoming Cycle's Plan, before
+// its Delivery arrives: friday ends on Friday, and afterFriday's Plan keeps a lasagne for
+// Saturday's lunch, which Friday evening thaws and Today lists that day.
+func TestTheLastEveningThawsForTheUpcomingCycle(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	approvesFriday(t, s)
+	s.At("Thu 20:00")
+	approves(t, s, func(req agent.Request) map[string]any {
+		return map[string]any{
+			"prep_sessions": yogurtAt(idIn(t, req, `Ingredient (\d+): yogurt`), []string{"2026-11-07", "2026-11-08"}, "2026-11-07 lunch"),
+			"kept":          []map[string]any{{"portion_id": idIn(t, req, `Portion (\d+): lasagne`), "on": "2026-11-07", "kind": "lunch"}},
+		}
+	}, func() { s.OpensCycle(afterFriday); s.PlansCycle() })
+
+	s.At("Fri 18:00") // the snack ate the lasagne Thursday thawed
+	s.Open("/")
+	s.Sees("Out of the freezer tonight lasagne × 1 for lunch tomorrow")
+	s.At("Fri 20:05")
+	s.Open("/kitchen")
+	s.Sees("Fridge lasagne × 1")
+	s.Sees("Freezer lasagne × 1")
 }
