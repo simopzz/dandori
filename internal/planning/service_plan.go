@@ -368,12 +368,6 @@ func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, 
 			fmt.Fprintf(&b, "- Portion %d: %s, %s, each %s\n", id, lot.Name, lot.Location, describeNutrition(lot.Nutrition, false, false))
 		}
 	}
-	if len(f.Made) > 0 {
-		b.WriteString("Portions approved Plans prepare by then and leave without a Slot. They have no id until they are prepared, so don't put them in Slots:\n")
-		for _, m := range f.Made {
-			fmt.Fprintf(&b, "- %d %s, %s\n", m.Portions, m.Name, m.Location)
-		}
-	}
 	b.WriteString("Stock Items:\n")
 	arriving := map[domain.StockKey]domain.Quantity{}
 	for _, l := range f.Arriving {
@@ -991,10 +985,12 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 		if own, err = loadPlanOf(ctx, tx, id, zone); err != nil || (pending == nil && len(own) == 0) {
 			return err
 		}
+		first := pending
 		if len(own) > 0 {
-			if earlier, err = loadApproved(ctx, tx, own[0].first.On.AddDate(0, 0, -7), zone); err != nil {
-				return err
-			}
+			first = own[0]
+		}
+		if earlier, err = loadApproved(ctx, tx, first.first.On.AddDate(0, 0, -7), zone); err != nil {
+			return err
 		}
 		if p.Notes, err = loadNotes(ctx, tx, id); err != nil {
 			return err
@@ -1035,7 +1031,10 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 	// Worked out again from today's Recipes, as the Verdict's days were: editing a Recipe
 	// changes only what is yet to be recorded.
 	plan := cyclePlan(c, own, library, known, portions, times)
-	named := slices.Concat(portions, plan.Planned())
+	before := approvedPlan(earlier, library, known, portions)
+	// Every approved Plan's Planned Portions too: the forecast carry-over a Plan puts
+	// in Slots.
+	named := slices.Concat(portions, plan.Planned(), before.Planned())
 	if pending != nil {
 		drafted, err := readDrafts(l, known, stored)
 		if err != nil {
@@ -1053,9 +1052,9 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 	if len(own) > 0 {
 		first := own[0].first
 		proposal := own[len(own)-1].resolve(library, known, portions, nil)
-		proposal.Plan, proposal.Kept = plan, keptOf(plan.Kept, portions)
-		planned := plan.Eaten(portions)
-		_, proposal.Days = domain.PlanDays(approvedPlan(earlier, library, known, portions).Eaten(portions), planned, first, lastDay(planned, first.On))
+		proposal.Plan, proposal.Kept = plan, keptOf(plan.Kept, named)
+		planned := plan.Eaten(named)
+		_, proposal.Days = domain.PlanDays(before.Eaten(named), planned, first, lastDay(planned, first.On))
 		p.Plan = proposal
 	}
 	return p, nil

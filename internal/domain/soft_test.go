@@ -219,6 +219,29 @@ func TestPortionsLeftWithoutASlot(t *testing.T) {
 	}
 }
 
+// A Portion held by PlannedID, not yet prepared, left without a Slot is a miss when an
+// earlier Cycle's Prep Session prepares it, carried into the Cycle, and none when a Prep
+// Session the Plan keeps of the one it replaces does.
+func TestPortionsNotYetPreparedLeftWithoutASlot(t *testing.T) {
+	cooks := domain.PrepSession{At: slot(2, domain.Lunch), Recipe: &chili, Size: 1, Portions: []domain.PlannedPortion{{ID: 5, Location: domain.Freezer}}}
+	held := []domain.PortionLot{{Name: "Chili", Location: domain.Freezer, IDs: []int64{domain.PlannedID(5)}}}
+	tests := []struct {
+		name string
+		kept domain.Plan
+		want []domain.Miss
+	}{
+		{"of an earlier Cycle", domain.Plan{}, []domain.Miss{{Rule: domain.RuleUnusedPortion, Name: "Chili", Location: domain.Freezer, Count: 1, Held: 1}}},
+		{"of a Prep Session kept", domain.Plan{PrepSessions: []domain.PrepSession{cooks}}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := (domain.Plan{}).SoftMisses(held, tt.kept); !slices.EqualFunc(got, tt.want, sameMiss) {
+				t.Errorf("SoftMisses() = %+v,\nwant %+v", got, tt.want)
+			}
+		})
+	}
+}
+
 // chiliEaten is a Prep Session of chili at Tuesday's dinner, a Portion eaten at each of
 // `at`, nil kept for later.
 func chiliEaten(at ...*domain.Slot) domain.PrepSession {

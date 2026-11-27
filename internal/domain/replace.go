@@ -9,7 +9,7 @@ import "slices"
 // the Plan Proposal may put in Slots: `lots`, less those kept in a Slot, then the
 // Portions the Prep Sessions kept before `first` leave without a Slot, prepared but not
 // yet in the Kitchen Ledger, a Portion Lot for each such Prep Session's Storage Location,
-// by PlannedID. `p` is left as it was.
+// by PlannedID, unless `lots` lists them already. `p` is left as it was.
 func (p Plan) Replace(first, last Slot, lots []PortionLot) (kept Plan, free []PortionLot) {
 	in := func(s Slot) bool { return !s.Before(first) && !last.Before(s) }
 	for _, ps := range p.PrepSessions {
@@ -41,19 +41,10 @@ func (p Plan) Replace(first, last Slot, lots []PortionLot) (kept Plan, free []Po
 		if !ps.At.Before(first) {
 			continue
 		}
-		var byLocation []PortionLot
-		for _, pp := range ps.Portions {
-			if pp.EatAt != nil {
-				continue
-			}
-			i := slices.IndexFunc(byLocation, func(l PortionLot) bool { return l.Location == pp.Location })
-			if i < 0 {
-				lot := PortionLot{Name: ps.Name(), Nutrition: ps.NutritionPerPortion().Nutrition, Location: pp.Location}
-				byLocation, i = append(byLocation, lot), len(byLocation)
-			}
-			byLocation[i].IDs = append(byLocation[i].IDs, PlannedID(pp.ID))
-		}
-		free = append(free, byLocation...)
+		ps.Portions = slices.DeleteFunc(slices.Clone(ps.Portions), func(pp PlannedPortion) bool {
+			return pp.EatAt != nil || slices.ContainsFunc(lots, func(l PortionLot) bool { return slices.Contains(l.IDs, PlannedID(pp.ID)) })
+		})
+		free = append(free, ps.Unslotted()...)
 	}
 	return kept, free
 }
@@ -107,4 +98,22 @@ func (p Plan) last(from Slot) Slot {
 		later(k.At)
 	}
 	return last
+}
+
+// Unslotted is the Portions `ps` prepares without a Slot, a Portion Lot for each Storage
+// Location, by PlannedID.
+func (ps PrepSession) Unslotted() []PortionLot {
+	var byLocation []PortionLot
+	for _, pp := range ps.Portions {
+		if pp.EatAt != nil {
+			continue
+		}
+		i := slices.IndexFunc(byLocation, func(l PortionLot) bool { return l.Location == pp.Location })
+		if i < 0 {
+			lot := PortionLot{Name: ps.Name(), Nutrition: ps.NutritionPerPortion().Nutrition, Location: pp.Location}
+			byLocation, i = append(byLocation, lot), len(byLocation)
+		}
+		byLocation[i].IDs = append(byLocation[i].IDs, PlannedID(pp.ID))
+	}
+	return byLocation
 }
