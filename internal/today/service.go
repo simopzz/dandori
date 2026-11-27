@@ -48,6 +48,9 @@ type Day struct {
 	Offer Offer
 	// PutAway is where a Delivery's lines go, while Today shows them, and nil otherwise.
 	PutAway *PutAway
+	// Thaws are what tonight takes out of the freezer, the evening before the next
+	// day's Slots.
+	Thaws []planning.Thawing
 }
 
 // PutAway is where a Delivery's lines go, and, once it has arrived, what the kitchen
@@ -141,6 +144,9 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		}
 	}
 	if d.PutAway, err = s.PutAwayAt(ctx, now); err != nil {
+		return Day{}, err
+	}
+	if d.Thaws, err = s.planning.Tonight(ctx, now); err != nil {
 		return Day{}, err
 	}
 	for _, c := range []*planning.Cycle{current, upcoming} {

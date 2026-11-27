@@ -11,12 +11,13 @@ import (
 // before, after the previous day's dinner, has passed.
 const RuleNoEveningToThaw Rule = "no-evening-to-thaw"
 
-// Thaw is what a Prep Session at At needs of Ingredient thawed from the freezer the
-// evening before.
+// Thaw is what the Prep Session PrepSession at At needs of Ingredient thawed from the
+// freezer the evening before.
 type Thaw struct {
-	At         Slot
-	Ingredient Ingredient
-	Quantity   Quantity
+	PrepSession int64
+	At          Slot
+	Ingredient  Ingredient
+	Quantity    Quantity
 }
 
 // Thaws are what `p`'s Prep Sessions, in the order of their Slots, thaw of `stock`, what
@@ -30,7 +31,7 @@ func (p Plan) Thaws(stock map[StockKey]Quantity) []Thaw {
 	for _, ps := range p.bySlot() {
 		for _, ri := range ps.Ingredients() {
 			if thawed := useUp(left, ri); thawed > 0 {
-				thaws = append(thaws, Thaw{At: ps.At, Ingredient: ri.Ingredient, Quantity: thawed})
+				thaws = append(thaws, Thaw{PrepSession: ps.ID, At: ps.At, Ingredient: ri.Ingredient, Quantity: thawed})
 			}
 		}
 	}

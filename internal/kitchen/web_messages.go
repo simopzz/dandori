@@ -151,6 +151,7 @@ var causeNames = map[domain.Cause]web.Message{
 	domain.UsedUp:       {En: "Used up", It: "Usato"},
 	domain.Prepared:     {En: "Prepared", It: "Preparate"},
 	domain.PortionEaten: {En: "Eaten", It: "Mangiata"},
+	domain.Thawed:       {En: "Thawed", It: "Scongelato"},
 }
 
 // causeText tells the cause of `m` as a Movement of the Stock Item in `location`.

@@ -173,6 +173,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 			return err
 		}
 		var plan domain.Plan
+		var coming []domain.Arrival
 		if passed && !loaded {
 			// The kitchen reached less far than `upTo` said: a first request racing
 			// another, before either made its row.
@@ -181,8 +182,14 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 			}
 		}
 		if passed {
-			if plan, err = plansBetween(ctx, tx, cycles, library, known, times, from, now); err != nil {
+			// As far as the day after: an evening thaws for the next day's Slots.
+			if plan, coming, err = plansBetween(ctx, tx, cycles, library, known, times, from, now.AddDate(0, 0, 2)); err != nil {
 				return err
+			}
+			for _, a := range coming {
+				if a.At.After(now) { // one due by now is among `arrivals`
+					arrivals = append(arrivals, a)
+				}
 			}
 		}
 		if len(arrivals) > 0 || passed {
@@ -228,9 +235,9 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 // plansBetween is the Plans of `cycles`, read in `q`, that may have a Slot after `from`
 // and by `to`, by `times`, together: each Cycle's as its approved Plan Proposals leave
 // it, Until the next Cycle's Delivery arrives, its Recipes and Ingredients found among
-// `library` and `known`. Days between Cycles are in none.
-func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (domain.Plan, error) {
-	var plan domain.Plan
+// `library` and `known`. Days between Cycles are in none. `ordered` are those Cycles'
+// Deliveries ordered and not put away yet, as they will be.
+func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.SlotTimes, from, to time.Time) (plan domain.Plan, ordered []domain.Arrival, err error) {
 	for i, c := range cycles {
 		if i+1 < len(cycles) {
 			c.Until = cycles[i+1].Delivery.Arrives()
@@ -240,13 +247,27 @@ func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []d
 		}
 		own, err := loadPlanOf(ctx, q, c.ID, to.Location())
 		if err != nil {
-			return plan, err
+			return plan, nil, err
 		}
 		p := cyclePlan(c, own, library, known, nil, times)
 		plan.PrepSessions = append(plan.PrepSessions, p.PrepSessions...)
 		plan.Kept = append(plan.Kept, p.Kept...)
+		if c.Delivery.State != domain.Ordered || c.putAway {
+			continue
+		}
+		fixed, err := loadGroceryLines(ctx, q, c.ID)
+		if err != nil {
+			return plan, nil, err
+		}
+		var lines []domain.GroceryLine
+		for _, ing := range known {
+			if quantity, ok := fixed[ing.ID]; ok {
+				lines = append(lines, domain.GroceryLine{Ingredient: ing, Quantity: quantity})
+			}
+		}
+		ordered = append(ordered, domain.Arrival{At: c.Delivery.Arrives(), Put: domain.PutAway(lines, p.FreezerSplits), Ordered: true})
 	}
-	return plan, nil
+	return plan, ordered, nil
 }
 
 // PortionSlots is the time of the Slot after `now` each Portion the signed-in User's
@@ -263,7 +284,7 @@ func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]t
 	if err != nil {
 		return nil, err
 	}
-	plan, err := plansBetween(ctx, q, cycles, nil, nil, times, now, now.AddDate(100, 0, 0)) // every Cycle still to come
+	plan, _, err := plansBetween(ctx, q, cycles, nil, nil, times, now, now.AddDate(100, 0, 0)) // every Cycle still to come
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +323,7 @@ func putAwayDue(ctx context.Context, tx pgx.Tx, cycles []Cycle, due map[int64]ar
 			return nil, err
 		}
 		if done {
-			arrivals = append(arrivals, domain.Arrival{At: c.Delivery.Arrives(), Put: domain.PutAway(a.list.Lines, a.splits)})
+			arrivals = append(arrivals, domain.Arrival{At: c.Delivery.Arrives(), Put: domain.PutAway(a.list.Lines, a.splits), Ordered: a.state == domain.Ordered})
 		}
 	}
 	return arrivals, nil

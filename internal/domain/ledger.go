@@ -76,7 +76,13 @@ const (
 	Prepared Cause = "prepared"
 	// PortionEaten is the Cause of the Portion filling a Slot leaving the kitchen.
 	PortionEaten Cause = "eaten"
+	// Thawed is the Cause of the evening's move, freezer to fridge, of frozen food the
+	// next day's Plan needs.
+	Thawed Cause = "thawed"
 )
+
+// moves says whether a Movement of cause `c` is a move: from Key to To.
+func (c Cause) moves() bool { return c == Moved || c == Thawed }
 
 // Sets says whether a Movement of cause `c` sets what its Stock Item holds to what was
 // stated, keeping what Dandori believed before it, as a Count does.
@@ -180,11 +186,11 @@ func (m Movement) after(key StockKey, held Quantity) (_ Quantity, touches bool) 
 	switch {
 	case m.Key == key && m.Cause.Sets():
 		return m.Stated, true
-	case m.Key == key && m.Cause == Moved:
+	case m.Key == key && m.Cause.moves():
 		return held - m.Change, true
 	case m.Key == key:
 		return held + m.Change, true
-	case m.Cause == Moved && m.Key.Ingredient == key.Ingredient && m.To == key.Location:
+	case m.Cause.moves() && m.Key.Ingredient == key.Ingredient && m.To == key.Location:
 		return held + m.Change, true
 	}
 	return held, false
@@ -224,7 +230,7 @@ func (l Ledger) At(at time.Time) map[StockKey]StockItem {
 			continue
 		}
 		keys := []StockKey{m.Key}
-		if m.Cause == Moved {
+		if m.Cause.moves() {
 			keys = append(keys, StockKey{Ingredient: m.Key.Ingredient, Location: m.To})
 		}
 		for _, key := range keys {
@@ -259,7 +265,7 @@ func (l Ledger) PortionsAt(at time.Time) map[int64]StorageLocation {
 func (m Movement) placePortions(where map[int64]StorageLocation) {
 	for _, id := range m.Portions {
 		switch {
-		case m.Cause == Moved:
+		case m.Cause.moves():
 			where[id] = m.To
 		case m.Change < 0:
 			delete(where, id)

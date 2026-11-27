@@ -43,7 +43,7 @@ func TestOpeningAPageBringsThePlanUpToNow(t *testing.T) {
 	s.At("Fri 13:03") // the beat, at 13:00, came before lunch
 	s.Open("/kitchen")
 	s.Sees("rice 425 g")
-	s.Sees("02 Fridge Rice bowl × 1") // the lunch's eaten, the dinner's left
+	s.Sees("Move lasagne in the fridge Rice bowl × 1") // the lunch's eaten, the dinner's left
 	s.Sees("Count Rice bowl in the freezer")
 	s.Follows("rice")
 	s.Sees("Used up 800 g → 425 g Fri, Nov 6 · 1:02 pm")
@@ -53,8 +53,8 @@ func TestOpeningAPageBringsThePlanUpToNow(t *testing.T) {
 }
 
 // The beat alone brings the Plan up to now, with no page opened: the snack's lasagne is
-// eaten from the freezer, and the dinner's Rice bowl from the fridge, leaving the third
-// one frozen.
+// thawed the evening before and eaten from the fridge, and the dinner's Rice bowl from
+// the fridge, leaving the third one frozen.
 func TestTheBeatBringsThePlanUpToNow(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	approvesFriday(t, s)
@@ -68,7 +68,7 @@ func TestTheBeatBringsThePlanUpToNow(t *testing.T) {
 	s.DoesNotSee("Count Rice bowl in the fridge")
 	s.Sees("Count Rice bowl in the freezer")
 	s.Follows("lasagne")
-	s.Sees("Eaten 3 → 2 Fri, Nov 6 · 5:00 pm")
+	s.Sees("Thawed 3 → 2 Thu, Nov 5 · 8:00 pm")
 	s.Open("/kitchen")
 	s.Follows("Rice bowl")
 	s.Sees("Prepared 0 → 1 Fri, Nov 6 · 1:00 pm")
@@ -180,7 +180,8 @@ func TestOnlyTheCurrentCyclesPlanHappens(t *testing.T) {
 	s.At("Fri 21:00")
 	s.Open("/kitchen")
 	s.Sees("rice 800 g")
-	s.Sees("lasagne × 3")
+	s.Sees("Fridge lasagne × 1") // thawed on Thursday evening for the snack, not eaten
+	s.Sees("Freezer lasagne × 2")
 	s.DoesNotSee("Rice bowl")
 	if got := assumed(t, s, domain.UsedUp); got != 1 {
 		t.Errorf("%d Stock Items used up, want breakfast's yogurt alone", got)

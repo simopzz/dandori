@@ -32,6 +32,9 @@ templ page(now time.Time, d Day) {
 		if d.PutAway != nil {
 			@putAway(d.PutAway)
 		}
+		if len(d.Thaws) > 0 {
+			@thaws(d)
+		}
 		@reminders(d)
 		<div class="section">
 			@web.Empty() {
@@ -82,6 +85,30 @@ templ putAwayList(p *PutAway) {
 						<span class="row-meta">{ web.T(ctx, web.InLocations[l.Location]) }</span>
 						@kitchen.StockItemActions(l.Ingredient, l.Location, kitchen.BackToToday, p.Arrived, p.Kitchen.Holds(l.Key()))
 					}
+				}
+			}
+		}
+	}
+}
+
+// thaws are what tonight takes out of the freezer, a row each: what, how much, and the
+// Slot tomorrow it is for. It numbers its section after the put-away list's.
+templ thaws(d Day) {
+	{{ num := 2 }}
+	if d.PutAway != nil {
+		{{ num = 3 }}
+	}
+	@web.Section(num, web.T(ctx, msgThawTonight)) {
+		@web.Rows() {
+			for _, t := range d.Thaws {
+				@web.Row() {
+					@web.RowTitle(t.Name, false, "", false)
+					if t.Portions {
+						<span class="row-figure">{ web.Tf(ctx, msgPortionsOf, int(t.Quantity.Number())) }</span>
+					} else {
+						@web.QuantityFigure(t.Quantity, t.Unit)
+					}
+					<span class="row-meta">{ web.Tf(ctx, msgForTomorrow, web.T(ctx, web.SlotKindNames[t.For.Kind])) }</span>
 				}
 			}
 		}

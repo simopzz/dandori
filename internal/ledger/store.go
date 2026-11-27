@@ -267,3 +267,27 @@ func WithMovements(ctx context.Context, q db.Querier) (map[int64]bool, error) {
 	}
 	return with, err
 }
+
+// LoadThawed is the signed-in User's thawed Movements from `since` on, in the order they
+// happened, each with the Slot it is for, its day in `loc`.
+func LoadThawed(ctx context.Context, q db.Querier, since time.Time, loc *time.Location) ([]domain.Movement, error) {
+	rows, err := q.Query(ctx, `
+		SELECT happened_at, coalesce(ingredient_id, 0), change, coalesce(cause_ref, 0), slot_on, slot_kind,
+			ARRAY(SELECT portion_id FROM movement_portion WHERE movement_id = movement.id ORDER BY portion_id)
+		FROM movement WHERE cause_kind = $1 AND happened_at >= $2 ORDER BY happened_at, id`, string(domain.Thawed), since)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Movement, error) {
+		m := domain.Movement{Key: domain.StockKey{Location: domain.Freezer}, To: domain.Fridge, Cause: domain.Thawed}
+		var (
+			change float64
+			on     time.Time
+			kind   string
+		)
+		err := row.Scan(&m.At, &m.Key.Ingredient, &change, &m.PrepSession, &on, &kind, &m.Portions)
+		m.Change = domain.QuantityOf(change)
+		m.Slot = domain.Slot{On: time.Date(on.Year(), on.Month(), on.Day(), 0, 0, 0, 0, loc), Kind: domain.SlotKind(kind)}
+		return m, err
+	})
+}
