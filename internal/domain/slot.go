@@ -29,6 +29,40 @@ func (k SlotKind) Before() SlotKind {
 // SlotTimes is the Profile's time of day of each SlotKind, the same every day.
 type SlotTimes map[SlotKind]TimeOfDay
 
+// On is `times` on any day.
+func (times SlotTimes) On(time.Time) SlotTimes { return times }
+
+// Times is the time of day of each SlotKind on a day, `day` at midnight in the clock's
+// zone: SlotTimes, the same every day, or a TimesChange.
+type Times interface {
+	On(day time.Time) SlotTimes
+}
+
+// TimesChange is the Profile's times of day across a change of them: Was before the day
+// From, the one after the day of the change, and Now from it on. A change takes effect
+// from the next day so that a Slot that has passed stays passed. From is zero when
+// there's no change to wait for.
+type TimesChange struct {
+	Was, Now SlotTimes
+	From     time.Time
+}
+
+// On is the times of day in force on `day`, From and `day` each read as a date in its
+// own zone.
+func (c TimesChange) On(day time.Time) SlotTimes {
+	if DateOf(day).Before(DateOf(c.From)) {
+		return c.Was
+	}
+	return c.Now
+}
+
+// DateOf is the date of `t` in its zone, as midnight UTC: dates from different zones
+// compare as dates.
+func DateOf(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
 // DefaultSlotTimes are the times of day of a Profile the User hasn't changed.
 var DefaultSlotTimes = SlotTimes{Breakfast: 8 * 60, Lunch: 13 * 60, Snack: 17 * 60, Dinner: 20 * 60}
 
@@ -61,11 +95,14 @@ type Slot struct {
 }
 
 // At is when `s` is, by `times`, on the wall clock of its day.
-func (s Slot) At(times SlotTimes) time.Time {
+func (s Slot) At(times Times) time.Time {
 	y, m, d := s.On.Date()
-	t := times[s.Kind]
+	t := s.TimeOfDay(times)
 	return time.Date(y, m, d, int(t/60), int(t%60), 0, 0, s.On.Location())
 }
+
+// TimeOfDay is `s`'s time of day by `times`, those in force on its day.
+func (s Slot) TimeOfDay(times Times) TimeOfDay { return times.On(s.On)[s.Kind] }
 
 // NowFor is how long a Slot is now after its time of day, its last minute included.
 const NowFor = time.Hour
@@ -83,7 +120,7 @@ type Today struct {
 // to and including NowFor after, to the minute; the latest such is First. Otherwise First
 // is the next Slot, tomorrow's breakfast once dinner's hour is past, and a dinner whose
 // hour runs past midnight is still now after it.
-func TodayAt(at time.Time, times SlotTimes) Today {
+func TodayAt(at time.Time, times Times) Today {
 	y, m, d := at.Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, at.Location())
 	var slots []Slot
@@ -118,7 +155,7 @@ func TodayAt(at time.Time, times SlotTimes) Today {
 
 // PassBetween reports whether the time of day of some Slot, by `times`, falls after
 // `from` and by `to`, its days those of `to`'s zone, the clock's.
-func (times SlotTimes) PassBetween(from, to time.Time) bool {
+func PassBetween(times Times, from, to time.Time) bool {
 	y, m, d := from.In(to.Location()).Date()
 	for day := time.Date(y, m, d, 0, 0, 0, 0, to.Location()); !day.After(to); day = day.AddDate(0, 0, 1) {
 		for _, k := range SlotKinds {

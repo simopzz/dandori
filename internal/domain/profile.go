@@ -5,7 +5,7 @@ package domain
 // allergic to, and the appliances they own. Their Planning Brief isn't part of it.
 type Profile struct {
 	Language              Language
-	SlotTimes             SlotTimes
+	SlotTimes             Times
 	Targets               Targets
 	MealOut               Nutrition
 	Exclusions, Allergies []string

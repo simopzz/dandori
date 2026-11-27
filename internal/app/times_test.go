@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/simopzz/dandori/internal/agent"
 	"github.com/simopzz/dandori/internal/apptest"
 )
 
@@ -46,6 +47,7 @@ func TestTimesOfDayAreSavedAndTodayFollowsThem(t *testing.T) {
 		t.Errorf("the times of day reopened show %+v, want %+v", got, savedTimes)
 	}
 
+	s.DoesNotSee("apply from tomorrow") // with no Cycle, nothing is planned to keep
 	s.At("Mon 07:00")
 	s.Open("/")
 	s.Sees("Next: breakfast at 7:30 am")
@@ -122,5 +124,78 @@ func TestTheTimesOfDaySectionAnswersHTMXWithItself(t *testing.T) {
 	}
 	if notices := apptest.Notices(t, saved.Body); !slices.Equal(notices, []string{"Profile saved."}) {
 		t.Errorf("saving the times of day confirms %q", notices)
+	}
+}
+
+// usual are the default times of day, with lunch at `lunchAt` and dinner at `dinnerAt`.
+func usual(lunchAt, dinnerAt string) apptest.TimesOfDay {
+	return apptest.TimesOfDay{Breakfast: "8:00", Lunch: lunchAt, Snack: "17:00", Dinner: dinnerAt}
+}
+
+// Lunch moved later on the day it happened keeps today's lunch where it was: the kitchen
+// isn't prepared again, and the new time is tomorrow's, when afterFriday's lunch sets out
+// its yogurt at 13:30, not 13:00.
+func TestLunchMovedLaterAfterItHappenedStaysPassed(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	approvesFriday(t, s)
+	s.At("Thu 20:00")
+	approves(t, s, func(req agent.Request) map[string]any {
+		return map[string]any{"prep_sessions": yogurtAt(idIn(t, req, `Ingredient (\d+): yogurt`), []string{"2026-11-07", "2026-11-08"})}
+	}, func() { s.OpensCycle(afterFriday); s.PlansCycle() })
+	s.At("Fri 13:05")
+	s.Open("/kitchen")
+	s.Sees("rice 425 g")
+	s.Open("/profile")
+	s.SavesTimesOfDay(usual("13:30", "20:00"))
+
+	s.At("Fri 13:35")
+	s.Open("/kitchen")
+	s.Sees("rice 425 g")
+	s.Open("/")
+	s.Sees("Now: lunch at 1:00 pm")
+
+	yogurtMoves := "/kitchen/movements?location=fridge&ingredient=" + ingredientID(t, s, "yogurt")
+	s.At("Sat 13:15")
+	s.Open("/")
+	s.Sees("Next: lunch at 1:30 pm")
+	s.Open(yogurtMoves)
+	s.DoesNotSee("Sat, Nov 7 · 1:")
+	s.At("Sat 13:35")
+	s.Open(yogurtMoves)
+	s.Sees("Sat, Nov 7 · 1:30 pm")
+}
+
+// Dinner moved later after tonight's thaw runs no second thaw, and Today still lists what
+// it thawed.
+func TestDinnerMovedLaterAfterTheThawStaysPassed(t *testing.T) {
+	s := frozeRice(t)
+	s.At("Thu 20:05")
+	s.Open("/profile")
+	s.SavesTimesOfDay(usual("13:00", "21:00"))
+
+	s.At("Thu 21:05")
+	s.Open("/kitchen")
+	s.Sees("Fridge lasagne × 1")
+	s.Sees("Freezer lasagne × 2")
+	s.Open("/")
+	s.Sees("Out of the freezer tonight rice 175 g for lunch tomorrow lasagne for snack tomorrow")
+}
+
+// Once the User has a Cycle, the times form says new times apply from tomorrow, in
+// their Language.
+func TestTheTimesFormSaysNewTimesApplyFromTomorrow(t *testing.T) {
+	for language, note := range map[string]string{
+		"English":  "New times apply from tomorrow",
+		"Italiano": "I nuovi orari valgono da domani",
+	} {
+		t.Run(language, func(t *testing.T) {
+			s := plannerOf(t, "ada@example.com")
+			s.OpensCycle(friday)
+			s.IsConfirmed("Cycle opened.")
+			s.Open("/profile")
+			s.ChangesLanguage(language)
+			s.Open("/profile")
+			s.Sees(note)
+		})
 	}
 }

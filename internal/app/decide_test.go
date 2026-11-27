@@ -99,19 +99,17 @@ func TestApprovalIsRefusedOnceTheFirstSlotHasPassed(t *testing.T) {
 	}
 }
 
-// A Slot moved later by its Slot time is still to come: a Plan Proposal refused once its
-// breakfast had passed can be approved after the breakfast moves later.
+// A Slot moved later by its Slot time is still to come: with breakfast moved to 9:00 the
+// day before, Friday's Plan Proposal is approved at 8:30. Moved on Friday morning, it
+// would stay passed (TestLunchMovedLaterAfterItHappenedStaysPassed).
 func TestASlotMovedLaterLetsItsPlanProposalBeApproved(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	plansFriday(t, s, "Rice bowls for Friday.")
 
-	s.At("Fri 08:30")
-	s.Open("/plan")
-	s.Submits("approve")
-	s.Sees("starts at a Slot that has passed")
-
+	s.At("Thu 10:00")
 	s.Open("/profile")
 	s.SavesTimesOfDay(apptest.TimesOfDay{Breakfast: "9:00", Lunch: "13:00", Snack: "17:00", Dinner: "20:00"})
+	s.At("Fri 08:30")
 	s.Open("/plan")
 	s.Submits("approve")
 	s.IsConfirmed("Plan approved.")

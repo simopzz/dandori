@@ -89,6 +89,32 @@ func TestASlotIsAtItsTimeOfDayOnTheWallClock(t *testing.T) {
 	}
 }
 
+// lunchLater are the default times of day with lunch at 13:30.
+var lunchLater = domain.SlotTimes{domain.Breakfast: 8 * 60, domain.Lunch: 13*60 + 30, domain.Snack: 17 * 60, domain.Dinner: 20 * 60}
+
+// A change of the times of day saved on the 6th takes effect on the 7th: a Slot of the
+// 6th keeps the time it had, before the change and after.
+func TestNewTimesOfDayTakeEffectTheNextDay(t *testing.T) {
+	change := domain.TimesChange{Was: domain.DefaultSlotTimes, Now: lunchLater, From: slot(7, domain.Lunch).On}
+	tests := []struct {
+		name string
+		s    domain.Slot
+		want time.Time
+	}{
+		{"the day of the change", slot(6, domain.Lunch), at(6, "13:00")},
+		{"the day after", slot(7, domain.Lunch), at(7, "13:30")},
+		{"days after", slot(20, domain.Lunch), at(20, "13:30")},
+	}
+	for _, tt := range tests {
+		if got := tt.s.At(change); !got.Equal(tt.want) {
+			t.Errorf("%s: lunch at %s, want %s", tt.name, got.Format("Jan 2 15:04"), tt.want.Format("Jan 2 15:04"))
+		}
+	}
+	if got := slot(6, domain.Lunch).At(domain.TimesChange{Now: lunchLater}); !got.Equal(at(6, "13:30")) {
+		t.Errorf("times never changed: lunch at %s, want 13:30", got.Format("15:04"))
+	}
+}
+
 // Slot times are read in either form, each kind's time after the one before's, with the
 // problem on the later field; a field that isn't a time skips the order check against it.
 func TestParseSlotTimes(t *testing.T) {

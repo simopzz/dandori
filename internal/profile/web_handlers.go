@@ -154,7 +154,11 @@ func (h Handlers) asSaved(ctx context.Context) (f profileForms, err error) {
 	if err != nil {
 		return f, err
 	}
-	f.Times = shownTimes(ctx, times)
+	wait, err := h.Service.TimesWait(ctx)
+	if err != nil {
+		return f, err
+	}
+	f.Times = shownTimes(ctx, times.Now, wait)
 	targets, set, err := h.Service.Targets(ctx)
 	if err != nil {
 		return f, err
@@ -245,9 +249,10 @@ func (h Handlers) SaveTargets(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// shownTimes is `t` as the times-of-day form shows it, as the Language writes a time.
-func shownTimes(ctx context.Context, t domain.SlotTimes) TimesForm {
-	f := TimesForm{Values: map[string]string{}}
+// shownTimes is `t` as the times-of-day form shows it, as the Language writes a time, and
+// whether a change `wait`s for tomorrow.
+func shownTimes(ctx context.Context, t domain.SlotTimes, wait bool) TimesForm {
+	f := TimesForm{Values: map[string]string{}, Wait: wait}
 	for k, at := range t {
 		f.Values[string(k)] = web.TimeOfDay(ctx, at)
 	}
@@ -262,13 +267,13 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 	for _, k := range domain.SlotKinds {
 		typed[string(k)] = r.PostFormValue(string(k))
 	}
-	t, problems, err := h.Service.SetSlotTimes(ctx, typed)
+	t, wait, problems, err := h.Service.SetSlotTimes(ctx, typed)
 	if err != nil {
 		httpx.ServerError(w, r, h.Log, "save the User's times of day", err)
 		return
 	}
 	if len(problems) == 0 {
-		h.answerSaved(w, r, timesForm(shownTimes(ctx, t)))
+		h.answerSaved(w, r, timesForm(shownTimes(ctx, t, wait)))
 		return
 	}
 	errs := map[string]string{}
@@ -279,7 +284,7 @@ func (h Handlers) SaveTimes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.answerRefused(w, r, refusedTimes, errs, func(f *profileForms) templ.Component {
-		f.Times = TimesForm{Values: typed, Errs: errs}
+		f.Times = TimesForm{Values: typed, Errs: errs, Wait: f.Times.Wait}
 		return timesForm(f.Times)
 	})
 }

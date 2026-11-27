@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/simopzz/dandori/internal/clock"
 	"github.com/simopzz/dandori/internal/db"
 	"github.com/simopzz/dandori/internal/domain"
 )
@@ -23,13 +24,21 @@ var ErrLanguageStays = errors.New("the User has written Food Terms in the Langua
 // arrive in the Language left.
 var ErrParsing = errors.New("a parse Run is going in the Language, so it stays")
 
+// HasCycle reports whether the signed-in User has a Cycle. The planning feature, which
+// depends on this one, reads it, and app wires it.
+type HasCycle func(ctx context.Context, q db.Querier) (bool, error)
+
 // Service is the signed-in User's Profile.
 type Service struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	clock    clock.Clock
+	hasCycle HasCycle
 }
 
 // New creates the Service.
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+func New(pool *pgxpool.Pool, c clock.Clock, hasCycle HasCycle) *Service {
+	return &Service{pool: pool, clock: c, hasCycle: hasCycle}
+}
 
 // Language is the signed-in User's Language; `ok` is false until they choose one.
 func (s *Service) Language(ctx context.Context) (l domain.Language, ok bool, err error) {
@@ -40,9 +49,9 @@ func (s *Service) Language(ctx context.Context) (l domain.Language, ok bool, err
 	return l, ok, err
 }
 
-// SlotTimes is the signed-in User's time of day of each kind of Slot, which they have
-// once they have chosen their Language.
-func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error) {
+// SlotTimes is the signed-in User's time of day of each kind of Slot across their last
+// change, which they have once they have chosen their Language.
+func (s *Service) SlotTimes(ctx context.Context) (t domain.TimesChange, err error) {
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
 		t, err = LoadSlotTimes(ctx, tx)
 		return err
@@ -50,14 +59,32 @@ func (s *Service) SlotTimes(ctx context.Context) (t domain.SlotTimes, err error)
 	return t, err
 }
 
+// TimesWait reports whether a change of the signed-in User's times of day waits for the
+// next day: once they have a Cycle, whose Slots of today keep their times. Before,
+// nothing is planned, and a change applies at once.
+func (s *Service) TimesWait(ctx context.Context) (wait bool, err error) {
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
+		wait, err = s.hasCycle(ctx, tx)
+		return err
+	})
+	return wait, err
+}
+
 // SetSlotTimes saves `typed`, by SlotKind, as the signed-in User's time of day of each
-// kind of Slot, unless a field is refused: then it saves nothing and is each problem.
-func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (domain.SlotTimes, map[string]domain.Problem, error) {
-	t, problems := domain.ParseSlotTimes(typed)
+// kind of Slot, from tomorrow when they `wait` (TimesWait), unless a field is refused:
+// then it saves nothing and is each problem.
+func (s *Service) SetSlotTimes(ctx context.Context, typed map[string]string) (t domain.SlotTimes, wait bool, problems map[string]domain.Problem, err error) {
+	t, problems = domain.ParseSlotTimes(typed)
 	if len(problems) > 0 {
-		return t, problems, nil
+		return t, false, problems, nil
 	}
-	return t, nil, db.AsUser(ctx, s.pool, func(tx pgx.Tx) error { return saveSlotTimes(ctx, tx, t) })
+	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
+		if wait, err = s.hasCycle(ctx, tx); err != nil {
+			return err
+		}
+		return saveSlotTimes(ctx, tx, t, s.clock.Now(), !wait)
+	})
+	return t, wait, nil, err
 }
 
 // Targets is the signed-in User's Targets; `set` is false until they save theirs, when

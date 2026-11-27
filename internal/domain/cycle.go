@@ -163,7 +163,7 @@ func CycleStatuses(cycles []Cycle, now time.Time) []CycleStatus {
 
 // Slots are `c`'s Slots by `times`, from the first after its Delivery arrives to the last
 // of its end date, or the last before Until, every kind every day.
-func (c Cycle) Slots(times SlotTimes) []Slot {
+func (c Cycle) Slots(times Times) []Slot {
 	var slots []Slot
 	for on := c.Delivery.On; !on.After(c.Ends); on = on.AddDate(0, 0, 1) {
 		for _, k := range SlotKinds {
