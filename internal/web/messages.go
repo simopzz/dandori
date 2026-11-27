@@ -92,6 +92,9 @@ func kindChoices[K ~string](ctx context.Context, all []K, names map[K]Message) [
 	return choices
 }
 
+// TimesCount is how many of something alike, such as Portions of a Lot: "× 3".
+var TimesCount = Message{En: "× %d", It: "× %d"}
+
 // InLocations say where in each Storage Location, as Italian takes each Storage Location
 // with its own preposition.
 var InLocations = map[domain.StorageLocation]Message{

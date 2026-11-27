@@ -19,6 +19,7 @@ var owners = map[string]string{
 	"user":                  "auth",
 	"profile":               "profile",
 	"kitchen":               "ledger",
+	"today_visit":           "today",
 	"movement":              "ledger",
 	"portion":               "ledger",
 	"movement_portion":      "ledger",

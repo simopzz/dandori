@@ -63,7 +63,7 @@ func (l Ledger) UpToNow(p Plan, madeFrom map[int64]int64, arrivals []Arrival, ti
 	}
 	filled, evenings := map[string]bool{}, map[string]bool{}
 	thawFor := func(day time.Time) {
-		evening := Slot{On: day.AddDate(0, 0, -1), Kind: Dinner}
+		evening := ThawEvening(day)
 		if in(evening) && !evenings[evening.key()] {
 			evenings[evening.key()] = true
 			happenings = append(happenings, happening{at: evening.At(times), step: thaws, day: day})

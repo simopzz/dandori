@@ -271,22 +271,36 @@ func WithMovements(ctx context.Context, q db.Querier) (map[int64]bool, error) {
 // LoadThawed is the signed-in User's thawed Movements from `since` on, in the order they
 // happened, each with the Slot it is for, its day in `loc`.
 func LoadThawed(ctx context.Context, q db.Querier, since time.Time, loc *time.Location) ([]domain.Movement, error) {
+	return loadAssumed(ctx, q, loc, `cause_kind = $1 AND happened_at >= $2`, string(domain.Thawed), since)
+}
+
+// LoadAssumed is the signed-in User's Movements assumed at a Slot after `since` and up to
+// `now`, in the order they happened, each with its Slot, its day in `now`'s zone.
+func LoadAssumed(ctx context.Context, q db.Querier, since, now time.Time) ([]domain.Movement, error) {
+	return loadAssumed(ctx, q, now.Location(), `slot_on IS NOT NULL AND happened_at > $1 AND happened_at <= $2`, since, now)
+}
+
+// loadAssumed is the signed-in User's Movements that `where` keeps, with `args`, in the
+// order they happened, each with its Prep Session and its Slot, its day in `loc`.
+func loadAssumed(ctx context.Context, q db.Querier, loc *time.Location, where string, args ...any) ([]domain.Movement, error) {
 	rows, err := q.Query(ctx, `
-		SELECT happened_at, coalesce(ingredient_id, 0), change, coalesce(cause_ref, 0), slot_on, slot_kind,
+		SELECT happened_at, coalesce(ingredient_id, 0), storage_location, coalesce(moved_to, ''), change, cause_kind,
+			coalesce(cause_ref, 0), slot_on, slot_kind,
 			ARRAY(SELECT portion_id FROM movement_portion WHERE movement_id = movement.id ORDER BY portion_id)
-		FROM movement WHERE cause_kind = $1 AND happened_at >= $2 ORDER BY happened_at, id`, string(domain.Thawed), since)
+		FROM movement WHERE `+where+` ORDER BY happened_at, id`, args...)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Movement, error) {
-		m := domain.Movement{Key: domain.StockKey{Location: domain.Freezer}, To: domain.Fridge, Cause: domain.Thawed}
 		var (
-			change float64
-			on     time.Time
-			kind   string
+			m                         domain.Movement
+			location, to, cause, kind string
+			change                    float64
+			on                        time.Time
 		)
-		err := row.Scan(&m.At, &m.Key.Ingredient, &change, &m.PrepSession, &on, &kind, &m.Portions)
-		m.Change = domain.QuantityOf(change)
+		err := row.Scan(&m.At, &m.Key.Ingredient, &location, &to, &change, &cause, &m.PrepSession, &on, &kind, &m.Portions)
+		m.Key.Location, m.To = domain.StorageLocation(location), domain.StorageLocation(to)
+		m.Change, m.Cause = domain.QuantityOf(change), domain.Cause(cause)
 		m.Slot = domain.Slot{On: time.Date(on.Year(), on.Month(), on.Day(), 0, 0, 0, 0, loc), Kind: domain.SlotKind(kind)}
 		return m, err
 	})
