@@ -23,7 +23,7 @@ func TestTheKitchenForecastAtASlot(t *testing.T) {
 	eats := func(s domain.Slot) domain.PlannedPortion {
 		return domain.PlannedPortion{Location: domain.Fridge, EatAt: &s}
 	}
-	// chiliIn is the Portions of chili prepared in location, by PlannedID.
+	// chiliIn is the Portions of chili prepared in `location`, by PlannedID.
 	chiliIn := func(location domain.StorageLocation, ids ...int64) domain.PortionLot {
 		return domain.PortionLot{Name: "Chili", Location: location, Nutrition: chili.NutritionPerPortion().Nutrition, IDs: ids}
 	}

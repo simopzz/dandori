@@ -1032,7 +1032,7 @@ func (s *Service) PlanningOf(ctx context.Context, c Cycle, zone *time.Location) 
 	// changes only what is yet to be recorded.
 	plan := cyclePlan(c, own, library, known, portions, times)
 	before := approvedPlan(earlier, library, known, portions)
-	// An earlier Cycle's Planned Portions too: the forecast carry-over this one puts
+	// Every approved Plan's Planned Portions too: the forecast carry-over a Plan puts
 	// in Slots.
 	named := slices.Concat(portions, plan.Planned(), before.Planned())
 	if pending != nil {
