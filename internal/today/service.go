@@ -43,8 +43,8 @@ type Day struct {
 	// going, has none.
 	Reminders []Reminder
 	// OrderNext is the id of the upcoming Cycle while its Delivery waits to be ordered:
-	// it is planned, with nothing pending or going, and its Delivery tentative; 0 when
-	// none is.
+	// it is planned, with nothing pending or going, and its Delivery tentative and not
+	// Due; 0 when none is.
 	OrderNext int64
 	// Offer is what Today offers about opening a Cycle.
 	Offer Offer
@@ -171,7 +171,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		switch {
 		case st != planning.Planned:
 			d.Reminders = append(d.Reminders, Reminder{CycleID: c.ID, Next: c == upcoming, Standing: st})
-		case c.Delivery.State == domain.Tentative: // the current Cycle's has arrived
+		case c.Delivery.State == domain.Tentative && d.Due == nil: // the current Cycle's has arrived; a Delivery due links its list itself
 			d.OrderNext = c.ID
 		}
 	}

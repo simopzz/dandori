@@ -39,6 +39,21 @@ func TestTodaySaysAnOrderedDeliveryIsDueUntilItArrives(t *testing.T) {
 	s.Sees("Put the Delivery away")
 }
 
+// On a planned, tentative Delivery's day its line stands in for the reminder to order it,
+// which links the same Grocery List.
+func TestADeliveryDueStandsInForTheReminderToOrderIt(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	plansFridaySplitting(t, s)
+	s.At("Wed 12:00")
+	s.Open("/")
+	s.Sees("Order the next Delivery")
+
+	s.At("Thu 08:00")
+	s.Open("/")
+	s.Sees("Delivery today, 6:00 pm to 8:00 pm not marked ordered yet")
+	s.DoesNotSee("Order the next Delivery")
+}
+
 // The line is told in the User's Language.
 func TestTodaySaysADeliveryIsDueInItalian(t *testing.T) {
 	s := plannerOf(t, "ada@example.com")
