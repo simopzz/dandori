@@ -132,3 +132,23 @@ func TestBeforeItArrivesTheDeliveryBringsFreshWhatThereIsNoEveningToThaw(t *test
 		t.Errorf("a frozen Portion today, the Delivery to come: NoEveningToThaw() = %v, want 1", vs)
 	}
 }
+
+// An evening's thawed Movements are told as Thawings: a Stock Item's with its Ingredient
+// and how much, for its Prep Session's Slot; a Portion's with the Portion, for the Slot
+// it fills.
+func TestThawedMovementsAreToldAsThawings(t *testing.T) {
+	lunch, snack := slot(7, domain.Lunch), slot(7, domain.Snack)
+	lasagne := domain.Portion{ID: 7, Name: "lasagne"}
+	thawed := []domain.Movement{
+		{Key: domain.StockKey{Ingredient: breast.ID, Location: domain.Freezer}, To: domain.Fridge, Change: grams(200), Cause: domain.Thawed, PrepSession: 3, Slot: lunch},
+		{Key: domain.StockKey{Location: domain.Freezer}, To: domain.Fridge, Portions: []int64{7}, Change: grams(1), Cause: domain.Thawed, Slot: snack},
+	}
+	got := domain.ThawingsOf(thawed, []domain.Ingredient{peas, breast}, []domain.Portion{{ID: 6, Name: "chili"}, lasagne})
+	want := []domain.Thawing{
+		{For: lunch, Ingredient: &breast, Quantity: grams(200)},
+		{For: snack, Portion: &lasagne},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ThawingsOf() = %+v, want %+v", got, want)
+	}
+}

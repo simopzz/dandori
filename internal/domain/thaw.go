@@ -161,3 +161,34 @@ func NoEveningToThaw(p Plan, frozen map[int64]bool, stock map[StockKey]Quantity,
 	}
 	return vs
 }
+
+// Thawing is one of an evening's thaws: of a Stock Item for a Prep Session, or of the
+// Portion filling a Slot, For that Slot. Exactly one of Ingredient and Portion is set,
+// and Quantity, in the Ingredient's Unit, only with an Ingredient.
+type Thawing struct {
+	For        Slot
+	Ingredient *Ingredient
+	Quantity   Quantity
+	Portion    *Portion
+}
+
+// ThawingsOf are the Thawings of `thawed`, thawed Movements, in their order, their
+// Ingredients found among `known` and their Portions among `portions`. A Movement of one
+// found in neither is left out: there is nothing to tell of it.
+func ThawingsOf(thawed []Movement, known []Ingredient, portions []Portion) []Thawing {
+	var thawings []Thawing
+	for _, m := range thawed {
+		t := Thawing{For: m.Slot}
+		if len(m.Portions) > 0 {
+			if i := slices.IndexFunc(portions, func(p Portion) bool { return p.ID == m.Portions[0] }); i >= 0 {
+				t.Portion = &portions[i]
+			}
+		} else if i := slices.IndexFunc(known, func(ing Ingredient) bool { return ing.ID == m.Key.Ingredient }); i >= 0 {
+			t.Ingredient, t.Quantity = &known[i], m.Change
+		}
+		if t.Portion != nil || t.Ingredient != nil {
+			thawings = append(thawings, t)
+		}
+	}
+	return thawings
+}

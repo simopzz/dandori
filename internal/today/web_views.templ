@@ -91,8 +91,9 @@ templ putAwayList(p *PutAway) {
 	}
 }
 
-// thaws are what tonight takes out of the freezer, a row each: what, how much, and the
-// Slot tomorrow it is for. It numbers its section after the put-away list's.
+// thaws are what tonight takes out of the freezer, a row each: what, how much of a Stock
+// Item, and the Slot tomorrow it is for. It numbers its section after the
+// put-away list's.
 templ thaws(d Day) {
 	{{ num := 2 }}
 	if d.PutAway != nil {
@@ -102,11 +103,11 @@ templ thaws(d Day) {
 		@web.Rows() {
 			for _, t := range d.Thaws {
 				@web.Row() {
-					@web.RowTitle(t.Name, false, "", false)
-					if t.Portions {
-						<span class="row-figure">{ web.Tf(ctx, msgPortionsOf, int(t.Quantity.Number())) }</span>
+					if t.Portion != nil {
+						@web.RowTitle(t.Portion.Name, false, "", false)
 					} else {
-						@web.QuantityFigure(t.Quantity, t.Unit)
+						@web.RowTitle(t.Ingredient.Name, false, "", false)
+						@web.QuantityFigure(t.Quantity, t.Ingredient.Unit)
 					}
 					<span class="row-meta">{ web.Tf(ctx, msgForTomorrow, web.T(ctx, web.SlotKindNames[t.For.Kind])) }</span>
 				}

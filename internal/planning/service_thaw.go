@@ -11,21 +11,11 @@ import (
 	"github.com/simopzz/dandori/internal/ledger"
 )
 
-// Thawing is one of tonight's thaws as Today lists it: what, Name, how much, and the Slot
-// it is For. Quantity is in Unit for a Stock Item, and how many for Portions.
-type Thawing struct {
-	Name     string
-	Quantity domain.Quantity
-	Unit     domain.Unit
-	Portions bool
-	For      domain.Slot
-}
-
 // ThawsTonight is the thaws of the signed-in User's kitchen on the evening of `now`'s
 // day, after dinner: until then, worked out as the step will, on the kitchen as it holds
 // `now`, through the Plan's Slots and the ordered Deliveries up to then; after, those it
 // recorded. A User without a Cycle has none.
-func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]Thawing, error) {
+func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]domain.Thawing, error) {
 	var cycles []Cycle
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		cycles, err = loadCycles(ctx, tx, now.Location())
@@ -49,14 +39,11 @@ func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]Thawing, e
 	y, m, d := now.Date()
 	tonight := domain.Slot{On: time.Date(y, m, d, 0, 0, 0, 0, now.Location()), Kind: domain.Dinner}.At(times)
 	var thawed []domain.Movement
-	names := map[int64]string{} // Portions' names, by id or PlannedID
+	var portions []domain.Portion // by id, and those the Plan prepares by now by PlannedID
 	err = db.AsUser(ctx, s.pool, func(tx pgx.Tx) error {
-		portions, err := ledger.LoadPortions(ctx, tx)
+		portions, err = ledger.LoadPortions(ctx, tx)
 		if err != nil {
 			return err
-		}
-		for _, p := range portions {
-			names[p.ID] = p.Name
 		}
 		if !now.Before(tonight) {
 			thawed, err = ledger.LoadThawed(ctx, tx, tonight, now.Location())
@@ -78,7 +65,7 @@ func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]Thawing, e
 		}
 		written, made := domain.NewLedger(movements).UpToNow(plan, madeFrom, ordered, times, now, tonight)
 		for _, p := range made {
-			names[domain.PlannedID(p.Planned)] = p.Name
+			portions = append(portions, domain.Portion{ID: domain.PlannedID(p.Planned), Name: p.Name, Nutrition: p.Nutrition})
 		}
 		for _, m := range written {
 			if m.Cause == domain.Thawed {
@@ -90,20 +77,5 @@ func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]Thawing, e
 	if err != nil {
 		return nil, err
 	}
-	ingredients := map[int64]domain.Ingredient{}
-	for _, ing := range known {
-		ingredients[ing.ID] = ing
-	}
-	thawings := make([]Thawing, len(thawed))
-	for i, m := range thawed {
-		t := Thawing{Quantity: m.Change, For: m.Slot}
-		if len(m.Portions) > 0 {
-			t.Name, t.Portions = names[m.Portions[0]], true
-		} else {
-			ing := ingredients[m.Key.Ingredient]
-			t.Name, t.Unit = ing.Name, ing.Unit
-		}
-		thawings[i] = t
-	}
-	return thawings, nil
+	return domain.ThawingsOf(thawed, known, portions), nil
 }

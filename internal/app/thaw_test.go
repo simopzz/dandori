@@ -46,7 +46,7 @@ func TestTheEveningBeforeThawsIntoTheFridge(t *testing.T) {
 // no Plan for the day after, it lists none.
 func TestTodayListsTonightsThaws(t *testing.T) {
 	s := frozeRice(t)
-	const tonight = "Out of the freezer tonight rice 175 g for lunch tomorrow lasagne × 1 for snack tomorrow"
+	const tonight = "Out of the freezer tonight rice 175 g for lunch tomorrow lasagne for snack tomorrow"
 	s.Open("/")
 	s.Sees(tonight)
 	s.At("Thu 21:00")
@@ -73,7 +73,7 @@ func TestTheLastEveningThawsForTheUpcomingCycle(t *testing.T) {
 
 	s.At("Fri 18:00") // the snack ate the lasagne Thursday thawed
 	s.Open("/")
-	s.Sees("Out of the freezer tonight lasagne × 1 for lunch tomorrow")
+	s.Sees("Out of the freezer tonight lasagne for lunch tomorrow")
 	s.At("Fri 20:05")
 	s.Open("/kitchen")
 	s.Sees("Fridge lasagne × 1")

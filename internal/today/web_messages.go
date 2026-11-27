@@ -27,7 +27,6 @@ var (
 	msgFailed       = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
 	msgPutAway      = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
 	msgThawTonight  = web.Message{En: "Out of the freezer tonight", It: "Dal congelatore stasera"}
-	msgPortionsOf   = web.Message{En: "× %d", It: "× %d"}
 	msgForTomorrow  = web.Message{En: "for %s tomorrow", It: "per %s di domani"}
 	msgPutAwayLater = web.Message{
 		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
