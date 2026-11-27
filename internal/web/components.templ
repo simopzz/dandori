@@ -256,31 +256,42 @@ templ FoldRow(summary templ.Component) {
 	</li>
 }
 
-// SlotRow is a Slot of `kind` and the Portion filling it, `portion`, marked Changed when
-// `changed`: its `size` unless "", `figures`, its nutrition, unless nil, and `source`,
-// unless "", a word for where the Portion comes from ("cooked", "already in
+// SlotRow is a Slot of `kind` at `at`, unless "", and the Portion filling it, `portion`,
+// marked Changed when `changed`: its `size` unless "", `figures`, its nutrition, unless
+// nil, and `sources`, words for where the Portion comes from ("cooked", "already in
 // the kitchen").
-templ SlotRow(kind domain.SlotKind, portion string, changed bool, size string, figures templ.Component, source string) {
+templ SlotRow(kind domain.SlotKind, at, portion string, changed bool, size string, figures templ.Component, sources ...string) {
 	@Row() {
-		@RowTitle(portion, false, "", changed)
-		if size != "" || figures != nil {
-			<span class="row-figure">
-				{ size }
-				if size != "" && figures != nil {
-					{ " · " }
-				}
-				if figures != nil {
-					@figures
-				}
-			</span>
-		}
-		<span class="row-meta">
-			<span>{ Capitalised(T(ctx, SlotKindNames[kind])) }</span>
-			if source != "" {
-				<span>{ source }</span>
+		@SlotLine(kind, at, portion, changed, size, figures, sources...)
+	}
+}
+
+// SlotLine is what a SlotRow holds, laid out as a Row's: the summary of a FoldRow opening
+// to the Slot's Prep Session.
+templ SlotLine(kind domain.SlotKind, at, portion string, changed bool, size string, figures templ.Component, sources ...string) {
+	@RowTitle(portion, false, "", changed)
+	if size != "" || figures != nil {
+		<span class="row-figure">
+			{ size }
+			if size != "" && figures != nil {
+				{ " · " }
+			}
+			if figures != nil {
+				@figures
 			}
 		</span>
 	}
+	<span class="row-meta">
+		<span>{ Capitalised(T(ctx, SlotKindNames[kind])) }</span>
+		if at != "" {
+			<span>{ at }</span>
+		}
+		for _, source := range sources {
+			if source != "" {
+				<span>{ source }</span>
+			}
+		}
+	</span>
 }
 
 // Figures is a line of figures in equal columns, the children each a cell, under a

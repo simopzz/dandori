@@ -2387,7 +2387,7 @@ func dayBody(d proposalDay) templ.Component {
 				}
 				ctx = templ.InitializeContext(ctx)
 				for _, f := range d.filled {
-					templ_7745c5c3_Err = web.SlotRow(f.kind, f.name, f.changed, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On)).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = web.SlotRow(f.kind, "", f.name, f.changed, sizeOf(ctx, f.size), kcalProtein(f.nutrition), source(ctx, f, d.On)).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
