@@ -1,7 +1,7 @@
 // Package today is Today, the page a User opens Dandori on: the day's Slot now or next by
 // the Profile's times of day, the day's later ones, each with what fills it and when to
-// start preparing it, where a Delivery's lines go, how up to date the kitchen is, and an
-// offer to open a Cycle while there's none.
+// start preparing it, a Delivery due that day, where a Delivery's lines go, how up to
+// date the kitchen is, and an offer to open a Cycle while there's none.
 package today
 
 import (
@@ -43,8 +43,8 @@ type Day struct {
 	// going, has none.
 	Reminders []Reminder
 	// OrderNext is the id of the upcoming Cycle while its Delivery waits to be ordered:
-	// it is planned, with nothing pending or going, and its Delivery tentative; 0 when
-	// none is.
+	// it is planned, with nothing pending or going, and its Delivery tentative and not
+	// Due; 0 when none is.
 	OrderNext int64
 	// Offer is what Today offers about opening a Cycle.
 	Offer Offer
@@ -53,6 +53,9 @@ type Day struct {
 	// Thaws are what tonight takes out of the freezer, the evening before the next
 	// day's Slots.
 	Thaws []domain.Thaw
+	// Due is the upcoming Cycle on its Delivery's day until the Delivery arrives, and
+	// nil otherwise.
+	Due *planning.Cycle
 }
 
 // PutAway is where a Delivery's lines go, and, once it has arrived, what the kitchen
@@ -136,6 +139,9 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		Slots: domain.TodayAt(now, times), Times: times, Beat: beat, Beaten: beaten,
 		Offer: offer(current, upcoming, now),
 	}
+	if upcoming != nil && !now.Before(upcoming.Delivery.On) && now.Before(upcoming.Delivery.Arrives()) {
+		d.Due = upcoming
+	}
 	if d.Offer != NoOffer {
 		_, set, err := s.profile.Targets(ctx)
 		if err != nil {
@@ -165,7 +171,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		switch {
 		case st != planning.Planned:
 			d.Reminders = append(d.Reminders, Reminder{CycleID: c.ID, Next: c == upcoming, Standing: st})
-		case c.Delivery.State == domain.Tentative: // the current Cycle's has arrived
+		case c.Delivery.State == domain.Tentative && d.Due == nil: // the current Cycle's has arrived; a Delivery due links its list itself
 			d.OrderNext = c.ID
 		}
 	}
