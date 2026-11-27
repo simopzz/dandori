@@ -19,6 +19,9 @@ import (
 templ page(now time.Time, d Day) {
 	@web.Layout(web.T(ctx, msgTodayTitle), web.TodayTab) {
 		@web.PageHeader("今日", web.T(ctx, msgToday), now)
+		if d.Due != nil {
+			@deliveryDue(d.Due)
+		}
 		@startPreparing(now, d)
 		@web.Section(1, firstText(ctx, now, d)) {
 			@web.Rows() {
@@ -55,6 +58,24 @@ templ page(now time.Time, d Day) {
 		</div>
 		@kitchen.Status(now, d.Beat, d.Beaten)
 	}
+}
+
+// deliveryDue says `c`'s Delivery is due today, in its window, linking its Grocery List,
+// and that it isn't marked ordered yet while it is tentative.
+templ deliveryDue(c *planning.Cycle) {
+	<div class="section">
+		@web.Rows() {
+			@web.Row() {
+				@web.Icon("package")
+				<a class="row-title" href={ templ.SafeURL(fmt.Sprintf("/plan/cycles/%d/grocery-list", c.ID)) }>
+					{ web.Tf(ctx, msgDeliveryToday, web.Time(ctx, c.Delivery.Starts()), web.Time(ctx, c.Delivery.Arrives())) }
+				</a>
+				if c.Delivery.State == domain.Tentative {
+					<span class="row-meta">{ web.T(ctx, msgNotOrderedYet) }</span>
+				}
+			}
+		}
+	</div>
 }
 
 // putAwayID is the id of Today's put-away list, which every write to the Kitchen

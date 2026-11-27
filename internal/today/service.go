@@ -1,7 +1,7 @@
 // Package today is Today, the page a User opens Dandori on: the day's Slot now or next by
 // the Profile's times of day, the day's later ones, each with what fills it and when to
-// start preparing it, where a Delivery's lines go, how up to date the kitchen is, and an
-// offer to open a Cycle while there's none.
+// start preparing it, a Delivery due that day, where a Delivery's lines go, how up to
+// date the kitchen is, and an offer to open a Cycle while there's none.
 package today
 
 import (
@@ -53,6 +53,9 @@ type Day struct {
 	// Thaws are what tonight takes out of the freezer, the evening before the next
 	// day's Slots.
 	Thaws []domain.Thaw
+	// Due is the upcoming Cycle on its Delivery's day until the Delivery arrives, and
+	// nil otherwise.
+	Due *planning.Cycle
 }
 
 // PutAway is where a Delivery's lines go, and, once it has arrived, what the kitchen
@@ -135,6 +138,9 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	d := Day{
 		Slots: domain.TodayAt(now, times), Times: times, Beat: beat, Beaten: beaten,
 		Offer: offer(current, upcoming, now),
+	}
+	if upcoming != nil && !now.Before(upcoming.Delivery.On) && now.Before(upcoming.Delivery.Arrives()) {
+		d.Due = upcoming
 	}
 	if d.Offer != NoOffer {
 		_, set, err := s.profile.Targets(ctx)
