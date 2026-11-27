@@ -103,13 +103,13 @@ templ thaws(d Day) {
 		@web.Rows() {
 			for _, t := range d.Thaws {
 				@web.Row() {
-					if t.Portion != nil {
-						@web.RowTitle(t.Portion.Name, false, "", false)
-					} else {
-						@web.RowTitle(t.Ingredient.Name, false, "", false)
-						@web.QuantityFigure(t.Quantity, t.Ingredient.Unit)
+					if p, ok := t.Portion(); ok {
+						@web.RowTitle(p.Name, false, "", false)
+					} else if ing, quantity, ok := t.Ingredient(); ok {
+						@web.RowTitle(ing.Name, false, "", false)
+						@web.QuantityFigure(quantity, ing.Unit)
 					}
-					<span class="row-meta">{ web.Tf(ctx, msgForTomorrow, web.T(ctx, web.SlotKindNames[t.For.Kind])) }</span>
+					<span class="row-meta">{ web.Tf(ctx, msgForTomorrow, web.T(ctx, web.SlotKindNames[t.For().Kind])) }</span>
 				}
 			}
 		}

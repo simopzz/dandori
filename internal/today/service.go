@@ -50,7 +50,7 @@ type Day struct {
 	PutAway *PutAway
 	// Thaws are what tonight takes out of the freezer, the evening before the next
 	// day's Slots.
-	Thaws []domain.Thawing
+	Thaws []domain.Thaw
 }
 
 // PutAway is where a Delivery's lines go, and, once it has arrived, what the kitchen

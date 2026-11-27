@@ -163,7 +163,7 @@ func (l Ledger) thaw(now time.Time, p Plan, day time.Time, arrivals []Arrival, p
 	}
 	var ms []Movement
 	for _, t := range (Plan{PrepSessions: sessions}).Thaws(stock) {
-		ms = append(ms, Movement{At: at, Key: StockKey{Ingredient: t.Ingredient.ID, Location: Freezer}, To: Fridge, Change: t.Quantity, Cause: Thawed, PrepSession: t.PrepSession, Slot: t.At})
+		ms = append(ms, Movement{At: at, Key: StockKey{Ingredient: t.ingredient.ID, Location: Freezer}, To: Fridge, Change: t.quantity, Cause: Thawed, PrepSession: t.prepSession, Slot: t.slot})
 	}
 	where := l.PortionsAt(at)
 	for _, s := range slots {

@@ -45,17 +45,17 @@ func TestPrepSessionsUseUpStockAndThawTheRest(t *testing.T) {
 		{
 			"split stock: what the fridge no longer holds thawed the evening before",
 			[]domain.PrepSession{setsOut(6, breast, 300), setsOut(9, breast, 300)}, stock(400, 400, 0),
-			[]domain.Thaw{{At: slot(9, domain.Dinner), Ingredient: breast, Quantity: grams(200)}},
+			[]domain.Thaw{domain.StockThaw(slot(9, domain.Dinner), 0, breast, grams(200))},
 		},
 		{
 			"in the order of their Slots, whatever the order listed",
 			[]domain.PrepSession{setsOut(9, breast, 300), setsOut(6, breast, 300)}, stock(400, 400, 0),
-			[]domain.Thaw{{At: slot(9, domain.Dinner), Ingredient: breast, Quantity: grams(200)}},
+			[]domain.Thaw{domain.StockThaw(slot(9, domain.Dinner), 0, breast, grams(200))},
 		},
 		{
 			"no more thawed than the freezer holds",
 			[]domain.PrepSession{setsOut(6, breast, 300)}, stock(0, 100, 0),
-			[]domain.Thaw{{At: slot(6, domain.Dinner), Ingredient: breast, Quantity: grams(100)}},
+			[]domain.Thaw{domain.StockThaw(slot(6, domain.Dinner), 0, breast, grams(100))},
 		},
 	}
 	for _, tt := range tests {
@@ -74,7 +74,7 @@ func TestFreezerIngredientsCanNeedThawing(t *testing.T) {
 	plan := domain.Plan{PrepSessions: []domain.PrepSession{setsOut(6, chicken, 300)}}
 	stock := map[domain.StockKey]domain.Quantity{{Ingredient: chicken.ID, Location: domain.Freezer}: grams(500)}
 	got := plan.Thaws(stock)
-	want := []domain.Thaw{{At: slot(6, domain.Dinner), Ingredient: chicken, Quantity: grams(300)}}
+	want := []domain.Thaw{domain.StockThaw(slot(6, domain.Dinner), 0, chicken, grams(300))}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Thaws() = %+v, want freezer chicken thawed: %+v", got, want)
 	}
@@ -133,22 +133,19 @@ func TestBeforeItArrivesTheDeliveryBringsFreshWhatThereIsNoEveningToThaw(t *test
 	}
 }
 
-// An evening's thawed Movements are told as Thawings: a Stock Item's with its Ingredient
-// and how much, for its Prep Session's Slot; a Portion's with the Portion, for the Slot
+// An evening's thawed Movements are told as Thaws: a Stock Item's with its Ingredient and
+// how much, for its Prep Session at its Slot; a Portion's with the Portion, for the Slot
 // it fills.
-func TestThawedMovementsAreToldAsThawings(t *testing.T) {
+func TestThawedMovementsAreToldAsThaws(t *testing.T) {
 	lunch, snack := slot(7, domain.Lunch), slot(7, domain.Snack)
 	lasagne := domain.Portion{ID: 7, Name: "lasagne"}
 	thawed := []domain.Movement{
 		{Key: domain.StockKey{Ingredient: breast.ID, Location: domain.Freezer}, To: domain.Fridge, Change: grams(200), Cause: domain.Thawed, PrepSession: 3, Slot: lunch},
 		{Key: domain.StockKey{Location: domain.Freezer}, To: domain.Fridge, Portions: []int64{7}, Change: grams(1), Cause: domain.Thawed, Slot: snack},
 	}
-	got := domain.ThawingsOf(thawed, []domain.Ingredient{peas, breast}, []domain.Portion{{ID: 6, Name: "chili"}, lasagne})
-	want := []domain.Thawing{
-		{For: lunch, Ingredient: &breast, Quantity: grams(200)},
-		{For: snack, Portion: &lasagne},
-	}
+	got := domain.ThawsOf(thawed, []domain.Ingredient{peas, breast}, []domain.Portion{{ID: 6, Name: "chili"}, lasagne})
+	want := []domain.Thaw{domain.StockThaw(lunch, 3, breast, grams(200)), domain.PortionThaw(snack, lasagne)}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ThawingsOf() = %+v, want %+v", got, want)
+		t.Errorf("ThawsOf() = %+v, want %+v", got, want)
 	}
 }

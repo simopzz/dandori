@@ -15,7 +15,7 @@ import (
 // day, after dinner: until then, worked out as the step will, on the kitchen as it holds
 // `now`, through the Plan's Slots and the ordered Deliveries up to then; after, those it
 // recorded. A User without a Cycle has none.
-func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]domain.Thawing, error) {
+func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]domain.Thaw, error) {
 	var cycles []Cycle
 	err := db.AsUser(ctx, s.pool, func(tx pgx.Tx) (err error) {
 		cycles, err = loadCycles(ctx, tx, now.Location())
@@ -77,5 +77,5 @@ func (s *Service) ThawsTonight(ctx context.Context, now time.Time) ([]domain.Tha
 	if err != nil {
 		return nil, err
 	}
-	return domain.ThawingsOf(thawed, known, portions), nil
+	return domain.ThawsOf(thawed, known, portions), nil
 }

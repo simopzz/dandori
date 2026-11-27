@@ -582,17 +582,17 @@ func thaws(d Day) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						if t.Portion != nil {
-							templ_7745c5c3_Err = web.RowTitle(t.Portion.Name, false, "", false).Render(ctx, templ_7745c5c3_Buffer)
+						if p, ok := t.Portion(); ok {
+							templ_7745c5c3_Err = web.RowTitle(p.Name, false, "", false).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-						} else {
-							templ_7745c5c3_Err = web.RowTitle(t.Ingredient.Name, false, "", false).Render(ctx, templ_7745c5c3_Buffer)
+						} else if ing, quantity, ok := t.Ingredient(); ok {
+							templ_7745c5c3_Err = web.RowTitle(ing.Name, false, "", false).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = web.QuantityFigure(t.Quantity, t.Ingredient.Unit).Render(ctx, templ_7745c5c3_Buffer)
+							templ_7745c5c3_Err = web.QuantityFigure(quantity, ing.Unit).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -602,9 +602,9 @@ func thaws(d Day) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var28 string
-						templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgForTomorrow, web.T(ctx, web.SlotKindNames[t.For.Kind])))
+						templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgForTomorrow, web.T(ctx, web.SlotKindNames[t.For().Kind])))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 112, Col: 100}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 112, Col: 102}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 						if templ_7745c5c3_Err != nil {
