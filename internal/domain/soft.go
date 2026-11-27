@@ -288,7 +288,8 @@ func (t Targets) DayOff(target Target, d Day) (Miss, bool) {
 // Session kept, of the Plan `p` replaces, counts its Portions eaten with those `p` puts
 // in Slots again, and is back to back only where `p` puts one close to another. Those `p`
 // makes with no Slot are no miss: they are MadeForAfter, as are those of a kept Prep
-// Session it leaves without one, held by PlannedID.
+// Session it leaves without one, held by PlannedID. Those of an earlier Cycle's Prep
+// Session, held by PlannedID too, are carried into it.
 func (p Plan) SoftMisses(held []PortionLot, kept Plan) []Miss {
 	var ms []Miss
 	for _, ps := range p.PrepSessions {
@@ -316,7 +317,9 @@ func (p Plan) SoftMisses(held []PortionLot, kept Plan) []Miss {
 	}
 	var unused []Miss
 	for _, lot := range held {
-		if len(lot.IDs) > 0 && lot.IDs[0] < 0 {
+		if slices.ContainsFunc(kept.PrepSessions, func(ps PrepSession) bool {
+			return slices.ContainsFunc(ps.Portions, func(pp PlannedPortion) bool { return pp.ID != 0 && slices.Contains(lot.IDs, PlannedID(pp.ID)) })
+		}) {
 			continue // Planned Portions: made this Cycle, not carried into it
 		}
 		left := 0

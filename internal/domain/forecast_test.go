@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/simopzz/dandori/internal/domain"
@@ -22,6 +23,10 @@ func TestTheKitchenForecastAtASlot(t *testing.T) {
 	eats := func(s domain.Slot) domain.PlannedPortion {
 		return domain.PlannedPortion{Location: domain.Fridge, EatAt: &s}
 	}
+	// chiliIn is the Portions of chili prepared in location, by PlannedID.
+	chiliIn := func(location domain.StorageLocation, ids ...int64) domain.PortionLot {
+		return domain.PortionLot{Name: "Chili", Location: location, Nutrition: chili.NutritionPerPortion().Nutrition, IDs: ids}
+	}
 	// sets is a Prep Session at kind on day setting out quantity of ing, eaten there.
 	sets := func(day int, kind domain.SlotKind, ing domain.Ingredient, quantity float64) domain.Plan {
 		ps := setsOut(day, ing, quantity)
@@ -29,8 +34,11 @@ func TestTheKitchenForecastAtASlot(t *testing.T) {
 		return domain.Plan{PrepSessions: []domain.PrepSession{ps}}
 	}
 	cooks := domain.Plan{PrepSessions: []domain.PrepSession{{At: slot(4, domain.Dinner), Recipe: &chili, Size: 1, Portions: []domain.PlannedPortion{
-		eats(slot(4, domain.Dinner)), eats(slot(5, domain.Dinner)), {Location: domain.Freezer},
+		{ID: 1, Location: domain.Fridge, EatAt: in(slot(4, domain.Dinner))}, {ID: 2, Location: domain.Fridge, EatAt: in(slot(5, domain.Dinner))}, {ID: 3, Location: domain.Freezer},
 	}}}}
+	// cooksEarlier prepares at lunch instead, and puts its frozen Portion at the snack.
+	cooksEarlier := domain.Plan{PrepSessions: slices.Clone(cooks.PrepSessions), Kept: []domain.Kept{{Portion: domain.PlannedID(3), At: slot(4, domain.Snack)}}}
+	cooksEarlier.PrepSessions[0].At = slot(4, domain.Lunch)
 	tests := []struct {
 		name  string
 		plan  domain.Plan
@@ -49,10 +57,10 @@ func TestTheKitchenForecastAtASlot(t *testing.T) {
 			domain.Forecast{Stock: stock(500, 400, 0), Lots: lasagne(7, 8, 9)}},
 		{"nor one at the Slot itself", sets(5, domain.Breakfast, breast, 300), stock(500, 400, 0),
 			domain.Forecast{Stock: stock(500, 400, 0), Lots: lasagne(7, 8, 9)}},
-		{"its Portions not eaten before the Slot are left without one", cooks, nil,
-			domain.Forecast{Lots: lasagne(7, 8, 9), Made: []domain.MadeForAfter{
-				{Name: "Chili", Location: domain.Fridge, Portions: 1}, {Name: "Chili", Location: domain.Freezer, Portions: 1},
-			}}},
+		{"its Portions not eaten before the Slot are left without one, by PlannedID", cooks, nil,
+			domain.Forecast{Lots: append(lasagne(7, 8, 9), chiliIn(domain.Fridge, -2), chiliIn(domain.Freezer, -3))}},
+		{"one it puts in a Slot before the Slot is gone", cooksEarlier, nil,
+			domain.Forecast{Lots: append(lasagne(7, 8, 9), chiliIn(domain.Fridge, -2))}},
 		{"a Portion without a Slot eaten before the Slot is gone", kept(8, slot(4, domain.Lunch)), nil,
 			domain.Forecast{Lots: lasagne(7, 9)}},
 		{"one eaten from the Slot on is left", kept(8, slot(5, domain.Lunch)), nil,
