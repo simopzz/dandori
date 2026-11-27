@@ -101,6 +101,10 @@ func (s Slot) At(times Times) time.Time {
 	return time.Date(y, m, d, int(t/60), int(t%60), 0, 0, s.On.Location())
 }
 
+// ThawEvening is the Slot the frozen food `day`'s Slots need is thawed at: the dinner of
+// the day before.
+func ThawEvening(day time.Time) Slot { return Slot{On: day.AddDate(0, 0, -1), Kind: Dinner} }
+
 // TimeOfDay is `s`'s time of day by `times`, those in force on its day.
 func (s Slot) TimeOfDay(times Times) TimeOfDay { return times.On(s.On)[s.Kind] }
 

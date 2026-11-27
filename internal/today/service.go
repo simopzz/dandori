@@ -70,9 +70,9 @@ type Day struct {
 // Assumed is what Dandori assumed since the User's visit to Today before, or since the
 // start of the day if that is earlier, with what it touched by id.
 type Assumed struct {
-	Days        []domain.AssumedDay
-	Ingredients map[int64]domain.Ingredient
-	Portions    map[int64]string
+	Days         []domain.AssumedDay
+	Ingredients  map[int64]domain.Ingredient
+	PortionNames map[int64]string
 }
 
 // assumed records the signed-in User's visit to Today at `now`, and is what Dandori
@@ -100,14 +100,17 @@ func (s *Service) assumed(ctx context.Context, now time.Time) (a Assumed, err er
 			return err
 		}
 		portions, err := ledger.LoadPortions(ctx, tx)
-		a.Ingredients, a.Portions = make(map[int64]domain.Ingredient, len(ings)), make(map[int64]string, len(portions))
+		if err != nil {
+			return err
+		}
+		a.Ingredients, a.PortionNames = make(map[int64]domain.Ingredient, len(ings)), make(map[int64]string, len(portions))
 		for _, ing := range ings {
 			a.Ingredients[ing.ID] = ing
 		}
 		for _, p := range portions {
-			a.Portions[p.ID] = p.Name
+			a.PortionNames[p.ID] = p.Name
 		}
-		return err
+		return nil
 	})
 	return a, err
 }
@@ -214,9 +217,6 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	if d.Thaws, err = s.planning.ThawsTonight(ctx, now); err != nil {
 		return Day{}, err
 	}
-	if d.Assumed, err = s.assumed(ctx, now); err != nil {
-		return Day{}, err
-	}
 	for _, c := range []*planning.Cycle{current, upcoming} {
 		if c == nil {
 			continue
@@ -231,6 +231,10 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 		case c.Delivery.State == domain.Tentative && d.Due == nil: // the current Cycle's has arrived; a Delivery due links its list itself
 			d.OrderNext = c.ID
 		}
+	}
+	// Last, so a visit is recorded only once everything else Today shows has loaded.
+	if d.Assumed, err = s.assumed(ctx, now); err != nil {
+		return Day{}, err
 	}
 	return d, nil
 }

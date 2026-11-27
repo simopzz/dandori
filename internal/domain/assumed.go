@@ -31,7 +31,7 @@ func AssumedByDay(ms []Movement) []AssumedDay {
 		}
 		key := AssumedRow{Slot: m.Slot, Thaws: m.Cause == Thawed}
 		if key.Thaws {
-			key.Slot = Slot{On: m.Slot.On.AddDate(0, 0, -1), Kind: Dinner}
+			key.Slot = ThawEvening(m.Slot.On)
 		}
 		i := slices.IndexFunc(rows, func(r AssumedRow) bool { return r.Slot.Equal(key.Slot) && r.Thaws == key.Thaws })
 		if i < 0 {

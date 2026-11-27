@@ -64,7 +64,6 @@ var (
 	}
 	msgAdd        = web.Message{En: "Add", It: "Aggiungi"}
 	msgPerPortion = web.Message{En: "per Portion", It: "per Porzione"}
-	msgTimes      = web.Message{En: "× %d", It: "× %d"}
 
 	msgLotHolds             = web.Message{En: "This Portion Lot holds %d.", It: "Questo Lotto di Porzioni ne contiene %d."}
 	msgMovedPortions        = web.Message{En: "Moved %s × %d %s.", It: "Spostato: %s × %d %s."}

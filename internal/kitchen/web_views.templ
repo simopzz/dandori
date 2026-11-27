@@ -164,7 +164,7 @@ templ contentsList(now time.Time, contents Contents) {
 								{ p.Name }
 							}
 						</span>
-						<span class="row-figure">{ web.Tf(ctx, msgTimes, p.Count()) }</span>
+						<span class="row-figure">{ web.Tf(ctx, web.TimesCount, p.Count()) }</span>
 						<span class="row-meta">
 							@ingredients.NutritionFacts(web.T(ctx, msgPerPortion), p.Nutrition)
 						</span>
@@ -553,16 +553,22 @@ func portionURL(path string, id int64, location domain.StorageLocation) templ.Sa
 // touched where it left it, its To for a move: the Portion Lot of its first Portion, or
 // its Stock Item.
 templ MovementsLink(m domain.Movement) {
-	{{ location := LeftIn(m) }}
+	{{ url := movementsURL(m) }}
+	@web.SideSheetLink(movementsSheetID, url(""), url("/sheet")) {
+		{ children... }
+	}
+}
+
+// movementsURL is the Movements of what `m` touched, as MovementsLink opens them, by the
+// suffix to their path: "" for the page, "/sheet" for the sheet's body.
+func movementsURL(m domain.Movement) func(suffix string) templ.SafeURL {
+	location := LeftIn(m)
 	if len(m.Portions) > 0 {
-		@web.SideSheetLink(movementsSheetID, portionURL("/kitchen/portions/movements", m.Portions[0], location), portionURL("/kitchen/portions/movements/sheet", m.Portions[0], location)) {
-			{ children... }
-		}
-	} else {
-		@web.SideSheetLink(movementsSheetID, stockItemURL("/kitchen/movements", m.Key.Ingredient, location), stockItemURL("/kitchen/movements/sheet", m.Key.Ingredient, location)) {
-			{ children... }
+		return func(suffix string) templ.SafeURL {
+			return portionURL("/kitchen/portions/movements"+suffix, m.Portions[0], location)
 		}
 	}
+	return func(suffix string) templ.SafeURL { return stockItemURL("/kitchen/movements"+suffix, m.Key.Ingredient, location) }
 }
 
 // LeftIn is the Storage Location `m` left what it touched in: its To for a move.

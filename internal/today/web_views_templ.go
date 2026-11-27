@@ -1638,7 +1638,7 @@ func forTomorrow(ctx context.Context, r domain.AssumedRow) string {
 	if !r.Thaws {
 		return ""
 	}
-	return web.T(ctx, msgForTomorrowOnly)
+	return web.T(ctx, msgForTomorrowsSlots)
 }
 
 // assumedMovement is `m`, a Movement `a` lists: what it touched, a link to its Movements,
@@ -1717,9 +1717,9 @@ func assumedMovement(a Assumed, m domain.Movement) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var73 string
-				templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, msgTimes, len(m.Portions)))
+				templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(web.Tf(ctx, web.TimesCount, len(m.Portions)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 404, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/today/web_views.templ`, Line: 404, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 				if templ_7745c5c3_Err != nil {
@@ -1778,7 +1778,7 @@ func assumedMovement(a Assumed, m domain.Movement) templ.Component {
 // touched is the name of what `m` touched: its first Portion's, or its Ingredient's.
 func touched(a Assumed, m domain.Movement) string {
 	if len(m.Portions) > 0 {
-		return a.Portions[m.Portions[0]]
+		return a.PortionNames[m.Portions[0]]
 	}
 	return a.Ingredients[m.Key.Ingredient].Name
 }
@@ -1798,7 +1798,7 @@ func assumedTitle(ctx context.Context, a Assumed, r domain.AssumedRow) string {
 		return web.Tf(ctx, msgOutOfTheFreezer, strings.Join(parts, ", "))
 	}
 	for _, p := range r.Summary() {
-		name := a.Portions[p.Portion]
+		name := a.PortionNames[p.Portion]
 		if p.Prepared == 0 {
 			parts = append(parts, web.Tf(ctx, msgEatenPart, name))
 			continue

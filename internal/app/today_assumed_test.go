@@ -11,7 +11,8 @@ import (
 
 // Once a day's Slots pass, Today lists what Dandori assumed since the User last looked,
 // by day, oldest first: Thursday evening's thaw of the lasagne in a row of its own, then
-// Friday's Slots, each summed up and opening to its Movements.
+// Friday's Slots, each summed up and opening to its Movements. Thursday's Delivery isn't
+// among them: the put-away list shows it.
 func TestTodayListsWhatWasAssumedByDay(t *testing.T) {
 	s := plannerWithKitchen(t, "ada@example.com")
 	approvesFriday(t, s)
@@ -24,6 +25,7 @@ func TestTodayListsWhatWasAssumedByDay(t *testing.T) {
 		" Rice bowl × 1 Prepared in the freezer Rice bowl × 1 Eaten in the fridge")
 	s.Sees("lasagne eaten Snack 5:00 pm")
 	s.Sees("Rice bowl eaten Dinner 8:00 pm")
+	s.DoesNotSee("Delivered")
 }
 
 // Visiting again lists only what was assumed since, but never less than all of the day's:
@@ -79,6 +81,9 @@ func TestWhatTodayListsAsAssumedLinksToTheKitchen(t *testing.T) {
 	s.Open("/")
 	s.Follows("rice")
 	s.Sees("rice · Pantry Used up 800 g → 425 g Fri, Nov 6 · 1:00 pm")
+	s.Open("/")
+	s.Follows("Rice bowl") // the two prepared in the fridge, one of them eaten at lunch
+	s.Sees("Rice bowl · Fridge Eaten 2 → 1 Fri, Nov 6 · 1:00 pm Prepared 0 → 2 Fri, Nov 6 · 1:00 pm")
 }
 
 // In a browser, an assumed Slot's row opens to its Movements.

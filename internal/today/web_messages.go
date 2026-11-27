@@ -17,36 +17,35 @@ var (
 		En: "Your Plan shows here once Dandori plans what you eat. To plan it, it needs to know your kitchen, your Recipes and your Targets.",
 		It: "Il tuo Piano compare qui quando Dandori pianifica cosa mangi. Per pianificarlo, deve conoscere la tua cucina, le tue Ricette e i tuoi Obiettivi.",
 	}
-	msgCountKitchen    = web.Message{En: "Count your kitchen", It: "Conta la tua cucina"}
-	msgAddRecipes      = web.Message{En: "Add Recipes", It: "Aggiungi Ricette"}
-	msgSetTargets      = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
-	msgOpenCycle       = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
-	msgOpenNext        = web.Message{En: "Open the next Cycle", It: "Apri il prossimo Ciclo"}
-	msgOrderingNext    = web.Message{En: "Order the next Delivery", It: "Ordina la prossima Consegna"}
-	msgNeedsTargets    = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
-	msgFailed          = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
-	msgPutAway         = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
-	msgDeliveryToday   = web.Message{En: "Delivery today, %s to %s", It: "Consegna oggi, dalle %s alle %s"}
-	msgNotOrderedYet   = web.Message{En: "not marked ordered yet", It: "non ancora segnata come ordinata"}
-	msgThawTonight     = web.Message{En: "Out of the freezer tonight", It: "Dal congelatore stasera"}
-	msgForTomorrow     = web.Message{En: "for %s tomorrow", It: "per %s di domani"}
-	msgCookedThen      = web.Message{En: "cooked then", It: "cucinata al momento"}
-	msgSetOut          = web.Message{En: "set out %s %s", It: "tira fuori %s di %s"}
-	msgFromEarlier     = web.Message{En: "from %s, %s", It: "da %s, %s"}
-	msgInTheKitchen    = web.Message{En: "already in the kitchen", It: "già in cucina"}
-	msgNotInTheKitchen = web.Message{En: "not in the kitchen", It: "non in cucina"}
-	msgStartAt         = web.Message{En: "start at %s", It: "inizia alle %s"}
-	msgStartPreparing  = web.Message{En: "Start preparing %s for %s", It: "Inizia a preparare %s per %s"}
-	msgRecipeSteps     = web.Message{En: "The Recipe's steps", It: "I passaggi della Ricetta"}
-	msgSinceYouLooked  = web.Message{En: "Since you last looked", It: "Da quando hai guardato"}
-	msgPreparedPart    = web.Message{En: "%s prepared", It: "Preparato %s"}
-	msgEatenPart       = web.Message{En: "%s eaten", It: "Mangiato %s"}
-	msgEatenCount      = web.Message{En: "%d eaten", It: "mangiate: %d"}
-	msgKeptCount       = web.Message{En: "%d kept", It: "tenute: %d"}
-	msgOutOfTheFreezer = web.Message{En: "Out of the freezer: %s", It: "Dal congelatore: %s"}
-	msgForTomorrowOnly = web.Message{En: "for tomorrow", It: "per domani"}
-	msgTimes           = web.Message{En: "× %d", It: "× %d"}
-	msgPutAwayLater    = web.Message{
+	msgCountKitchen      = web.Message{En: "Count your kitchen", It: "Conta la tua cucina"}
+	msgAddRecipes        = web.Message{En: "Add Recipes", It: "Aggiungi Ricette"}
+	msgSetTargets        = web.Message{En: "Set your Targets", It: "Imposta i tuoi Obiettivi"}
+	msgOpenCycle         = web.Message{En: "Open a Cycle", It: "Apri un Ciclo"}
+	msgOpenNext          = web.Message{En: "Open the next Cycle", It: "Apri il prossimo Ciclo"}
+	msgOrderingNext      = web.Message{En: "Order the next Delivery", It: "Ordina la prossima Consegna"}
+	msgNeedsTargets      = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
+	msgFailed            = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
+	msgPutAway           = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
+	msgDeliveryToday     = web.Message{En: "Delivery today, %s to %s", It: "Consegna oggi, dalle %s alle %s"}
+	msgNotOrderedYet     = web.Message{En: "not marked ordered yet", It: "non ancora segnata come ordinata"}
+	msgThawTonight       = web.Message{En: "Out of the freezer tonight", It: "Dal congelatore stasera"}
+	msgForTomorrow       = web.Message{En: "for %s tomorrow", It: "per %s di domani"}
+	msgCookedThen        = web.Message{En: "cooked then", It: "cucinata al momento"}
+	msgSetOut            = web.Message{En: "set out %s %s", It: "tira fuori %s di %s"}
+	msgFromEarlier       = web.Message{En: "from %s, %s", It: "da %s, %s"}
+	msgInTheKitchen      = web.Message{En: "already in the kitchen", It: "già in cucina"}
+	msgNotInTheKitchen   = web.Message{En: "not in the kitchen", It: "non in cucina"}
+	msgStartAt           = web.Message{En: "start at %s", It: "inizia alle %s"}
+	msgStartPreparing    = web.Message{En: "Start preparing %s for %s", It: "Inizia a preparare %s per %s"}
+	msgRecipeSteps       = web.Message{En: "The Recipe's steps", It: "I passaggi della Ricetta"}
+	msgSinceYouLooked    = web.Message{En: "Since you last looked", It: "Da quando hai guardato"}
+	msgPreparedPart      = web.Message{En: "%s prepared", It: "%s: preparazione"}
+	msgEatenPart         = web.Message{En: "%s eaten", It: "%s: a pasto"}
+	msgEatenCount        = web.Message{En: "%d eaten", It: "%d a pasto"}
+	msgKeptCount         = web.Message{En: "%d kept", It: "%d da parte"}
+	msgOutOfTheFreezer   = web.Message{En: "Out of the freezer: %s", It: "Dal congelatore: %s"}
+	msgForTomorrowsSlots = web.Message{En: "for tomorrow", It: "per domani"}
+	msgPutAwayLater      = web.Message{
 		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
 		It: "Conta e Sposta si aprono quando arriva la spesa, per correggere ciò che è arrivato diverso.",
 	}
