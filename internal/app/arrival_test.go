@@ -161,7 +161,8 @@ func TestTheDeliveryDaysEarlierSlotsStayWithTheClosingCycle(t *testing.T) {
 	s.Sees("Cycle · Fri, Nov 6 – Sat, Nov 7")
 	s.Follows("Plan the Cycle")
 	s.Sees("rice 800 g")
-	s.Sees("lasagne × 3")
+	s.Sees("Fridge lasagne × 1") // thawed on Thursday evening for the snack
+	s.Sees("Freezer lasagne × 2")
 	s.Model.Script(fakellm.Hang())
 	s.StartsPlanning()
 	got := lastPrompt(t, s)

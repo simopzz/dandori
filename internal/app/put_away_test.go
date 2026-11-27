@@ -11,9 +11,12 @@ import (
 
 // plansFridaySplitting opens friday, plans it as fridayDraft with 100 g of yogurt and 400
 // g of chicken breast, which it adds and no Prep Session uses, split to the freezer, and
-// approves it. Its Grocery List buys 150 g of yogurt.
+// approves it. Its Grocery List buys 150 g of yogurt. Dinner is at 7 pm, so Thursday
+// evening's thaw comes before the Delivery's frozen yogurt does.
 func plansFridaySplitting(t *testing.T, s *apptest.Scenario) {
 	t.Helper()
+	s.Open("/profile")
+	s.SavesTimesOfDay(apptest.TimesOfDay{Breakfast: "8:00", Lunch: "13:00", Snack: "17:00", Dinner: "19:00"})
 	s.AddsIngredient(chicken)
 	s.Model.Script(
 		fakellm.Then(func(req agent.Request) fakellm.Step {
@@ -51,7 +54,7 @@ func TestTheDeliveryIsPutAwayWhenItArrives(t *testing.T) {
 
 	s.At("Thu 20:00")
 	s.Open("/kitchen")
-	s.Sees("Fridge yogurt 50 g Count yogurt in the fridge Move yogurt in the fridge")
+	s.Sees("Move lasagne in the fridge yogurt 50 g Count yogurt in the fridge Move yogurt in the fridge")
 	s.Sees("Move lasagne in the freezer yogurt 100 g Count yogurt in the freezer Move yogurt in the freezer")
 	s.DoesNotSee("Count chicken breast")
 	s.Open("/kitchen/movements?location=freezer&ingredient=" + ingredientID(t, s, "yogurt"))
@@ -103,7 +106,7 @@ func TestADeliveryIsPutAwayOnce(t *testing.T) {
 	s.At("Thu 21:30")
 	s.Open("/kitchen")
 	s.Open("/kitchen/movements?location=fridge&ingredient=" + ingredientID(t, s, "yogurt"))
-	s.Sees("yogurt · Fridge Delivered 0 g → 50 g Thu, Nov 5 · 8:00 pm")
+	s.Sees("Delivered 0 g → 50 g Thu, Nov 5 · 8:00 pm")
 	s.DoesNotSee("Delivered 50 g")
 }
 
@@ -114,7 +117,7 @@ func TestADeliveryNeverMarkedOrderedIsPutAwayAllTheSame(t *testing.T) {
 	plansFridaySplitting(t, s)
 	s.At("Thu 20:05")
 	s.Open("/kitchen")
-	s.Sees("Fridge yogurt 50 g")
+	s.Sees("Move lasagne in the fridge yogurt 50 g")
 	s.Open("/plan/cycles/1")
 	s.Sees("Delivered on Thu, Nov 5 Never marked ordered")
 	s.Follows("Grocery List")

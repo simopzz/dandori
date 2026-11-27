@@ -344,3 +344,99 @@ func TestASlotPassesBetween(t *testing.T) {
 		})
 	}
 }
+
+// thawed is what the evening at `when` thawed of `k` into the fridge, `quantity`, for the
+// Prep Session `ps` at `s`.
+func thawed(when time.Time, k domain.StockKey, quantity float64, ps int64, s domain.Slot) domain.Movement {
+	return domain.Movement{At: when, Key: k, To: domain.Fridge, Change: grams(quantity), Cause: domain.Thawed, PrepSession: ps, Slot: s}
+}
+
+// The evening before a day of the Plan, after that dinner's own Movements, thaws into the
+// fridge what the day's Prep Sessions need beyond what the kitchen holds outside the
+// freezer, counting an ordered Delivery due before the day's first Slot as held, and
+// every frozen Portion filling one of its Slots. An Ingredient used from frozen is
+// not thawed.
+func TestTheEveningBeforeThaws(t *testing.T) {
+	tonight, dinner, lunch := at(6, "20:00"), slot(6, domain.Dinner), slot(7, domain.Lunch)
+	lasagne := domain.Movement{At: at(5, "10:00"), Key: domain.StockKey{Location: domain.Freezer}, Portions: []int64{7}, Change: grams(1), Cause: domain.Added}
+	chili := domain.Movement{At: at(5, "10:00"), Key: domain.StockKey{Location: domain.Fridge}, Portions: []int64{8}, Change: grams(1), Cause: domain.Added}
+	cooks := func(ing domain.Ingredient) domain.Plan {
+		return domain.Plan{PrepSessions: []domain.PrepSession{session(3, lunch, ing, 300, planned(31, domain.Fridge, &lunch))}}
+	}
+	delivery := func(ordered bool) []domain.Arrival {
+		return []domain.Arrival{{At: at(7, "10:00"), Ordered: ordered, Put: []domain.PutAwayLine{
+			{GroceryLine: domain.GroceryLine{Ingredient: breast, Quantity: grams(200)}, Location: domain.Fridge},
+			{GroceryLine: domain.GroceryLine{Ingredient: breast, Quantity: grams(100)}, Location: domain.Freezer},
+		}}}
+	}
+	tests := []struct {
+		name     string
+		ledger   []domain.Movement
+		plan     domain.Plan
+		arrivals []domain.Arrival
+		want     []domain.Movement
+	}{
+		{
+			name:   "freezer stock the next day's Prep Session needs",
+			ledger: []domain.Movement{holds(breast, domain.Fridge, 100), holds(breast, domain.Freezer, 400)},
+			plan:   cooks(breast),
+			want:   []domain.Movement{thawed(tonight, key(breast, domain.Freezer), 200, 3, lunch)},
+		},
+		{
+			name:   "no more than the freezer holds",
+			ledger: []domain.Movement{holds(breast, domain.Freezer, 100)},
+			plan:   cooks(breast),
+			want:   []domain.Movement{thawed(tonight, key(breast, domain.Freezer), 100, 3, lunch)},
+		},
+		{
+			name:   "stock in the fridge not thawed again",
+			ledger: []domain.Movement{holds(breast, domain.Fridge, 300), holds(breast, domain.Freezer, 400)},
+			plan:   cooks(breast),
+		},
+		{
+			name:   "an Ingredient used from frozen not thawed",
+			ledger: []domain.Movement{holds(peas, domain.Freezer, 400)},
+			plan:   cooks(peas),
+		},
+		{
+			name:     "an ordered Delivery due before the day's first Slot held, but not its freezer split",
+			ledger:   []domain.Movement{holds(breast, domain.Freezer, 400)},
+			plan:     cooks(breast),
+			arrivals: delivery(true),
+			want:     []domain.Movement{thawed(tonight, key(breast, domain.Freezer), 100, 3, lunch)},
+		},
+		{
+			name:     "a tentative Delivery not held",
+			ledger:   []domain.Movement{holds(breast, domain.Freezer, 400)},
+			plan:     cooks(breast),
+			arrivals: delivery(false),
+			want:     []domain.Movement{thawed(tonight, key(breast, domain.Freezer), 300, 3, lunch)},
+		},
+		{
+			name:   "a frozen Portion filling the next day's Slot, after that dinner's own Movements",
+			ledger: []domain.Movement{lasagne, chili},
+			plan:   domain.Plan{Kept: []domain.Kept{{Portion: 8, At: dinner}, {Portion: 7, At: lunch}}},
+			want: []domain.Movement{
+				ate(tonight, domain.Fridge, 8, dinner),
+				{At: tonight, Key: domain.StockKey{Location: domain.Freezer}, To: domain.Fridge, Portions: []int64{7}, Change: grams(1), Cause: domain.Thawed, Slot: lunch},
+			},
+		},
+		{
+			name:   "a Portion in the fridge not thawed",
+			ledger: []domain.Movement{chili},
+			plan:   domain.Plan{Kept: []domain.Kept{{Portion: 8, At: lunch}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := domain.NewLedger(tt.ledger).UpToNow(tt.plan, nil, tt.arrivals, domain.DefaultSlotTimes, at(6, "19:00"), at(6, "21:00"))
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("the walk\n%+v, want\n%+v", got, tt.want)
+			}
+			after := domain.NewLedger(append(slices.Clone(tt.ledger), got...))
+			if again, _ := after.UpToNow(tt.plan, nil, tt.arrivals, domain.DefaultSlotTimes, at(6, "21:00"), at(6, "22:00")); len(again) != 0 {
+				t.Errorf("an hour later the walk wrote %+v, want nothing", again)
+			}
+		})
+	}
+}

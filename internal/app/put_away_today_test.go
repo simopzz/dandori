@@ -64,7 +64,7 @@ func TestAPutAwayLineIsCountedAndMovedFromToday(t *testing.T) {
 	s.IsAt("/")
 	s.IsConfirmed("Moved 60 g of yogurt to the fridge.")
 	s.Open("/kitchen")
-	s.Sees("Fridge yogurt 300 g")
+	s.Sees("Move lasagne in the fridge yogurt 300 g")
 	s.DoesNotSee("Move yogurt in the freezer")
 	s.Open("/")
 	s.Sees("yogurt 100 g in the freezer Count yogurt in the freezer Move yogurt in the freezer")
@@ -79,7 +79,7 @@ func TestAPutAwayLineIsCountedAndMovedFromToday(t *testing.T) {
 		t.Fatalf("Count from Today's sheet: %d %s", got.StatusCode, apptest.Text(got.Body))
 	}
 	s.Open("/kitchen")
-	s.Sees("Fridge yogurt 250 g")
+	s.Sees("Move lasagne in the fridge yogurt 250 g")
 }
 
 // The put-away list stays on Today until the end of the day after the Delivery's day, for

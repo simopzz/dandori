@@ -7,10 +7,12 @@ import (
 	"time"
 )
 
-// Arrival is a Delivery taken as arrived At the end of its window, putting Put away.
+// Arrival is a Delivery taken as arrived At the end of its window, putting Put away, and
+// whether it is Ordered: an evening's thaw counts one still to come as held.
 type Arrival struct {
-	At  time.Time
-	Put []PutAwayLine
+	At      time.Time
+	Put     []PutAwayLine
+	Ordered bool
 }
 
 // PreparedPortion is a Portion a Prep Session prepares from its Planned Portion Planned,
@@ -29,10 +31,13 @@ const (
 	usesUp
 	prepares
 	eats
+	thaws
 )
 
-// happening is a step at a moment: a Delivery's arrival, a Prep Session's, or a Slot's.
+// happening is a step at a moment: a Delivery's arrival, a Prep Session's, a Slot's, or
+// an evening's thaw for the day `day`.
 type happening struct {
+	day     time.Time
 	at      time.Time
 	step    step
 	arrival Arrival
@@ -44,23 +49,35 @@ type happening struct {
 // the Plan `p` by `times` and of `arrivals`: the Movements, in the order they happen, and
 // the Portions its Prep Sessions prepare, listed in those Movements by PlannedID until
 // they are stored. `madeFrom` gives the Portion each Planned Portion was prepared as.
-// Slots and arrivals go in time order, at one moment arrival, used up, prepared, eaten.
-// Each Movement is dated at its time, or the latest Movement's if that is
-// later (WriteAt).
+// Slots and arrivals go in time order, at one moment arrival, used up, prepared, eaten,
+// and at dinner's time of day the thaw for the next day of `p` (thaw). An arrival after
+// `to` doesn't happen: an evening's thaw counts it held. Each Movement is dated at its
+// time, or the latest Movement's if that is later (WriteAt).
 func (l Ledger) UpToNow(p Plan, madeFrom map[int64]int64, arrivals []Arrival, times SlotTimes, from, to time.Time) (written []Movement, made []PreparedPortion) {
 	in := func(s Slot) bool { t := s.At(times); return t.After(from) && !t.After(to) }
 	var happenings []happening
 	for _, a := range arrivals {
-		happenings = append(happenings, happening{at: a.At, step: arrives, arrival: a})
+		if !a.At.After(to) {
+			happenings = append(happenings, happening{at: a.At, step: arrives, arrival: a})
+		}
 	}
-	filled := map[string]bool{}
+	filled, evenings := map[string]bool{}, map[string]bool{}
+	thawFor := func(day time.Time) {
+		evening := Slot{On: day.AddDate(0, 0, -1), Kind: Dinner}
+		if in(evening) && !evenings[evening.key()] {
+			evenings[evening.key()] = true
+			happenings = append(happenings, happening{at: evening.At(times), step: thaws, day: day})
+		}
+	}
 	fill := func(s Slot) {
+		thawFor(s.On)
 		if in(s) && !filled[s.key()] {
 			filled[s.key()] = true
 			happenings = append(happenings, happening{at: s.At(times), step: eats, slot: s})
 		}
 	}
 	for _, ps := range p.PrepSessions {
+		thawFor(ps.At.On)
 		if in(ps.At) {
 			at := ps.At.At(times)
 			happenings = append(happenings, happening{at: at, step: usesUp, session: ps}, happening{at: at, step: prepares, session: ps})
@@ -93,11 +110,68 @@ func (l Ledger) UpToNow(p Plan, madeFrom map[int64]int64, arrivals []Arrival, ti
 			made = append(made, portions...)
 		case eats:
 			ms = l.eats(e.at, p, e.slot, prepared)
+		case thaws:
+			ms = l.thaw(e.at, p, e.day, arrivals, prepared, times)
 		}
 		l = l.with(ms)
 		written = append(written, ms...)
 	}
 	return written, made
+}
+
+// thaw is the Movements, written at `now`, of the evening's thaw into the fridge for the
+// day `day` of `p` by `times`, `prepared` giving each Planned Portion's Portion: what the
+// day's Prep Sessions thaw (Plan.Thaws), one Movement each per Ingredient, with each of
+// `arrivals` still to come, Ordered and due before the day's first Slot, held where it is
+// put away, and every frozen Portion filling one of its Slots. A freezer split of an
+// Ingredient not used from frozen isn't held: there is no evening left to thaw it.
+func (l Ledger) thaw(now time.Time, p Plan, day time.Time, arrivals []Arrival, prepared map[int64]int64, times SlotTimes) []Movement {
+	at := l.WriteAt(now)
+	var sessions []PrepSession
+	var slots []Slot
+	for _, ps := range p.PrepSessions {
+		if ps.At.On.Equal(day) {
+			sessions = append(sessions, ps)
+			slots = append(slots, ps.At)
+		}
+		for _, pp := range ps.Portions {
+			if pp.EatAt != nil && pp.EatAt.On.Equal(day) {
+				slots = append(slots, *pp.EatAt)
+			}
+		}
+	}
+	for _, k := range p.Kept {
+		if k.At.On.Equal(day) {
+			slots = append(slots, k.At)
+		}
+	}
+	slices.SortStableFunc(slots, func(a, b Slot) int { return a.At(times).Compare(b.At(times)) })
+	slots = slices.CompactFunc(slots, Slot.Equal)
+	stock := map[StockKey]Quantity{}
+	for key, item := range l.At(at) {
+		stock[key] = item.Held
+	}
+	for _, a := range arrivals {
+		if !a.Ordered || !a.At.After(at) || len(slots) == 0 || !a.At.Before(slots[0].At(times)) {
+			continue
+		}
+		for _, put := range a.Put {
+			if put.Location != Freezer || put.Ingredient.UseFromFrozen {
+				stock[StockKey{Ingredient: put.Ingredient.ID, Location: put.Location}] += put.Quantity
+			}
+		}
+	}
+	var ms []Movement
+	for _, t := range (Plan{PrepSessions: sessions}).Thaws(stock) {
+		ms = append(ms, Movement{At: at, Key: StockKey{Ingredient: t.ingredient.ID, Location: Freezer}, To: Fridge, Change: t.quantity, Cause: Thawed, PrepSession: t.prepSession, Slot: t.slot})
+	}
+	where := l.PortionsAt(at)
+	for _, s := range slots {
+		if id, ok := p.Filling(s, prepared); ok && where[id] == Freezer {
+			ms = append(ms, Movement{At: at, Key: StockKey{Location: Freezer}, To: Fridge, Portions: []int64{id}, Change: portionCount(1), Cause: Thawed, Slot: s})
+		}
+	}
+	return ms
 }
 
 // with is `l` once `ms`, written after it, are.

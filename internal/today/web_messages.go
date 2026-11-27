@@ -26,6 +26,8 @@ var (
 	msgNeedsTargets = web.Message{En: "Planning needs your Targets.", It: "Per pianificare servono i tuoi Obiettivi."}
 	msgFailed       = web.Message{En: "Failed", It: "Fallita"} // as the Runs pages say it
 	msgPutAway      = web.Message{En: "Put the Delivery away", It: "Metti via la spesa"}
+	msgThawTonight  = web.Message{En: "Out of the freezer tonight", It: "Dal congelatore stasera"}
+	msgForTomorrow  = web.Message{En: "for %s tomorrow", It: "per %s di domani"}
 	msgPutAwayLater = web.Message{
 		En: "Count and Move open once the Delivery arrives, to fix what came otherwise.",
 		It: "Conta e Sposta si aprono quando arriva la spesa, per correggere ciò che è arrivato diverso.",
