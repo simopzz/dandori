@@ -211,10 +211,7 @@ func (s *Service) At(ctx context.Context, now time.Time) (Day, error) {
 	if d.PutAway, err = s.PutAwayAt(ctx, now); err != nil {
 		return Day{}, err
 	}
-	if d.Filled, err = s.planning.FilledAt(ctx, now, append([]domain.Slot{d.Slots.First}, d.Slots.Later...)); err != nil {
-		return Day{}, err
-	}
-	if d.Thaws, err = s.planning.ThawsTonight(ctx, now); err != nil {
+	if d.Filled, d.Thaws, err = s.planning.Today(ctx, now, append([]domain.Slot{d.Slots.First}, d.Slots.Later...)); err != nil {
 		return Day{}, err
 	}
 	for _, c := range []*planning.Cycle{current, upcoming} {
