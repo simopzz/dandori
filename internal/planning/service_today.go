@@ -36,12 +36,12 @@ type Session struct {
 	TakesFrom map[int64][]domain.StorageLocation
 }
 
-// Today is each of `slots` as the signed-in User's Plans fill them at `now`, in the same
+// PlanAt is each of `slots` as the signed-in User's Plans fill them at `now`, in the same
 // order, and the thaws of their kitchen on the evening of `now`'s day, after dinner:
 // until then, worked out as the step will, on the kitchen as it holds `now`, through the
 // Plan's Slots and the ordered Deliveries up to then; after, those it recorded. A User
 // without a Cycle has none filled and no thaws.
-func (s *Service) Today(ctx context.Context, now time.Time, slots []domain.Slot) ([]Filled, []domain.Thaw, error) {
+func (s *Service) PlanAt(ctx context.Context, now time.Time, slots []domain.Slot) ([]Filled, []domain.Thaw, error) {
 	out := make([]Filled, len(slots))
 	for i, slot := range slots {
 		out[i].Slot = slot
