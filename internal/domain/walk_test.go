@@ -286,6 +286,44 @@ func TestTheWalkRecordsWhatThePlanAssumed(t *testing.T) {
 	}
 }
 
+// The Slots a Plan puts a Portion in are those its Prep Sessions' Portions are eaten at,
+// with the Prep Session, then those it puts Portions without a Slot in: one the kitchen
+// holds by its id, a Planned Portion of the Plan with its Prep Session, and one of
+// another Cycle's Prep Session by its id alone. A Slot it leaves empty is none.
+func TestTheSlotsAPlanPutsAPortionIn(t *testing.T) {
+	plan := domain.Plan{
+		PrepSessions: []domain.PrepSession{{ID: 5, At: slot(6, domain.Dinner), Ingredient: &plainRice, Quantity: grams(100), Portions: []domain.PlannedPortion{
+			planned(51, domain.Fridge, ptr(slot(6, domain.Dinner))), planned(52, domain.Freezer, nil),
+		}}},
+		Kept: []domain.Kept{
+			{Portion: 7, At: slot(7, domain.Lunch)},
+			{Portion: domain.PlannedID(52), At: slot(8, domain.Lunch)},
+			{Portion: domain.PlannedID(61), At: slot(8, domain.Dinner)}, // of another Cycle's Prep Session
+		},
+	}
+	ps := &plan.PrepSessions[0]
+	tests := []struct {
+		name string
+		want domain.PlannedSlot
+	}{
+		{"a Portion eaten where it's prepared", domain.PlannedSlot{At: slot(6, domain.Dinner), From: ps, Planned: &ps.Portions[0]}},
+		{"a kept Portion the kitchen holds", domain.PlannedSlot{At: slot(7, domain.Lunch), Portion: 7}},
+		{"a kept Planned Portion of the Plan", domain.PlannedSlot{At: slot(8, domain.Lunch), From: ps, Planned: &ps.Portions[1]}},
+		{"a kept Planned Portion of another Cycle's Prep Session", domain.PlannedSlot{At: slot(8, domain.Dinner), Planned: &domain.PlannedPortion{ID: 61}}},
+	}
+	got := plan.PlannedSlots()
+	if len(got) != len(tests) {
+		t.Fatalf("PlannedSlots() = %+v, want %d of them", got, len(tests))
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !reflect.DeepEqual(got[i], tt.want) {
+				t.Errorf("PlannedSlots()[%d] = %+v, want %+v", i, got[i], tt.want)
+			}
+		})
+	}
+}
+
 // The Portion filling a Slot is the Planned Portion eaten there once prepared, or a
 // Portion without a Slot put there: one the kitchen held, or a Planned Portion of an
 // earlier Prep Session, of this Plan or another Cycle's, once prepared.

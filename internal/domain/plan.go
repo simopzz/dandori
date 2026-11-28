@@ -84,6 +84,54 @@ type Kept struct {
 	At      Slot
 }
 
+// PlannedSlot is a Slot At a Plan puts a Portion in, and that Portion: a Planned Portion,
+// with the Prep Session From it when the Plan holds that, or the Portion the Kitchen
+// Ledger holds whose id is Portion.
+type PlannedSlot struct {
+	At      Slot
+	From    *PrepSession
+	Planned *PlannedPortion
+	Portion int64
+}
+
+// PlannedSlots is every Slot `p` puts a Portion in, and that Portion: first those its
+// Prep Sessions' Portions are eaten at, then those it puts Portions without a Slot in. A
+// Planned Portion put there by its PlannedID comes with its Prep Session, unless another
+// Cycle's Plan holds that, when only its id is known. A Slot left empty, or marked by an
+// Exception, is none of them.
+func (p Plan) PlannedSlots() []PlannedSlot {
+	var out []PlannedSlot
+	for i := range p.PrepSessions {
+		ps := &p.PrepSessions[i]
+		for j, pp := range ps.Portions {
+			if pp.EatAt != nil {
+				out = append(out, PlannedSlot{At: *pp.EatAt, From: ps, Planned: &ps.Portions[j]})
+			}
+		}
+	}
+	for _, k := range p.Kept {
+		out = append(out, p.kept(k))
+	}
+	return out
+}
+
+// kept is the Slot `k` puts its Portion in, resolving a Planned Portion's PlannedID.
+func (p Plan) kept(k Kept) PlannedSlot {
+	if k.Portion > 0 {
+		return PlannedSlot{At: k.At, Portion: k.Portion}
+	}
+	id := PlannedID(k.Portion)
+	for i := range p.PrepSessions {
+		ps := &p.PrepSessions[i]
+		for j, pp := range ps.Portions {
+			if pp.ID == id {
+				return PlannedSlot{At: k.At, From: ps, Planned: &ps.Portions[j]}
+			}
+		}
+	}
+	return PlannedSlot{At: k.At, Planned: &PlannedPortion{ID: id}}
+}
+
 // Name is what `ps` prepares: its Recipe, or its Ingredient.
 func (ps PrepSession) Name() string {
 	if ps.Recipe != nil {

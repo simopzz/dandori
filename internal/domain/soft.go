@@ -19,17 +19,17 @@ type Eaten struct {
 // says why.
 func (p Plan) Eaten(kept []Portion) []Eaten {
 	var out []Eaten
-	for _, ps := range p.PrepSessions {
-		n := ps.NutritionPerPortion()
-		for _, pp := range ps.Portions {
-			if pp.EatAt != nil {
-				out = append(out, Eaten{At: *pp.EatAt, Nutrition: n})
-			}
+	for _, slot := range p.PlannedSlots() {
+		if slot.From != nil {
+			out = append(out, Eaten{At: slot.At, Nutrition: slot.From.NutritionPerPortion()})
+			continue
 		}
-	}
-	for _, k := range p.Kept {
-		if i := slices.IndexFunc(kept, func(portion Portion) bool { return portion.ID == k.Portion }); i >= 0 {
-			out = append(out, Eaten{At: k.At, Nutrition: PortionNutrition{Nutrition: kept[i].Nutrition}})
+		id := slot.Portion
+		if slot.Planned != nil {
+			id = PlannedID(slot.Planned.ID)
+		}
+		if i := slices.IndexFunc(kept, func(portion Portion) bool { return portion.ID == id }); i >= 0 {
+			out = append(out, Eaten{At: slot.At, Nutrition: PortionNutrition{Nutrition: kept[i].Nutrition}})
 		}
 	}
 	return out

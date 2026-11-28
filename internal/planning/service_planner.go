@@ -205,22 +205,26 @@ func planPrompt(c Cycle, p domain.Profile, planned []domain.Slot, brief string, 
 // leaves empty.
 func eatenFrom(plan domain.Plan, slots []domain.Slot, portions []domain.Portion) []string {
 	var eats []string
+	planned := plan.PlannedSlots()
 	for _, sl := range slots {
-		for _, ps := range plan.PrepSessions {
-			for _, pp := range ps.Portions {
-				if pp.EatAt == nil || !pp.EatAt.Equal(sl) {
-					continue
-				}
-				if ps.Recipe != nil {
-					eats = append(eats, fmt.Sprintf("%s: %s at %g×, prepared at %s", sl, ps.Name(), ps.Size, ps.At))
-				} else {
-					eats = append(eats, fmt.Sprintf("%s: %g %s %s, set out at %s", sl, ps.Quantity.Number(), ps.Ingredient.Unit, ps.Name(), ps.At))
-				}
+		for _, slot := range planned {
+			if !slot.At.Equal(sl) {
+				continue
 			}
-		}
-		for _, k := range plan.Kept {
-			if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == k.Portion }); i >= 0 && k.At.Equal(sl) {
-				eats = append(eats, fmt.Sprintf("%s: Portion %d, %s", sl, k.Portion, portions[i].Name))
+			from := slot.From
+			switch {
+			case from != nil && from.Recipe != nil:
+				eats = append(eats, fmt.Sprintf("%s: %s at %g×, prepared at %s", sl, from.Name(), from.Size, from.At))
+			case from != nil:
+				eats = append(eats, fmt.Sprintf("%s: %g %s %s, set out at %s", sl, from.Quantity.Number(), from.Ingredient.Unit, from.Name(), from.At))
+			default:
+				id := slot.Portion
+				if slot.Planned != nil {
+					id = domain.PlannedID(slot.Planned.ID) // the planner names it so, among the Portions without a Slot
+				}
+				if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == id }); i >= 0 {
+					eats = append(eats, fmt.Sprintf("%s: Portion %d, %s", sl, id, portions[i].Name))
+				}
 			}
 		}
 	}

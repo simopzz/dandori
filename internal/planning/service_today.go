@@ -125,32 +125,16 @@ func (s *Service) thawsTonight(ctx context.Context, t timeline, now time.Time) (
 // fill gives `f` the name of the Portion `p` puts in its Slot, the Prep Session it comes
 // from and where it is kept, `portions` naming one already in the kitchen.
 func fill(f *Filled, p domain.Plan, portions []domain.Portion) {
-	planned := func(id int64) bool {
-		for i, ps := range p.PrepSessions {
-			for _, pp := range ps.Portions {
-				if pp.ID == id {
-					f.Name, f.From, f.Location = ps.Name(), &p.PrepSessions[i], pp.Location
-					return true
-				}
-			}
-		}
-		return false
-	}
-	for _, ps := range p.PrepSessions {
-		for _, pp := range ps.Portions {
-			if pp.EatAt != nil && pp.EatAt.Equal(f.Slot) && planned(pp.ID) {
-				return
-			}
-		}
-	}
-	for _, k := range p.Kept {
+	for _, slot := range p.PlannedSlots() {
 		switch {
-		case !k.At.Equal(f.Slot):
-		case k.Portion < 0:
-			planned(-k.Portion) // a Planned Portion by its PlannedID
+		case !slot.At.Equal(f.Slot):
+		case slot.From != nil:
+			f.Name, f.From, f.Location = slot.From.Name(), slot.From, slot.Planned.Location
+			return
+		case slot.Planned != nil: // another Cycle's Plan prepares it
 			return
 		default:
-			if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == k.Portion }); i >= 0 {
+			if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == slot.Portion }); i >= 0 {
 				f.Name = portions[i].Name
 			}
 			return
