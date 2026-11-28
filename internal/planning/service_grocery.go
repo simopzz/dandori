@@ -61,7 +61,7 @@ func (s *Service) groceryList(ctx context.Context, c Cycle, now time.Time) (doma
 // or current.
 func findOrderable(ctx context.Context, tx pgx.Tx, id int64, now time.Time) (Cycle, error) {
 	c, err := findOpen(ctx, tx, id, now)
-	if err == nil && c.Delivery.State == domain.Arrived {
+	if err == nil && !c.Delivery.Arrives().After(now) { // by the clock: a due Delivery may not be put away yet
 		return c, ErrArrived
 	}
 	return c, err
