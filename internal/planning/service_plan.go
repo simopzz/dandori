@@ -169,8 +169,7 @@ type cycleKitchen struct {
 
 // kitchenAt is the cycleKitchen of the signed-in User's Cycle `c` at `now` by `times`,
 // its forecast at the Slot `first`, once the approved Prep Sessions before it have used
-// up theirs and an ordered Delivery of `c`'s has brought its fixed lines: `c` is Arrived
-// once put away, as loadNow has it, or the Ledger holds those lines twice.
+// up theirs and an ordered Delivery of `c`'s has brought its fixed lines.
 func (s *Service) kitchenAt(ctx context.Context, c Cycle, first domain.Slot, times domain.Times, now time.Time) (k cycleKitchen, err error) {
 	if k.library, err = s.recipes.Search(ctx, ""); err != nil {
 		return k, err

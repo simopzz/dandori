@@ -238,10 +238,7 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 // `library` and `known`. Days between Cycles are in none. `ordered` are those Cycles'
 // Deliveries ordered and not put away yet, as they will be.
 func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []domain.Recipe, known []domain.Ingredient, times domain.Times, from, to time.Time) (plan domain.Plan, ordered []domain.Arrival, err error) {
-	for i, c := range cycles {
-		if i+1 < len(cycles) {
-			c.Until = cycles[i+1].Delivery.Arrives()
-		}
+	for _, c := range cycles {
 		if c.Delivery.Arrives().After(to) || (!c.Until.IsZero() && !c.Until.After(from)) || !c.Ends.AddDate(0, 0, 1).After(from) {
 			continue
 		}
@@ -252,7 +249,7 @@ func plansBetween(ctx context.Context, q db.Querier, cycles []Cycle, library []d
 		p := cyclePlan(c, own, library, known, nil, times)
 		plan.PrepSessions = append(plan.PrepSessions, p.PrepSessions...)
 		plan.Kept = append(plan.Kept, p.Kept...)
-		if c.Delivery.State != domain.Ordered || c.putAway {
+		if c.Delivery.State != domain.Ordered {
 			continue
 		}
 		fixed, err := loadGroceryLines(ctx, q, c.ID)
@@ -366,12 +363,9 @@ func (s *Service) dueAt(ctx context.Context, now time.Time) (_ map[int64]arrival
 		return nil, upTo, false, err
 	}
 	due := map[int64]arrival{}
-	for i, c := range cycles {
-		if c.putAway || c.Delivery.Arrives().After(now) {
+	for _, c := range cycles {
+		if c.Delivery.State == domain.Arrived || c.Delivery.Arrives().After(now) {
 			continue
-		}
-		if i+1 < len(cycles) {
-			c.Until = cycles[i+1].Delivery.Arrives()
 		}
 		list, plan, err := s.groceryList(ctx, c, now)
 		if err != nil && !errors.Is(err, ErrNoPlan) {
