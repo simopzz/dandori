@@ -287,11 +287,14 @@ func (p Plan) Filling(s Slot, madeFrom map[int64]int64) (portion int64, ok bool)
 	return 0, false
 }
 
-// Filled is the Slot each Portion fills in `p`, by its id, as Filling finds it with
-// `madeFrom`: the earliest, for one filling more than one.
-func (p Plan) Filled(madeFrom map[int64]int64) map[int64]Slot {
+// Filled is the Slot after `now` by `times` each Portion fills in `p`, by its id, as
+// Filling finds it with `madeFrom`: the earliest, for one filling more than one.
+func (p Plan) Filled(madeFrom map[int64]int64, times Times, now time.Time) map[int64]Slot {
 	filled := map[int64]Slot{}
 	fill := func(s Slot) {
+		if !s.At(times).After(now) {
+			return
+		}
 		if id, ok := p.Filling(s, madeFrom); ok {
 			if was, seen := filled[id]; !seen || s.Before(was) {
 				filled[id] = s

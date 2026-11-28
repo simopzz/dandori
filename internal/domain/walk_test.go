@@ -335,8 +335,23 @@ func TestTheSlotEachPortionFills(t *testing.T) {
 			{Portion: 7, At: slot(7, domain.Lunch)}, // the upcoming Cycle's Plan, placing it again
 		},
 	}
-	got := plan.Filled(map[int64]int64{51: 101})
+	got := plan.Filled(map[int64]int64{51: 101}, domain.DefaultSlotTimes, at(1, "00:00"))
 	want := map[int64]domain.Slot{101: slot(6, domain.Dinner), 7: slot(7, domain.Lunch)}
+	if !maps.EqualFunc(got, want, domain.Slot.Equal) {
+		t.Errorf("Filled() = %v, want %v", got, want)
+	}
+}
+
+// A Portion a Plan put in a Slot already passed fills the next one after it: the closed
+// Cycle's Plan, still read a day after it closes, doesn't hide the next Cycle's.
+func TestTheSlotAPortionFillsAfterAPassedOne(t *testing.T) {
+	plan := domain.Plan{Kept: []domain.Kept{
+		{Portion: 7, At: slot(5, domain.Dinner)}, // the closed Cycle's Plan
+		{Portion: 7, At: slot(8, domain.Lunch)},  // the next Cycle's, placing it again
+		{Portion: 8, At: slot(5, domain.Lunch)},  // in a passed Slot only
+	}}
+	got := plan.Filled(nil, domain.DefaultSlotTimes, at(6, "10:00"))
+	want := map[int64]domain.Slot{7: slot(8, domain.Lunch)}
 	if !maps.EqualFunc(got, want, domain.Slot.Equal) {
 		t.Errorf("Filled() = %v, want %v", got, want)
 	}

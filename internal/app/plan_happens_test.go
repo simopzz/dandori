@@ -189,3 +189,21 @@ func TestOnlyTheCurrentCyclesPlanHappens(t *testing.T) {
 	s.Open("/kitchen/movements?ingredient=2&location=fridge")
 	s.Sees("Used up 150 g → 0 g Fri, Nov 6 · 8:00 am")
 }
+
+// A kitchen last brought up to now days ago still walks the Slots of a Cycle that closed
+// since: the beat at Monday's dinner, the first since Thursday's, records Friday's
+// breakfast, before the next Cycle's Delivery closed Friday's at noon.
+func TestACycleClosedDaysAgoStillHappens(t *testing.T) {
+	s := plannerWithKitchen(t, "ada@example.com")
+	approvesFriday(t, s)
+	s.At("Thu 20:00")
+	s.OpensCycle(saturday)
+	s.IsConfirmed("Cycle opened.")
+
+	s.At("Mon 21:00")
+	if got := assumed(t, s, domain.UsedUp); got != 1 {
+		t.Errorf("%d Stock Items used up, want breakfast's yogurt", got)
+	}
+	s.Open("/kitchen/movements?ingredient=2&location=fridge")
+	s.Sees("Used up 150 g → 0 g Fri, Nov 6 · 8:00 am")
+}

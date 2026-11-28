@@ -66,50 +66,53 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 		if err := lockPlanning(ctx, tx); err != nil {
 			return err
 		}
-		from, err := ledger.SaveUpTo(ctx, tx, now, beat)
+		// Read before the kitchen records reaching `now`, so the timeline reaches back as
+		// far as the kitchen had. Only this step moves it, under the planning lock.
+		from, err := ledger.LoadUpTo(ctx, tx, now)
 		if err != nil {
 			return err
 		}
 		passed := cycled && domain.PassBetween(times, from, now)
+		var t timeline
+		if passed {
+			if !loaded {
+				// The kitchen reached less far than `upTo` said: a first request racing
+				// another, before either made its row.
+				if err := load(); err != nil {
+					return err
+				}
+			}
+			if t, err = loadTimeline(ctx, tx, now, library, known); err != nil {
+				return err
+			}
+		}
+		if _, err := ledger.SaveUpTo(ctx, tx, now, beat); err != nil {
+			return err
+		}
 		busy, err := busyCycles(ctx, tx)
 		if err != nil || (len(busy) == 0 && len(due) == 0 && !passed) {
 			return err
 		}
-		cycles, err := loadCycles(ctx, tx, now.Location())
-		if err != nil {
-			return err
+		cycles := t.cycles
+		if !passed {
+			if cycles, err = loadCycles(ctx, tx, now.Location()); err != nil {
+				return err
+			}
 		}
 		arrivals, err := putAwayDue(ctx, tx, cycles, due, now)
 		if err != nil {
 			return err
 		}
-		var plan domain.Plan
-		var coming []domain.Arrival
-		if passed && !loaded {
-			// The kitchen reached less far than `upTo` said: a first request racing
-			// another, before either made its row.
-			if err := load(); err != nil {
-				return err
-			}
-		}
-		if passed {
-			// As far as the day after: an evening thaws for the next day's Slots.
-			if plan, coming, err = plansBetween(ctx, tx, cycles, library, known, times, from, now.AddDate(0, 0, 2)); err != nil {
-				return err
-			}
-			for _, a := range coming {
-				if a.At.After(now) { // one due by now is among `arrivals`
-					arrivals = append(arrivals, a)
-				}
+		for _, a := range t.ordered {
+			if a.At.After(now) { // one due by now is among `arrivals`
+				arrivals = append(arrivals, a)
 			}
 		}
 		if len(arrivals) > 0 || passed {
 			err := ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
-				madeFrom, err := ledger.LoadMadeFrom(ctx, tx)
-				if err != nil {
-					return nil, err
-				}
-				written, made := l.UpToNow(plan, madeFrom, arrivals, times, from, now)
+				// With no Slot passed `t` is unread: its Plan is empty, and the arrivals
+				// alone need no Slot times.
+				written, made := l.UpToNow(t.plan, t.madeFrom, arrivals, t.times, from, now)
 				return written, ledger.SavePrepared(ctx, tx, made, written)
 			})
 			if err != nil {
