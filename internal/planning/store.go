@@ -24,8 +24,7 @@ func lockPlanning(ctx context.Context, q db.Querier) error {
 }
 
 // loadNow reads the signed-in User's `current` and `upcoming` Cycles at `now`, each nil
-// when they have none, its dates as days in `now`'s zone, the `current` one lasting Until
-// the `upcoming` one's Delivery arrives.
+// when they have none, as loadCycles has them.
 func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcoming *Cycle, err error) {
 	cycles, err := loadCycles(ctx, q, now.Location())
 	if err != nil {
@@ -35,19 +34,16 @@ func loadNow(ctx context.Context, q db.Querier, now time.Time) (current, upcomin
 		switch status {
 		case domain.Current:
 			current = &cycles[i]
-			current.Delivery.State = domain.Arrived
 		case domain.Upcoming:
 			upcoming = &cycles[i]
 		}
-	}
-	if current != nil && upcoming != nil {
-		current.Until = upcoming.Delivery.Arrives()
 	}
 	return current, upcoming, nil
 }
 
 // loadCycles reads every Cycle of the signed-in User's, in the order of their Deliveries,
-// its dates as days in `zone`. It has no WHERE on purpose: run in db.AsUser, row-level
+// its dates as days in `zone`, each lasting Until the next one's Delivery arrives and its
+// Delivery Arrived once put away. It has no WHERE on purpose: run in db.AsUser, row-level
 // security leaves only their rows.
 func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle, error) {
 	rows, err := q.Query(ctx, `
@@ -57,16 +53,24 @@ func loadCycles(ctx context.Context, q db.Querier, zone *time.Location) ([]Cycle
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
+	cycles, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Cycle, error) {
 		var c Cycle
 		var ordered *time.Time
-		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered, &c.putAway)
+		var away bool
+		err := row.Scan(&c.ID, &c.Delivery.On, &c.Delivery.From, &c.Delivery.To, &c.Ends, &ordered, &away)
 		c.Delivery.On, c.Ends, c.Delivery.State = inZone(c.Delivery.On, zone), inZone(c.Ends, zone), domain.Tentative
 		if ordered != nil {
 			c.Delivery.OrderedAt, c.Delivery.State = *ordered, domain.Ordered
 		}
+		if away {
+			c.Delivery.State = domain.Arrived
+		}
 		return c, err
 	})
+	for i := 1; i < len(cycles); i++ {
+		cycles[i-1].Until = cycles[i].Delivery.Arrives()
+	}
+	return cycles, err
 }
 
 // plain is `cycles` without their ids.
