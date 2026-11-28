@@ -18,6 +18,18 @@ import (
 // The planning Run: turn, submit, decide and endPending (in the store) and end are the
 // only ways a Plan Proposal's status changes or a planning Run is cancelled.
 
+// ProposalStatus is where a Plan Proposal is: pending until the User decides on it or
+// something ends it.
+type ProposalStatus string
+
+// The statuses a Plan Proposal has, as the database checks them.
+const (
+	Pending  ProposalStatus = "pending"
+	Approved ProposalStatus = "approved"
+	Rejected ProposalStatus = "rejected"
+	Replaced ProposalStatus = "replaced"
+)
+
 // ErrBusy is planning while another planning Run is going, or a Plan Proposal pending,
 // for any of the User's Cycles.
 var ErrBusy = errors.New("another planning Run is going or a Plan Proposal is pending")

@@ -17,18 +17,6 @@ import (
 // Deciding on a Plan Proposal: the User approves or rejects it, through the ways
 // service_run.go names.
 
-// ProposalStatus is where a Plan Proposal is: pending until the User decides on it or
-// something ends it.
-type ProposalStatus string
-
-// The statuses a Plan Proposal has, as the database checks them.
-const (
-	Pending  ProposalStatus = "pending"
-	Approved ProposalStatus = "approved"
-	Rejected ProposalStatus = "rejected"
-	Replaced ProposalStatus = "replaced"
-)
-
 var (
 	// ErrNoProposal is deciding on a Plan Proposal the User has none pending of.
 	ErrNoProposal = errors.New("no such pending Plan Proposal")
