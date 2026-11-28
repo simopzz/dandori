@@ -110,7 +110,9 @@ func (s *Service) upToNow(ctx context.Context, now time.Time, beat bool) error {
 		}
 		if len(arrivals) > 0 || passed {
 			err := ledger.Write(ctx, tx, func(l domain.Ledger) ([]domain.Movement, error) {
-				written, made := l.UpToNow(t.plan, t.madeFrom, arrivals, times, from, now)
+				// With no Slot passed `t` is unread: its Plan is empty, and the arrivals
+				// alone need no Slot times.
+				written, made := l.UpToNow(t.plan, t.madeFrom, arrivals, t.times, from, now)
 				return written, ledger.SavePrepared(ctx, tx, made, written)
 			})
 			if err != nil {

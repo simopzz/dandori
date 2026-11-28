@@ -132,10 +132,8 @@ func PortionSlots(ctx context.Context, q db.Querier, now time.Time) (map[int64]t
 		return nil, err
 	}
 	slots := map[int64]time.Time{}
-	for id, s := range t.plan.Filled(t.madeFrom) {
-		if at := s.At(t.times); at.After(now) {
-			slots[id] = at
-		}
+	for id, s := range t.plan.Filled(t.madeFrom, t.times, now) {
+		slots[id] = s.At(t.times)
 	}
 	return slots, nil
 }
