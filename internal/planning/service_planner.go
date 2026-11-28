@@ -207,20 +207,20 @@ func eatenFrom(plan domain.Plan, slots []domain.Slot, portions []domain.Portion)
 	var eats []string
 	planned := plan.PlannedSlots()
 	for _, sl := range slots {
-		for _, ps := range planned {
-			if !ps.At.Equal(sl) {
+		for _, slot := range planned {
+			if !slot.At.Equal(sl) {
 				continue
 			}
-			from := ps.From
+			from := slot.From
 			switch {
 			case from != nil && from.Recipe != nil:
 				eats = append(eats, fmt.Sprintf("%s: %s at %g×, prepared at %s", sl, from.Name(), from.Size, from.At))
 			case from != nil:
 				eats = append(eats, fmt.Sprintf("%s: %g %s %s, set out at %s", sl, from.Quantity.Number(), from.Ingredient.Unit, from.Name(), from.At))
 			default:
-				id := ps.Portion
-				if ps.Planned != nil {
-					id = domain.PlannedID(ps.Planned.ID) // the planner names it so, among the Portions without a Slot
+				id := slot.Portion
+				if slot.Planned != nil {
+					id = domain.PlannedID(slot.Planned.ID) // the planner names it so, among the Portions without a Slot
 				}
 				if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == id }); i >= 0 {
 					eats = append(eats, fmt.Sprintf("%s: Portion %d, %s", sl, id, portions[i].Name))

@@ -82,9 +82,9 @@ func (p Plan) place(k Kept) bool {
 // last is the last Slot `p` fills, `from` when it fills none later.
 func (p Plan) last(from Slot) Slot {
 	last := from
-	for _, ps := range p.PlannedSlots() {
-		if last.Before(ps.At) {
-			last = ps.At
+	for _, slot := range p.PlannedSlots() {
+		if last.Before(slot.At) {
+			last = slot.At
 		}
 	}
 	return last

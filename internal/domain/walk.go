@@ -266,14 +266,14 @@ func (l Ledger) eats(now time.Time, p Plan, s Slot, prepared map[int64]int64) []
 // whichever Cycle's Prep Session. `ok` is false when none does, or a Planned Portion
 // filling it isn't prepared yet.
 func (p Plan) Filling(s Slot, madeFrom map[int64]int64) (portion int64, ok bool) {
-	for _, ps := range p.PlannedSlots() {
+	for _, slot := range p.PlannedSlots() {
 		switch {
-		case !ps.At.Equal(s):
-		case ps.Planned != nil:
-			portion, ok = madeFrom[ps.Planned.ID]
+		case !slot.At.Equal(s):
+		case slot.Planned != nil:
+			portion, ok = madeFrom[slot.Planned.ID]
 			return portion, ok
 		default:
-			return ps.Portion, true
+			return slot.Portion, true
 		}
 	}
 	return 0, false
@@ -283,13 +283,13 @@ func (p Plan) Filling(s Slot, madeFrom map[int64]int64) (portion int64, ok bool)
 // Filling finds it with `madeFrom`: the earliest, for one filling more than one.
 func (p Plan) Filled(madeFrom map[int64]int64, times Times, now time.Time) map[int64]Slot {
 	filled := map[int64]Slot{}
-	for _, ps := range p.PlannedSlots() {
-		if !ps.At.At(times).After(now) {
+	for _, slot := range p.PlannedSlots() {
+		if !slot.At.At(times).After(now) {
 			continue
 		}
-		if id, ok := p.Filling(ps.At, madeFrom); ok {
-			if was, seen := filled[id]; !seen || ps.At.Before(was) {
-				filled[id] = ps.At
+		if id, ok := p.Filling(slot.At, madeFrom); ok {
+			if was, seen := filled[id]; !seen || slot.At.Before(was) {
+				filled[id] = slot.At
 			}
 		}
 	}

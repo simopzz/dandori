@@ -125,16 +125,16 @@ func (s *Service) thawsTonight(ctx context.Context, t timeline, now time.Time) (
 // fill gives `f` the name of the Portion `p` puts in its Slot, the Prep Session it comes
 // from and where it is kept, `portions` naming one already in the kitchen.
 func fill(f *Filled, p domain.Plan, portions []domain.Portion) {
-	for _, ps := range p.PlannedSlots() {
+	for _, slot := range p.PlannedSlots() {
 		switch {
-		case !ps.At.Equal(f.Slot):
-		case ps.From != nil:
-			f.Name, f.From, f.Location = ps.From.Name(), ps.From, ps.Planned.Location
+		case !slot.At.Equal(f.Slot):
+		case slot.From != nil:
+			f.Name, f.From, f.Location = slot.From.Name(), slot.From, slot.Planned.Location
 			return
-		case ps.Planned != nil: // another Cycle's Plan prepares it
+		case slot.Planned != nil: // another Cycle's Plan prepares it
 			return
 		default:
-			if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == ps.Portion }); i >= 0 {
+			if i := slices.IndexFunc(portions, func(p domain.Portion) bool { return p.ID == slot.Portion }); i >= 0 {
 				f.Name = portions[i].Name
 			}
 			return
