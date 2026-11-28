@@ -15,7 +15,11 @@ import (
 	"github.com/simopzz/dandori/internal/domain"
 	"github.com/simopzz/dandori/internal/kitchen"
 	"github.com/simopzz/dandori/internal/recipes"
+	"github.com/simopzz/dandori/internal/runs"
 )
+
+// planningKind is the kind of Run that plans a Cycle into a Plan Proposal.
+const planningKind runs.Kind = "planning"
 
 // planEffort is how hard the model thinks planning: the Plan is long, and thinking shares
 // its token budget.
